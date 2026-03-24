@@ -112,38 +112,26 @@ app.get('/api/diagnostico', async (req, res) => {
   res.json({ host: HUBSOFT_HOST, resultados });
 });
 
-// Debug: testa POST, GET por ID e API pública
+// Debug: testa lista de OS com formato de data BR e sem filtro
 app.get('/api/debug-os', async (req, res) => {
   try {
     const token = await getToken();
     const headers = { Authorization: `Bearer ${token}` };
     const resultados = {};
-
-    // Testa POST na OS
-    try {
-      const r = await axios.post(`${HUBSOFT_HOST}/api/v1/ordem_servico`, {}, { headers, timeout: 6000 });
-      resultados['os_post'] = { keys: Object.keys(r.data), dado: r.data };
-    } catch(e) { resultados['os_post'] = { erro: e.response?.status, body: e.response?.data }; }
-
-    // Testa buscar OS por ID
-    try {
-      const r = await axios.get(`${HUBSOFT_HOST}/api/v1/ordem_servico/1`, { headers, timeout: 6000 });
-      resultados['os_id_1'] = { keys: Object.keys(r.data), dado: r.data };
-    } catch(e) { resultados['os_id_1'] = { erro: e.response?.status, body: e.response?.data }; }
-
-    // Tenta API pública (mencionada na resposta de cliente)
-    const publicoUrls = [
-      '/api/public/ordem_servico', '/api/public/os',
-      '/api/public/v1/ordem_servico', '/public/api/ordem_servico',
-      '/api/v1/public/ordem_servico',
+    const testes = [
+      { label: 'sem_filtro',      params: { limit: 2 } },
+      { label: 'data_br_hoje',    params: { data_inicio: new Date().toLocaleDateString('pt-BR'), data_fim: new Date().toLocaleDateString('pt-BR'), limit: 2 } },
+      { label: 'data_br_2023',    params: { data_inicio: '01/05/2023', data_fim: '31/05/2023', limit: 2 } },
+      { label: 'data_iso_2023',   params: { data_inicio: '2023-05-01', data_fim: '2023-05-31', limit: 2 } },
+      { label: 'abertura_br',     params: { data_abertura_inicio: '01/05/2023', data_abertura_fim: '31/05/2023', limit: 2 } },
+      { label: 'programado_br',   params: { data_programado_inicio: '01/05/2023', data_programado_fim: '31/05/2023', limit: 2 } },
     ];
-    for (const url of publicoUrls) {
+    for (const t of testes) {
       try {
-        const r = await axios.get(`${HUBSOFT_HOST}${url}`, { headers, params: { limit: 2 }, timeout: 4000 });
-        resultados['publico_' + url.replace(/\//g,'_')] = { keys: Object.keys(r.data), dado: r.data };
-      } catch(e) { resultados['publico_' + url.replace(/\//g,'_')] = { erro: e.response?.status }; }
+        const r = await axios.get(`${HUBSOFT_HOST}/api/v1/ordem_servico`, { headers, params: t.params, timeout: 6000 });
+        resultados[t.label] = { keys: Object.keys(r.data), isArray: Array.isArray(r.data), dado: r.data };
+      } catch(e) { resultados[t.label] = { erro: e.response?.status, body: e.response?.data }; }
     }
-
     res.json(resultados);
   } catch (err) {
     res.status(500).json({ erro: err.message });
@@ -151,18 +139,17 @@ app.get('/api/debug-os', async (req, res) => {
 });
 
 // ── Ordens de Serviço (Chamados) ─────────────────────────────────
-// Retorna OS filtradas por data, técnico, cidade, tipo
-// Params: data_inicio, data_fim, tecnico_id, cidade_id, tipo_os_id, status, limit, page
 app.get('/api/chamados', async (req, res) => {
   try {
     const { data_inicio, data_fim, tecnico_id, cidade_id, tipo_os_id, status, limit = 200, page = 1 } = req.query;
 
-    // Data padrão: hoje
-    const hoje = new Date().toISOString().split('T')[0];
+    // Formato de data: DD/MM/YYYY (padrão Hubsoft)
+    const hoje = new Date().toLocaleDateString('pt-BR');
+    const toDataBR = iso => iso ? iso.split('-').reverse().join('/') : hoje;
 
     const params = {
-      data_inicio: data_inicio || hoje,
-      data_fim:    data_fim    || hoje,
+      data_inicio: data_inicio ? toDataBR(data_inicio) : hoje,
+      data_fim:    data_fim    ? toDataBR(data_fim)    : hoje,
       limit,
       page,
     };
@@ -173,26 +160,41 @@ app.get('/api/chamados', async (req, res) => {
 
     const data = await hubsoftGet('v1/ordem_servico', params);
 
-    // Normaliza para o formato esperado pelo dashboard
-    const chamados = (data.data || data.items || data || []).map(os => ({
-      id:         `#${os.id}`,
-      cli:        os.cliente?.nome_completo || os.cliente?.razao_social || 'Cliente',
-      cat:        normalizarTipo(os.tipo_os?.nome || ''),
-      tipo:       os.tipo_os?.nome || 'Sem tipo',
-      tec:        os.tecnico?.nome || 'Sem técnico',
-      cidade:     os.cidade?.nome  || os.cliente?.cidade?.nome || 'Sem cidade',
-      ab:         formatarHora(os.data_inicio || os.created_at),
-      slaMin:     os.tipo_os?.prazo_execucao || 240,
-      st:         normalizarStatus(os.status),
-      rtb:        (os.tipo_os?.nome || '').toLowerCase().includes('retrabalho'),
-      rtbOrig:    os.ordem_servico_origem_id ? `#${os.ordem_servico_origem_id}` : null,
-      rtbMotivo:  os.descricao_retrabalho || null,
-      reagMotivo: normalizarStatus(os.status) === 'reagendado' ? (os.motivo_reagendamento || 'Reagendado') : null,
-      reagDe:     normalizarStatus(os.status) === 'reagendado' ? formatarHora(os.data_inicio_original) : null,
-      lat:        parseFloat(os.cliente?.latitude  || os.latitude  || 0) || null,
-      lng:        parseFloat(os.cliente?.longitude || os.longitude || 0) || null,
-      raw:        os, // dados completos para debug
-    }));
+    // Chave real da API Hubsoft é "ordem_servico"
+    const lista = Array.isArray(data.ordem_servico)
+      ? data.ordem_servico
+      : (Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []));
+
+    const chamados = lista.map(os => {
+      const tipo  = os.tipo_ordem_servico?.descricao || os.tipo_os?.nome || 'Sem tipo';
+      const tecs  = os.tecnicos || [];
+      const tec   = tecs.map(t => t.name || t.nome || t.display).filter(Boolean).join(', ') || 'Sem técnico';
+      const end   = os.atendimento?.cliente_servico?.endereco_instalacao;
+      const cidade = end?.cidade?.nome || end?.cidade?.display || 'Sem cidade';
+      const cidId  = end?.id_cidade || end?.cidade?.id_cidade || null;
+      const cli    = os.atendimento?.cliente_servico?.display
+                  || os.atendimento?.cliente_servico?.cliente?.nome_razaosocial
+                  || 'Cliente';
+      return {
+        id:         `#${os.id_ordem_servico || os.id}`,
+        cli,
+        cat:        normalizarTipo(tipo),
+        tipo,
+        tec,
+        cidade,
+        cidadeId:   cidId,
+        ab:         os.hora_inicio_programado || formatarHora(os.data_inicio_programado || os.data_cadastro),
+        slaMin:     os.tipo_ordem_servico?.prazo_execucao || 240,
+        st:         normalizarStatus(os.status),
+        rtb:        tipo.toLowerCase().includes('retrabalho'),
+        rtbOrig:    os.id_ordem_servico_origem ? `#${os.id_ordem_servico_origem}` : null,
+        rtbMotivo:  os.descricao_retrabalho || null,
+        reagMotivo: normalizarStatus(os.status) === 'reagendado' ? (os.motivo_reagendamento || 'Reagendado') : null,
+        lat:        parseFloat(end?.coordenadas?.lat || 0) || null,
+        lng:        parseFloat(end?.coordenadas?.lng || 0) || null,
+        raw:        os,
+      };
+    });
 
     res.json({ ok: true, total: chamados.length, chamados, sincronizado_em: new Date().toISOString() });
   } catch (err) {
@@ -218,13 +220,14 @@ app.get('/api/tecnicos', async (req, res) => {
 // ── Cidades — extraídas das OS do dia ────────────────────────────
 app.get('/api/cidades', async (req, res) => {
   try {
-    const hoje = new Date().toISOString().split('T')[0];
+    const hoje = new Date().toLocaleDateString('pt-BR');
     const data = await hubsoftGet('v1/ordem_servico', { data_inicio: hoje, data_fim: hoje, limit: 500 });
-    const todos = data.data || data.items || data || [];
+    const todos = Array.isArray(data.ordem_servico) ? data.ordem_servico : (Array.isArray(data.data) ? data.data : []);
     const mapaC = {};
     todos.forEach(os => {
-      const nome = os.cidade?.nome || os.cliente?.cidade?.nome;
-      const id   = os.cidade?.id   || os.cliente?.cidade?.id;
+      const end  = os.atendimento?.cliente_servico?.endereco_instalacao;
+      const nome = end?.cidade?.nome || end?.cidade?.display;
+      const id   = end?.id_cidade    || end?.cidade?.id_cidade;
       if (nome && id && !mapaC[id]) mapaC[id] = { id, nome };
     });
     res.json({ ok: true, cidades: Object.values(mapaC).sort((a,b) => a.nome.localeCompare(b.nome)) });
@@ -236,13 +239,13 @@ app.get('/api/cidades', async (req, res) => {
 // ── Tipos de OS — extraídos das OS do dia ────────────────────────
 app.get('/api/tipos-os', async (req, res) => {
   try {
-    const hoje = new Date().toISOString().split('T')[0];
+    const hoje = new Date().toLocaleDateString('pt-BR');
     const data = await hubsoftGet('v1/ordem_servico', { data_inicio: hoje, data_fim: hoje, limit: 500 });
-    const todos = data.data || data.items || data || [];
+    const todos = Array.isArray(data.ordem_servico) ? data.ordem_servico : (Array.isArray(data.data) ? data.data : []);
     const mapaT = {};
     todos.forEach(os => {
-      const nome = os.tipo_os?.nome || os.tipo_servico?.nome;
-      const id   = os.tipo_os?.id   || os.tipo_servico?.id;
+      const nome = os.tipo_ordem_servico?.descricao;
+      const id   = os.tipo_ordem_servico?.id_tipo_ordem_servico;
       if (nome && id && !mapaT[id]) mapaT[id] = { id, nome, cat: normalizarTipo(nome) };
     });
     res.json({ ok: true, tipos: Object.values(mapaT).sort((a,b) => a.nome.localeCompare(b.nome)) });
@@ -254,9 +257,9 @@ app.get('/api/tipos-os', async (req, res) => {
 // ── Resumo / KPIs do dia ──────────────────────────────────────────
 app.get('/api/resumo', async (req, res) => {
   try {
-    const hoje = new Date().toISOString().split('T')[0];
+    const hoje = new Date().toLocaleDateString('pt-BR');
     const data = await hubsoftGet('v1/ordem_servico', { data_inicio: hoje, data_fim: hoje, limit: 500 });
-    const todos = data.data || data.items || data || [];
+    const todos = Array.isArray(data.ordem_servico) ? data.ordem_servico : (Array.isArray(data.data) ? data.data : []);
 
     const resumo = {
       total:      todos.length,
@@ -265,7 +268,7 @@ app.get('/api/resumo', async (req, res) => {
       atrasado:   todos.filter(o => normalizarStatus(o.status) === 'atrasado').length,
       finalizado: todos.filter(o => normalizarStatus(o.status) === 'finalizado').length,
       reagendado: todos.filter(o => normalizarStatus(o.status) === 'reagendado').length,
-      retrabalho: todos.filter(o => (o.tipo_os?.nome || '').toLowerCase().includes('retrabalho')).length,
+      retrabalho: todos.filter(o => (o.tipo_ordem_servico?.descricao || '').toLowerCase().includes('retrabalho')).length,
       sincronizado_em: new Date().toISOString(),
     };
     res.json({ ok: true, resumo });
