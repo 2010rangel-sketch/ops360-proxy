@@ -83,12 +83,19 @@ app.get('/api/status', async (req, res) => {
 app.get('/api/diagnostico', async (req, res) => {
   const token = await getToken();
   const candidatos = [
-    'v1/ordem_servico', 'v1/ordens_servico', 'v1/os',
-    'v1/usuario', 'v1/usuarios', 'v1/tecnico', 'v1/tecnicos', 'v1/user', 'v1/users',
-    'v1/cidade', 'v1/cidades', 'v1/city', 'v1/cities',
-    'v1/tipo_servico', 'v1/tipo_os', 'v1/tipos_servico', 'v1/tipo-servico',
-    'v1/contrato', 'v1/contratos', 'v1/cliente', 'v1/clientes',
-    'v2/ordem_servico', 'v2/usuario', 'v2/cidade', 'v2/tipo_servico',
+    // técnicos / usuários
+    'v1/colaborador', 'v1/colaboradores', 'v1/funcionario', 'v1/funcionarios',
+    'v1/atendente', 'v1/atendentes', 'v1/operador', 'v1/operadores',
+    'v1/agente', 'v1/agentes', 'v1/equipe', 'v1/membro',
+    // cidades / localidades
+    'v1/municipio', 'v1/municipios', 'v1/localidade', 'v1/localidades',
+    'v1/bairro', 'v1/regiao', 'v1/zona', 'v1/area',
+    // tipos de OS / categorias
+    'v1/categoria', 'v1/categorias', 'v1/tipo', 'v1/tipos',
+    'v1/tipo_ordem_servico', 'v1/tipo_chamado', 'v1/assunto',
+    'v1/servico', 'v1/servicos', 'v1/produto', 'v1/produtos',
+    // outros
+    'v1/contrato', 'v1/plano', 'v1/planos', 'v1/agenda',
   ];
   const resultados = {};
   for (const ep of candidatos) {
