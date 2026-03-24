@@ -1182,13 +1182,15 @@ function renderStatusLanes() {
   el.innerHTML = lanes.map(lane => {
     const items = chamadosFiltrados.filter(c=>c.st===lane.st);
     return `
-    <div style="background:var(--bg3);border-radius:var(--r);padding:10px;min-height:80px">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding-bottom:7px;border-bottom:1px solid var(--border)">
+    <div style="background:var(--bg3);border-radius:var(--r);padding:10px;display:flex;flex-direction:column;max-height:360px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding-bottom:7px;border-bottom:1px solid var(--border);flex-shrink:0">
         <i class="fas ${lane.icon}" style="font-size:10px;color:${lane.color}"></i>
         <span style="font-size:10.5px;font-weight:600;color:${lane.color};flex:1">${lane.label}</span>
         <span style="font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;color:${lane.color};background:${lane.color}18;padding:1px 6px;border-radius:4px">${items.length}</span>
       </div>
-      ${items.slice(0,6).map(c=>`
+      <div style="overflow-y:auto;flex:1;padding-right:2px">
+      ${items.length===0?`<div style="font-size:11px;color:var(--text3);text-align:center;padding:12px 0">Nenhum</div>`:''}
+      ${items.map(c=>`
         <div style="background:var(--surface);border-radius:5px;padding:7px 9px;margin-bottom:5px;border-left:2px solid ${tiposConfig[c.cat]?.color||'var(--border2)'}">
           <div style="font-size:11.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.cli}</div>
           <div style="display:flex;align-items:center;gap:6px;margin-top:3px">
@@ -1204,7 +1206,7 @@ function renderStatusLanes() {
           </div>
         </div>
       `).join('')}
-      ${items.length>6?`<div style="font-size:10.5px;color:var(--text3);text-align:center;padding:4px">+${items.length-6} mais</div>`:''}
+      </div>
     </div>`;
   }).join('');
 }
@@ -1279,6 +1281,15 @@ function renderMainTable() {
 }
 
 // ── RENDER: FEED AO VIVO ──────────────────────────────────────────────────
+function formatarDataFeed(iso) {
+  if(!iso) return '--';
+  const d    = new Date(iso);
+  const hoje = new Date();
+  const mesmodia = d.getFullYear()===hoje.getFullYear() && d.getMonth()===hoje.getMonth() && d.getDate()===hoje.getDate();
+  const hora = d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  if(mesmodia) return hora;
+  return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) + ' ' + hora;
+}
 const feedCfg = {
   inicio:    {icon:'fa-play-circle',   color:'var(--accent)',  text:'Iniciou'},
   fim:       {icon:'fa-check-circle',  color:'var(--green)',   text:'Finalizou'},
@@ -1292,10 +1303,10 @@ function getFeedDinamico() {
   const finalizados = chamadosDB.filter(c=>c.st==='finalizado');
   const atrasados   = chamadosDB.filter(c=>c.st==='atrasado');
   const reworks     = chamadosDB.filter(c=>c.rtb||c.st==='retrabalho');
-  ativos.slice(0,4).forEach((c,i)=>eventos.push({tipo:'inicio',    id:c.id,tec:c.tec,cli:c.cli,cat:c.cat,cidade:c.cidade,tempo:i===0?'agora':`há ${(i+1)*4}min`}));
-  finalizados.slice(0,3).forEach((c,i)=>eventos.push({tipo:'fim',       id:c.id,tec:c.tec,cli:c.cli,cat:c.cat,cidade:c.cidade,tempo:`há ${(i+1)*6}min`}));
-  atrasados.slice(0,2).forEach((c,i)=>eventos.push({tipo:'atraso',    id:c.id,tec:c.tec,cli:c.cli,cat:c.cat,cidade:c.cidade,tempo:`há ${(i+1)*9}min`}));
-  reworks.slice(0,1).forEach((c,i)=>eventos.push({tipo:'retrabalho',id:c.id,tec:c.tec,cli:c.cli,cat:c.cat,cidade:c.cidade,tempo:`há ${(i+1)*14}min`}));
+  ativos.slice(0,4).forEach(c=>eventos.push({tipo:'inicio',    id:c.id,tec:c.tec,cli:c.cli,cat:c.cat,cidade:c.cidade,tempo:formatarDataFeed(c.dataProgramada)}));
+  finalizados.slice(0,3).forEach(c=>eventos.push({tipo:'fim',       id:c.id,tec:c.tec,cli:c.cli,cat:c.cat,cidade:c.cidade,tempo:formatarDataFeed(c.dataProgramada)}));
+  atrasados.slice(0,2).forEach(c=>eventos.push({tipo:'atraso',    id:c.id,tec:c.tec,cli:c.cli,cat:c.cat,cidade:c.cidade,tempo:formatarDataFeed(c.dataProgramada)}));
+  reworks.slice(0,1).forEach(c=>eventos.push({tipo:'retrabalho',id:c.id,tec:c.tec,cli:c.cli,cat:c.cat,cidade:c.cidade,tempo:formatarDataFeed(c.dataProgramada)}));
   return eventos.slice(0,10);
 }
 function renderFeed() {
