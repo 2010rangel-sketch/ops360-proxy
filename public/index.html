@@ -347,8 +347,8 @@ input[type="text"]::placeholder { color:var(--text3); }
   </div>
 
   <div class="sidebar-section">Painel</div>
-  <div class="nav-item active" onclick="goPage('dashboard',this)"><i class="fas fa-chart-pie"></i> Dashboard<span class="nav-count nc-red">7</span></div>
-  <div class="nav-item" onclick="goPage('chamados',this)"><i class="fas fa-ticket-alt"></i> Chamados<span class="nav-count nc-red">7</span></div>
+  <div class="nav-item active" onclick="goPage('dashboard',this)"><i class="fas fa-chart-pie"></i> Dashboard<span class="nav-count nc-red" id="navChamadosCount">0</span></div>
+  <div class="nav-item" onclick="goPage('chamados',this)"><i class="fas fa-ticket-alt"></i> Chamados<span class="nav-count nc-red" id="navChamadosCount2">0</span></div>
 
   <div class="sidebar-section">Atendimento</div>
   <div class="nav-item" onclick="goPage('atendimento',this)"><i class="fas fa-headset"></i> Atendimento<span class="nav-count nc-blue">18</span></div>
@@ -546,15 +546,16 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
         <!-- Filtro período -->
         <div style="display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px">
-          <button class="chip active" id="perHoje"   onclick="setPeriodo('hoje',this)">Hoje</button>
-          <button class="chip"        id="perSemana" onclick="setPeriodo('semana',this)">Semana</button>
+          <button class="chip"        id="perHoje"   onclick="setPeriodo('hoje',this)">Hoje</button>
+          <button class="chip"        id="perAmanha" onclick="setPeriodo('amanha',this)">Amanhã</button>
+          <button class="chip active" id="perSemana" onclick="setPeriodo('semana',this)">Semana</button>
           <button class="chip"        id="perMes"    onclick="setPeriodo('mes',this)">Mês</button>
           <button class="chip"        id="perCustom" onclick="setPeriodo('custom',this)">Período</button>
         </div>
         <div id="dateRange" style="display:none;gap:6px;align-items:center">
-          <input type="date" id="dtDe"  style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
+          <input type="date" id="dtDe"  onchange="applyFilters()" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
           <span style="color:var(--text3);font-size:12px">até</span>
-          <input type="date" id="dtAte" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
+          <input type="date" id="dtAte" onchange="applyFilters()" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
         </div>
         <!-- Filtros secundários -->
         <select id="filtTec"   onchange="applyFilters()" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:5px 10px;color:var(--text2);font-size:12px;font-family:'Inter',sans-serif">
@@ -1041,7 +1042,7 @@ const stBadge = {
 };
 
 // ── ESTADO DOS FILTROS ──────────────────────────────────────────────────────
-let filtros = {periodo:'hoje', tec:'', cidade:'', cat:'', st:'todos'};
+let filtros = {periodo:'semana', tec:'', cidade:'', cat:'', st:'todos'};
 let chamadosFiltrados = [...chamadosDB];
 
 // Popula dropdowns
@@ -1088,17 +1089,28 @@ function applyFilters() {
     }
     if(filtros.st === 'atrasado' && c.st !== 'atrasado') return false;
     // Filtro por período usando dataProgramada
-    if(filtros.periodo && filtros.periodo !== 'custom' && c.dataProgramada) {
-      const dp = new Date(c.dataProgramada);
+    if(filtros.periodo && c.dataProgramada) {
+      const dp   = new Date(c.dataProgramada);
+      const diaC = new Date(dp.getFullYear(), dp.getMonth(), dp.getDate());
       if(filtros.periodo === 'hoje') {
-        const diaC = new Date(dp.getFullYear(), dp.getMonth(), dp.getDate());
         if(diaC.getTime() !== hoje.getTime()) return false;
+      } else if(filtros.periodo === 'amanha') {
+        const amanha = new Date(hoje.getTime() + 24*60*60*1000);
+        if(diaC.getTime() !== amanha.getTime()) return false;
       } else if(filtros.periodo === 'semana') {
-        const limite = new Date(hoje.getTime() - 7 * 24 * 60 * 60 * 1000);
-        if(dp < limite) return false;
+        // Semana atual: segunda a domingo
+        const dow  = hoje.getDay(); // 0=Dom..6=Sab
+        const seg  = new Date(hoje.getTime() - ((dow===0?6:dow-1)*24*60*60*1000));
+        const dom  = new Date(seg.getTime() + 6*24*60*60*1000);
+        if(diaC < seg || diaC > dom) return false;
       } else if(filtros.periodo === 'mes') {
-        const limite = new Date(hoje.getTime() - 30 * 24 * 60 * 60 * 1000);
-        if(dp < limite) return false;
+        // Mês atual
+        if(diaC.getMonth() !== hoje.getMonth() || diaC.getFullYear() !== hoje.getFullYear()) return false;
+      } else if(filtros.periodo === 'custom') {
+        const de  = document.getElementById('dtDe')?.value;
+        const ate = document.getElementById('dtAte')?.value;
+        if(de  && diaC < new Date(de))  return false;
+        if(ate && diaC > new Date(ate)) return false;
       }
     }
     return true;
@@ -1162,7 +1174,17 @@ function renderCatCards() {
 function setCatFilter(cat) {
   const sel = document.getElementById('filtCat');
   if(sel) sel.value = cat;
+  // Limpar filtro de status para ver todos
+  filtros.st = 'todos';
+  document.querySelectorAll('#statusChips .chip').forEach(c=>c.classList.remove('active'));
+  const todosChip = document.querySelector('#statusChips .chip');
+  if(todosChip) todosChip.classList.add('active');
   applyFilters();
+  // Rolar até a tabela
+  setTimeout(()=>{
+    const tbl = document.getElementById('mainTbl')?.closest('div[style*="overflow-x"]');
+    if(tbl) tbl.scrollIntoView({behavior:'smooth', block:'nearest'});
+  }, 80);
 }
 
 // ── RENDER: LANES DE STATUS (kanban visual) ────────────────────────────────
@@ -1393,6 +1415,12 @@ function rebuildAll() {
   renderRtbInsight();
   const el = document.getElementById('lastSync');
   if(el) el.textContent = new Date().toLocaleTimeString('pt-BR');
+  // Atualiza contadores da nav lateral
+  const abertos = chamadosDB.filter(c=>!['finalizado','cancelado'].includes(c.st)).length;
+  const nc1 = document.getElementById('navChamadosCount');
+  const nc2 = document.getElementById('navChamadosCount2');
+  if(nc1) nc1.textContent = abertos;
+  if(nc2) nc2.textContent = abertos;
 }
 
 // ── SINCRONIZAÇÃO HUBSOFT (simulada) ─────────────────────────────────────
