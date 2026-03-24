@@ -260,7 +260,7 @@ app.get('/api/chamados', async (req, res) => {
         tec,
         cidade,
         cidadeId:   cidId,
-        ab:             os.hora_inicio_programado || formatarHora(os.data_inicio_programado || os.data_cadastro),
+        ab:             (os.hora_inicio_programado||'').slice(0,5) || formatarHora(os.data_inicio_programado || os.data_cadastro),
         dataProgramada: os.data_inicio_programado || os.data_cadastro || null,
         slaMin:         os.tipo_ordem_servico?.prazo_execucao || 240,
         st:         normalizarStatus(stVal),
@@ -372,13 +372,14 @@ function normalizarStatus(status) {
 
 // Mapeia nome do tipo de OS → categoria do dashboard
 function normalizarTipo(nome) {
-  if (!nome) return 'suporte';
-  const n = nome.toLowerCase();
-  if (n.includes('instal')) return 'instalacao';
+  if (!nome) return 'outros';
+  const n = nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (n.includes('instal'))                                                    return 'instalacao';
   if (n.includes('reparo') || n.includes('manuten') || n.includes('troca') || n.includes('conser')) return 'reparo';
-  if (n.includes('mudan') || n.includes('migra') || n.includes('transfer')) return 'mudanca';
-  if (n.includes('retrabalho') || n.includes('revis')) return 'retrabalho';
-  return 'suporte';
+  if (n.includes('mudan') || n.includes('migra') || n.includes('transfer'))   return 'mudanca';
+  if (n.includes('retrabalho'))                                                return 'retrabalho';
+  // Para qualquer outro tipo: gera slug do nome real (sem espaço/acento)
+  return n.replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'outros';
 }
 
 function formatarHora(datetime) {

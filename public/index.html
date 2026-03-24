@@ -1028,9 +1028,31 @@ const tiposConfig = {
   instalacao: {label:'Instalação',   icon:'fa-wifi',            color:'var(--accent)',  cl:'b-blue'},
   reparo:     {label:'Reparo',       icon:'fa-wrench',          color:'var(--cyan)',    cl:'b-cyan'},
   mudanca:    {label:'Mudança End.', icon:'fa-map-marker-alt',  color:'var(--purple)', cl:'b-purple'},
-  suporte:    {label:'Suporte',      icon:'fa-headset',         color:'var(--green)',  cl:'b-green'},
   retrabalho: {label:'Retrabalho',   icon:'fa-redo-alt',        color:'var(--orange)', cl:'b-orange'},
+  outros:     {label:'Outros',       icon:'fa-tools',           color:'var(--text3)',  cl:'b-amber'},
 };
+// Paleta para tipos extras que vierem do Hubsoft
+const _catPalette = [
+  {color:'var(--green)',  icon:'fa-headset',      cl:'b-green'},
+  {color:'var(--red)',    icon:'fa-bolt',         cl:'b-red'},
+  {color:'var(--amber)',  icon:'fa-cog',          cl:'b-amber'},
+  {color:'var(--pink)',   icon:'fa-clipboard',    cl:'b-purple'},
+  {color:'var(--teal,var(--cyan))', icon:'fa-box', cl:'b-cyan'},
+  {color:'var(--accent)', icon:'fa-satellite-dish',cl:'b-blue'},
+];
+// Constrói tiposConfig com tipos reais do chamadosDB
+function buildTiposConfig() {
+  let idx = 0;
+  const cats = [...new Set(chamadosDB.map(c=>c.cat))].filter(Boolean).sort();
+  cats.forEach(cat => {
+    if (!tiposConfig[cat]) {
+      const p = _catPalette[idx % _catPalette.length]; idx++;
+      // Deriva label legível do slug (ex: visita_tecnica → Visita Tecnica)
+      const label = cat.replace(/_/g,' ').replace(/\b\w/g,l=>l.toUpperCase());
+      tiposConfig[cat] = { label, icon: p.icon, color: p.color, cl: p.cl };
+    }
+  });
+}
 
 const stBadge = {
   execucao:   '<span class="badge b-blue">● Em execução</span>',
@@ -1131,8 +1153,12 @@ function filterSt(st, el) {
 function renderCatCards() {
   const el = document.getElementById('catCards');
   if(!el) return;
-  const tipos = Object.entries(tiposConfig);
-  el.style.gridTemplateColumns = `repeat(${tipos.length},1fr)`;
+  // Mostra apenas categorias que existem nos dados reais
+  const catsReais = [...new Set(chamadosDB.map(c=>c.cat))].filter(Boolean).sort();
+  const tipos = catsReais.map(k=>[k, tiposConfig[k]]).filter(([,v])=>v);
+  if(!tipos.length) { el.innerHTML=''; return; }
+  const cols = Math.min(tipos.length, 6);
+  el.style.gridTemplateColumns = `repeat(${cols},1fr)`;
   el.innerHTML = tipos.map(([key, cfg]) => {
     const base    = chamadosDB.filter(c=>c.cat===key);
     const fil     = chamadosFiltrados.filter(c=>c.cat===key);
@@ -1224,7 +1250,7 @@ function renderStatusLanes() {
           ${c.st==='reagendado'&&c.reagMotivo?`<div style="font-size:9.5px;color:var(--purple);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.reagMotivo}</div>`:''}
           <div style="display:flex;justify-content:space-between;margin-top:3px">
             <span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--text3)">${c.id}</span>
-            <span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:${c.st==='atrasado'?'var(--red)':c.st==='reagendado'?'var(--purple)':'var(--text3)'}">ETA ${c.sla||'--'}</span>
+            <span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--text3)">📅 ${formatarDataFeed(c.dataProgramada)}</span>
           </div>
         </div>
       `).join('')}
@@ -1542,6 +1568,7 @@ async function autoRefresh() {
   if (chamadosReais && chamadosReais.length > 0) {
     chamadosDB.length = 0;
     chamadosDB.push(...chamadosReais);
+    buildTiposConfig();
     populateDropdowns();
     applyFilters();
     const resumo = await buscarResumoHubsoft();
