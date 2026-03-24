@@ -1167,17 +1167,31 @@ function calcTMI() {
   return result;
 }
 
+// Label do período para os cards
+function labelPeriodo() {
+  const map = {hoje:'Hoje', amanha:'Amanhã', semana:'Semana', mes:'Mês', custom:'Período'};
+  return map[filtros.periodo] || 'Período';
+}
+
 // ── RENDER: CARDS POR CATEGORIA ────────────────────────────────────────────
 function renderCatCards() {
   const el = document.getElementById('catCards');
   if(!el) return;
-  // Mostra apenas categorias que existem nos dados reais
-  const catsReais = [...new Set(chamadosDB.map(c=>c.cat))].filter(Boolean).sort();
-  const tipos = catsReais.map(k=>[k, tiposConfig[k]]).filter(([,v])=>v);
+  // Coleta categorias com contagem e ordena decrescente por total no período filtrado
+  const catsReais = [...new Set(chamadosDB.map(c=>c.cat))].filter(Boolean);
+  const tipos = catsReais
+    .map(k => {
+      const fil = chamadosFiltrados.filter(c=>c.cat===k);
+      const total = fil.length;
+      return [k, tiposConfig[k], total];
+    })
+    .filter(([,v])=>v)
+    .sort((a,b) => b[2] - a[2]); // ordem decrescente por quantidade
   if(!tipos.length) { el.innerHTML=''; return; }
   const cols = Math.min(tipos.length, 6);
   el.style.gridTemplateColumns = `repeat(${cols},1fr)`;
   const tmi = calcTMI();
+  const periodoLabel = labelPeriodo();
   el.innerHTML = tipos.map(([key, cfg]) => {
     const fil     = chamadosFiltrados.filter(c=>c.cat===key);
     const hoje_ab = fil.filter(c=>['execucao','aguardando','retrabalho'].includes(c.st)).length;
@@ -1192,9 +1206,9 @@ function renderCatCards() {
         <div style="width:26px;height:26px;border-radius:6px;background:${cfg.color}20;color:${cfg.color};display:grid;place-items:center;font-size:11px;flex-shrink:0"><i class="fas ${cfg.icon}"></i></div>
         <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text3)">${cfg.label}</span>
       </div>
-      <!-- Hoje -->
+      <!-- Período -->
       <div style="margin-bottom:8px">
-        <div style="font-size:9.5px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">Hoje</div>
+        <div style="font-size:9.5px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">${periodoLabel}</div>
         <div style="display:flex;align-items:baseline;gap:6px">
           <span style="font-size:26px;font-weight:700;font-family:'JetBrains Mono',monospace;color:${cfg.color};line-height:1">${total}</span>
           <div style="display:flex;flex-direction:column;gap:1px">
