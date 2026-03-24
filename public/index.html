@@ -628,7 +628,7 @@ input[type="text"]::placeholder { color:var(--text3); }
               <thead style="position:sticky;top:0;z-index:1;background:var(--surface2)">
                 <tr>
                   <th>#</th><th>Cliente</th><th>Tipo de Serviço</th>
-                  <th>Técnico</th><th>Cidade</th><th>Início</th><th>Prev. Chegada</th><th>Status</th>
+                  <th>Técnico</th><th>Cidade</th><th>Agendado</th><th>Início Real</th><th>Fim Real</th><th>Status</th>
                 </tr>
               </thead>
               <tbody id="mainTbl"></tbody>
@@ -1149,6 +1149,24 @@ function filterSt(st, el) {
   applyFilters();
 }
 
+// Calcula TMI (Tempo Médio de execução) por categoria
+function calcTMI() {
+  const mapa = {};
+  chamadosDB.forEach(c => {
+    if (c.st !== 'finalizado' || !c.tsInicioExec || !c.tsFimExec) return;
+    const dur = (new Date(c.tsFimExec) - new Date(c.tsInicioExec)) / 60000;
+    if (dur <= 0 || dur > 600) return; // ignora valores absurdos
+    if (!mapa[c.cat]) mapa[c.cat] = { total: 0, count: 0 };
+    mapa[c.cat].total += dur; mapa[c.cat].count++;
+  });
+  const result = {};
+  Object.entries(mapa).forEach(([k,v]) => {
+    const avg = Math.round(v.total / v.count);
+    result[k] = avg >= 60 ? `${Math.floor(avg/60)}h${avg%60>0?String(avg%60).padStart(2,'0')+'m':''}` : `${avg}min`;
+  });
+  return result;
+}
+
 // ── RENDER: CARDS POR CATEGORIA ────────────────────────────────────────────
 function renderCatCards() {
   const el = document.getElementById('catCards');
@@ -1159,15 +1177,15 @@ function renderCatCards() {
   if(!tipos.length) { el.innerHTML=''; return; }
   const cols = Math.min(tipos.length, 6);
   el.style.gridTemplateColumns = `repeat(${cols},1fr)`;
+  const tmi = calcTMI();
   el.innerHTML = tipos.map(([key, cfg]) => {
-    const base    = chamadosDB.filter(c=>c.cat===key);
     const fil     = chamadosFiltrados.filter(c=>c.cat===key);
     const hoje_ab = fil.filter(c=>['execucao','aguardando','retrabalho'].includes(c.st)).length;
     const hoje_at = fil.filter(c=>c.st==='atrasado').length;
     const hoje_ok = fil.filter(c=>c.st==='finalizado').length;
-    const mes_tot = mesData[key] || 0;
     const total   = hoje_ab + hoje_at + hoje_ok;
     const pct_ok  = total ? Math.round(hoje_ok/total*100) : 0;
+    const tmiVal  = tmi[key] || null;
     return `
     <div style="background:var(--surface);border:1px solid var(--border);border-top:3px solid ${cfg.color};border-radius:var(--r-lg);padding:14px 16px;cursor:pointer;transition:.15s" onclick="setCatFilter('${key}')" onmouseover="this.style.borderColor='${cfg.color}'" onmouseout="this.style.borderTopColor='${cfg.color}';this.style.borderColor='';this.style.borderTopColor='${cfg.color}'">
       <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
@@ -1188,10 +1206,10 @@ function renderCatCards() {
       </div>
       <!-- Barra de progresso -->
       <div class="prog" style="margin-bottom:8px"><div class="prog-fill" style="width:${pct_ok}%;background:${cfg.color}"></div></div>
-      <!-- Acumulado mês -->
+      <!-- TMI -->
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:10.5px;color:var(--text3)">Mês acumulado</span>
-        <span style="font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--text2)">${mes_tot}</span>
+        <span style="font-size:10px;color:var(--text3)">TMI (tempo médio)</span>
+        <span style="font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;color:${tmiVal?cfg.color:'var(--text3)'}">${tmiVal||'--'}</span>
       </div>
     </div>`;
   }).join('');
@@ -1322,10 +1340,11 @@ function renderMainTable() {
         <span style="font-size:12px">${c.cidade}</span>
       </div>
     </td>
-    <td class="mono" style="font-size:11px">${c.ab}</td>
-    <td class="mono" style="font-size:11px;color:${c.st==='atrasado'?'var(--red)':'var(--text3)'};font-weight:${c.st==='atrasado'?'700':'400'}">${c.sla||'--'}</td>
+    <td class="mono" style="font-size:11px;color:var(--text3)">${c.ab||'--'}</td>
+    <td class="mono" style="font-size:11px;color:${c.inicioExec?'var(--accent)':'var(--text3)'}">${c.inicioExec||'--'}</td>
+    <td class="mono" style="font-size:11px;color:${c.fimExec?'var(--green)':c.st==='atrasado'?'var(--red)':'var(--text3)'};font-weight:${c.fimExec||c.st==='atrasado'?'600':'400'}">${c.fimExec||'--'}</td>
     <td>${stBadge[c.st]||''}</td>
-  </tr>`).join('') : `<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:28px;font-size:12px">Nenhum chamado encontrado com os filtros aplicados</td></tr>`;
+  </tr>`).join('') : `<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:28px;font-size:12px">Nenhum chamado encontrado com os filtros aplicados</td></tr>`;
 }
 
 // ── RENDER: FEED AO VIVO ──────────────────────────────────────────────────
@@ -1347,14 +1366,30 @@ const feedCfg = {
 function getFeedDinamico() {
   if(!chamadosDB.length) return [];
   const eventos = [];
-  const ativos      = chamadosDB.filter(c=>['execucao','em_execucao','aguardando'].includes(c.st));
-  const finalizados = chamadosDB.filter(c=>c.st==='finalizado');
-  const atrasados   = chamadosDB.filter(c=>c.st==='atrasado');
-  const reworks     = chamadosDB.filter(c=>c.rtb||c.st==='retrabalho');
-  ativos.slice(0,4).forEach(c=>eventos.push({tipo:'inicio',    id:c.id,tec:c.tec,cli:c.cli,cat:c.cat,cidade:c.cidade,tempo:formatarDataFeed(c.dataProgramada)}));
-  finalizados.slice(0,3).forEach(c=>eventos.push({tipo:'fim',       id:c.id,tec:c.tec,cli:c.cli,cat:c.cat,cidade:c.cidade,tempo:formatarDataFeed(c.dataProgramada)}));
-  atrasados.slice(0,2).forEach(c=>eventos.push({tipo:'atraso',    id:c.id,tec:c.tec,cli:c.cli,cat:c.cat,cidade:c.cidade,tempo:formatarDataFeed(c.dataProgramada)}));
-  reworks.slice(0,1).forEach(c=>eventos.push({tipo:'retrabalho',id:c.id,tec:c.tec,cli:c.cli,cat:c.cat,cidade:c.cidade,tempo:formatarDataFeed(c.dataProgramada)}));
+  // Ativos: mostra hora real de início executado (se disponível)
+  const ativos = chamadosDB.filter(c=>['execucao','em_execucao'].includes(c.st));
+  ativos.slice(0,4).forEach(c=>eventos.push({
+    tipo:'inicio', id:c.id, tec:c.tec, cli:c.cli, cat:c.cat, cidade:c.cidade,
+    tempo: c.inicioExec || formatarDataFeed(c.dataProgramada),
+  }));
+  // Finalizados: mostra hora real de fim executado
+  const finalizados = chamadosDB.filter(c=>c.st==='finalizado' && c.fimExec);
+  finalizados.slice(0,4).forEach(c=>eventos.push({
+    tipo:'fim', id:c.id, tec:c.tec, cli:c.cli, cat:c.cat, cidade:c.cidade,
+    tempo: c.fimExec,
+  }));
+  // Atrasados: mostra hora de início real ou agendada
+  const atrasados = chamadosDB.filter(c=>c.st==='atrasado');
+  atrasados.slice(0,2).forEach(c=>eventos.push({
+    tipo:'atraso', id:c.id, tec:c.tec, cli:c.cli, cat:c.cat, cidade:c.cidade,
+    tempo: c.inicioExec || c.ab || '--',
+  }));
+  // Retrabalhos
+  const reworks = chamadosDB.filter(c=>c.rtb||c.st==='retrabalho');
+  reworks.slice(0,1).forEach(c=>eventos.push({
+    tipo:'retrabalho', id:c.id, tec:c.tec, cli:c.cli, cat:c.cat, cidade:c.cidade,
+    tempo: c.inicioExec || c.ab || '--',
+  }));
   return eventos.slice(0,10);
 }
 function renderFeed() {
