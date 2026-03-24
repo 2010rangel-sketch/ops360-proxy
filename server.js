@@ -160,21 +160,31 @@ app.get('/api/debug-os', async (req, res) => {
     const headers = { Authorization: `Bearer ${token}` };
     const resultados = { token_renovado: true };
 
-    // Testa padrão real do Hubsoft: /acesso/paginado/{limit}?page={page}
-    const endpointsAcesso = [
-      'ordem_servico/acesso/paginado/10?page=1',
-      'atendimento_os/acesso/paginado/10?page=1',
-      'atendimento/os/acesso/paginado/10?page=1',
-      'os/acesso/paginado/10?page=1',
-      'ordem_servico/paginado/10?page=1',
-      'ordem_servico/listar/10?page=1',
-    ];
+    const agora = new Date();
+    const set7diasAtras = new Date(agora); set7diasAtras.setDate(set7diasAtras.getDate() - 7);
+    const set2diasFrente = new Date(agora); set2diasFrente.setDate(set2diasFrente.getDate() + 2);
 
-    for (const ep of endpointsAcesso) {
+    const bodyExato = {
+      data_inicio: set7diasAtras.toISOString(),
+      data_fim:    set2diasFrente.toISOString(),
+      agendas: [], assinatura_cliente: null, bairros: null,
+      cidades: [], condominios: null, grupos_clientes: [],
+      grupos_clientes_servicos: [], motivo_fechamento: [],
+      order_by: 'data_inicio_programado', order_by_key: 'DESC',
+      participantes: [], periodos: [], pop: [], prioridade: [],
+      reservada: null, servico: [], servico_status: [],
+      status_ordem_servico: ['pendente', 'aguardando_agendamento'],
+      tecnicos: [],
+    };
+
+    const bodySemStatus = { ...bodyExato, status_ordem_servico: [] };
+    const bodyTodosStatus = { ...bodyExato, status_ordem_servico: ['pendente','aguardando_agendamento','em_andamento','finalizado','cancelado','reagendado'] };
+
+    for (const [label, body] of [['status_pendente', bodyExato], ['status_vazio', bodySemStatus], ['todos_status', bodyTodosStatus]]) {
       try {
-        const r = await axios.get(`${HUBSOFT_HOST}/api/v1/${ep}`, { headers, timeout: 8000 });
-        resultados[ep] = { status: r.status, keys: Object.keys(r.data), dado: r.data };
-      } catch(e) { resultados[ep] = { erro: e.response?.status, body: e.response?.data }; }
+        const r = await axios.post(`${HUBSOFT_HOST}/api/v1/ordem_servico/consultar/paginado/10?page=1`, body, { headers, timeout: 10000 });
+        resultados[label] = { keys: Object.keys(r.data), total: r.data.ordem_servico?.length ?? r.data.data?.length ?? 'sem_array', amostra: r.data };
+      } catch(e) { resultados[label] = { erro: e.response?.status, body: e.response?.data }; }
     }
 
     res.json(resultados);
