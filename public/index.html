@@ -1260,32 +1260,32 @@ function renderStatusLanes() {
   document.getElementById('liveCount').textContent = `${ativos.length} ativos`;
 
   el.innerHTML = lanes.map(lane => {
-    const items = chamadosFiltrados.filter(c=>c.st===lane.st);
+    const items   = chamadosFiltrados.filter(c=>c.st===lane.st);
+    const preview = items.slice(0, 4); // mostra só 4 para não tomar espaço
     return `
-    <div style="background:var(--bg3);border-radius:var(--r);padding:10px;display:flex;flex-direction:column;max-height:360px">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding-bottom:7px;border-bottom:1px solid var(--border);flex-shrink:0">
-        <i class="fas ${lane.icon}" style="font-size:10px;color:${lane.color}"></i>
-        <span style="font-size:10.5px;font-weight:600;color:${lane.color};flex:1">${lane.label}</span>
-        <span style="font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;color:${lane.color};background:${lane.color}18;padding:1px 6px;border-radius:4px">${items.length}</span>
+    <div style="background:var(--bg3);border-radius:var(--r);padding:8px;display:flex;flex-direction:column">
+      <div style="display:flex;align-items:center;gap:5px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--border);flex-shrink:0">
+        <i class="fas ${lane.icon}" style="font-size:9px;color:${lane.color}"></i>
+        <span style="font-size:10px;font-weight:600;color:${lane.color};flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${lane.label}</span>
+        <span style="font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace;color:${lane.color};background:${lane.color}18;padding:1px 5px;border-radius:4px">${items.length}</span>
       </div>
-      <div style="overflow-y:auto;flex:1;padding-right:2px">
-      ${items.length===0?`<div style="font-size:11px;color:var(--text3);text-align:center;padding:12px 0">Nenhum</div>`:''}
-      ${items.map(c=>`
-        <div style="background:var(--surface);border-radius:5px;padding:7px 9px;margin-bottom:5px;border-left:2px solid ${tiposConfig[c.cat]?.color||'var(--border2)'}">
-          <div style="font-size:11.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.cli}</div>
-          <div style="display:flex;align-items:center;gap:6px;margin-top:3px">
-            <span style="font-size:10px;color:var(--text3)">${c.tec}</span>
-            <span style="font-size:9px;color:var(--text3)">·</span>
-            <span style="font-size:10px;color:var(--text3)">${c.cidade}</span>
-            ${c.rtb?'<span class="rtb-tag" style="font-size:9px;padding:1px 4px">RTB</span>':''}
+      <div>
+      ${items.length===0?`<div style="font-size:10px;color:var(--text3);text-align:center;padding:8px 0">Nenhum</div>`:''}
+      ${preview.map(c=>`
+        <div style="background:var(--surface);border-radius:4px;padding:5px 7px;margin-bottom:4px;border-left:2px solid ${tiposConfig[c.cat]?.color||'var(--border2)'}">
+          <div style="font-size:10.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.cli}</div>
+          <div style="display:flex;align-items:center;gap:4px;margin-top:2px;flex-wrap:wrap">
+            <span style="font-size:9.5px;color:var(--text3)">${c.tec}</span>
+            <span style="font-size:8px;color:var(--text3)">·</span>
+            <span style="font-size:9.5px;color:var(--text3)">${c.cidade}</span>
           </div>
-          ${c.st==='reagendado'&&c.reagMotivo?`<div style="font-size:9.5px;color:var(--purple);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.reagMotivo}</div>`:''}
-          <div style="display:flex;justify-content:space-between;margin-top:3px">
-            <span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--text3)">${c.id}</span>
-            <span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--text3)">📅 ${formatarDataFeed(c.dataProgramada)}</span>
+          <div style="display:flex;justify-content:space-between;margin-top:2px">
+            <span style="font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--text3)">${c.id}</span>
+            <span style="font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--text3)">${formatarDataFeed(c.dataProgramada)}</span>
           </div>
         </div>
       `).join('')}
+      ${items.length>4?`<div onclick="filterSt('${lane.st}',null);document.getElementById('mainTbl')?.closest('div[style*=overflow-x]')?.scrollIntoView({behavior:'smooth',block:'nearest'})" style="font-size:10px;color:${lane.color};text-align:center;padding:4px;cursor:pointer;border-radius:4px;background:${lane.color}12;margin-top:2px">Ver todos (${items.length}) ↓</div>`:''}
       </div>
     </div>`;
   }).join('');
