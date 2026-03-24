@@ -217,12 +217,13 @@ app.get('/api/chamados', async (req, res) => {
       const tipo  = os.tipo_ordem_servico?.descricao || os.tipo_os?.nome || 'Sem tipo';
       const tecs  = os.tecnicos || [];
       const tec   = tecs.map(t => t.name || t.nome || t.display).filter(Boolean).join(', ') || 'Sem técnico';
-      const end   = os.atendimento?.cliente_servico?.endereco_instalacao;
-      const cidade = end?.cidade?.nome || end?.cidade?.display || 'Sem cidade';
+      const cs     = os.atendimento?.cliente_servico;
+      const end    = cs?.endereco_instalacao;
+      const coords = end?.endereco_numero?.coordenadas?.coordinates || end?.coordenadas?.coordinates;
+      const cidade = end?.cidade?.nome || end?.cidade?.display || cs?.cliente?.cidade?.nome || 'Sem cidade';
       const cidId  = end?.id_cidade || end?.cidade?.id_cidade || null;
-      const cli    = os.atendimento?.cliente_servico?.display
-                  || os.atendimento?.cliente_servico?.cliente?.nome_razaosocial
-                  || 'Cliente';
+      const cli    = cs?.display || cs?.cliente?.nome_razaosocial || cs?.cliente?.display || 'Cliente';
+      const stVal  = os.status || '';
       return {
         id:         `#${os.id_ordem_servico || os.id}`,
         cli,
@@ -233,13 +234,13 @@ app.get('/api/chamados', async (req, res) => {
         cidadeId:   cidId,
         ab:         os.hora_inicio_programado || formatarHora(os.data_inicio_programado || os.data_cadastro),
         slaMin:     os.tipo_ordem_servico?.prazo_execucao || 240,
-        st:         normalizarStatus(os.status_ordem_servico || os.status),
+        st:         normalizarStatus(stVal),
         rtb:        tipo.toLowerCase().includes('retrabalho'),
         rtbOrig:    os.id_ordem_servico_origem ? `#${os.id_ordem_servico_origem}` : null,
         rtbMotivo:  os.descricao_retrabalho || null,
-        reagMotivo: normalizarStatus(os.status) === 'reagendado' ? (os.motivo_reagendamento || 'Reagendado') : null,
-        lat:        parseFloat(end?.coordenadas?.lat || 0) || null,
-        lng:        parseFloat(end?.coordenadas?.lng || 0) || null,
+        reagMotivo: normalizarStatus(stVal) === 'reagendado' ? (os.motivo_reagendamento || 'Reagendado') : null,
+        lat:        coords ? parseFloat(coords[1]) || null : null,
+        lng:        coords ? parseFloat(coords[0]) || null : null,
         raw:        os,
       };
     });
