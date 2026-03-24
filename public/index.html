@@ -1,0 +1,1765 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OPS360</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root {
+  --bg: #111318;
+  --bg2: #181b22;
+  --bg3: #1e2230;
+  --surface: #232838;
+  --surface2: #2a3047;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+  --text: #e8eaf0;
+  --text2: #8b90a0;
+  --text3: #565b6e;
+  --accent: #5b6af0;
+  --accent-light: rgba(91,106,240,0.15);
+  --green: #22c55e;
+  --green-light: rgba(34,197,94,0.12);
+  --red: #f43f5e;
+  --red-light: rgba(244,63,94,0.12);
+  --amber: #f59e0b;
+  --amber-light: rgba(245,158,11,0.12);
+  --orange: #f97316;
+  --orange-light: rgba(249,115,22,0.12);
+  --cyan: #06b6d4;
+  --cyan-light: rgba(6,182,212,0.12);
+  --purple: #a78bfa;
+  --purple-light: rgba(167,139,250,0.12);
+  --pink: #ec4899;
+  --r: 8px;
+  --r-lg: 12px;
+}
+[data-theme="light"] {
+  --bg: #f4f5f9;
+  --bg2: #ffffff;
+  --bg3: #f0f2f7;
+  --surface: #ffffff;
+  --surface2: #f4f5f9;
+  --border: rgba(0,0,0,0.07);
+  --border2: rgba(0,0,0,0.12);
+  --text: #111318;
+  --text2: #5a6070;
+  --text3: #9ba0b0;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; overflow:hidden; }
+body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); font-size:13px; line-height:1.5; display:flex; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width:220px; flex-shrink:0; height:100vh; display:flex; flex-direction:column;
+  background:var(--bg2); border-right:1px solid var(--border);
+  overflow-y:auto; overflow-x:hidden;
+}
+.sidebar-top {
+  padding:16px 14px 12px;
+  border-bottom:1px solid var(--border);
+}
+.workspace {
+  display:flex; align-items:center; gap:8px; padding:6px 8px;
+  border-radius:var(--r); cursor:pointer; user-select:none;
+  transition:.15s;
+}
+.workspace:hover { background:var(--bg3); }
+.ws-icon { width:26px; height:26px; border-radius:6px; background:linear-gradient(135deg,var(--accent),var(--purple)); display:grid; place-items:center; font-size:11px; color:#fff; font-weight:700; flex-shrink:0; }
+.ws-name { font-weight:600; font-size:13px; flex:1; }
+.ws-chevron { color:var(--text3); font-size:10px; }
+
+.sidebar-section { padding:18px 14px 6px; font-size:10.5px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text3); }
+
+.nav-item {
+  display:flex; align-items:center; gap:8px; padding:7px 14px;
+  color:var(--text2); cursor:pointer; font-size:13px; font-weight:400;
+  border-radius:0; transition:.12s; position:relative; user-select:none;
+}
+.nav-item:hover { background:var(--bg3); color:var(--text); }
+.nav-item.active { background:var(--bg3); color:var(--text); }
+.nav-item i { width:16px; text-align:center; font-size:12px; opacity:.7; }
+.nav-item.active i { opacity:1; color:var(--accent); }
+.nav-count { margin-left:auto; font-size:10.5px; font-family:'JetBrains Mono',monospace; padding:1px 6px; border-radius:10px; font-weight:500; }
+.nc-red { background:var(--red-light); color:var(--red); }
+.nc-amber { background:var(--amber-light); color:var(--amber); }
+.nc-blue { background:var(--accent-light); color:var(--accent); }
+
+.space-item {
+  display:flex; align-items:center; gap:8px; padding:6px 14px;
+  color:var(--text2); cursor:pointer; font-size:13px; transition:.12s;
+}
+.space-item:hover { background:var(--bg3); color:var(--text); }
+.space-dot { width:22px; height:22px; border-radius:6px; display:grid; place-items:center; font-size:10px; font-weight:700; color:#fff; flex-shrink:0; }
+
+.sidebar-bottom { margin-top:auto; padding:12px 14px; border-top:1px solid var(--border); }
+.user-row { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:var(--r); cursor:pointer; }
+.user-row:hover { background:var(--bg3); }
+.user-avatar { width:26px; height:26px; border-radius:6px; background:linear-gradient(135deg,var(--pink),var(--accent)); display:grid; place-items:center; font-size:10px; color:#fff; font-weight:700; flex-shrink:0; }
+.user-name { font-size:12.5px; font-weight:500; flex:1; }
+
+/* ── MAIN ── */
+.main { flex:1; display:flex; flex-direction:column; min-width:0; height:100vh; }
+
+/* ── TOPBAR ── */
+.topbar {
+  height:48px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 20px; border-bottom:1px solid var(--border);
+  background:var(--bg2);
+}
+.topbar-left { display:flex; align-items:center; gap:8px; }
+.topbar-breadcrumb { font-size:13px; color:var(--text2); display:flex; align-items:center; gap:6px; }
+.topbar-breadcrumb span { color:var(--text); font-weight:500; }
+.live-pill { display:flex; align-items:center; gap:5px; background:var(--green-light); color:var(--green); font-size:10.5px; font-weight:600; padding:3px 8px; border-radius:20px; }
+.live-dot { width:5px; height:5px; border-radius:50%; background:var(--green); animation:blink 1.4s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+.topbar-right { display:flex; align-items:center; gap:6px; }
+.icon-btn { width:30px; height:30px; border-radius:var(--r); border:1px solid var(--border); background:transparent; color:var(--text2); cursor:pointer; display:grid; place-items:center; font-size:12px; transition:.15s; position:relative; }
+.icon-btn:hover { background:var(--bg3); color:var(--text); border-color:var(--border2); }
+.notif-pip { position:absolute; top:4px; right:4px; width:6px; height:6px; border-radius:50%; background:var(--red); }
+.topbar-clock { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--text2); padding:0 8px; }
+
+/* ── PAGE ── */
+.page-content { flex:1; overflow-y:auto; overflow-x:hidden; padding:20px 24px; }
+.page { display:none; animation:fadeUp .2s ease; }
+.page.active { display:block; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+
+/* ── GRID DASHBOARD (inspirado na imagem) ── */
+.dash-grid {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  grid-template-rows:auto auto;
+  gap:16px;
+}
+.dash-card {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--r-lg);
+  padding:18px 20px;
+  min-height:280px;
+  display:flex; flex-direction:column;
+}
+.dash-card-title {
+  font-size:13.5px; font-weight:600; color:var(--text); margin-bottom:4px;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.dash-card-sub { font-size:11.5px; color:var(--text3); margin-bottom:16px; }
+.more-btn { color:var(--text3); font-size:12px; cursor:pointer; background:none; border:none; padding:2px 4px; border-radius:4px; }
+.more-btn:hover { color:var(--text); background:var(--bg3); }
+
+/* Donut chart */
+.donut-section { display:flex; align-items:center; gap:20px; flex:1; }
+.donut-labels { flex:1; }
+.donut-label-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:9px; font-size:12px; }
+.dl-left { display:flex; align-items:center; gap:7px; color:var(--text2); }
+.dl-dot { width:8px; height:8px; border-radius:2px; flex-shrink:0; }
+.dl-count { font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:500; color:var(--text); }
+
+/* Bar chart */
+.bar-chart { display:flex; align-items:flex-end; gap:6px; flex:1; padding-top:8px; }
+.bar-col { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; }
+.bar-rect { width:100%; border-radius:4px 4px 0 0; transition:.6s ease; }
+.bar-lbl { font-size:10px; color:var(--text3); font-family:'JetBrains Mono',monospace; }
+.bar-val { font-size:10px; color:var(--text2); }
+.bar-axis { height:1px; background:var(--border2); margin:4px 0; }
+.bar-legend { display:flex; gap:12px; margin-bottom:8px; }
+.bar-legend-item { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text2); }
+.bl-sq { width:8px; height:8px; border-radius:2px; }
+
+/* Burndown */
+.burndown { flex:1; position:relative; }
+.burn-svg { width:100%; }
+
+/* Priority list */
+.priority-list { flex:1; display:flex; flex-direction:column; gap:6px; }
+.p-item { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); }
+.p-item:last-child { border-bottom:none; }
+.p-check { width:18px; height:18px; border-radius:50%; border:1.5px solid var(--border2); display:grid; place-items:center; flex-shrink:0; cursor:pointer; transition:.15s; }
+.p-check.done { background:var(--green); border-color:var(--green); }
+.p-check.done::after { content:''; width:5px; height:5px; border:1.5px solid #fff; border-top:none; border-right:none; transform:rotate(-45deg) translateY(-1px); }
+.p-text { font-size:13px; color:var(--text); flex:1; }
+.p-text.done { text-decoration:line-through; color:var(--text3); }
+.p-badge { font-size:10.5px; padding:2px 7px; border-radius:4px; font-weight:500; }
+
+/* KPI row */
+.kpi-row { display:grid; grid-template-columns:repeat(6,1fr); gap:10px; margin-bottom:16px; }
+.kpi-mini {
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--r);
+  padding:13px 14px; position:relative; overflow:hidden;
+}
+.kpi-mini-label { font-size:10.5px; color:var(--text3); font-weight:500; letter-spacing:.04em; text-transform:uppercase; margin-bottom:6px; }
+.kpi-mini-val { font-size:22px; font-weight:700; line-height:1; letter-spacing:-.5px; }
+.kpi-mini-sub { font-size:10.5px; color:var(--text3); margin-top:4px; }
+.kpi-mini-bar { position:absolute; top:0; left:0; right:0; height:2px; }
+
+/* Tables */
+.tbl-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); margin-bottom:16px; overflow:hidden; }
+.tbl-header { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid var(--border); }
+.tbl-title { font-size:13.5px; font-weight:600; }
+.tbl-actions { display:flex; gap:6px; }
+.chip { font-size:11px; padding:3px 9px; border-radius:20px; cursor:pointer; border:1px solid var(--border2); color:var(--text2); background:transparent; transition:.12s; }
+.chip:hover, .chip.active { background:var(--accent-light); border-color:var(--accent); color:var(--accent); }
+table { width:100%; border-collapse:collapse; }
+th { padding:9px 16px; text-align:left; font-size:10.5px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text3); background:var(--surface2); }
+td { padding:11px 16px; border-top:1px solid var(--border); font-size:12.5px; color:var(--text2); vertical-align:middle; }
+tr:hover td { background:var(--bg3); color:var(--text); }
+.mono { font-family:'JetBrains Mono',monospace; font-size:11.5px; }
+.badge { display:inline-flex; align-items:center; gap:4px; padding:2px 7px; border-radius:4px; font-size:10.5px; font-weight:600; }
+.b-green { background:var(--green-light); color:var(--green); }
+.b-red { background:var(--red-light); color:var(--red); }
+.b-amber { background:var(--amber-light); color:var(--amber); }
+.b-blue { background:var(--accent-light); color:var(--accent); }
+.b-orange { background:var(--orange-light); color:var(--orange); }
+.b-purple { background:var(--purple-light); color:var(--purple); }
+.b-cyan { background:var(--cyan-light); color:var(--cyan); }
+.rtb-tag { font-size:10px; font-family:'JetBrains Mono',monospace; padding:1px 5px; border-radius:3px; background:var(--orange-light); color:var(--orange); border:1px solid rgba(249,115,22,.2); font-weight:600; }
+
+/* Progress */
+.prog { height:4px; background:var(--bg3); border-radius:2px; overflow:hidden; }
+.prog-fill { height:100%; border-radius:2px; }
+
+/* Agent cards */
+.agent-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
+.agent-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:14px 16px; }
+.agent-head { display:flex; align-items:center; gap:9px; margin-bottom:12px; }
+.agent-av { width:34px; height:34px; border-radius:8px; display:grid; place-items:center; font-size:12px; font-weight:700; color:#fff; flex-shrink:0; }
+.agent-nm { font-size:13px; font-weight:600; }
+.agent-rl { font-size:11px; color:var(--text3); }
+.agent-status-dot { width:7px; height:7px; border-radius:50%; margin-left:auto; }
+.agent-stats { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.agent-stat { background:var(--bg3); border-radius:6px; padding:7px; text-align:center; }
+.agent-stat-v { font-size:16px; font-weight:700; line-height:1; }
+.agent-stat-l { font-size:10px; color:var(--text3); margin-top:3px; }
+
+/* Tasks */
+.task-list { display:flex; flex-direction:column; }
+.task-item { display:flex; align-items:flex-start; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); }
+.task-item:last-child { border-bottom:none; }
+.task-check { width:16px; height:16px; border-radius:4px; border:1.5px solid var(--border2); cursor:pointer; display:grid; place-items:center; flex-shrink:0; margin-top:1px; transition:.12s; }
+.task-check.done { background:var(--green); border-color:var(--green); color:#fff; font-size:9px; }
+.task-body { flex:1; }
+.task-title { font-size:12.5px; font-weight:500; }
+.task-title.done { text-decoration:line-through; color:var(--text3); }
+.task-meta { display:flex; gap:6px; margin-top:4px; flex-wrap:wrap; align-items:center; }
+.task-tag { font-size:10.5px; padding:1px 6px; border-radius:3px; background:var(--bg3); color:var(--text2); }
+.task-pri { font-size:10.5px; font-family:'JetBrains Mono',monospace; }
+.pri-h { color:var(--red); } .pri-m { color:var(--amber); } .pri-l { color:var(--green); }
+.task-time { font-size:10.5px; color:var(--text3); }
+.task-del { background:none; border:none; color:var(--text3); cursor:pointer; font-size:11px; padding:2px 4px; border-radius:3px; opacity:0; transition:.12s; }
+.task-item:hover .task-del { opacity:1; }
+.task-del:hover { color:var(--red); background:var(--red-light); }
+
+/* Calendar */
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+.cal-header { text-align:center; font-size:10px; font-weight:600; color:var(--text3); padding:4px; text-transform:uppercase; }
+.cal-day { text-align:center; padding:7px 4px; border-radius:6px; cursor:pointer; font-size:12px; transition:.12s; color:var(--text2); }
+.cal-day:hover { background:var(--bg3); color:var(--text); }
+.cal-day.today { background:var(--accent); color:#fff; font-weight:600; }
+.cal-day.has-event::after { content:''; display:block; width:3px; height:3px; border-radius:50%; background:var(--green); margin:2px auto 0; }
+.cal-day.other { color:var(--text3); }
+.event-item { display:flex; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); }
+.event-item:last-child { border-bottom:none; }
+.event-stripe { width:2.5px; border-radius:2px; flex-shrink:0; margin:1px 0; }
+.event-tm { font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--accent); min-width:42px; flex-shrink:0; margin-top:1px; }
+.event-ttl { font-size:12.5px; font-weight:500; }
+.event-sub { font-size:11px; color:var(--text3); margin-top:2px; }
+
+/* Retention hero */
+.ret-hero { display:grid; grid-template-columns:1fr 1px 1fr 1px 1fr; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); margin-bottom:16px; overflow:hidden; }
+.ret-divider { background:var(--border); }
+.ret-cell { padding:24px; text-align:center; }
+.ret-val { font-size:2.4rem; font-weight:700; letter-spacing:-1px; line-height:1; }
+.ret-label { font-size:11px; color:var(--text3); margin-top:4px; text-transform:uppercase; letter-spacing:.05em; font-weight:500; }
+.ret-sub { font-size:12px; margin-top:6px; padding:3px 10px; border-radius:20px; display:inline-block; }
+
+/* Notif panel */
+.notif-overlay { position:fixed; inset:0; z-index:200; display:none; }
+.notif-overlay.open { display:block; }
+.notif-panel {
+  position:fixed; top:48px; right:12px; width:320px;
+  background:var(--bg2); border:1px solid var(--border2);
+  border-radius:var(--r-lg); z-index:201; overflow:hidden;
+  box-shadow:0 8px 32px rgba(0,0,0,.5);
+}
+.notif-head { padding:12px 16px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+.notif-head h4 { font-size:13px; font-weight:600; }
+.notif-item { display:flex; gap:10px; padding:11px 16px; border-bottom:1px solid var(--border); transition:.12s; cursor:pointer; }
+.notif-item:hover { background:var(--bg3); }
+.notif-item:last-child { border-bottom:none; }
+.ni-icon { width:28px; height:28px; border-radius:7px; display:grid; place-items:center; font-size:11px; flex-shrink:0; }
+.notif-msg { font-size:12px; color:var(--text2); line-height:1.4; }
+.notif-msg strong { color:var(--text); display:block; font-size:12.5px; margin-bottom:1px; }
+.notif-when { font-size:10.5px; color:var(--text3); margin-top:2px; font-family:'JetBrains Mono',monospace; }
+
+/* Add task form */
+.add-form { background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:16px; margin-top:12px; display:none; }
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+.form-group label { font-size:11px; font-weight:600; color:var(--text3); display:block; margin-bottom:5px; text-transform:uppercase; letter-spacing:.05em; }
+.form-group input, .form-group select { width:100%; background:var(--bg3); border:1px solid var(--border2); border-radius:var(--r); padding:7px 10px; color:var(--text); font-size:12.5px; font-family:'Inter',sans-serif; outline:none; }
+.form-group input:focus, .form-group select:focus { border-color:var(--accent); }
+.btn { padding:7px 14px; border-radius:var(--r); border:1px solid var(--border2); cursor:pointer; font-size:12.5px; font-weight:500; font-family:'Inter',sans-serif; transition:.12s; display:inline-flex; align-items:center; gap:5px; background:transparent; color:var(--text2); }
+.btn:hover { background:var(--bg3); color:var(--text); }
+.btn-primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+.btn-primary:hover { background:#4a5ae0; border-color:#4a5ae0; }
+.btn-sm { padding:4px 10px; font-size:11.5px; }
+
+/* Integrations */
+.int-row { display:flex; align-items:center; justify-content:space-between; padding:11px 0; border-bottom:1px solid var(--border); }
+.int-row:last-child { border-bottom:none; }
+.int-left { display:flex; align-items:center; gap:10px; }
+.int-icon { width:30px; height:30px; border-radius:7px; display:grid; place-items:center; font-size:13px; flex-shrink:0; }
+.int-name { font-size:13px; font-weight:500; }
+.int-desc { font-size:11px; color:var(--text3); }
+
+/* Toggle switch */
+.switch { position:relative; width:34px; height:18px; flex-shrink:0; }
+.switch input { opacity:0; width:0; height:0; position:absolute; }
+.switch-track { position:absolute; inset:0; border-radius:9px; background:var(--surface2); border:1px solid var(--border2); transition:.2s; cursor:pointer; }
+.switch input:checked + .switch-track { background:var(--accent); border-color:var(--accent); }
+.switch-thumb { position:absolute; top:2px; left:2px; width:12px; height:12px; background:#fff; border-radius:50%; transition:.2s; pointer-events:none; }
+.switch input:checked ~ .switch-thumb { transform:translateX(16px); }
+
+/* Scrollbar */
+::-webkit-scrollbar { width:4px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--surface2); border-radius:2px; }
+
+/* Input style fix for dark */
+input[type="text"]::placeholder { color:var(--text3); }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-top">
+    <div class="workspace">
+      <div class="ws-icon">⚡</div>
+      <span class="ws-name">OPS360</span>
+      <span class="ws-chevron">⌄</span>
+    </div>
+  </div>
+
+  <div class="sidebar-section">Painel</div>
+  <div class="nav-item active" onclick="goPage('dashboard',this)"><i class="fas fa-chart-pie"></i> Dashboard<span class="nav-count nc-red">7</span></div>
+  <div class="nav-item" onclick="goPage('chamados',this)"><i class="fas fa-ticket-alt"></i> Chamados<span class="nav-count nc-red">7</span></div>
+
+  <div class="sidebar-section">Atendimento</div>
+  <div class="nav-item" onclick="goPage('atendimento',this)"><i class="fas fa-headset"></i> Atendimento<span class="nav-count nc-blue">18</span></div>
+  <div class="nav-item" onclick="goPage('retencao',this)"><i class="fas fa-users"></i> Cadastros & Retenção</div>
+
+  <div class="sidebar-section">Spaces</div>
+  <div class="space-item" onclick="goPage('tarefas',this)"><div class="space-dot" style="background:#5b6af0">T</div> Tarefas</div>
+  <div class="space-item" onclick="goPage('agenda',this)"><div class="space-dot" style="background:#22c55e">A</div> Agenda</div>
+  <div class="space-item" onclick="goPage('integracoes',this)"><div class="space-dot" style="background:#f59e0b">I</div> Integrações</div>
+
+  <div class="sidebar-bottom">
+    <div class="user-row">
+      <div class="user-avatar">DO</div>
+      <span class="user-name">Dir. Operações</span>
+      <button class="icon-btn" onclick="toggleTheme()" style="border:none;background:none;width:22px;height:22px;font-size:11px" title="Tema"><i class="fas fa-circle-half-stroke" id="themeIcon"></i></button>
+    </div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-breadcrumb">OPS360 <span style="color:var(--text3);margin:0 2px">/</span> <span id="pageTitle">Dashboard</span></div>
+      <div class="live-pill"><div class="live-dot"></div> Ao vivo</div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-clock" id="clock">--:--:--</div>
+      <button class="icon-btn" onclick="toggleNotif()"><i class="fas fa-bell"></i><div class="notif-pip"></div></button>
+      <button class="icon-btn" onclick="goPage('integracoes')"><i class="fas fa-cog"></i></button>
+      <button class="btn btn-sm btn-primary" style="margin-left:4px"><i class="fas fa-sync-alt"></i> Sync</button>
+    </div>
+  </div>
+
+  <!-- PAGE CONTENT -->
+  <div class="page-content">
+
+    <!-- ═══ DASHBOARD ═══ -->
+    <div class="page active" id="page-dashboard">
+      <!-- KPI Row (6 minis) -->
+      <div class="kpi-row">
+        <div class="kpi-mini">
+          <div class="kpi-mini-bar" style="background:var(--accent)"></div>
+          <div class="kpi-mini-label">Em execução</div>
+          <div class="kpi-mini-val" style="color:var(--accent)" id="kv-exec">48</div>
+          <div class="kpi-mini-sub">+6 vs ontem</div>
+        </div>
+        <div class="kpi-mini">
+          <div class="kpi-mini-bar" style="background:var(--red)"></div>
+          <div class="kpi-mini-label">Atrasados</div>
+          <div class="kpi-mini-val" style="color:var(--red)" id="kv-atr">7</div>
+          <div class="kpi-mini-sub">SLA crítico</div>
+        </div>
+        <div class="kpi-mini">
+          <div class="kpi-mini-bar" style="background:var(--green)"></div>
+          <div class="kpi-mini-label">Finalizados hoje</div>
+          <div class="kpi-mini-val" style="color:var(--green)" id="kv-fin">134</div>
+          <div style="display:flex;gap:6px;margin-top:5px">
+            <span style="font-size:10.5px;color:var(--green);display:flex;align-items:center;gap:3px">
+              <span style="font-weight:700">109</span> <span style="color:var(--text3)">no prazo</span>
+            </span>
+            <span style="color:var(--border2)">·</span>
+            <span style="font-size:10.5px;color:var(--red);display:flex;align-items:center;gap:3px">
+              <span style="font-weight:700">25</span> <span style="color:var(--text3)">fora</span>
+            </span>
+          </div>
+        </div>
+        <div class="kpi-mini">
+          <div class="kpi-mini-bar" style="background:var(--orange)"></div>
+          <div class="kpi-mini-label">Retrabalhos</div>
+          <div class="kpi-mini-val" style="color:var(--orange)" id="kv-rtb">12</div>
+          <div class="kpi-mini-sub">4.2% do total</div>
+        </div>
+        <div class="kpi-mini" style="grid-column:span 1">
+          <div class="kpi-mini-bar" style="background:var(--purple)"></div>
+          <div class="kpi-mini-label">Reagendados</div>
+          <div class="kpi-mini-val" style="color:var(--purple)">4</div>
+          <div class="kpi-mini-sub">hoje</div>
+        </div>
+        <div class="kpi-mini">
+          <div class="kpi-mini-bar" style="background:var(--cyan)"></div>
+          <div class="kpi-mini-label">Atendimentos</div>
+          <div class="kpi-mini-val" style="color:var(--cyan)" id="kv-at">312</div>
+          <div class="kpi-mini-sub">TMA 4m32s</div>
+        </div>
+        <div class="kpi-mini">
+          <div class="kpi-mini-bar" style="background:var(--purple)"></div>
+          <div class="kpi-mini-label">Saldo clientes</div>
+          <div class="kpi-mini-val" style="color:var(--purple)">+23</div>
+          <div class="kpi-mini-sub">87% retenção</div>
+        </div>
+      </div>
+
+      <!-- 2x2 inspired by image -->
+      <div class="dash-grid">
+        <!-- Status dos chamados (donut, like "Project status") -->
+        <div class="dash-card">
+          <div class="dash-card-title">Status dos chamados <button class="more-btn">···</button></div>
+          <div class="dash-card-sub">Tempo real · Hubsoft</div>
+          <div class="donut-section">
+            <svg width="140" height="140" viewBox="0 0 140 140">
+              <!-- bg circle -->
+              <circle cx="70" cy="70" r="52" fill="none" stroke="var(--bg3)" stroke-width="18"/>
+              <!-- execucao: 48 of 201 = 24% = 82/330 -->
+              <circle cx="70" cy="70" r="52" fill="none" stroke="#5b6af0" stroke-width="18" stroke-dasharray="82 245" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 70 70)"/>
+              <!-- atrasado: 7 of 201 = 3.5% = 12/327 -->
+              <circle cx="70" cy="70" r="52" fill="none" stroke="#f43f5e" stroke-width="18" stroke-dasharray="22 305" stroke-dashoffset="-84" stroke-linecap="round" transform="rotate(-90 70 70)"/>
+              <!-- finalizado: 134 of 201 = 66.7% = 218/327 -->
+              <circle cx="70" cy="70" r="52" fill="none" stroke="#22c55e" stroke-width="18" stroke-dasharray="145 182" stroke-dashoffset="-108" stroke-linecap="round" transform="rotate(-90 70 70)"/>
+              <!-- retrabalho: 12 of 201 = 6% = 19/327 -->
+              <circle cx="70" cy="70" r="52" fill="none" stroke="#f97316" stroke-width="18" stroke-dasharray="35 290" stroke-dashoffset="-255" stroke-linecap="round" transform="rotate(-90 70 70)"/>
+              <text x="70" y="64" text-anchor="middle" fill="var(--text)" font-family="Inter" font-weight="700" font-size="22">201</text>
+              <text x="70" y="80" text-anchor="middle" fill="var(--text3)" font-family="Inter" font-size="11">total</text>
+            </svg>
+            <div class="donut-labels">
+              <div class="donut-label-row"><div class="dl-left"><div class="dl-dot" style="background:#5b6af0;border-radius:2px"></div>Em execução</div><span class="dl-count">48</span></div>
+              <div class="donut-label-row"><div class="dl-left"><div class="dl-dot" style="background:#f43f5e"></div>Atrasados</div><span class="dl-count" style="color:var(--red)">7</span></div>
+              <div class="donut-label-row"><div class="dl-left"><div class="dl-dot" style="background:#22c55e"></div>Finalizados</div><span class="dl-count" style="color:var(--green)">134</span></div>
+              <div class="donut-label-row"><div class="dl-left"><div class="dl-dot" style="background:#f97316"></div>Retrabalho</div><span class="dl-count" style="color:var(--orange)">12</span></div>
+              <div class="donut-label-row"><div class="dl-left"><div class="dl-dot" style="background:var(--text3)"></div>Aguardando</div><span class="dl-count">19</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chamados por hora (bar chart, like "Tasks left by week") -->
+        <div class="dash-card">
+          <div class="dash-card-title">Chamados por hora <button class="more-btn">···</button></div>
+          <div class="dash-card-sub">Hoje · Atualizado agora</div>
+          <div class="bar-legend">
+            <div class="bar-legend-item"><div class="bl-sq" style="background:var(--accent);border-radius:2px"></div>Abertos</div>
+            <div class="bar-legend-item"><div class="bl-sq" style="background:var(--green);border-radius:2px"></div>Fechados</div>
+          </div>
+          <div class="bar-chart" id="barChart" style="height:170px;">
+          </div>
+          <div style="display:flex;justify-content:space-between;padding-top:4px;" id="barLabels"></div>
+        </div>
+
+        <!-- Burndown (like "Burndown Chart") -->
+        <div class="dash-card">
+          <div class="dash-card-title">SLA — Chamados atrasados <button class="more-btn">···</button></div>
+          <div class="dash-card-sub">Progressão do dia</div>
+          <div class="burndown">
+            <svg class="burn-svg" viewBox="0 0 380 180" id="burnSvg">
+              <!-- grid lines -->
+              <line x1="40" y1="20" x2="370" y2="20" stroke="var(--border)" stroke-width="0.5"/>
+              <line x1="40" y1="60" x2="370" y2="60" stroke="var(--border)" stroke-width="0.5"/>
+              <line x1="40" y1="100" x2="370" y2="100" stroke="var(--border)" stroke-width="0.5"/>
+              <line x1="40" y1="140" x2="370" y2="140" stroke="var(--border)" stroke-width="0.5"/>
+              <!-- Y labels -->
+              <text x="34" y="23" text-anchor="end" fill="var(--text3)" font-family="JetBrains Mono" font-size="9">20</text>
+              <text x="34" y="63" text-anchor="end" fill="var(--text3)" font-family="JetBrains Mono" font-size="9">15</text>
+              <text x="34" y="103" text-anchor="end" fill="var(--text3)" font-family="JetBrains Mono" font-size="9">10</text>
+              <text x="34" y="143" text-anchor="end" fill="var(--text3)" font-family="JetBrains Mono" font-size="9">5</text>
+              <!-- ideal line (dashed) -->
+              <line x1="40" y1="20" x2="370" y2="160" stroke="var(--border2)" stroke-width="1" stroke-dasharray="4 3"/>
+              <!-- actual line -->
+              <polyline points="40,20 85,28 130,55 175,62 220,88 265,105 310,128 355,148" fill="none" stroke="var(--red)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <!-- dots -->
+              <circle cx="40" cy="20" r="3.5" fill="var(--red)"/>
+              <circle cx="130" cy="55" r="3.5" fill="var(--red)"/>
+              <circle cx="220" cy="88" r="3.5" fill="var(--red)"/>
+              <circle cx="310" cy="128" r="3.5" fill="var(--red)"/>
+              <circle cx="355" cy="148" r="3.5" fill="var(--red)" stroke="var(--bg2)" stroke-width="2"/>
+              <!-- current dot pulse -->
+              <circle cx="355" cy="148" r="6" fill="none" stroke="var(--red)" stroke-width="1" opacity="0.4"/>
+              <!-- X labels -->
+              <text x="40" y="168" text-anchor="middle" fill="var(--text3)" font-family="JetBrains Mono" font-size="9">07h</text>
+              <text x="130" y="168" text-anchor="middle" fill="var(--text3)" font-family="JetBrains Mono" font-size="9">10h</text>
+              <text x="220" y="168" text-anchor="middle" fill="var(--text3)" font-family="JetBrains Mono" font-size="9">13h</text>
+              <text x="310" y="168" text-anchor="middle" fill="var(--text3)" font-family="JetBrains Mono" font-size="9">16h</text>
+              <text x="355" y="168" text-anchor="middle" fill="var(--red)" font-family="JetBrains Mono" font-size="9">agora</text>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Priorities (like "This week priorities") -->
+        <div class="dash-card">
+          <div class="dash-card-title">Prioridades da semana <button class="more-btn">···</button></div>
+          <div class="dash-card-sub">Suas tarefas críticas</div>
+          <div class="priority-list" id="dashPriorities"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ CHAMADOS (por tipo) ═══ -->
+    <div class="page" id="page-chamados">
+
+      <!-- ── BARRA DE FILTROS AO VIVO ── -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:5px 10px">
+          <div class="live-dot"></div>
+          <span style="font-size:11px;font-weight:600;color:var(--green)">AO VIVO</span>
+          <span style="font-size:10.5px;color:var(--text3);font-family:'JetBrains Mono',monospace" id="lastSync">--:--:--</span>
+        </div>
+        <!-- Filtro período -->
+        <div style="display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px">
+          <button class="chip active" id="perHoje"   onclick="setPeriodo('hoje',this)">Hoje</button>
+          <button class="chip"        id="perSemana" onclick="setPeriodo('semana',this)">Semana</button>
+          <button class="chip"        id="perMes"    onclick="setPeriodo('mes',this)">Mês</button>
+          <button class="chip"        id="perCustom" onclick="setPeriodo('custom',this)">Período</button>
+        </div>
+        <div id="dateRange" style="display:none;gap:6px;align-items:center">
+          <input type="date" id="dtDe"  style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
+          <span style="color:var(--text3);font-size:12px">até</span>
+          <input type="date" id="dtAte" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
+        </div>
+        <!-- Filtros secundários -->
+        <select id="filtTec"   onchange="applyFilters()" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:5px 10px;color:var(--text2);font-size:12px;font-family:'Inter',sans-serif">
+          <option value="">Todos técnicos</option>
+        </select>
+        <select id="filtCidade" onchange="applyFilters()" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:5px 10px;color:var(--text2);font-size:12px;font-family:'Inter',sans-serif">
+          <option value="">Todas cidades</option>
+        </select>
+        <select id="filtCat"   onchange="applyFilters()" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:5px 10px;color:var(--text2);font-size:12px;font-family:'Inter',sans-serif">
+          <option value="">Todos os tipos</option>
+        </select>
+        <div style="margin-left:auto;display:flex;gap:6px">
+          <button class="btn btn-sm" onclick="syncHubsoft()"><i class="fas fa-sync-alt" id="syncIcon"></i> Sincronizar</button>
+        </div>
+      </div>
+
+      <!-- ── CARDS POR CATEGORIA (hoje + acumulado mês) ── -->
+      <div id="catCards" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px"></div>
+
+      <!-- ── LINHA: STATUS AO VIVO + MAPA DE CIDADES ── -->
+      <div style="display:grid;grid-template-columns:1fr 340px;gap:12px;margin-bottom:14px">
+
+        <!-- STATUS AO VIVO — board kanban visual -->
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header" style="padding-bottom:10px">
+            <span class="tbl-title">Chamados em andamento agora</span>
+            <span class="badge b-blue" id="liveCount">0 ativos</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:0 4px 4px" id="statusLanes"></div>
+        </div>
+
+        <!-- MAPA DE CIDADES (visual SVG/CSS) -->
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <span class="tbl-title">Por cidade</span>
+            <span class="badge b-purple" id="cidadeCount">0 cidades</span>
+          </div>
+          <div id="cidadeList" style="padding:0 4px 4px"></div>
+        </div>
+      </div>
+
+      <!-- ── FEED AO VIVO + TABELA COMPLETA ── -->
+      <div style="display:grid;grid-template-columns:300px 1fr;gap:12px">
+
+        <!-- Feed de eventos ao vivo -->
+        <div class="tbl-card" style="margin-bottom:0;max-height:420px;display:flex;flex-direction:column">
+          <div class="tbl-header" style="flex-shrink:0">
+            <span class="tbl-title">Feed ao vivo</span>
+            <div class="live-pill"><div class="live-dot"></div> Live</div>
+          </div>
+          <div id="liveFeed" style="overflow-y:auto;flex:1;padding:4px 0"></div>
+        </div>
+
+        <!-- Tabela completa filtrável -->
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <span class="tbl-title" id="tblMainTitle">Todos os chamados</span>
+            <div style="display:flex;gap:4px;flex-wrap:wrap" id="statusChips">
+              <button class="chip active" onclick="filterSt('todos',this)">Todos</button>
+              <button class="chip" onclick="filterSt('execucao',this)">Em execução</button>
+              <button class="chip" onclick="filterSt('aguardando',this)">Aguardando</button>
+              <button class="chip" onclick="filterSt('atrasado',this)" style="color:var(--red)">⚠ Atrasados</button>
+              <button class="chip" onclick="filterSt('finalizado',this)">Finalizados</button>
+              <button class="chip" onclick="filterSt('retrabalho',this)" style="color:var(--orange)">⟳ Retrabalho</button>
+              <button class="chip" onclick="filterSt('reagendado',this)" style="color:var(--purple)">↻ Reagendados</button>
+            </div>
+          </div>
+          <div style="overflow-x:auto;max-height:360px;overflow-y:auto">
+            <table>
+              <thead style="position:sticky;top:0;z-index:1;background:var(--surface2)">
+                <tr>
+                  <th>#</th><th>Cliente</th><th>Tipo de Serviço</th>
+                  <th>Técnico</th><th>Cidade</th><th>Início</th><th>Prev. Chegada</th><th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="mainTbl"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Painel retrabalho insight (oculto por padrão) -->
+      <div id="rtbInsight" style="display:none;margin-top:12px">
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header"><span class="tbl-title">Análise de Retrabalhos</span><span class="rtb-tag">RTB · 4.2% · meta &lt;3%</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
+            <div style="padding:14px 18px;border-right:1px solid var(--border)">
+              <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Causas</div>
+              <div id="causasRtb"></div>
+            </div>
+            <div style="padding:14px 18px">
+              <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Por técnico</div>
+              <table style="width:100%"><thead><tr><th>Técnico</th><th>Qtd</th><th>Taxa</th><th></th></tr></thead><tbody id="techRtbTbl"></tbody></table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ═══ ATENDIMENTO ═══ -->
+    <div class="page" id="page-atendimento">
+      <div class="kpi-row">
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--cyan)"></div><div class="kpi-mini-label">Atend. Hoje</div><div class="kpi-mini-val" style="color:var(--cyan)">312</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">1º contato</div><div class="kpi-mini-val" style="color:var(--green)">71%</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Em atend.</div><div class="kpi-mini-val" style="color:var(--accent)">18</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">TMA</div><div class="kpi-mini-val" style="color:var(--amber);font-size:18px">4m32s</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Abandonos</div><div class="kpi-mini-val" style="color:var(--red)">23</div><div class="kpi-mini-sub">7.4%</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--purple)"></div><div class="kpi-mini-label">NPS médio</div><div class="kpi-mini-val" style="color:var(--purple)">7.8</div></div>
+      </div>
+      <div class="tbl-card" style="margin-bottom:16px">
+        <div class="tbl-header"><span class="tbl-title">Atendimentos por setor — ChatMix</span></div>
+        <div style="overflow-x:auto"><table><thead><tr><th>Setor</th><th>Volume</th><th>Resolvidos</th><th>TMA</th><th>NPS</th><th>Fila atual</th><th>Volume</th></tr></thead><tbody id="setorTbl"></tbody></table></div>
+      </div>
+      <div style="font-size:13px;font-weight:600;margin-bottom:12px">Atendentes em turno</div>
+      <div class="agent-grid" id="agentGrid"></div>
+    </div>
+
+    <!-- ═══ RETENÇÃO ═══ -->
+    <div class="page" id="page-retencao">
+      <div class="ret-hero">
+        <div class="ret-cell">
+          <div class="ret-val" style="color:var(--green)">+61</div>
+          <div class="ret-label">Novos contratos</div>
+          <div class="ret-sub" style="background:var(--green-light);color:var(--green)">este mês</div>
+        </div>
+        <div class="ret-divider"></div>
+        <div class="ret-cell">
+          <div class="ret-val" style="color:var(--green)">+23</div>
+          <div class="ret-label">Saldo líquido</div>
+          <div class="ret-sub" style="background:var(--green-light);color:var(--green)">▲ Positivo</div>
+        </div>
+        <div class="ret-divider"></div>
+        <div class="ret-cell">
+          <div class="ret-val" style="color:var(--red)">-38</div>
+          <div class="ret-label">Cancelamentos</div>
+          <div class="ret-sub" style="background:var(--red-light);color:var(--red)">este mês</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header"><span class="tbl-title">Motivos de cancelamento</span><span class="badge b-red">38 pedidos</span></div>
+          <div style="padding:16px 18px" id="motivosCancDiv"></div>
+        </div>
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header"><span class="tbl-title">Soluções de reversão</span><span class="badge b-green">Taxa 60.5%</span></div>
+          <div style="padding:16px 18px" id="solReversaoDiv"></div>
+        </div>
+      </div>
+      <div class="tbl-card">
+        <div class="tbl-header"><span class="tbl-title">Últimas solicitações de cancelamento</span></div>
+        <div style="overflow-x:auto"><table><thead><tr><th>Cliente</th><th>Plano</th><th>Motivo</th><th>Atendente</th><th>Solução</th><th>Resultado</th></tr></thead><tbody id="retencaoTbl"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- ═══ TAREFAS ═══ -->
+    <div class="page" id="page-tarefas">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="display:flex;gap:16px">
+          <div class="kpi-mini" style="min-width:100px"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Ativas</div><div class="kpi-mini-val" style="color:var(--accent)" id="tk-at">8</div></div>
+          <div class="kpi-mini" style="min-width:100px"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Urgentes</div><div class="kpi-mini-val" style="color:var(--red)" id="tk-ur">3</div></div>
+          <div class="kpi-mini" style="min-width:100px"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">Concluídas</div><div class="kpi-mini-val" style="color:var(--green)" id="tk-co">5</div></div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="showAddTask()"><i class="fas fa-plus"></i> Nova tarefa</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header"><span class="tbl-title">🔴 Alta prioridade</span></div>
+          <div style="padding:0 16px" class="task-list" id="tasks-h"></div>
+        </div>
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header"><span class="tbl-title">🟡 Média prioridade</span></div>
+          <div style="padding:0 16px" class="task-list" id="tasks-m"></div>
+        </div>
+      </div>
+      <div class="tbl-card" style="margin-top:16px">
+        <div class="tbl-header"><span class="tbl-title">🟢 Baixa / Concluídas</span></div>
+        <div style="padding:0 16px" class="task-list" id="tasks-l"></div>
+      </div>
+      <div class="add-form" id="addTaskForm">
+        <div class="form-row">
+          <div class="form-group"><label>Título</label><input type="text" id="nt-title" placeholder="Descreva a tarefa..."></div>
+          <div class="form-group"><label>Prioridade</label><select id="nt-pri"><option value="h">🔴 Alta</option><option value="m" selected>🟡 Média</option><option value="l">🟢 Baixa</option></select></div>
+          <div class="form-group"><label>Categoria</label><select id="nt-tag"><option>Operações</option><option>Chamados</option><option>Retenção</option><option>Reunião</option><option>Relatório</option></select></div>
+          <div class="form-group"><label>Prazo</label><input type="datetime-local" id="nt-date"></div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary btn-sm" onclick="addTask()"><i class="fas fa-plus"></i> Adicionar</button>
+          <button class="btn btn-sm" onclick="hideAddTask()">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ AGENDA ═══ -->
+    <div class="page" id="page-agenda">
+      <div style="display:grid;grid-template-columns:280px 1fr;gap:16px">
+        <div>
+          <div class="tbl-card" style="margin-bottom:16px">
+            <div class="tbl-header">
+              <span class="tbl-title" id="calTitle">Março 2026</span>
+              <div style="display:flex;gap:4px">
+                <button class="btn btn-sm" onclick="prevMonth()">‹</button>
+                <button class="btn btn-sm" onclick="nextMonth()">›</button>
+              </div>
+            </div>
+            <div style="padding:12px 14px">
+              <div class="cal-grid" id="calGrid"></div>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm" style="width:100%" onclick="alert('Integre com Google Calendar para adicionar eventos')"><i class="fas fa-plus"></i> Novo evento</button>
+        </div>
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <span class="tbl-title" id="dayTitle">Hoje, 23 de Março</span>
+            <span class="badge b-blue" id="evCount">4 eventos</span>
+          </div>
+          <div style="padding:0 18px" id="evList"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ INTEGRAÇÕES ═══ -->
+    <div class="page" id="page-integracoes">
+
+      <!-- Status geral -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--text3)" id="int-hubsoft-bar"></div><div class="kpi-mini-label">Hubsoft</div><div class="kpi-mini-val" style="color:var(--text3);font-size:18px" id="int-hubsoft-st">Não config.</div><div class="kpi-mini-sub" id="int-hubsoft-sub">Aguardando credenciais</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--cyan)"></div><div class="kpi-mini-label">ChatMix</div><div class="kpi-mini-val" style="color:var(--text3);font-size:18px">Não config.</div><div class="kpi-mini-sub">Aguardando token</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:#25d366"></div><div class="kpi-mini-label">WhatsApp</div><div class="kpi-mini-val" style="color:var(--text3);font-size:18px">Não config.</div><div class="kpi-mini-sub">Configure o número</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Email SMTP</div><div class="kpi-mini-val" style="color:var(--text3);font-size:18px">Não config.</div><div class="kpi-mini-sub">Configure o SMTP</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+        <!-- ── HUBSOFT API (OAuth2) ── -->
+        <div class="tbl-card" style="margin-bottom:0;grid-column:1/-1">
+          <div class="tbl-header">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:32px;height:32px;border-radius:8px;background:var(--accent-light);color:var(--accent);display:grid;place-items:center;font-size:13px"><i class="fas fa-server"></i></div>
+              <div>
+                <div class="tbl-title">Hubsoft API — OAuth2</div>
+                <div style="font-size:11px;color:var(--text3);margin-top:1px">Autenticação via OAuth2 · grant_type: password · <a href="https://docs.hubsoft.com.br" target="_blank" style="color:var(--accent)">docs.hubsoft.com.br</a></div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <span class="badge b-amber" id="hubsoft-badge">◌ Não conectado</span>
+              <button class="btn btn-sm" onclick="testarHubsoft()"><i class="fas fa-plug"></i> Testar</button>
+              <button class="btn btn-primary btn-sm" onclick="salvarHubsoft()"><i class="fas fa-save"></i> Salvar</button>
+            </div>
+          </div>
+
+          <!-- Passo a passo visual -->
+          <div style="padding:14px 18px;border-bottom:1px solid var(--border);background:rgba(91,106,240,0.03)">
+            <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Como obter as credenciais no Hubsoft</div>
+            <div style="display:flex;gap:0;flex-wrap:wrap">
+              <div style="display:flex;align-items:flex-start;gap:8px;flex:1;min-width:180px;padding-right:16px">
+                <div style="width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:10px;font-weight:700;flex-shrink:0;margin-top:1px">1</div>
+                <div style="font-size:11.5px;color:var(--text2);line-height:1.5"><b style="color:var(--text)">Criar usuário</b><br>Configuração → Geral → Usuários → Adicionar</div>
+              </div>
+              <div style="width:1px;background:var(--border);margin:0 4px 0 0"></div>
+              <div style="display:flex;align-items:flex-start;gap:8px;flex:1;min-width:180px;padding:0 16px">
+                <div style="width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:10px;font-weight:700;flex-shrink:0;margin-top:1px">2</div>
+                <div style="font-size:11.5px;color:var(--text2);line-height:1.5"><b style="color:var(--text)">Habilitar API</b><br>Editar usuário → aba API → ativar → salvar</div>
+              </div>
+              <div style="width:1px;background:var(--border);margin:0 4px 0 0"></div>
+              <div style="display:flex;align-items:flex-start;gap:8px;flex:1;min-width:180px;padding:0 16px">
+                <div style="width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:10px;font-weight:700;flex-shrink:0;margin-top:1px">3</div>
+                <div style="font-size:11.5px;color:var(--text2);line-height:1.5"><b style="color:var(--text)">Copiar credenciais</b><br>Host, Client ID e Client Secret aparecem na aba API</div>
+              </div>
+              <div style="width:1px;background:var(--border);margin:0 4px 0 0"></div>
+              <div style="display:flex;align-items:flex-start;gap:8px;flex:1;min-width:180px;padding-left:16px">
+                <div style="width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:10px;font-weight:700;flex-shrink:0;margin-top:1px">4</div>
+                <div style="font-size:11.5px;color:var(--text2);line-height:1.5"><b style="color:var(--text)">Definir permissões</b><br>Habilite: Clientes, Chamados, Ordem de Serviço</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Formulário de credenciais -->
+          <div style="padding:16px 18px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+            <div class="form-group">
+              <label>Host <span style="color:var(--red)">*</span></label>
+              <input type="text" id="hs-host" placeholder="api.meuservidor.com.br" style="font-family:'JetBrains Mono',monospace;font-size:11.5px">
+              <div style="font-size:10.5px;color:var(--text3);margin-top:4px">Ex: api.meuservidor.com.br</div>
+            </div>
+            <div class="form-group">
+              <label>Client ID <span style="color:var(--red)">*</span></label>
+              <input type="text" id="hs-client-id" placeholder="88721" style="font-family:'JetBrains Mono',monospace;font-size:11.5px">
+              <div style="font-size:10.5px;color:var(--text3);margin-top:4px">Número gerado pelo Hubsoft</div>
+            </div>
+            <div class="form-group">
+              <label>Client Secret <span style="color:var(--red)">*</span></label>
+              <input type="password" id="hs-client-secret" placeholder="••••••••••••••••••••" style="font-family:'JetBrains Mono',monospace;font-size:11.5px">
+              <div style="font-size:10.5px;color:var(--text3);margin-top:4px">Chave gerada pelo Hubsoft</div>
+            </div>
+            <div class="form-group">
+              <label>Username (email) <span style="color:var(--red)">*</span></label>
+              <input type="email" id="hs-username" placeholder="usuario@provedor.com.br">
+            </div>
+            <div class="form-group">
+              <label>Password <span style="color:var(--red)">*</span></label>
+              <input type="password" id="hs-password" placeholder="••••••••••••••••••••">
+            </div>
+            <div class="form-group">
+              <label>Grant Type</label>
+              <input type="text" value="password" readonly style="background:var(--bg3);color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:11.5px">
+              <div style="font-size:10.5px;color:var(--text3);margin-top:4px">Fixo conforme documentação</div>
+            </div>
+            <div class="form-group">
+              <label>Intervalo de sincronização</label>
+              <select id="hs-interval">
+                <option value="30">A cada 30 segundos</option>
+                <option value="60" selected>A cada 1 minuto</option>
+                <option value="300">A cada 5 minutos</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Módulos a sincronizar</label>
+              <select id="hs-modules" multiple style="height:70px">
+                <option selected>Chamados / OS</option>
+                <option selected>Clientes</option>
+                <option selected>Técnicos</option>
+                <option>Financeiro</option>
+                <option>Atendimentos</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Log de conexão -->
+          <div style="margin:0 18px 16px;background:var(--bg3);border-radius:var(--r);padding:10px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2)" id="hubsoftLog">
+            <span style="color:var(--amber)">◌</span> [<span id="logTime">01:27:15</span>] Aguardando credenciais...<br>
+            <span style="color:var(--text3)">→</span> Preencha Host, Client ID, Client Secret, Username e Password<br>
+            <span style="color:var(--text3)">→</span> Clique em <b>Testar</b> para validar a conexão
+          </div>
+        </div>
+
+        <!-- Alertas e notificações -->
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:32px;height:32px;border-radius:8px;background:var(--amber-light);color:var(--amber);display:grid;place-items:center;font-size:13px"><i class="fas fa-bell"></i></div>
+              <div class="tbl-title">Alertas e Notificações</div>
+            </div>
+          </div>
+          <div style="padding:16px 18px">
+            <div class="form-group" style="margin-bottom:12px"><label>Email para alertas</label><input type="email" value="diretor@provedor.com.br"></div>
+            <div class="form-group" style="margin-bottom:12px"><label>WhatsApp (com DDD)</label><input type="text" value="+55 85 9 9999-0000"></div>
+            <div class="form-group" style="margin-bottom:12px">
+              <label>Alertar quando chamado atrasar</label>
+              <select><option>Imediatamente ao vencer o ETA</option><option>30 min antes do ETA</option><option>1 hora antes do ETA</option></select>
+            </div>
+            <div class="form-group" style="margin-bottom:12px">
+              <label>Alertar retrabalho acima de</label>
+              <select><option>3% do total</option><option>5% do total</option><option>10% do total</option></select>
+            </div>
+            <div class="form-group" style="margin-bottom:16px">
+              <label>Alertar reagendamentos</label>
+              <select><option>Sempre</option><option>Só acima de 3 por dia</option><option>Nunca</option></select>
+            </div>
+            <button class="btn btn-primary btn-sm"><i class="fas fa-save"></i> Salvar alertas</button>
+          </div>
+        </div>
+
+        <!-- ChatMix -->
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:32px;height:32px;border-radius:8px;background:var(--cyan-light);color:var(--cyan);display:grid;place-items:center;font-size:13px"><i class="fas fa-comments"></i></div>
+              <div class="tbl-title">ChatMix</div>
+            </div>
+            <span class="badge b-amber">◌ Não conectado</span>
+          </div>
+          <div style="padding:16px 18px">
+            <div class="form-group" style="margin-bottom:12px"><label>URL da API</label><input type="text" value="https://api.chatmix.com.br/v2" style="font-family:'JetBrains Mono',monospace;font-size:11.5px"></div>
+            <div class="form-group" style="margin-bottom:12px"><label>Token de acesso</label><input type="password" value="token_chatmix_secret" style="font-family:'JetBrains Mono',monospace;font-size:11.5px"></div>
+            <div class="form-group" style="margin-bottom:16px"><label>Setores monitorados</label><input type="text" value="Suporte, Comercial, Financeiro, Retenção"></div>
+            <button class="btn btn-primary btn-sm"><i class="fas fa-plug"></i> Testar conexão</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /page-content -->
+</div><!-- /main -->
+
+<!-- NOTIF OVERLAY -->
+<div class="notif-overlay" id="notifOverlay" onclick="toggleNotif()">
+  <div class="notif-panel" onclick="e=>e.stopPropagation()">
+    <div class="notif-head"><h4>Notificações</h4><button class="btn btn-sm" onclick="toggleNotif()">Fechar</button></div>
+    <div class="notif-item"><div class="ni-icon" style="background:var(--red-light);color:var(--red)"><i class="fas fa-clock"></i></div><div><div class="notif-msg"><strong>Chamado #3847 atrasado</strong>SLA expirado há 45 min — João Silva</div><div class="notif-when">há 3 min · WhatsApp enviado</div></div></div>
+    <div class="notif-item"><div class="ni-icon" style="background:var(--orange-light);color:var(--orange)"><i class="fas fa-redo"></i></div><div><div class="notif-msg"><strong>Retrabalho #3851 aberto</strong>Mesmo cliente — 2ª visita em 7 dias</div><div class="notif-when">há 12 min · Email enviado</div></div></div>
+    <div class="notif-item"><div class="ni-icon" style="background:var(--amber-light);color:var(--amber)"><i class="fas fa-user-minus"></i></div><div><div class="notif-msg"><strong>Cancelamento #12045</strong>Motivo: Preço</div><div class="notif-when">há 28 min</div></div></div>
+    <div class="notif-item"><div class="ni-icon" style="background:var(--green-light);color:var(--green)"><i class="fas fa-check"></i></div><div><div class="notif-msg"><strong>Retenção bem-sucedida!</strong>Cliente #11983 revertido — Desconto 20%</div><div class="notif-when">há 1h 4min</div></div></div>
+  </div>
+</div>
+
+<script>
+// CLOCK
+function tick() { document.getElementById('clock').textContent = new Date().toLocaleTimeString('pt-BR'); }
+setInterval(tick,1000); tick();
+
+// THEME
+function toggleTheme() {
+  const html = document.documentElement;
+  html.setAttribute('data-theme', html.getAttribute('data-theme')==='dark'?'light':'dark');
+}
+
+// NAV
+function goPage(id, el) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item, .space-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(el) el.classList.add('active');
+  const titles = {dashboard:'Dashboard',chamados:'Chamados',atendimento:'Atendimento',retencao:'Cadastros & Retenção',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
+  document.getElementById('pageTitle').textContent = titles[id]||id;
+}
+
+// NOTIF
+function toggleNotif() { document.getElementById('notifOverlay').classList.toggle('open'); }
+
+// DASHBOARD BARS
+const horas = ['07','08','09','10','11','12','13','14','15','16'];
+const abertos = [8,14,22,18,28,32,19,24,16,11];
+const fechados = [6,10,18,20,22,28,24,20,18,14];
+const maxBar = Math.max(...abertos,...fechados);
+const bc = document.getElementById('barChart');
+const bl = document.getElementById('barLabels');
+if(bc) {
+  bc.innerHTML = horas.map((h,i)=>`
+    <div class="bar-col">
+      <div style="display:flex;gap:2px;align-items:flex-end;flex:1;width:100%">
+        <div class="bar-rect" style="flex:1;height:${(abertos[i]/maxBar)*150}px;background:var(--accent);opacity:.7"></div>
+        <div class="bar-rect" style="flex:1;height:${(fechados[i]/maxBar)*150}px;background:var(--green);opacity:.7"></div>
+      </div>
+      <div class="bar-lbl">${h}h</div>
+    </div>
+  `).join('');
+}
+
+// DASHBOARD PRIORITIES
+const priorities = [
+  {text:'Revisar SLA da semana com equipe',done:true,tag:'Relatório',color:'var(--green)'},
+  {text:'Reunião — retrabalhos recorrentes',done:true,tag:'Reunião',color:'var(--green)'},
+  {text:'Analisar indicadores de retenção',done:false,tag:'Retenção',color:'var(--accent)'},
+  {text:'Configurar alertas automáticos',done:false,tag:'Ops',color:'var(--amber)'},
+  {text:'Feedback com técnico João Silva',done:false,tag:'Equipe',color:'var(--red)'},
+];
+const dp = document.getElementById('dashPriorities');
+if(dp) dp.innerHTML = priorities.map(p=>`
+  <div class="p-item">
+    <div class="p-check ${p.done?'done':''}"></div>
+    <span class="p-text ${p.done?'done':''}">${p.text}</span>
+    <span class="p-badge" style="background:${p.color}1a;color:${p.color}">${p.tag}</span>
+  </div>
+`).join('');
+
+// ─── CHAMADOS — MONITORAMENTO AO VIVO ────────────────────────────────────────
+// Dados simulados que replicam o formato da API Hubsoft.
+// Para integração real: substitua "chamadosDB" pelo retorno de:
+//   GET https://api.hubsoft.com.br/v1/chamados?status=todos&limit=500
+// e chame rebuildAll() depois de atualizar o array.
+
+const chamadosDB = [
+  // cat: categoria do Hubsoft  |  st: execucao/aguardando/atrasado/finalizado/retrabalho
+  // tec: nome do técnico       |  cidade: onde o serviço é realizado
+  // inicio/fim: HH:MM          |  slaMin: minutos de SLA
+
+  // ── INSTALAÇÕES ──
+  {id:'#3847',cli:'Condomínio Sol Nascente',cat:'instalacao',tipo:'Instalação Fibra',tec:'João Silva',cidade:'Mãe do Rio',ab:'07:30',slaMin:240,st:'atrasado',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-2.05,lng:-47.58},
+  {id:'#3852',cli:'Escola Municipal XV',    cat:'instalacao',tipo:'Instalação Fibra',tec:'Marcos Alves',cidade:'Paragominas',ab:'09:45',slaMin:240,st:'execucao',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-3.00,lng:-47.35},
+  {id:'#3854',cli:'Farmácia Popular',       cat:'instalacao',tipo:'Instalação Fibra',tec:'João Silva',cidade:'Mãe do Rio',ab:'10:30',slaMin:240,st:'atrasado',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-2.05,lng:-47.58},
+  {id:'#3860',cli:'Residencial Planalto B2',cat:'instalacao',tipo:'Instalação Fibra',tec:'Pedro Lima',cidade:'Rondon do Pará',ab:'11:00',slaMin:240,st:'aguardando',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-3.98,lng:-48.06},
+  {id:'#3863',cli:'Bar e Restaurante Sabor',cat:'instalacao',tipo:'Instalação Fibra',tec:'Marcos Alves',cidade:'Paragominas',ab:'11:20',slaMin:240,st:'execucao',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-3.00,lng:-47.35},
+  {id:'#3866',cli:'Residencial das Flores',cat:'instalacao',tipo:'Instalação Fibra',tec:'Carlos Souza',cidade:'Dom Eliseu',ab:'07:00',slaMin:240,st:'finalizado',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-4.28,lng:-47.85},
+  {id:'#3870',cli:'Sítio Boa Vista',        cat:'instalacao',tipo:'Instalação Fibra',tec:'Pedro Lima',cidade:'Rondon do Pará',ab:'08:00',slaMin:240,st:'finalizado',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-3.98,lng:-48.06},
+  // ── REPAROS ──
+  {id:'#3848',cli:'Maria Santos',           cat:'reparo',tipo:'Reparo de Sinal',tec:'Pedro Lima',cidade:'Mãe do Rio',ab:'08:15',slaMin:180,st:'execucao',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-2.05,lng:-47.58},
+  {id:'#3850',cli:'João Ferreira',          cat:'reparo',tipo:'Troca de Equipamento',tec:'Carlos Souza',cidade:'Paragominas',ab:'09:00',slaMin:180,st:'aguardando',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-3.00,lng:-47.35},
+  {id:'#3855',cli:'Construtora Delta',      cat:'reparo',tipo:'Reparo de Cabo',tec:'Roberto Neves',cidade:'Dom Eliseu',ab:'10:45',slaMin:180,st:'atrasado',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-4.28,lng:-47.85},
+  {id:'#3858',cli:'Supermercado Bom Preço', cat:'reparo',tipo:'Reparo de Sinal',tec:'Carlos Souza',cidade:'Paragominas',ab:'11:30',slaMin:180,st:'finalizado',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-3.00,lng:-47.35},
+  {id:'#3864',cli:'Churrascaria Três Irmãos',cat:'reparo',tipo:'Troca de Equipamento',tec:'Roberto Neves',cidade:'Rondon do Pará',ab:'07:45',slaMin:180,st:'finalizado',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-3.98,lng:-48.06},
+  {id:'#3867',cli:'Escola Estadual Silva',  cat:'reparo',tipo:'Reparo de Cabo',tec:'João Silva',cidade:'Mãe do Rio',ab:'09:00',slaMin:180,st:'finalizado',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-2.05,lng:-47.58},
+  // ── MUDANÇA DE ENDEREÇO ──
+  {id:'#3856',cli:'Dr. Eduardo Viana',      cat:'mudanca',tipo:'Mudança de Endereço',tec:'Marcos Alves',cidade:'Paragominas',ab:'09:00',slaMin:360,st:'execucao',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-3.00,lng:-47.35},
+  {id:'#3861',cli:'Clínica São Lucas',      cat:'mudanca',tipo:'Mudança de Endereço',tec:'Ana Costa',cidade:'Mãe do Rio',ab:'10:15',slaMin:360,st:'aguardando',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-2.05,lng:-47.58},
+  {id:'#3868',cli:'Farmácia Cristo Rei',    cat:'mudanca',tipo:'Mudança de Endereço',tec:'Carlos Souza',cidade:'Dom Eliseu',ab:'08:30',slaMin:360,st:'finalizado',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-4.28,lng:-47.85},
+  // ── SUPORTE TÉCNICO ──
+  {id:'#3853',cli:'Paulo Mendes',           cat:'suporte',tipo:'Suporte Técnico',tec:'Ana Costa',cidade:'Mãe do Rio',ab:'10:10',slaMin:120,st:'finalizado',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-2.05,lng:-47.58},
+  {id:'#3857',cli:'Escritório Contábil MM', cat:'suporte',tipo:'Suporte Técnico',tec:'Ana Costa',cidade:'Paragominas',ab:'11:00',slaMin:120,st:'execucao',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-3.00,lng:-47.35},
+  {id:'#3859',cli:'Maria Eduarda Nunes',    cat:'suporte',tipo:'Config. de Roteador',tec:'Pedro Lima',cidade:'Rondon do Pará',ab:'11:20',slaMin:120,st:'finalizado',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-3.98,lng:-48.06},
+  {id:'#3865',cli:'Loja Calçados Pé Leve',  cat:'suporte',tipo:'Suporte Técnico',tec:'João Silva',cidade:'Mãe do Rio',ab:'07:30',slaMin:120,st:'finalizado',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-2.05,lng:-47.58},
+  // ── RETRABALHOS ──
+  {id:'#3849',cli:'Comercial Dias Ltda',    cat:'retrabalho',tipo:'Reparo de Sinal',tec:'Ana Costa',cidade:'Mãe do Rio',ab:'08:45',slaMin:180,st:'execucao',rtb:true,rtbOrig:'#3821',rtbMotivo:'Sinal instável pós-instalação',lat:-2.05,lng:-47.58},
+  {id:'#3851',cli:'Loja Roupa Fina',        cat:'retrabalho',tipo:'Reparo de Cabo',tec:'Roberto Neves',cidade:'Paragominas',ab:'09:20',slaMin:180,st:'retrabalho',rtb:true,rtbOrig:'#3830',rtbMotivo:'Queda de link recorrente',lat:-3.00,lng:-47.35},
+  {id:'#3862',cli:'Padaria Central',        cat:'retrabalho',tipo:'Instalação Fibra',tec:'João Silva',cidade:'Mãe do Rio',ab:'11:45',slaMin:180,st:'execucao',rtb:true,rtbOrig:'#3840',rtbMotivo:'Equip. não configurado',lat:-2.05,lng:-47.58},
+  // ── REAGENDADOS ──
+  {id:'#3871',cli:'Condomínio Park Sul',    cat:'instalacao',tipo:'Instalação Fibra',tec:'Pedro Lima',cidade:'Rondon do Pará',ab:'14:00',slaMin:240,st:'reagendado',rtb:false,rtbOrig:null,rtbMotivo:null,reagMotivo:'Cliente não estava em casa',reagDe:'08:00',lat:-3.98,lng:-48.06},
+  {id:'#3872',cli:'Supermercado Atacadão', cat:'reparo',tipo:'Reparo de Cabo',tec:'Roberto Neves',cidade:'Dom Eliseu',ab:'15:30',slaMin:180,st:'reagendado',rtb:false,rtbOrig:null,rtbMotivo:null,reagMotivo:'Peça indisponível',reagDe:'10:00',lat:-4.28,lng:-47.85},
+  {id:'#3873',cli:'Escola Adventista',      cat:'instalacao',tipo:'Instalação Fibra',tec:'Marcos Alves',cidade:'Paragominas',ab:'16:00',slaMin:240,st:'reagendado',rtb:false,rtbOrig:null,rtbMotivo:null,reagMotivo:'Técnico com problema no veículo',reagDe:'09:30',lat:-3.00,lng:-47.35},
+  {id:'#3874',cli:'Residencial Bela Vista', cat:'reparo',tipo:'Troca de Equipamento',tec:'Carlos Souza',cidade:'Mãe do Rio',ab:'13:00',slaMin:180,st:'reagendado',rtb:false,rtbOrig:null,rtbMotivo:null,reagMotivo:'Cliente solicitou remarcação',reagDe:'07:30',lat:-2.05,lng:-47.58},
+];
+
+// Dados acumulados do mês (simulado — virá da API Hubsoft com query ?periodo=mes)
+const mesData = {instalacao:47,reparo:38,mudanca:12,suporte:62,retrabalho:18};
+
+const tiposConfig = {
+  instalacao: {label:'Instalação',   icon:'fa-wifi',            color:'var(--accent)',  cl:'b-blue'},
+  reparo:     {label:'Reparo',       icon:'fa-wrench',          color:'var(--cyan)',    cl:'b-cyan'},
+  mudanca:    {label:'Mudança End.', icon:'fa-map-marker-alt',  color:'var(--purple)', cl:'b-purple'},
+  suporte:    {label:'Suporte',      icon:'fa-headset',         color:'var(--green)',  cl:'b-green'},
+  retrabalho: {label:'Retrabalho',   icon:'fa-redo-alt',        color:'var(--orange)', cl:'b-orange'},
+};
+
+const stBadge = {
+  execucao:   '<span class="badge b-blue">● Em execução</span>',
+  atrasado:   '<span class="badge b-red">⚠ Atrasado</span>',
+  aguardando: '<span class="badge b-amber">◌ Aguardando</span>',
+  finalizado: '<span class="badge b-green">✓ Finalizado</span>',
+  retrabalho: '<span class="badge b-orange">⟳ Retrabalho</span>',
+  reagendado: '<span class="badge b-purple">↻ Reagendado</span>',
+};
+
+// ── ESTADO DOS FILTROS ──────────────────────────────────────────────────────
+let filtros = {periodo:'hoje', tec:'', cidade:'', cat:'', st:'todos'};
+let chamadosFiltrados = [...chamadosDB];
+
+// Popula dropdowns
+function populateDropdowns() {
+  const tecs    = [...new Set(chamadosDB.map(c=>c.tec))].sort();
+  const cidades = [...new Set(chamadosDB.map(c=>c.cidade))].sort();
+  const cats    = [...new Set(chamadosDB.map(c=>c.cat))];
+  const selTec  = document.getElementById('filtTec');
+  const selCid  = document.getElementById('filtCidade');
+  const selCat  = document.getElementById('filtCat');
+  if(selTec)  tecs.forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;selTec.appendChild(o);});
+  if(selCid)  cidades.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;selCid.appendChild(o);});
+  if(selCat)  cats.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=tiposConfig[c]?.label||c;selCat.appendChild(o);});
+}
+
+function setPeriodo(p, el) {
+  filtros.periodo = p;
+  document.querySelectorAll('[id^="per"]').forEach(b=>b.classList.remove('active'));
+  if(el) el.classList.add('active');
+  const dr = document.getElementById('dateRange');
+  if(dr) dr.style.display = p==='custom' ? 'flex' : 'none';
+  applyFilters();
+}
+
+function applyFilters() {
+  filtros.tec    = document.getElementById('filtTec')?.value    || '';
+  filtros.cidade = document.getElementById('filtCidade')?.value || '';
+  filtros.cat    = document.getElementById('filtCat')?.value    || '';
+  chamadosFiltrados = chamadosDB.filter(c => {
+    if(filtros.tec    && c.tec    !== filtros.tec)    return false;
+    if(filtros.cidade && c.cidade !== filtros.cidade) return false;
+    if(filtros.cat    && c.cat    !== filtros.cat)    return false;
+    if(filtros.st !== 'todos' && filtros.st !== 'atrasado') {
+      if(c.st !== filtros.st) return false;
+    }
+    if(filtros.st === 'atrasado' && c.st !== 'atrasado') return false;
+    return true;
+  });
+  rebuildAll();
+}
+
+function filterSt(st, el) {
+  filtros.st = st;
+  document.querySelectorAll('#statusChips .chip').forEach(c=>c.classList.remove('active'));
+  if(el) el.classList.add('active');
+  const ri = document.getElementById('rtbInsight');
+  if(ri) ri.style.display = st==='retrabalho' ? 'block' : 'none';
+  applyFilters();
+}
+
+// ── RENDER: CARDS POR CATEGORIA ────────────────────────────────────────────
+function renderCatCards() {
+  const el = document.getElementById('catCards');
+  if(!el) return;
+  const tipos = Object.entries(tiposConfig);
+  el.style.gridTemplateColumns = `repeat(${tipos.length},1fr)`;
+  el.innerHTML = tipos.map(([key, cfg]) => {
+    const base    = chamadosDB.filter(c=>c.cat===key);
+    const fil     = chamadosFiltrados.filter(c=>c.cat===key);
+    const hoje_ab = fil.filter(c=>['execucao','aguardando','retrabalho'].includes(c.st)).length;
+    const hoje_at = fil.filter(c=>c.st==='atrasado').length;
+    const hoje_ok = fil.filter(c=>c.st==='finalizado').length;
+    const mes_tot = mesData[key] || 0;
+    const total   = hoje_ab + hoje_at + hoje_ok;
+    const pct_ok  = total ? Math.round(hoje_ok/total*100) : 0;
+    return `
+    <div style="background:var(--surface);border:1px solid var(--border);border-top:3px solid ${cfg.color};border-radius:var(--r-lg);padding:14px 16px;cursor:pointer;transition:.15s" onclick="setCatFilter('${key}')" onmouseover="this.style.borderColor='${cfg.color}'" onmouseout="this.style.borderTopColor='${cfg.color}';this.style.borderColor='';this.style.borderTopColor='${cfg.color}'">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
+        <div style="width:26px;height:26px;border-radius:6px;background:${cfg.color}20;color:${cfg.color};display:grid;place-items:center;font-size:11px;flex-shrink:0"><i class="fas ${cfg.icon}"></i></div>
+        <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text3)">${cfg.label}</span>
+      </div>
+      <!-- Hoje -->
+      <div style="margin-bottom:8px">
+        <div style="font-size:9.5px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">Hoje</div>
+        <div style="display:flex;align-items:baseline;gap:6px">
+          <span style="font-size:26px;font-weight:700;font-family:'JetBrains Mono',monospace;color:${cfg.color};line-height:1">${total}</span>
+          <div style="display:flex;flex-direction:column;gap:1px">
+            <span style="font-size:10px;color:var(--accent)">● ${hoje_ab} ativos</span>
+            ${hoje_at>0?`<span style="font-size:10px;color:var(--red)">⚠ ${hoje_at} atr.</span>`:''}
+            <span style="font-size:10px;color:var(--green)">✓ ${hoje_ok} ok</span>
+          </div>
+        </div>
+      </div>
+      <!-- Barra de progresso -->
+      <div class="prog" style="margin-bottom:8px"><div class="prog-fill" style="width:${pct_ok}%;background:${cfg.color}"></div></div>
+      <!-- Acumulado mês -->
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:10.5px;color:var(--text3)">Mês acumulado</span>
+        <span style="font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--text2)">${mes_tot}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setCatFilter(cat) {
+  const sel = document.getElementById('filtCat');
+  if(sel) sel.value = cat;
+  applyFilters();
+}
+
+// ── RENDER: LANES DE STATUS (kanban visual) ────────────────────────────────
+function renderStatusLanes() {
+  const lanes = [
+    {st:'execucao',  label:'Em Execução', color:'var(--accent)',  icon:'fa-circle-notch fa-spin'},
+    {st:'aguardando',label:'Aguardando',  color:'var(--amber)',   icon:'fa-clock'},
+    {st:'atrasado',  label:'Atrasados',   color:'var(--red)',     icon:'fa-exclamation-triangle'},
+    {st:'reagendado',label:'Reagendados', color:'var(--purple)',  icon:'fa-calendar-alt'},
+    {st:'finalizado',label:'Finalizados', color:'var(--green)',   icon:'fa-check-circle'},
+  ];
+  const el = document.getElementById('statusLanes');
+  if(!el) return;
+  const ativos = chamadosFiltrados.filter(c=>c.st!=='finalizado');
+  document.getElementById('liveCount').textContent = `${ativos.length} ativos`;
+
+  el.innerHTML = lanes.map(lane => {
+    const items = chamadosFiltrados.filter(c=>c.st===lane.st);
+    return `
+    <div style="background:var(--bg3);border-radius:var(--r);padding:10px;min-height:80px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding-bottom:7px;border-bottom:1px solid var(--border)">
+        <i class="fas ${lane.icon}" style="font-size:10px;color:${lane.color}"></i>
+        <span style="font-size:10.5px;font-weight:600;color:${lane.color};flex:1">${lane.label}</span>
+        <span style="font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;color:${lane.color};background:${lane.color}18;padding:1px 6px;border-radius:4px">${items.length}</span>
+      </div>
+      ${items.slice(0,6).map(c=>`
+        <div style="background:var(--surface);border-radius:5px;padding:7px 9px;margin-bottom:5px;border-left:2px solid ${tiposConfig[c.cat]?.color||'var(--border2)'}">
+          <div style="font-size:11.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.cli}</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:3px">
+            <span style="font-size:10px;color:var(--text3)">${c.tec}</span>
+            <span style="font-size:9px;color:var(--text3)">·</span>
+            <span style="font-size:10px;color:var(--text3)">${c.cidade}</span>
+            ${c.rtb?'<span class="rtb-tag" style="font-size:9px;padding:1px 4px">RTB</span>':''}
+          </div>
+          ${c.st==='reagendado'&&c.reagMotivo?`<div style="font-size:9.5px;color:var(--purple);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.reagMotivo}</div>`:''}
+          <div style="display:flex;justify-content:space-between;margin-top:3px">
+            <span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--text3)">${c.id}</span>
+            <span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:${c.st==='atrasado'?'var(--red)':c.st==='reagendado'?'var(--purple)':'var(--text3)'}">ETA ${c.sla||'--'}</span>
+          </div>
+        </div>
+      `).join('')}
+      ${items.length>6?`<div style="font-size:10.5px;color:var(--text3);text-align:center;padding:4px">+${items.length-6} mais</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ── RENDER: POR CIDADE ─────────────────────────────────────────────────────
+function renderCidades() {
+  const el = document.getElementById('cidadeList');
+  if(!el) return;
+  const cidMap = {};
+  chamadosFiltrados.forEach(c=>{
+    if(!cidMap[c.cidade]) cidMap[c.cidade]={total:0,atrasado:0,execucao:0,finalizado:0,cats:{}};
+    cidMap[c.cidade].total++;
+    cidMap[c.cidade][c.st]=(cidMap[c.cidade][c.st]||0)+1;
+    cidMap[c.cidade].cats[c.cat]=(cidMap[c.cidade].cats[c.cat]||0)+1;
+  });
+  const cidades = Object.entries(cidMap).sort((a,b)=>b[1].total-a[1].total);
+  document.getElementById('cidadeCount').textContent = `${cidades.length} cidades`;
+  const maxT = Math.max(...cidades.map(([,v])=>v.total),1);
+  el.innerHTML = cidades.map(([nome,d])=>`
+    <div style="padding:9px 4px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <i class="fas fa-map-marker-alt" style="font-size:10px;color:var(--purple)"></i>
+          <span style="font-size:12.5px;font-weight:600">${nome}</span>
+        </div>
+        <div style="display:flex;gap:5px;align-items:center">
+          ${d.atrasado>0?`<span style="font-size:10px;color:var(--red);font-weight:700">⚠${d.atrasado}</span>`:''}
+          ${(d.execucao||0)>0?`<span style="font-size:10px;color:var(--accent)">●${d.execucao}</span>`:''}
+          <span style="font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--text)">${d.total}</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:2px;margin-bottom:5px">
+        ${Object.entries(tiposConfig).map(([k,v])=>d.cats[k]?`<span style="font-size:9.5px;background:${v.color}18;color:${v.color};padding:1px 5px;border-radius:3px">${v.label.split(' ')[0]} ${d.cats[k]}</span>`:'').join('')}
+      </div>
+      <div class="prog"><div class="prog-fill" style="width:${Math.round(d.total/maxT*100)}%;background:var(--purple)"></div></div>
+    </div>
+  `).join('');
+}
+
+// ── RENDER: TABELA PRINCIPAL ───────────────────────────────────────────────
+function renderMainTable() {
+  const el = document.getElementById('mainTbl');
+  if(!el) return;
+  const lista = chamadosFiltrados;
+  const title = document.getElementById('tblMainTitle');
+  if(title) title.textContent = lista.length===chamadosDB.length ? 'Todos os chamados' : `${lista.length} chamados encontrados`;
+  el.innerHTML = lista.length ? lista.map(c=>`<tr>
+    <td class="mono" style="color:var(--accent);font-size:11px">${c.id}</td>
+    <td>
+      <div style="font-weight:500;font-size:12.5px">${c.cli}</div>
+      <div style="font-size:10.5px;color:var(--text3)">${c.tipo}${c.rtb?` <span class="rtb-tag">RTB</span>`:''}</div>
+      ${c.rtb&&c.rtbMotivo?`<div style="font-size:10px;color:var(--orange);margin-top:1px">${c.rtbMotivo}</div>`:''}
+      ${c.st==='reagendado'&&c.reagMotivo?`<div style="font-size:10px;color:var(--purple);margin-top:1px">↻ ${c.reagMotivo} · de ${c.reagDe}</div>`:''}
+    </td>
+    <td>
+      <div style="display:flex;align-items:center;gap:5px">
+        <div style="width:6px;height:6px;border-radius:50%;background:${tiposConfig[c.cat]?.color||'var(--border2)'}"></div>
+        <span style="font-size:12px">${tiposConfig[c.cat]?.label||c.cat}</span>
+      </div>
+    </td>
+    <td style="font-size:12px">${c.tec}</td>
+    <td>
+      <div style="display:flex;align-items:center;gap:4px">
+        <i class="fas fa-map-marker-alt" style="font-size:9px;color:var(--purple)"></i>
+        <span style="font-size:12px">${c.cidade}</span>
+      </div>
+    </td>
+    <td class="mono" style="font-size:11px">${c.ab}</td>
+    <td class="mono" style="font-size:11px;color:${c.st==='atrasado'?'var(--red)':'var(--text3)'};font-weight:${c.st==='atrasado'?'700':'400'}">${c.sla||'--'}</td>
+    <td>${stBadge[c.st]||''}</td>
+  </tr>`).join('') : `<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:28px;font-size:12px">Nenhum chamado encontrado com os filtros aplicados</td></tr>`;
+}
+
+// ── RENDER: FEED AO VIVO ──────────────────────────────────────────────────
+const feedEvents = [
+  {tipo:'inicio',    id:'#3863',tec:'Marcos Alves', cli:'Bar Sabor',          cat:'instalacao',cidade:'Paragominas', tempo:'agora'},
+  {tipo:'fim',       id:'#3866',tec:'Carlos Souza', cli:'Residencial Flores', cat:'instalacao',cidade:'Dom Eliseu',  tempo:'há 4min'},
+  {tipo:'atraso',    id:'#3855',tec:'Roberto Neves',cli:'Construtora Delta',  cat:'reparo',    cidade:'Dom Eliseu',  tempo:'há 8min'},
+  {tipo:'inicio',    id:'#3857',tec:'Ana Costa',    cli:'Escritório MM',      cat:'suporte',   cidade:'Paragominas', tempo:'há 11min'},
+  {tipo:'fim',       id:'#3858',tec:'Carlos Souza', cli:'Supermercado BP',    cat:'reparo',    cidade:'Paragominas', tempo:'há 15min'},
+  {tipo:'retrabalho',id:'#3862',tec:'João Silva',   cli:'Padaria Central',    cat:'retrabalho',cidade:'Mãe do Rio',  tempo:'há 19min'},
+  {tipo:'fim',       id:'#3864',tec:'Roberto Neves',cli:'Churrascaria 3 Irm.',cat:'reparo',    cidade:'Rondon do Pará',tempo:'há 23min'},
+  {tipo:'inicio',    id:'#3860',tec:'Pedro Lima',   cli:'Residencial Planalto',cat:'instalacao',cidade:'Rondon do Pará',tempo:'há 28min'},
+  {tipo:'fim',       id:'#3853',tec:'Ana Costa',    cli:'Paulo Mendes',       cat:'suporte',   cidade:'Mãe do Rio',  tempo:'há 34min'},
+  {tipo:'atraso',    id:'#3847',tec:'João Silva',   cli:'Cond. Sol Nascente', cat:'instalacao',cidade:'Mãe do Rio',  tempo:'há 42min'},
+];
+const feedCfg = {
+  inicio:    {icon:'fa-play-circle',   color:'var(--accent)',  text:'Iniciou'},
+  fim:       {icon:'fa-check-circle',  color:'var(--green)',   text:'Finalizou'},
+  atraso:    {icon:'fa-exclamation-circle',color:'var(--red)', text:'Atrasado'},
+  retrabalho:{icon:'fa-redo',          color:'var(--orange)',  text:'Retrabalho'},
+};
+function renderFeed() {
+  const el = document.getElementById('liveFeed');
+  if(!el) return;
+  el.innerHTML = feedEvents.map(e=>{
+    const cfg  = feedCfg[e.tipo];
+    const tCfg = tiposConfig[e.cat];
+    return `
+    <div style="display:flex;gap:9px;padding:9px 14px;border-bottom:1px solid var(--border);transition:.15s" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+      <div style="width:26px;height:26px;border-radius:6px;background:${cfg.color}18;color:${cfg.color};display:grid;place-items:center;font-size:11px;flex-shrink:0;margin-top:1px">
+        <i class="fas ${cfg.icon}"></i>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:5px;margin-bottom:2px">
+          <span style="font-size:12px;font-weight:600;color:var(--text)">${e.tec}</span>
+          <span style="font-size:11px;color:${cfg.color}">${cfg.text}</span>
+        </div>
+        <div style="font-size:11.5px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.cli}</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:3px">
+          <span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--accent)">${e.id}</span>
+          <span style="font-size:10px;background:${tCfg?.color||''}18;color:${tCfg?.color||'var(--text3)'};padding:1px 5px;border-radius:3px">${tCfg?.label||e.cat}</span>
+          <i class="fas fa-map-marker-alt" style="font-size:9px;color:var(--purple)"></i>
+          <span style="font-size:10px;color:var(--text3)">${e.cidade}</span>
+        </div>
+      </div>
+      <div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--text3);flex-shrink:0;margin-top:2px">${e.tempo}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── RENDER: RETRABALHO INSIGHT ────────────────────────────────────────────
+function renderRtbInsight() {
+  const causasRtb = [
+    {causa:'Problema não identificado',count:4,pct:33,c:'var(--red)'},
+    {causa:'Equipamento com defeito oculto',count:3,pct:25,c:'var(--orange)'},
+    {causa:'Serviço realizado incorreto',count:2,pct:17,c:'var(--amber)'},
+    {causa:'Cliente sem acesso no momento',count:2,pct:17,c:'var(--accent)'},
+    {causa:'Outros',count:1,pct:8,c:'var(--text3)'},
+  ];
+  const cr = document.getElementById('causasRtb');
+  if(cr) cr.innerHTML = causasRtb.map(c=>`
+    <div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+        <span style="color:var(--text2)">${c.causa}</span>
+        <b style="color:${c.c};font-family:'JetBrains Mono',monospace">${c.count}</b>
+      </div>
+      <div class="prog"><div class="prog-fill" style="width:${c.pct}%;background:${c.c}"></div></div>
+    </div>`).join('');
+
+  const techRtb = [
+    {n:'João Silva',q:3,p:'8%',warn:true},
+    {n:'Roberto Neves',q:2,p:'6%',warn:true},
+    {n:'Ana Costa',q:1,p:'2%',warn:false},
+  ];
+  const tr2 = document.getElementById('techRtbTbl');
+  if(tr2) tr2.innerHTML = techRtb.map(t=>`<tr>
+    <td style="font-weight:500;font-size:12px">${t.n}</td>
+    <td class="mono" style="color:var(--orange)">${t.q}</td>
+    <td class="mono" style="font-size:11px">${t.p}</td>
+    <td>${t.warn?'<span class="badge b-red" style="font-size:9.5px">⚠ Atenção</span>':'<span class="badge b-green" style="font-size:9.5px">OK</span>'}</td>
+  </tr>`).join('');
+}
+
+// ── REBUILD ALL ──────────────────────────────────────────────────────────
+function rebuildAll() {
+  // Calcula SLA de cada chamado (hora de encerramento esperada)
+  const now = new Date();
+  chamadosFiltrados.forEach(c=>{
+    if(!c.slaCalc) {
+      const [h,m] = (c.ab||'00:00').split(':').map(Number);
+      const slaDate = new Date(); slaDate.setHours(h,m+c.slaMin,0,0);
+      c.sla = `${String(slaDate.getHours()).padStart(2,'0')}:${String(slaDate.getMinutes()).padStart(2,'0')}`;
+      c.slaCalc = true;
+    }
+  });
+  renderCatCards();
+  renderStatusLanes();
+  renderCidades();
+  renderMainTable();
+  renderFeed();
+  renderRtbInsight();
+  const el = document.getElementById('lastSync');
+  if(el) el.textContent = new Date().toLocaleTimeString('pt-BR');
+}
+
+// ── SINCRONIZAÇÃO HUBSOFT (simulada) ─────────────────────────────────────
+function testarHubsoft() {
+  const host     = document.getElementById('hs-host')?.value?.trim();
+  const clientId = document.getElementById('hs-client-id')?.value?.trim();
+  const secret   = document.getElementById('hs-client-secret')?.value?.trim();
+  const username = document.getElementById('hs-username')?.value?.trim();
+  const password = document.getElementById('hs-password')?.value?.trim();
+  const badge    = document.getElementById('hubsoft-badge');
+  const log      = document.getElementById('hubsoftLog');
+  if(!host || !clientId || !secret || !username || !password) {
+    alert('Preencha todos os campos obrigatórios (Host, Client ID, Client Secret, Username e Password).');
+    return;
+  }
+  if(badge) { badge.textContent='◌ Testando...'; badge.className='badge b-amber'; }
+  if(log) log.innerHTML = `<span style="color:var(--amber)">◌</span> Conectando a ${host}...<br><span style="color:var(--text3)">→</span> Obtendo token OAuth2 (grant_type: password)...`;
+  // Chamada real à API Hubsoft:
+  // POST https://{host}/oauth/token
+  // Body: { grant_type:'password', client_id, client_secret, username, password }
+  setTimeout(() => {
+    if(badge) { badge.textContent='● Conectado'; badge.className='badge b-green'; }
+    const t = new Date().toLocaleTimeString('pt-BR');
+    if(log) log.innerHTML = `<span style="color:var(--green)">✓</span> [${t}] Token OAuth2 obtido com sucesso<br><span style="color:var(--green)">✓</span> Endpoint: https://${host}/api<br><span style="color:var(--green)">✓</span> Módulos acessíveis: Chamados, Clientes, Técnicos<br><span style="color:var(--text3)">→</span> Pronto para sincronizar`;
+    // Atualiza KPI card
+    const st = document.getElementById('int-hubsoft-st');
+    const sub = document.getElementById('int-hubsoft-sub');
+    if(st) { st.textContent='Conectado'; st.style.color='var(--green)'; st.style.fontSize='18px'; }
+    if(sub) sub.textContent='Último sync agora';
+    const bar = document.getElementById('int-hubsoft-bar'); if(bar) bar.style.background='var(--green)';
+  }, 1200);
+}
+
+function salvarHubsoft() {
+  const host = document.getElementById('hs-host')?.value?.trim();
+  if(!host) { alert('Preencha o Host antes de salvar.'); return; }
+  alert('Configurações salvas! A sincronização será iniciada automaticamente.');
+}
+
+function syncHubsoft() {
+  const icon = document.getElementById('syncIcon');
+  if(icon) { icon.classList.add('fa-spin'); }
+  // Chama o proxy real se configurado
+  if(PROXY_URL) { testarConexaoProxy(); return; }
+  setTimeout(()=>{
+    if(icon) icon.classList.remove('fa-spin');
+    // Simula chegada de novo chamado
+    const feedEl = document.getElementById('liveFeed');
+    if(feedEl) {
+      const div = document.createElement('div');
+      div.style.cssText='display:flex;gap:9px;padding:9px 14px;border-bottom:1px solid var(--border);background:rgba(34,197,94,0.06)';
+      div.innerHTML=`<div style="width:26px;height:26px;border-radius:6px;background:rgba(34,197,94,0.15);color:var(--green);display:grid;place-items:center;font-size:11px"><i class="fas fa-sync-alt"></i></div><div><div style="font-size:12px;font-weight:600;color:var(--green)">Hubsoft sincronizado</div><div style="font-size:10.5px;color:var(--text3)">Dados atualizados agora</div></div>`;
+      feedEl.insertBefore(div, feedEl.firstChild);
+      setTimeout(()=>div.style.background='',2000);
+    }
+    rebuildAll();
+  }, 800);
+}
+
+// ── CONFIGURAÇÃO DO PROXY ────────────────────────────────────────
+// Após deploy no Railway, substitua pelo sua URL:
+// Ex: 'https://ops360-proxy-production-xxxx.up.railway.app'
+const PROXY_URL = '';
+
+// ── BUSCAR CHAMADOS DO HUBSOFT VIA PROXY ─────────────────────────
+async function buscarChamadosHubsoft(params = {}) {
+  if (!PROXY_URL) return null;
+  try {
+    const qs = new URLSearchParams(params).toString();
+    const res = await fetch(`${PROXY_URL}/api/chamados${qs ? '?'+qs : ''}`);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    return json.ok ? json.chamados : null;
+  } catch(err) {
+    console.warn('Proxy indisponível:', err.message);
+    return null;
+  }
+}
+
+async function buscarResumoHubsoft() {
+  if (!PROXY_URL) return null;
+  try {
+    const res = await fetch(`${PROXY_URL}/api/resumo`);
+    const json = await res.json();
+    return json.ok ? json.resumo : null;
+  } catch { return null; }
+}
+
+async function testarConexaoProxy() {
+  const badge = document.getElementById('hubsoft-badge');
+  const log   = document.getElementById('hubsoftLog');
+  if (!PROXY_URL) {
+    if(badge) { badge.textContent='◌ Proxy não configurado'; badge.className='badge b-amber'; }
+    if(log) log.innerHTML='<span style="color:var(--amber)">◌</span> Adicione a URL do Railway na variável PROXY_URL no código.<br><span style="color:var(--text3)">→</span> Siga o README para fazer o deploy.';
+    return;
+  }
+  if(badge) { badge.textContent='◌ Testando...'; badge.className='badge b-amber'; }
+  try {
+    const res  = await fetch(`${PROXY_URL}/api/status`);
+    const json = await res.json();
+    if (json.ok) {
+      if(badge) { badge.textContent='● Conectado'; badge.className='badge b-green'; }
+      const t = new Date().toLocaleTimeString('pt-BR');
+      if(log) log.innerHTML=`<span style="color:var(--green)">✓</span> [${t}] Proxy online<br><span style="color:var(--green)">✓</span> Hubsoft: ${json.host}<br><span style="color:var(--green)">✓</span> Token OAuth2 ativo<br><span style="color:var(--text3)">→</span> Sincronizando a cada 30s`;
+      autoRefresh();
+    }
+  } catch(err) {
+    if(badge) { badge.textContent='✕ Erro'; badge.className='badge b-red'; }
+    if(log) log.innerHTML='<span style="color:var(--red)">✕</span> Não foi possível conectar ao proxy.<br><span style="color:var(--text3)">→</span> Verifique se o Railway está rodando.';
+  }
+}
+
+// ── AUTO-REFRESH A CADA 30s — busca dados reais do Hubsoft ────────
+async function autoRefresh() {
+  const el = document.getElementById('lastSync');
+  if(el) el.textContent = new Date().toLocaleTimeString('pt-BR');
+
+  const chamadosReais = await buscarChamadosHubsoft();
+  if (chamadosReais && chamadosReais.length > 0) {
+    chamadosDB.length = 0;
+    chamadosDB.push(...chamadosReais);
+    applyFilters();
+    const resumo = await buscarResumoHubsoft();
+    if (resumo) {
+      const e=document.getElementById('kv-exec'); if(e) e.textContent=resumo.execucao;
+      const a=document.getElementById('kv-atr');  if(a) a.textContent=resumo.atrasado;
+      const f=document.getElementById('kv-fin');  if(f) f.textContent=resumo.finalizado;
+      const r=document.getElementById('kv-rtb');  if(r) r.textContent=resumo.retrabalho;
+    }
+    console.log('['+new Date().toLocaleTimeString('pt-BR')+'] '+chamadosReais.length+' chamados sincronizados do Hubsoft');
+  }
+}
+
+// Retrabalhos análise
+renderRtbInsight();
+
+
+
+// ATENDIMENTO
+const setores = [
+  {n:'Suporte Técnico',vol:98,res:71,tma:'3m42s',nps:7.9,fila:4},
+  {n:'Comercial',vol:62,res:85,tma:'5m10s',nps:8.4,fila:2},
+  {n:'Financeiro',vol:54,res:78,tma:'4m55s',nps:7.2,fila:3},
+  {n:'Retenção',vol:38,res:61,tma:'6m30s',nps:6.8,fila:5},
+  {n:'Instalação',vol:30,res:90,tma:'3m10s',nps:8.7,fila:1},
+  {n:'WhatsApp Bot',vol:212,res:55,tma:'1m22s',nps:7.0,fila:0},
+];
+const st2 = document.getElementById('setorTbl');
+if(st2) st2.innerHTML = setores.map(s=>`<tr>
+  <td style="font-weight:500">${s.n}</td>
+  <td class="mono">${s.vol}</td>
+  <td><div style="display:flex;align-items:center;gap:7px"><div class="prog" style="width:70px"><div class="prog-fill" style="width:${s.res}%;background:${s.res>=70?'var(--green)':s.res>=50?'var(--amber)':'var(--red)'}"></div></div><span class="mono" style="font-size:11px">${s.res}%</span></div></td>
+  <td class="mono">${s.tma}</td>
+  <td><span class="badge ${s.nps>=8?'b-green':s.nps>=7?'b-amber':'b-red'}">${s.nps}</span></td>
+  <td class="mono" style="color:${s.fila>3?'var(--red)':s.fila>1?'var(--amber)':'var(--green)'}">${s.fila}</td>
+  <td><div class="prog" style="width:100px"><div class="prog-fill" style="width:${Math.min(s.vol/2.5,100)}%;background:var(--accent)"></div></div></td>
+</tr>`).join('');
+
+const agentes = [
+  {n:'Ana Costa',s:'Suporte',st:'online',c:'#5b6af0',at:28,res:89,tma:'3m20s',nps:8.2},
+  {n:'Bruno Alves',s:'Comercial',st:'online',c:'#22c55e',at:22,res:91,tma:'4m50s',nps:8.5},
+  {n:'Carla Dias',s:'Financeiro',st:'online',c:'#a78bfa',at:19,res:78,tma:'5m10s',nps:7.4},
+  {n:'Daniel Faria',s:'Retenção',st:'online',c:'#f59e0b',at:15,res:60,tma:'7m20s',nps:6.9},
+  {n:'Eduarda Mota',s:'Suporte',st:'pausa',c:'#f43f5e',at:16,res:75,tma:'4m10s',nps:7.8},
+  {n:'Felipe Neto',s:'Comercial',st:'offline',c:'#565b6e',at:12,res:83,tma:'4m45s',nps:8.0},
+];
+const ag = document.getElementById('agentGrid');
+if(ag) ag.innerHTML = agentes.map(a=>`
+  <div class="agent-card">
+    <div class="agent-head">
+      <div class="agent-av" style="background:${a.c}">${a.n.split(' ').map(x=>x[0]).join('').slice(0,2)}</div>
+      <div><div class="agent-nm">${a.n}</div><div class="agent-rl">${a.s}</div></div>
+      <div class="agent-status-dot" style="background:${a.st==='online'?'var(--green)':a.st==='pausa'?'var(--amber)':'var(--text3)'}"></div>
+    </div>
+    <div class="agent-stats">
+      <div class="agent-stat"><div class="agent-stat-v" style="color:var(--cyan)">${a.at}</div><div class="agent-stat-l">Atend.</div></div>
+      <div class="agent-stat"><div class="agent-stat-v" style="color:var(--green)">${a.res}%</div><div class="agent-stat-l">Resolv.</div></div>
+      <div class="agent-stat"><div class="agent-stat-v" style="color:var(--amber);font-size:13px">${a.tma}</div><div class="agent-stat-l">TMA</div></div>
+      <div class="agent-stat"><div class="agent-stat-v" style="color:var(--purple)">${a.nps}</div><div class="agent-stat-l">NPS</div></div>
+    </div>
+  </div>
+`).join('');
+
+// RETENÇÃO
+const motivos = [
+  {m:'Preço do plano',n:14,p:37,c:'var(--red)'},
+  {m:'Instabilidade / Queda',n:10,p:26,c:'var(--orange)'},
+  {m:'Mudança de endereço',n:6,p:16,c:'var(--amber)'},
+  {m:'Concorrente com oferta',n:5,p:13,c:'var(--accent)'},
+  {m:'Atendimento ruim',n:3,p:8,c:'var(--text3)'},
+];
+const md = document.getElementById('motivosCancDiv');
+if(md) md.innerHTML = motivos.map(m=>`
+  <div style="margin-bottom:11px">
+    <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+      <span style="color:var(--text2)">${m.m}</span>
+      <b style="color:${m.c};font-family:'JetBrains Mono',monospace">${m.n}</b>
+    </div>
+    <div class="prog"><div class="prog-fill" style="width:${m.p}%;background:${m.c}"></div></div>
+  </div>
+`).join('');
+
+const solucoes = [
+  {s:'Desconto (10–30%)',rev:9,tent:12,taxa:75,c:'var(--green)'},
+  {s:'Upgrade sem custo',rev:5,tent:7,taxa:71,c:'var(--cyan)'},
+  {s:'Suporte imediato',rev:4,tent:8,taxa:50,c:'var(--amber)'},
+  {s:'Migração de endereço',rev:2,tent:6,taxa:33,c:'var(--orange)'},
+  {s:'Plano fidelidade',rev:3,tent:5,taxa:60,c:'var(--purple)'},
+];
+const sd = document.getElementById('solReversaoDiv');
+if(sd) sd.innerHTML = solucoes.map(s=>`
+  <div style="margin-bottom:11px">
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;margin-bottom:4px">
+      <span style="color:var(--text2)">${s.s}</span>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span style="color:${s.c};font-family:'JetBrains Mono',monospace;font-size:11px">${s.rev}/${s.tent}</span>
+        <span class="badge ${s.taxa>=60?'b-green':s.taxa>=40?'b-amber':'b-red'}" style="font-size:10px">${s.taxa}%</span>
+      </div>
+    </div>
+    <div class="prog"><div class="prog-fill" style="width:${s.taxa}%;background:${s.c}"></div></div>
+  </div>
+`).join('');
+
+const retCasos = [
+  {cli:'Carlos Andrade',pl:'500MB Fibra',mot:'Preço',at:'Daniel Faria',sol:'Desconto 20%',res:'revertido'},
+  {cli:'Mariana Lopes',pl:'200MB',mot:'Instabilidade',at:'Ana Costa',sol:'Suporte técnico',res:'revertido'},
+  {cli:'Ricardo Gomes',pl:'1GB Empresarial',mot:'Concorrente',at:'Bruno Alves',sol:'Upgrade grátis',res:'revertido'},
+  {cli:'Fernanda Vaz',pl:'100MB',mot:'Mudança',at:'Carla Dias',sol:'Migração',res:'cancelado'},
+  {cli:'André Moura',pl:'300MB',mot:'Atendimento',at:'Daniel Faria',sol:'Desconto 15%',res:'analise'},
+];
+const rt = document.getElementById('retencaoTbl');
+if(rt) rt.innerHTML = retCasos.map(c=>`<tr>
+  <td style="font-weight:500">${c.cli}</td>
+  <td style="font-size:12px">${c.pl}</td>
+  <td><span class="badge b-red" style="font-size:10px">${c.mot}</span></td>
+  <td style="font-size:12px">${c.at}</td>
+  <td style="font-size:12px">${c.sol}</td>
+  <td>${c.res==='revertido'?'<span class="badge b-green">✓ Revertido</span>':c.res==='cancelado'?'<span class="badge b-red">✗ Cancelado</span>':'<span class="badge b-amber">⏳ Análise</span>'}</td>
+</tr>`).join('');
+
+// TASKS
+let tasks = [
+  {id:1,t:'Revisar relatório de SLA semanal',p:'h',tag:'Relatório',done:false,time:'Hoje 14:00'},
+  {id:2,t:'Reunião equipe técnica — retrabalhos',p:'h',tag:'Reunião',done:false,time:'Hoje 15:30'},
+  {id:3,t:'Analisar indicadores de retenção',p:'h',tag:'Retenção',done:false,time:'Hoje 17:00'},
+  {id:4,t:'Configurar alertas automáticos',p:'m',tag:'Operações',done:false,time:'Amanhã'},
+  {id:5,t:'Preparar apresentação diretoria',p:'m',tag:'Relatório',done:false,time:'Quinta'},
+  {id:6,t:'Feedback individual com técnicos',p:'m',tag:'Equipe',done:false,time:'Sexta'},
+  {id:7,t:'Atualizar procedimentos atendimento',p:'l',tag:'Operações',done:true,time:'Ontem'},
+  {id:8,t:'Revisar contrato ChatMix',p:'l',tag:'Outro',done:false,time:'Próx. semana'},
+];
+function renderTasks() {
+  const renderTo = (id, fn) => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    const filtered = tasks.filter(fn);
+    el.innerHTML = filtered.length ? filtered.map(t=>`
+      <div class="task-item">
+        <div class="task-check ${t.done?'done':''}" onclick="toggleTask(${t.id})">${t.done?'✓':''}</div>
+        <div class="task-body">
+          <div class="task-title ${t.done?'done':''}">${t.t}</div>
+          <div class="task-meta">
+            <span class="task-tag">${t.tag}</span>
+            <span class="task-pri pri-${t.p}">${t.p==='h'?'Alta':t.p==='m'?'Média':'Baixa'}</span>
+            <span class="task-time">${t.time}</span>
+          </div>
+        </div>
+        <button class="task-del" onclick="delTask(${t.id})">✕</button>
+      </div>
+    `).join('') : '<div style="color:var(--text3);font-size:12px;padding:12px 0">Nenhuma tarefa</div>';
+  };
+  renderTo('tasks-h', t=>t.p==='h'&&!t.done);
+  renderTo('tasks-m', t=>t.p==='m'&&!t.done);
+  renderTo('tasks-l', t=>t.p==='l'||t.done);
+  const a=tasks.filter(t=>!t.done).length, u=tasks.filter(t=>t.p==='h'&&!t.done).length, c=tasks.filter(t=>t.done).length;
+  const ta=document.getElementById('tk-at'); if(ta) ta.textContent=a;
+  const tu=document.getElementById('tk-ur'); if(tu) tu.textContent=u;
+  const tc2=document.getElementById('tk-co'); if(tc2) tc2.textContent=c;
+}
+function toggleTask(id) { tasks=tasks.map(t=>t.id===id?{...t,done:!t.done}:t); renderTasks(); }
+function delTask(id) { tasks=tasks.filter(t=>t.id!==id); renderTasks(); }
+function showAddTask() { document.getElementById('addTaskForm').style.display='block'; }
+function hideAddTask() { document.getElementById('addTaskForm').style.display='none'; }
+function addTask() {
+  const title = document.getElementById('nt-title').value.trim();
+  if(!title) return;
+  tasks.push({id:Date.now(),t:title,p:document.getElementById('nt-pri').value,tag:document.getElementById('nt-tag').value,done:false,time:document.getElementById('nt-date').value||'Sem prazo'});
+  document.getElementById('nt-title').value='';
+  renderTasks(); hideAddTask();
+}
+renderTasks();
+
+// CALENDAR
+let calDate = new Date(2026,2,1);
+const calEvents = {
+  '2026-3-23':[
+    {tm:'08:00',c:'var(--accent)',ttl:'Reunião Diária Ops',sub:'Equipe técnica completa'},
+    {tm:'10:30',c:'var(--green)',ttl:'Análise KPIs Mensais',sub:'Hubsoft + ChatMix'},
+    {tm:'14:00',c:'var(--amber)',ttl:'1:1 Gestor de Suporte',sub:'João Gerente'},
+    {tm:'16:30',c:'var(--red)',ttl:'Revisão SLA e Retrabalhos',sub:'Relatório para diretoria'},
+  ],
+  '2026-3-24':[
+    {tm:'09:00',c:'var(--purple)',ttl:'Treinamento Técnicos',sub:'Qualidade e retrabalho'},
+    {tm:'15:00',c:'var(--cyan)',ttl:'Reunião ChatMix',sub:'Novos indicadores'},
+  ],
+};
+const months=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const daysH=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+function renderCal() {
+  document.getElementById('calTitle').textContent=`${months[calDate.getMonth()]} ${calDate.getFullYear()}`;
+  const grid=document.getElementById('calGrid');
+  const today=new Date();
+  const first=new Date(calDate.getFullYear(),calDate.getMonth(),1).getDay();
+  const last=new Date(calDate.getFullYear(),calDate.getMonth()+1,0).getDate();
+  let h=daysH.map(d=>`<div class="cal-header">${d}</div>`).join('');
+  for(let i=0;i<first;i++) h+=`<div class="cal-day other"></div>`;
+  for(let d=1;d<=last;d++) {
+    const isT=d===today.getDate()&&calDate.getMonth()===today.getMonth()&&calDate.getFullYear()===today.getFullYear();
+    const key=`${calDate.getFullYear()}-${calDate.getMonth()+1}-${d}`;
+    h+=`<div class="cal-day ${isT?'today':''} ${calEvents[key]?'has-event':''}" onclick="showDay(${d})">${d}</div>`;
+  }
+  grid.innerHTML=h;
+  showDay(today.getDate());
+}
+function showDay(d) {
+  const key=`${calDate.getFullYear()}-${calDate.getMonth()+1}-${d}`;
+  const evs=calEvents[key]||[];
+  document.getElementById('evCount').textContent=`${evs.length} evento${evs.length!==1?'s':''}`;
+  document.getElementById('dayTitle').textContent=`${d} de ${months[calDate.getMonth()]}`;
+  const el=document.getElementById('evList');
+  el.innerHTML=evs.length?evs.map(e=>`
+    <div class="event-item">
+      <div class="event-tm">${e.tm}</div>
+      <div class="event-stripe" style="background:${e.c}"></div>
+      <div><div class="event-ttl">${e.ttl}</div><div class="event-sub">${e.sub}</div></div>
+    </div>
+  `).join(''):'<div style="color:var(--text3);font-size:12px;padding:16px 0">Nenhum evento neste dia</div>';
+}
+function prevMonth() { calDate=new Date(calDate.getFullYear(),calDate.getMonth()-1,1); renderCal(); }
+function nextMonth() { calDate=new Date(calDate.getFullYear(),calDate.getMonth()+1,1); renderCal(); }
+renderCal();
+
+// INTEGRATIONS
+const ints = [
+  {icon:'fa-server',ic:'var(--accent-light)',icc:'var(--accent)',n:'Hubsoft API',d:'Chamados e contratos',on:true},
+  {icon:'fa-comments',ic:'var(--cyan-light)',icc:'var(--cyan)',n:'ChatMix',d:'Aguardando token',on:false},
+  {icon:'fab fa-whatsapp',ic:'rgba(37,211,102,.12)',icc:'#25d366',n:'WhatsApp Business',d:'Alertas e notificações',on:true},
+  {icon:'fa-envelope',ic:'rgba(234,67,53,.12)',icc:'#ea4335',n:'Email SMTP',d:'Relatórios automáticos',on:true},
+];
+const il=document.getElementById('intList');
+if(il) il.innerHTML=ints.map(i=>`
+  <div class="int-row">
+    <div class="int-left">
+      <div class="int-icon" style="background:${i.ic};color:${i.icc}"><i class="${i.icon||'fas '+i.icon}"></i></div>
+      <div><div class="int-name">${i.n}</div><div class="int-desc">${i.d}</div></div>
+    </div>
+    <label class="switch"><input type="checkbox" ${i.on?'checked':''}><div class="switch-track"></div><div class="switch-thumb"></div></label>
+  </div>
+`).join('');
+
+// LIVE SIMULATION
+setInterval(()=>{
+  const e=document.getElementById('kv-exec'); if(e) e.textContent=parseInt(e.textContent)+(Math.random()>.7?1:0);
+  const f=document.getElementById('kv-fin'); if(f) f.textContent=parseInt(f.textContent)+(Math.random()>.6?1:0);
+  const a=document.getElementById('kv-at'); if(a) a.textContent=parseInt(a.textContent)+(Math.random()>.5?1:0);
+},8000);
+</script>
+</body>
+</html>
