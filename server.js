@@ -133,7 +133,7 @@ app.get('/api/chamados', async (req, res) => {
     if (tipo_os_id) params.tipo_os_id = tipo_os_id;
     if (status)     params.status     = status;
 
-    const data = await hubsoftGet('ordem_servico', params);
+    const data = await hubsoftGet('v1/ordem_servico', params);
 
     // Normaliza para o formato esperado pelo dashboard
     const chamados = (data.data || data.items || data || []).map(os => ({
@@ -166,10 +166,10 @@ app.get('/api/chamados', async (req, res) => {
 // ── Técnicos ──────────────────────────────────────────────────────
 app.get('/api/tecnicos', async (req, res) => {
   try {
-    const data = await hubsoftGet('usuario', { tipo: 'tecnico', limit: 100 });
+    const data = await hubsoftGet('v1/funcionario', { limit: 200 });
     const tecnicos = (data.data || data.items || data || []).map(t => ({
       id:   t.id,
-      nome: t.nome,
+      nome: t.nome || t.nome_completo || t.name || 'Sem nome',
     }));
     res.json({ ok: true, tecnicos });
   } catch (err) {
@@ -177,30 +177,37 @@ app.get('/api/tecnicos', async (req, res) => {
   }
 });
 
-// ── Cidades ───────────────────────────────────────────────────────
+// ── Cidades — extraídas das OS do dia ────────────────────────────
 app.get('/api/cidades', async (req, res) => {
   try {
-    const data = await hubsoftGet('cidade', { limit: 200 });
-    const cidades = (data.data || data.items || data || []).map(c => ({
-      id:   c.id,
-      nome: c.nome,
-    }));
-    res.json({ ok: true, cidades });
+    const hoje = new Date().toISOString().split('T')[0];
+    const data = await hubsoftGet('v1/ordem_servico', { data_inicio: hoje, data_fim: hoje, limit: 500 });
+    const todos = data.data || data.items || data || [];
+    const mapaC = {};
+    todos.forEach(os => {
+      const nome = os.cidade?.nome || os.cliente?.cidade?.nome;
+      const id   = os.cidade?.id   || os.cliente?.cidade?.id;
+      if (nome && id && !mapaC[id]) mapaC[id] = { id, nome };
+    });
+    res.json({ ok: true, cidades: Object.values(mapaC).sort((a,b) => a.nome.localeCompare(b.nome)) });
   } catch (err) {
     res.status(500).json({ ok: false, erro: err.message });
   }
 });
 
-// ── Tipos de OS (categorias) ──────────────────────────────────────
+// ── Tipos de OS — extraídos das OS do dia ────────────────────────
 app.get('/api/tipos-os', async (req, res) => {
   try {
-    const data = await hubsoftGet('tipo_servico', { limit: 100 });
-    const tipos = (data.data || data.items || data || []).map(t => ({
-      id:   t.id,
-      nome: t.nome,
-      cat:  normalizarTipo(t.nome),
-    }));
-    res.json({ ok: true, tipos });
+    const hoje = new Date().toISOString().split('T')[0];
+    const data = await hubsoftGet('v1/ordem_servico', { data_inicio: hoje, data_fim: hoje, limit: 500 });
+    const todos = data.data || data.items || data || [];
+    const mapaT = {};
+    todos.forEach(os => {
+      const nome = os.tipo_os?.nome || os.tipo_servico?.nome;
+      const id   = os.tipo_os?.id   || os.tipo_servico?.id;
+      if (nome && id && !mapaT[id]) mapaT[id] = { id, nome, cat: normalizarTipo(nome) };
+    });
+    res.json({ ok: true, tipos: Object.values(mapaT).sort((a,b) => a.nome.localeCompare(b.nome)) });
   } catch (err) {
     res.status(500).json({ ok: false, erro: err.message });
   }
@@ -210,7 +217,7 @@ app.get('/api/tipos-os', async (req, res) => {
 app.get('/api/resumo', async (req, res) => {
   try {
     const hoje = new Date().toISOString().split('T')[0];
-    const data = await hubsoftGet('ordem_servico', { data_inicio: hoje, data_fim: hoje, limit: 500 });
+    const data = await hubsoftGet('v1/ordem_servico', { data_inicio: hoje, data_fim: hoje, limit: 500 });
     const todos = data.data || data.items || data || [];
 
     const resumo = {
