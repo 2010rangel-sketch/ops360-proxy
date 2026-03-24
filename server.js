@@ -83,19 +83,18 @@ app.get('/api/status', async (req, res) => {
 app.get('/api/diagnostico', async (req, res) => {
   const token = await getToken();
   const candidatos = [
-    // técnicos / usuários
-    'v1/colaborador', 'v1/colaboradores', 'v1/funcionario', 'v1/funcionarios',
-    'v1/atendente', 'v1/atendentes', 'v1/operador', 'v1/operadores',
-    'v1/agente', 'v1/agentes', 'v1/equipe', 'v1/membro',
-    // cidades / localidades
-    'v1/municipio', 'v1/municipios', 'v1/localidade', 'v1/localidades',
-    'v1/bairro', 'v1/regiao', 'v1/zona', 'v1/area',
-    // tipos de OS / categorias
-    'v1/categoria', 'v1/categorias', 'v1/tipo', 'v1/tipos',
-    'v1/tipo_ordem_servico', 'v1/tipo_chamado', 'v1/assunto',
-    'v1/servico', 'v1/servicos', 'v1/produto', 'v1/produtos',
-    // outros
-    'v1/contrato', 'v1/plano', 'v1/planos', 'v1/agenda',
+    // cidades
+    'v1/cidade', 'v1/cidades', 'v1/municipio', 'v1/municipios',
+    'v1/endereco', 'v1/enderecos', 'v1/logradouro', 'v1/uf',
+    'v1/estado', 'v1/estados', 'v1/cep', 'v1/regiao', 'v1/regioes',
+    // tipos de OS
+    'v1/tipo_servico', 'v1/tipos_servico', 'v1/tipo_os',
+    'v1/tipo_ordem_servico', 'v1/tipos_ordem_servico',
+    'v1/tipo_atendimento', 'v1/grupo_servico', 'v1/grupo',
+    'v1/categoria_servico', 'v1/categoria_os', 'v1/assunto',
+    'v1/motivo', 'v1/motivos', 'v1/item', 'v1/itens',
+    // outros que podem ter cidades/tipos embutidos
+    'v1/contrato', 'v1/plano', 'v1/planos',
   ];
   const resultados = {};
   for (const ep of candidatos) {
