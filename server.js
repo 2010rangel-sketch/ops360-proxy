@@ -112,18 +112,36 @@ app.get('/api/diagnostico', async (req, res) => {
   res.json({ host: HUBSOFT_HOST, resultados });
 });
 
-// Debug: retorna resposta bruta do Hubsoft para inspecionar estrutura
+// Debug: testa variações de parâmetros para descobrir o formato correto
 app.get('/api/debug-os', async (req, res) => {
   try {
     const hoje = new Date().toISOString().split('T')[0];
     const token = await getToken();
-    const r = await axios.get(`${HUBSOFT_HOST}/api/v1/ordem_servico`, {
-      headers: { Authorization: `Bearer ${token}` },
-      params: { data_inicio: hoje, data_fim: hoje, limit: 2 },
-    });
-    res.json({ keys: Object.keys(r.data), tipo: typeof r.data, isArray: Array.isArray(r.data), amostra: r.data });
+    const testes = [
+      { label: 'sem_filtro',        params: { limit: 2 } },
+      { label: 'data_inicio_fim',   params: { data_inicio: hoje, data_fim: hoje, limit: 2 } },
+      { label: 'dt_inicio_fim',     params: { dt_inicio: hoje, dt_fim: hoje, limit: 2 } },
+      { label: 'date_start_end',    params: { date_start: hoje, date_end: hoje, limit: 2 } },
+      { label: 'inicio_fim',        params: { inicio: hoje, fim: hoje, limit: 2 } },
+      { label: 'created_at',        params: { created_at: hoje, limit: 2 } },
+      { label: 'per_page',          params: { per_page: 2, page: 1 } },
+    ];
+    const resultados = {};
+    for (const t of testes) {
+      try {
+        const r = await axios.get(`${HUBSOFT_HOST}/api/v1/ordem_servico`, {
+          headers: { Authorization: `Bearer ${token}` },
+          params: t.params,
+          timeout: 5000,
+        });
+        resultados[t.label] = { keys: Object.keys(r.data), isArray: Array.isArray(r.data), amostra: r.data };
+      } catch(e) {
+        resultados[t.label] = { erro: e.response?.status || e.message };
+      }
+    }
+    res.json(resultados);
   } catch (err) {
-    res.status(500).json({ erro: err.message, response: err.response?.data });
+    res.status(500).json({ erro: err.message });
   }
 });
 
