@@ -117,14 +117,17 @@ app.get('/api/debug-os', async (req, res) => {
   try {
     const hoje = new Date().toISOString().split('T')[0];
     const token = await getToken();
+    // formato brasileiro DD/MM/YYYY
+    const hojeBR = hoje.split('-').reverse().join('/');
     const testes = [
-      { label: 'sem_filtro',        params: { limit: 2 } },
-      { label: 'data_inicio_fim',   params: { data_inicio: hoje, data_fim: hoje, limit: 2 } },
-      { label: 'dt_inicio_fim',     params: { dt_inicio: hoje, dt_fim: hoje, limit: 2 } },
-      { label: 'date_start_end',    params: { date_start: hoje, date_end: hoje, limit: 2 } },
-      { label: 'inicio_fim',        params: { inicio: hoje, fim: hoje, limit: 2 } },
-      { label: 'created_at',        params: { created_at: hoje, limit: 2 } },
-      { label: 'per_page',          params: { per_page: 2, page: 1 } },
+      { label: 'sem_filtro',              params: { limit: 2 } },
+      { label: 'data_iso',                params: { data_inicio: hoje, data_fim: hoje, limit: 2 } },
+      { label: 'data_br',                 params: { data_inicio: hojeBR, data_fim: hojeBR, limit: 2 } },
+      { label: 'dt_br',                   params: { dt_inicio: hojeBR, dt_fim: hojeBR, limit: 2 } },
+      { label: 'data_abertura_br',        params: { data_abertura: hojeBR, limit: 2 } },
+      { label: 'data_cadastro_br',        params: { data_cadastro: hojeBR, limit: 2 } },
+      { label: 'sem_filtro_per_page',     params: { per_page: 2, page: 1 } },
+      { label: 'sem_filtro_paginate',     params: { paginate: 2 } },
     ];
     const resultados = {};
     for (const t of testes) {
