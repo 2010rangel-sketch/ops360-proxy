@@ -112,34 +112,31 @@ app.get('/api/diagnostico', async (req, res) => {
   res.json({ host: HUBSOFT_HOST, resultados });
 });
 
-// Debug: testa variações de parâmetros para descobrir o formato correto
+// Debug: compara estrutura dos endpoints que retornam 200
 app.get('/api/debug-os', async (req, res) => {
   try {
-    const hoje = new Date().toISOString().split('T')[0];
     const token = await getToken();
-    // formato brasileiro DD/MM/YYYY
-    const hojeBR = hoje.split('-').reverse().join('/');
-    const testes = [
-      { label: 'sem_filtro',              params: { limit: 2 } },
-      { label: 'data_iso',                params: { data_inicio: hoje, data_fim: hoje, limit: 2 } },
-      { label: 'data_br',                 params: { data_inicio: hojeBR, data_fim: hojeBR, limit: 2 } },
-      { label: 'dt_br',                   params: { dt_inicio: hojeBR, dt_fim: hojeBR, limit: 2 } },
-      { label: 'data_abertura_br',        params: { data_abertura: hojeBR, limit: 2 } },
-      { label: 'data_cadastro_br',        params: { data_cadastro: hojeBR, limit: 2 } },
-      { label: 'sem_filtro_per_page',     params: { per_page: 2, page: 1 } },
-      { label: 'sem_filtro_paginate',     params: { paginate: 2 } },
+    const endpoints = [
+      { label: 'os_sem_filtro',    url: `${HUBSOFT_HOST}/api/v1/ordem_servico`, params: { limit: 3 } },
+      { label: 'funcionario',      url: `${HUBSOFT_HOST}/api/v1/funcionario`,    params: { limit: 3 } },
+      { label: 'cliente',          url: `${HUBSOFT_HOST}/api/v1/cliente`,        params: { limit: 3 } },
     ];
     const resultados = {};
-    for (const t of testes) {
+    for (const ep of endpoints) {
       try {
-        const r = await axios.get(`${HUBSOFT_HOST}/api/v1/ordem_servico`, {
+        const r = await axios.get(ep.url, {
           headers: { Authorization: `Bearer ${token}` },
-          params: t.params,
-          timeout: 5000,
+          params: ep.params,
+          timeout: 8000,
         });
-        resultados[t.label] = { keys: Object.keys(r.data), isArray: Array.isArray(r.data), amostra: r.data };
+        resultados[ep.label] = {
+          status: r.status,
+          keys: Object.keys(r.data),
+          isArray: Array.isArray(r.data),
+          dado_completo: r.data,
+        };
       } catch(e) {
-        resultados[t.label] = { erro: e.response?.status || e.message };
+        resultados[ep.label] = { erro: e.response?.status || e.message, body: e.response?.data };
       }
     }
     res.json(resultados);
