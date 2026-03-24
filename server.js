@@ -112,24 +112,30 @@ app.get('/api/diagnostico', async (req, res) => {
   res.json({ host: HUBSOFT_HOST, resultados });
 });
 
-// Debug: testa lista de OS com formato de data BR e sem filtro
+// Debug: força novo token e testa lista de OS
 app.get('/api/debug-os', async (req, res) => {
   try {
+    // Força renovação do token (ignora cache)
+    tokenCache = { access_token: null, expires_at: 0 };
     const token = await getToken();
     const headers = { Authorization: `Bearer ${token}` };
-    const resultados = {};
+    const resultados = { token_renovado: true };
+
     const testes = [
-      { label: 'sem_filtro',      params: { limit: 2 } },
-      { label: 'data_br_hoje',    params: { data_inicio: new Date().toLocaleDateString('pt-BR'), data_fim: new Date().toLocaleDateString('pt-BR'), limit: 2 } },
-      { label: 'data_br_2023',    params: { data_inicio: '01/05/2023', data_fim: '31/05/2023', limit: 2 } },
-      { label: 'data_iso_2023',   params: { data_inicio: '2023-05-01', data_fim: '2023-05-31', limit: 2 } },
-      { label: 'abertura_br',     params: { data_abertura_inicio: '01/05/2023', data_abertura_fim: '31/05/2023', limit: 2 } },
-      { label: 'programado_br',   params: { data_programado_inicio: '01/05/2023', data_programado_fim: '31/05/2023', limit: 2 } },
+      { label: 'sem_filtro',         params: { limit: 3 } },
+      { label: 'data_br_hoje',       params: { data_inicio: new Date().toLocaleDateString('pt-BR'), data_fim: new Date().toLocaleDateString('pt-BR'), limit: 3 } },
+      { label: 'data_br_2023',       params: { data_inicio: '01/05/2023', data_fim: '31/05/2023', limit: 3 } },
+      { label: 'tecnico_id_1',       params: { tecnico_id: 1, limit: 3 } },
+      { label: 'usuario_id_1',       params: { id_usuario: 1, limit: 3 } },
+      { label: 'todos',              params: { todos: 1, limit: 3 } },
+      { label: 'status_todos',       params: { status: 'todos', limit: 3 } },
+      { label: 'per_page_3',         params: { per_page: 3, page: 1 } },
     ];
+
     for (const t of testes) {
       try {
-        const r = await axios.get(`${HUBSOFT_HOST}/api/v1/ordem_servico`, { headers, params: t.params, timeout: 6000 });
-        resultados[t.label] = { keys: Object.keys(r.data), isArray: Array.isArray(r.data), dado: r.data };
+        const r = await axios.get(`${HUBSOFT_HOST}/api/v1/ordem_servico`, { headers, params: t.params, timeout: 8000 });
+        resultados[t.label] = { keys: Object.keys(r.data), dado: r.data };
       } catch(e) { resultados[t.label] = { erro: e.response?.status, body: e.response?.data }; }
     }
     res.json(resultados);
