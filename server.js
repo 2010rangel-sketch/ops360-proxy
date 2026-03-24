@@ -112,6 +112,21 @@ app.get('/api/diagnostico', async (req, res) => {
   res.json({ host: HUBSOFT_HOST, resultados });
 });
 
+// Debug: retorna resposta bruta do Hubsoft para inspecionar estrutura
+app.get('/api/debug-os', async (req, res) => {
+  try {
+    const hoje = new Date().toISOString().split('T')[0];
+    const token = await getToken();
+    const r = await axios.get(`${HUBSOFT_HOST}/api/v1/ordem_servico`, {
+      headers: { Authorization: `Bearer ${token}` },
+      params: { data_inicio: hoje, data_fim: hoje, limit: 2 },
+    });
+    res.json({ keys: Object.keys(r.data), tipo: typeof r.data, isArray: Array.isArray(r.data), amostra: r.data });
+  } catch (err) {
+    res.status(500).json({ erro: err.message, response: err.response?.data });
+  }
+});
+
 // ── Ordens de Serviço (Chamados) ─────────────────────────────────
 // Retorna OS filtradas por data, técnico, cidade, tipo
 // Params: data_inicio, data_fim, tecnico_id, cidade_id, tipo_os_id, status, limit, page
