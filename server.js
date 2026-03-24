@@ -121,23 +121,36 @@ app.get('/api/debug-os', async (req, res) => {
     const headers = { Authorization: `Bearer ${token}` };
     const resultados = { token_renovado: true };
 
-    const testes = [
-      { label: 'sem_filtro',         params: { limit: 3 } },
-      { label: 'data_br_hoje',       params: { data_inicio: new Date().toLocaleDateString('pt-BR'), data_fim: new Date().toLocaleDateString('pt-BR'), limit: 3 } },
-      { label: 'data_br_2023',       params: { data_inicio: '01/05/2023', data_fim: '31/05/2023', limit: 3 } },
-      { label: 'tecnico_id_1',       params: { tecnico_id: 1, limit: 3 } },
-      { label: 'usuario_id_1',       params: { id_usuario: 1, limit: 3 } },
-      { label: 'todos',              params: { todos: 1, limit: 3 } },
-      { label: 'status_todos',       params: { status: 'todos', limit: 3 } },
-      { label: 'per_page_3',         params: { per_page: 3, page: 1 } },
-    ];
+    // Testa POST com novas permissões
+    try {
+      const r = await axios.post(`${HUBSOFT_HOST}/api/v1/ordem_servico`, { limit: 3 }, { headers, timeout: 8000 });
+      resultados['post_body'] = { keys: Object.keys(r.data), dado: r.data };
+    } catch(e) { resultados['post_body'] = { erro: e.response?.status, body: e.response?.data }; }
 
-    for (const t of testes) {
+    // Testa endpoints alternativos de busca/lista
+    const variantes = [
+      '/api/v1/ordem_servico/lista',
+      '/api/v1/ordem_servico/busca',
+      '/api/v1/ordem_servico/search',
+      '/api/v1/ordem_servico/index',
+      '/api/v1/ordens',
+    ];
+    for (const url of variantes) {
       try {
-        const r = await axios.get(`${HUBSOFT_HOST}/api/v1/ordem_servico`, { headers, params: t.params, timeout: 8000 });
-        resultados[t.label] = { keys: Object.keys(r.data), dado: r.data };
-      } catch(e) { resultados[t.label] = { erro: e.response?.status, body: e.response?.data }; }
+        const r = await axios.get(`${HUBSOFT_HOST}${url}`, { headers, params: { limit: 3 }, timeout: 5000 });
+        resultados['GET_' + url.split('/').pop()] = { keys: Object.keys(r.data), dado: r.data };
+      } catch(e) { resultados['GET_' + url.split('/').pop()] = { erro: e.response?.status }; }
     }
+
+    // Tenta swagger/docs para ver endpoints disponíveis
+    const docs = ['/api/documentation', '/docs', '/swagger', '/api/swagger.json', '/api/v1'];
+    for (const url of docs) {
+      try {
+        const r = await axios.get(`${HUBSOFT_HOST}${url}`, { headers, timeout: 5000 });
+        resultados['doc_' + url.replace(/\//g,'_')] = { status: r.status, keys: typeof r.data === 'object' ? Object.keys(r.data).slice(0,10) : 'html' };
+      } catch(e) { resultados['doc_' + url.replace(/\//g,'_')] = { erro: e.response?.status }; }
+    }
+
     res.json(resultados);
   } catch (err) {
     res.status(500).json({ erro: err.message });
