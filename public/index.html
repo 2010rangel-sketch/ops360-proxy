@@ -1018,45 +1018,7 @@ if(dp) dp.innerHTML = priorities.map(p=>`
 //   GET https://api.hubsoft.com.br/v1/chamados?status=todos&limit=500
 // e chame rebuildAll() depois de atualizar o array.
 
-const chamadosDB = [
-  // cat: categoria do Hubsoft  |  st: execucao/aguardando/atrasado/finalizado/retrabalho
-  // tec: nome do técnico       |  cidade: onde o serviço é realizado
-  // inicio/fim: HH:MM          |  slaMin: minutos de SLA
-
-  // ── INSTALAÇÕES ──
-  {id:'#3847',cli:'Condomínio Sol Nascente',cat:'instalacao',tipo:'Instalação Fibra',tec:'João Silva',cidade:'Mãe do Rio',ab:'07:30',slaMin:240,st:'atrasado',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-2.05,lng:-47.58},
-  {id:'#3852',cli:'Escola Municipal XV',    cat:'instalacao',tipo:'Instalação Fibra',tec:'Marcos Alves',cidade:'Paragominas',ab:'09:45',slaMin:240,st:'execucao',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-3.00,lng:-47.35},
-  {id:'#3854',cli:'Farmácia Popular',       cat:'instalacao',tipo:'Instalação Fibra',tec:'João Silva',cidade:'Mãe do Rio',ab:'10:30',slaMin:240,st:'atrasado',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-2.05,lng:-47.58},
-  {id:'#3860',cli:'Residencial Planalto B2',cat:'instalacao',tipo:'Instalação Fibra',tec:'Pedro Lima',cidade:'Rondon do Pará',ab:'11:00',slaMin:240,st:'aguardando',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-3.98,lng:-48.06},
-  {id:'#3863',cli:'Bar e Restaurante Sabor',cat:'instalacao',tipo:'Instalação Fibra',tec:'Marcos Alves',cidade:'Paragominas',ab:'11:20',slaMin:240,st:'execucao',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-3.00,lng:-47.35},
-  {id:'#3866',cli:'Residencial das Flores',cat:'instalacao',tipo:'Instalação Fibra',tec:'Carlos Souza',cidade:'Dom Eliseu',ab:'07:00',slaMin:240,st:'finalizado',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-4.28,lng:-47.85},
-  {id:'#3870',cli:'Sítio Boa Vista',        cat:'instalacao',tipo:'Instalação Fibra',tec:'Pedro Lima',cidade:'Rondon do Pará',ab:'08:00',slaMin:240,st:'finalizado',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-3.98,lng:-48.06},
-  // ── REPAROS ──
-  {id:'#3848',cli:'Maria Santos',           cat:'reparo',tipo:'Reparo de Sinal',tec:'Pedro Lima',cidade:'Mãe do Rio',ab:'08:15',slaMin:180,st:'execucao',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-2.05,lng:-47.58},
-  {id:'#3850',cli:'João Ferreira',          cat:'reparo',tipo:'Troca de Equipamento',tec:'Carlos Souza',cidade:'Paragominas',ab:'09:00',slaMin:180,st:'aguardando',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-3.00,lng:-47.35},
-  {id:'#3855',cli:'Construtora Delta',      cat:'reparo',tipo:'Reparo de Cabo',tec:'Roberto Neves',cidade:'Dom Eliseu',ab:'10:45',slaMin:180,st:'atrasado',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-4.28,lng:-47.85},
-  {id:'#3858',cli:'Supermercado Bom Preço', cat:'reparo',tipo:'Reparo de Sinal',tec:'Carlos Souza',cidade:'Paragominas',ab:'11:30',slaMin:180,st:'finalizado',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-3.00,lng:-47.35},
-  {id:'#3864',cli:'Churrascaria Três Irmãos',cat:'reparo',tipo:'Troca de Equipamento',tec:'Roberto Neves',cidade:'Rondon do Pará',ab:'07:45',slaMin:180,st:'finalizado',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-3.98,lng:-48.06},
-  {id:'#3867',cli:'Escola Estadual Silva',  cat:'reparo',tipo:'Reparo de Cabo',tec:'João Silva',cidade:'Mãe do Rio',ab:'09:00',slaMin:180,st:'finalizado',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-2.05,lng:-47.58},
-  // ── MUDANÇA DE ENDEREÇO ──
-  {id:'#3856',cli:'Dr. Eduardo Viana',      cat:'mudanca',tipo:'Mudança de Endereço',tec:'Marcos Alves',cidade:'Paragominas',ab:'09:00',slaMin:360,st:'execucao',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-3.00,lng:-47.35},
-  {id:'#3861',cli:'Clínica São Lucas',      cat:'mudanca',tipo:'Mudança de Endereço',tec:'Ana Costa',cidade:'Mãe do Rio',ab:'10:15',slaMin:360,st:'aguardando',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-2.05,lng:-47.58},
-  {id:'#3868',cli:'Farmácia Cristo Rei',    cat:'mudanca',tipo:'Mudança de Endereço',tec:'Carlos Souza',cidade:'Dom Eliseu',ab:'08:30',slaMin:360,st:'finalizado',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-4.28,lng:-47.85},
-  // ── SUPORTE TÉCNICO ──
-  {id:'#3853',cli:'Paulo Mendes',           cat:'suporte',tipo:'Suporte Técnico',tec:'Ana Costa',cidade:'Mãe do Rio',ab:'10:10',slaMin:120,st:'finalizado',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-2.05,lng:-47.58},
-  {id:'#3857',cli:'Escritório Contábil MM', cat:'suporte',tipo:'Suporte Técnico',tec:'Ana Costa',cidade:'Paragominas',ab:'11:00',slaMin:120,st:'execucao',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-3.00,lng:-47.35},
-  {id:'#3859',cli:'Maria Eduarda Nunes',    cat:'suporte',tipo:'Config. de Roteador',tec:'Pedro Lima',cidade:'Rondon do Pará',ab:'11:20',slaMin:120,st:'finalizado',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-3.98,lng:-48.06},
-  {id:'#3865',cli:'Loja Calçados Pé Leve',  cat:'suporte',tipo:'Suporte Técnico',tec:'João Silva',cidade:'Mãe do Rio',ab:'07:30',slaMin:120,st:'finalizado',rtb:false,rtbOrig:null,rtbMotivo:null,lat:-2.05,lng:-47.58},
-  // ── RETRABALHOS ──
-  {id:'#3849',cli:'Comercial Dias Ltda',    cat:'retrabalho',tipo:'Reparo de Sinal',tec:'Ana Costa',cidade:'Mãe do Rio',ab:'08:45',slaMin:180,st:'execucao',rtb:true,rtbOrig:'#3821',rtbMotivo:'Sinal instável pós-instalação',lat:-2.05,lng:-47.58},
-  {id:'#3851',cli:'Loja Roupa Fina',        cat:'retrabalho',tipo:'Reparo de Cabo',tec:'Roberto Neves',cidade:'Paragominas',ab:'09:20',slaMin:180,st:'retrabalho',rtb:true,rtbOrig:'#3830',rtbMotivo:'Queda de link recorrente',lat:-3.00,lng:-47.35},
-  {id:'#3862',cli:'Padaria Central',        cat:'retrabalho',tipo:'Instalação Fibra',tec:'João Silva',cidade:'Mãe do Rio',ab:'11:45',slaMin:180,st:'execucao',rtb:true,rtbOrig:'#3840',rtbMotivo:'Equip. não configurado',lat:-2.05,lng:-47.58},
-  // ── REAGENDADOS ──
-  {id:'#3871',cli:'Condomínio Park Sul',    cat:'instalacao',tipo:'Instalação Fibra',tec:'Pedro Lima',cidade:'Rondon do Pará',ab:'14:00',slaMin:240,st:'reagendado',rtb:false,rtbOrig:null,rtbMotivo:null,reagMotivo:'Cliente não estava em casa',reagDe:'08:00',lat:-3.98,lng:-48.06},
-  {id:'#3872',cli:'Supermercado Atacadão', cat:'reparo',tipo:'Reparo de Cabo',tec:'Roberto Neves',cidade:'Dom Eliseu',ab:'15:30',slaMin:180,st:'reagendado',rtb:false,rtbOrig:null,rtbMotivo:null,reagMotivo:'Peça indisponível',reagDe:'10:00',lat:-4.28,lng:-47.85},
-  {id:'#3873',cli:'Escola Adventista',      cat:'instalacao',tipo:'Instalação Fibra',tec:'Marcos Alves',cidade:'Paragominas',ab:'16:00',slaMin:240,st:'reagendado',rtb:false,rtbOrig:null,rtbMotivo:null,reagMotivo:'Técnico com problema no veículo',reagDe:'09:30',lat:-3.00,lng:-47.35},
-  {id:'#3874',cli:'Residencial Bela Vista', cat:'reparo',tipo:'Troca de Equipamento',tec:'Carlos Souza',cidade:'Mãe do Rio',ab:'13:00',slaMin:180,st:'reagendado',rtb:false,rtbOrig:null,rtbMotivo:null,reagMotivo:'Cliente solicitou remarcação',reagDe:'07:30',lat:-2.05,lng:-47.58},
-];
+const chamadosDB = []; // populado via API Hubsoft em autoRefresh()
 
 // Dados acumulados do mês (simulado — virá da API Hubsoft com query ?periodo=mes)
 const mesData = {instalacao:47,reparo:38,mudanca:12,suporte:62,retrabalho:18};
@@ -1084,15 +1046,22 @@ let chamadosFiltrados = [...chamadosDB];
 
 // Popula dropdowns
 function populateDropdowns() {
-  const tecs    = [...new Set(chamadosDB.map(c=>c.tec))].sort();
-  const cidades = [...new Set(chamadosDB.map(c=>c.cidade))].sort();
-  const cats    = [...new Set(chamadosDB.map(c=>c.cat))];
+  const tecs    = [...new Set(chamadosDB.map(c=>c.tec))].filter(Boolean).sort();
+  const cidades = [...new Set(chamadosDB.map(c=>c.cidade))].filter(c=>c&&c!=='Sem cidade').sort();
+  const cats    = [...new Set(chamadosDB.map(c=>c.cat))].filter(Boolean);
   const selTec  = document.getElementById('filtTec');
   const selCid  = document.getElementById('filtCidade');
   const selCat  = document.getElementById('filtCat');
-  if(selTec)  tecs.forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;selTec.appendChild(o);});
-  if(selCid)  cidades.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;selCid.appendChild(o);});
-  if(selCat)  cats.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=tiposConfig[c]?.label||c;selCat.appendChild(o);});
+  function rePopulate(sel, items, labelFn) {
+    if(!sel) return;
+    const val = sel.value;
+    while(sel.options.length > 1) sel.remove(1);
+    items.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=labelFn(v);sel.appendChild(o);});
+    if([...sel.options].some(o=>o.value===val)) sel.value=val;
+  }
+  rePopulate(selTec, tecs, t=>t);
+  rePopulate(selCid, cidades, c=>c);
+  rePopulate(selCat, cats, c=>tiposConfig[c]?.label||c);
 }
 
 function setPeriodo(p, el) {
@@ -1108,6 +1077,8 @@ function applyFilters() {
   filtros.tec    = document.getElementById('filtTec')?.value    || '';
   filtros.cidade = document.getElementById('filtCidade')?.value || '';
   filtros.cat    = document.getElementById('filtCat')?.value    || '';
+  const agora = new Date();
+  const hoje  = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
   chamadosFiltrados = chamadosDB.filter(c => {
     if(filtros.tec    && c.tec    !== filtros.tec)    return false;
     if(filtros.cidade && c.cidade !== filtros.cidade) return false;
@@ -1116,6 +1087,20 @@ function applyFilters() {
       if(c.st !== filtros.st) return false;
     }
     if(filtros.st === 'atrasado' && c.st !== 'atrasado') return false;
+    // Filtro por período usando dataProgramada
+    if(filtros.periodo && filtros.periodo !== 'custom' && c.dataProgramada) {
+      const dp = new Date(c.dataProgramada);
+      if(filtros.periodo === 'hoje') {
+        const diaC = new Date(dp.getFullYear(), dp.getMonth(), dp.getDate());
+        if(diaC.getTime() !== hoje.getTime()) return false;
+      } else if(filtros.periodo === 'semana') {
+        const limite = new Date(hoje.getTime() - 7 * 24 * 60 * 60 * 1000);
+        if(dp < limite) return false;
+      } else if(filtros.periodo === 'mes') {
+        const limite = new Date(hoje.getTime() - 30 * 24 * 60 * 60 * 1000);
+        if(dp < limite) return false;
+      }
+    }
     return true;
   });
   rebuildAll();
@@ -1294,28 +1279,31 @@ function renderMainTable() {
 }
 
 // ── RENDER: FEED AO VIVO ──────────────────────────────────────────────────
-const feedEvents = [
-  {tipo:'inicio',    id:'#3863',tec:'Marcos Alves', cli:'Bar Sabor',          cat:'instalacao',cidade:'Paragominas', tempo:'agora'},
-  {tipo:'fim',       id:'#3866',tec:'Carlos Souza', cli:'Residencial Flores', cat:'instalacao',cidade:'Dom Eliseu',  tempo:'há 4min'},
-  {tipo:'atraso',    id:'#3855',tec:'Roberto Neves',cli:'Construtora Delta',  cat:'reparo',    cidade:'Dom Eliseu',  tempo:'há 8min'},
-  {tipo:'inicio',    id:'#3857',tec:'Ana Costa',    cli:'Escritório MM',      cat:'suporte',   cidade:'Paragominas', tempo:'há 11min'},
-  {tipo:'fim',       id:'#3858',tec:'Carlos Souza', cli:'Supermercado BP',    cat:'reparo',    cidade:'Paragominas', tempo:'há 15min'},
-  {tipo:'retrabalho',id:'#3862',tec:'João Silva',   cli:'Padaria Central',    cat:'retrabalho',cidade:'Mãe do Rio',  tempo:'há 19min'},
-  {tipo:'fim',       id:'#3864',tec:'Roberto Neves',cli:'Churrascaria 3 Irm.',cat:'reparo',    cidade:'Rondon do Pará',tempo:'há 23min'},
-  {tipo:'inicio',    id:'#3860',tec:'Pedro Lima',   cli:'Residencial Planalto',cat:'instalacao',cidade:'Rondon do Pará',tempo:'há 28min'},
-  {tipo:'fim',       id:'#3853',tec:'Ana Costa',    cli:'Paulo Mendes',       cat:'suporte',   cidade:'Mãe do Rio',  tempo:'há 34min'},
-  {tipo:'atraso',    id:'#3847',tec:'João Silva',   cli:'Cond. Sol Nascente', cat:'instalacao',cidade:'Mãe do Rio',  tempo:'há 42min'},
-];
 const feedCfg = {
   inicio:    {icon:'fa-play-circle',   color:'var(--accent)',  text:'Iniciou'},
   fim:       {icon:'fa-check-circle',  color:'var(--green)',   text:'Finalizou'},
   atraso:    {icon:'fa-exclamation-circle',color:'var(--red)', text:'Atrasado'},
   retrabalho:{icon:'fa-redo',          color:'var(--orange)',  text:'Retrabalho'},
 };
+function getFeedDinamico() {
+  if(!chamadosDB.length) return [];
+  const eventos = [];
+  const ativos      = chamadosDB.filter(c=>['execucao','em_execucao','aguardando'].includes(c.st));
+  const finalizados = chamadosDB.filter(c=>c.st==='finalizado');
+  const atrasados   = chamadosDB.filter(c=>c.st==='atrasado');
+  const reworks     = chamadosDB.filter(c=>c.rtb||c.st==='retrabalho');
+  ativos.slice(0,4).forEach((c,i)=>eventos.push({tipo:'inicio',    id:c.id,tec:c.tec,cli:c.cli,cat:c.cat,cidade:c.cidade,tempo:i===0?'agora':`há ${(i+1)*4}min`}));
+  finalizados.slice(0,3).forEach((c,i)=>eventos.push({tipo:'fim',       id:c.id,tec:c.tec,cli:c.cli,cat:c.cat,cidade:c.cidade,tempo:`há ${(i+1)*6}min`}));
+  atrasados.slice(0,2).forEach((c,i)=>eventos.push({tipo:'atraso',    id:c.id,tec:c.tec,cli:c.cli,cat:c.cat,cidade:c.cidade,tempo:`há ${(i+1)*9}min`}));
+  reworks.slice(0,1).forEach((c,i)=>eventos.push({tipo:'retrabalho',id:c.id,tec:c.tec,cli:c.cli,cat:c.cat,cidade:c.cidade,tempo:`há ${(i+1)*14}min`}));
+  return eventos.slice(0,10);
+}
 function renderFeed() {
   const el = document.getElementById('liveFeed');
   if(!el) return;
-  el.innerHTML = feedEvents.map(e=>{
+  const eventos = getFeedDinamico();
+  if(!eventos.length) { el.innerHTML='<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">Aguardando dados do Hubsoft...</div>'; return; }
+  el.innerHTML = eventos.map(e=>{
     const cfg  = feedCfg[e.tipo];
     const tCfg = tiposConfig[e.cat];
     return `
@@ -1515,6 +1503,7 @@ async function autoRefresh() {
   if (chamadosReais && chamadosReais.length > 0) {
     chamadosDB.length = 0;
     chamadosDB.push(...chamadosReais);
+    populateDropdowns();
     applyFilters();
     const resumo = await buscarResumoHubsoft();
     if (resumo) {
