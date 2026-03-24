@@ -79,6 +79,31 @@ app.get('/api/status', async (req, res) => {
   }
 });
 
+// Diagnóstico: testa quais endpoints o Hubsoft aceita
+app.get('/api/diagnostico', async (req, res) => {
+  const token = await getToken();
+  const candidatos = [
+    'ordem_servico', 'ordens_servico', 'ordem-servico', 'ordens-servico',
+    'os', 'chamado', 'chamados', 'v1/ordem_servico', 'v2/ordem_servico',
+    'usuario', 'usuarios', 'tecnico', 'tecnicos',
+    'cidade', 'cidades', 'tipo_servico', 'tipo_os',
+  ];
+  const resultados = {};
+  for (const ep of candidatos) {
+    try {
+      const r = await axios.get(`${HUBSOFT_HOST}/api/${ep}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { limit: 1 },
+        timeout: 5000,
+      });
+      resultados[ep] = { status: r.status, ok: true };
+    } catch (e) {
+      resultados[ep] = { status: e.response?.status || 'erro', ok: false };
+    }
+  }
+  res.json({ host: HUBSOFT_HOST, resultados });
+});
+
 // ── Ordens de Serviço (Chamados) ─────────────────────────────────
 // Retorna OS filtradas por data, técnico, cidade, tipo
 // Params: data_inicio, data_fim, tecnico_id, cidade_id, tipo_os_id, status, limit, page
