@@ -112,33 +112,38 @@ app.get('/api/diagnostico', async (req, res) => {
   res.json({ host: HUBSOFT_HOST, resultados });
 });
 
-// Debug: compara estrutura dos endpoints que retornam 200
+// Debug: testa POST, GET por ID e API pública
 app.get('/api/debug-os', async (req, res) => {
   try {
     const token = await getToken();
-    const endpoints = [
-      { label: 'os_sem_filtro',    url: `${HUBSOFT_HOST}/api/v1/ordem_servico`, params: { limit: 3 } },
-      { label: 'funcionario',      url: `${HUBSOFT_HOST}/api/v1/funcionario`,    params: { limit: 3 } },
-      { label: 'cliente',          url: `${HUBSOFT_HOST}/api/v1/cliente`,        params: { limit: 3 } },
-    ];
+    const headers = { Authorization: `Bearer ${token}` };
     const resultados = {};
-    for (const ep of endpoints) {
+
+    // Testa POST na OS
+    try {
+      const r = await axios.post(`${HUBSOFT_HOST}/api/v1/ordem_servico`, {}, { headers, timeout: 6000 });
+      resultados['os_post'] = { keys: Object.keys(r.data), dado: r.data };
+    } catch(e) { resultados['os_post'] = { erro: e.response?.status, body: e.response?.data }; }
+
+    // Testa buscar OS por ID
+    try {
+      const r = await axios.get(`${HUBSOFT_HOST}/api/v1/ordem_servico/1`, { headers, timeout: 6000 });
+      resultados['os_id_1'] = { keys: Object.keys(r.data), dado: r.data };
+    } catch(e) { resultados['os_id_1'] = { erro: e.response?.status, body: e.response?.data }; }
+
+    // Tenta API pública (mencionada na resposta de cliente)
+    const publicoUrls = [
+      '/api/public/ordem_servico', '/api/public/os',
+      '/api/public/v1/ordem_servico', '/public/api/ordem_servico',
+      '/api/v1/public/ordem_servico',
+    ];
+    for (const url of publicoUrls) {
       try {
-        const r = await axios.get(ep.url, {
-          headers: { Authorization: `Bearer ${token}` },
-          params: ep.params,
-          timeout: 8000,
-        });
-        resultados[ep.label] = {
-          status: r.status,
-          keys: Object.keys(r.data),
-          isArray: Array.isArray(r.data),
-          dado_completo: r.data,
-        };
-      } catch(e) {
-        resultados[ep.label] = { erro: e.response?.status || e.message, body: e.response?.data };
-      }
+        const r = await axios.get(`${HUBSOFT_HOST}${url}`, { headers, params: { limit: 2 }, timeout: 4000 });
+        resultados['publico_' + url.replace(/\//g,'_')] = { keys: Object.keys(r.data), dado: r.data };
+      } catch(e) { resultados['publico_' + url.replace(/\//g,'_')] = { erro: e.response?.status }; }
     }
+
     res.json(resultados);
   } catch (err) {
     res.status(500).json({ erro: err.message });
