@@ -205,6 +205,27 @@ app.get('/api/debug-os', async (req, res) => {
   }
 });
 
+// Debug temporário: mostra estrutura bruta do primeiro OS
+app.get('/api/debug-raw', async (req, res) => {
+  try {
+    const data = await hubsoftPost('v1/ordem_servico/consultar/paginado/3?page=1', bodyConsultaOS());
+    const lista = extrairLista(data);
+    if (!lista.length) return res.json({ ok: false, msg: 'nenhum OS retornado' });
+    const os = lista[0];
+    // Extrai caminhos que possam ter cidade
+    res.json({
+      id_ordem_servico: os.id_ordem_servico,
+      status: os.status,
+      atendimento_keys: os.atendimento ? Object.keys(os.atendimento) : null,
+      cliente_servico_keys: os.atendimento?.cliente_servico ? Object.keys(os.atendimento.cliente_servico) : null,
+      endereco_instalacao: os.atendimento?.cliente_servico?.endereco_instalacao || null,
+      cliente: os.atendimento?.cliente_servico?.cliente || null,
+      raw_top_keys: Object.keys(os),
+      raw_os: os,
+    });
+  } catch(err) { res.status(500).json({ erro: err.message }); }
+});
+
 // ── Ordens de Serviço (Chamados) ─────────────────────────────────
 app.get('/api/chamados', async (req, res) => {
   try {
