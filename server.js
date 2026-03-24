@@ -241,8 +241,15 @@ app.get('/api/chamados', async (req, res) => {
       const cs     = os.atendimento?.cliente_servico;
       const end    = cs?.endereco_instalacao;
       const coords = end?.endereco_numero?.coordenadas?.coordinates || end?.coordenadas?.coordinates;
-      const cidade = end?.cidade?.nome || end?.cidade?.display || cs?.cliente?.cidade?.nome || 'Sem cidade';
-      const cidId  = end?.id_cidade || end?.cidade?.id_cidade || null;
+      const cidade = end?.endereco_numero?.cidade?.nome
+                  || end?.cidade?.nome
+                  || end?.cidade?.display
+                  || cs?.cliente?.cidade?.nome
+                  || 'Sem cidade';
+      const cidId  = end?.endereco_numero?.id_cidade
+                  || end?.id_cidade
+                  || end?.cidade?.id_cidade
+                  || null;
       const cli    = cs?.display || cs?.cliente?.nome_razaosocial || cs?.cliente?.display || 'Cliente';
       const stVal  = os.status || '';
       return {
@@ -296,8 +303,8 @@ app.get('/api/cidades', async (req, res) => {
     const mapaC = {};
     todos.forEach(os => {
       const end  = os.atendimento?.cliente_servico?.endereco_instalacao;
-      const nome = end?.cidade?.nome || end?.cidade?.display;
-      const id   = end?.id_cidade    || end?.cidade?.id_cidade;
+      const nome = end?.endereco_numero?.cidade?.nome || end?.cidade?.nome || end?.cidade?.display;
+      const id   = end?.endereco_numero?.id_cidade    || end?.id_cidade    || end?.cidade?.id_cidade;
       if (nome && id && !mapaC[id]) mapaC[id] = { id, nome };
     });
     res.json({ ok: true, cidades: Object.values(mapaC).sort((a,b) => a.nome.localeCompare(b.nome)) });
