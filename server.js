@@ -121,34 +121,24 @@ app.get('/api/debug-os', async (req, res) => {
     const headers = { Authorization: `Bearer ${token}` };
     const resultados = { token_renovado: true };
 
-    // Testa POST com novas permissões
-    try {
-      const r = await axios.post(`${HUBSOFT_HOST}/api/v1/ordem_servico`, { limit: 3 }, { headers, timeout: 8000 });
-      resultados['post_body'] = { keys: Object.keys(r.data), dado: r.data };
-    } catch(e) { resultados['post_body'] = { erro: e.response?.status, body: e.response?.data }; }
+    const hoje = new Date().toLocaleDateString('pt-BR');
 
-    // Testa endpoints alternativos de busca/lista
-    const variantes = [
-      '/api/v1/ordem_servico/lista',
-      '/api/v1/ordem_servico/busca',
-      '/api/v1/ordem_servico/search',
-      '/api/v1/ordem_servico/index',
-      '/api/v1/ordens',
+    // Testa /busca com parâmetros de data
+    const buscaParams = [
+      { label: 'busca_data_prog',    params: { data_inicio_programado: hoje, data_termino_programado: hoje, limit: 3 } },
+      { label: 'busca_data_exec',    params: { data_inicio_executado: hoje, data_termino_executado: hoje, limit: 3 } },
+      { label: 'busca_data_cad',     params: { data_cadastro: hoje, limit: 3 } },
+      { label: 'busca_so_data',      params: { data: hoje, limit: 3 } },
+      { label: 'busca_sem_params',   params: {} },
     ];
-    for (const url of variantes) {
-      try {
-        const r = await axios.get(`${HUBSOFT_HOST}${url}`, { headers, params: { limit: 3 }, timeout: 5000 });
-        resultados['GET_' + url.split('/').pop()] = { keys: Object.keys(r.data), dado: r.data };
-      } catch(e) { resultados['GET_' + url.split('/').pop()] = { erro: e.response?.status }; }
-    }
 
-    // Tenta swagger/docs para ver endpoints disponíveis
-    const docs = ['/api/documentation', '/docs', '/swagger', '/api/swagger.json', '/api/v1'];
-    for (const url of docs) {
-      try {
-        const r = await axios.get(`${HUBSOFT_HOST}${url}`, { headers, timeout: 5000 });
-        resultados['doc_' + url.replace(/\//g,'_')] = { status: r.status, keys: typeof r.data === 'object' ? Object.keys(r.data).slice(0,10) : 'html' };
-      } catch(e) { resultados['doc_' + url.replace(/\//g,'_')] = { erro: e.response?.status }; }
+    for (const t of buscaParams) {
+      for (const ep of ['busca', 'lista', 'search']) {
+        try {
+          const r = await axios.get(`${HUBSOFT_HOST}/api/v1/ordem_servico/${ep}`, { headers, params: t.params, timeout: 6000 });
+          resultados[`${ep}_${t.label}`] = { keys: Object.keys(r.data), dado: r.data };
+        } catch(e) { resultados[`${ep}_${t.label}`] = { erro: e.response?.status, body: e.response?.data }; }
+      }
     }
 
     res.json(resultados);
