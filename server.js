@@ -121,24 +121,21 @@ app.get('/api/debug-os', async (req, res) => {
     const headers = { Authorization: `Bearer ${token}` };
     const resultados = { token_renovado: true };
 
-    const hoje = new Date().toLocaleDateString('pt-BR');
-
-    // Testa /busca com parâmetros de data
-    const buscaParams = [
-      { label: 'busca_data_prog',    params: { data_inicio_programado: hoje, data_termino_programado: hoje, limit: 3 } },
-      { label: 'busca_data_exec',    params: { data_inicio_executado: hoje, data_termino_executado: hoje, limit: 3 } },
-      { label: 'busca_data_cad',     params: { data_cadastro: hoje, limit: 3 } },
-      { label: 'busca_so_data',      params: { data: hoje, limit: 3 } },
-      { label: 'busca_sem_params',   params: {} },
+    // Testa padrão real do Hubsoft: /acesso/paginado/{limit}?page={page}
+    const endpointsAcesso = [
+      'ordem_servico/acesso/paginado/10?page=1',
+      'atendimento_os/acesso/paginado/10?page=1',
+      'atendimento/os/acesso/paginado/10?page=1',
+      'os/acesso/paginado/10?page=1',
+      'ordem_servico/paginado/10?page=1',
+      'ordem_servico/listar/10?page=1',
     ];
 
-    for (const t of buscaParams) {
-      for (const ep of ['busca', 'lista', 'search']) {
-        try {
-          const r = await axios.get(`${HUBSOFT_HOST}/api/v1/ordem_servico/${ep}`, { headers, params: t.params, timeout: 6000 });
-          resultados[`${ep}_${t.label}`] = { keys: Object.keys(r.data), dado: r.data };
-        } catch(e) { resultados[`${ep}_${t.label}`] = { erro: e.response?.status, body: e.response?.data }; }
-      }
+    for (const ep of endpointsAcesso) {
+      try {
+        const r = await axios.get(`${HUBSOFT_HOST}/api/v1/${ep}`, { headers, timeout: 8000 });
+        resultados[ep] = { status: r.status, keys: Object.keys(r.data), dado: r.data };
+      } catch(e) { resultados[ep] = { erro: e.response?.status, body: e.response?.data }; }
     }
 
     res.json(resultados);
