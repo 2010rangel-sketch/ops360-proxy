@@ -1754,12 +1754,9 @@ if(il) il.innerHTML=ints.map(i=>`
   </div>
 `).join('');
 
-// LIVE SIMULATION
-setInterval(()=>{
-  const e=document.getElementById('kv-exec'); if(e) e.textContent=parseInt(e.textContent)+(Math.random()>.7?1:0);
-  const f=document.getElementById('kv-fin'); if(f) f.textContent=parseInt(f.textContent)+(Math.random()>.6?1:0);
-  const a=document.getElementById('kv-at'); if(a) a.textContent=parseInt(a.textContent)+(Math.random()>.5?1:0);
-},8000);
+// AUTO-INIT: conecta e sincroniza ao carregar a página
+testarConexaoProxy();
+setInterval(autoRefresh, 30000);
 </script>
 </body>
 </html>
