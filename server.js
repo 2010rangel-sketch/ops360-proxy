@@ -83,10 +83,12 @@ app.get('/api/status', async (req, res) => {
 app.get('/api/diagnostico', async (req, res) => {
   const token = await getToken();
   const candidatos = [
-    'ordem_servico', 'ordens_servico', 'ordem-servico', 'ordens-servico',
-    'os', 'chamado', 'chamados', 'v1/ordem_servico', 'v2/ordem_servico',
-    'usuario', 'usuarios', 'tecnico', 'tecnicos',
-    'cidade', 'cidades', 'tipo_servico', 'tipo_os',
+    'v1/ordem_servico', 'v1/ordens_servico', 'v1/os',
+    'v1/usuario', 'v1/usuarios', 'v1/tecnico', 'v1/tecnicos', 'v1/user', 'v1/users',
+    'v1/cidade', 'v1/cidades', 'v1/city', 'v1/cities',
+    'v1/tipo_servico', 'v1/tipo_os', 'v1/tipos_servico', 'v1/tipo-servico',
+    'v1/contrato', 'v1/contratos', 'v1/cliente', 'v1/clientes',
+    'v2/ordem_servico', 'v2/usuario', 'v2/cidade', 'v2/tipo_servico',
   ];
   const resultados = {};
   for (const ep of candidatos) {
