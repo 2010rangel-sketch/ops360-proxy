@@ -68,10 +68,11 @@ async function hubsoftPost(endpoint, body = {}) {
 }
 
 // ── Monta body padrão para consultar OS ──────────────────────────
-function bodyConsultaOS({ data_inicio, data_fim, tecnicos = [], cidades = [], status = [], limit = 200, page = 1 } = {}) {
-  const hoje = new Date();
-  const ini = data_inicio ? new Date(data_inicio) : new Date(hoje.setHours(0, 0, 0, 0));
-  const fim = data_fim    ? new Date(data_fim)    : new Date(new Date().setHours(23, 59, 59, 999));
+function bodyConsultaOS({ data_inicio, data_fim, tecnicos = [], cidades = [], status = ['pendente','aguardando_agendamento','em_andamento','em_execucao','finalizado','cancelado','reagendado','retrabalho'] } = {}) {
+  const agora = new Date();
+  // Padrão: 7 dias atrás até 3 dias à frente (igual ao painel web)
+  const ini = data_inicio ? new Date(data_inicio) : new Date(agora.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const fim = data_fim    ? new Date(data_fim)    : new Date(agora.getTime() + 3 * 24 * 60 * 60 * 1000);
   return {
     data_inicio:              ini.toISOString(),
     data_fim:                 fim.toISOString(),
@@ -95,6 +96,17 @@ function bodyConsultaOS({ data_inicio, data_fim, tecnicos = [], cidades = [], st
     status_ordem_servico:     status,
     tecnicos:                 tecnicos,
   };
+}
+
+// ── Extrai lista de OS da resposta do Hubsoft ─────────────────────
+function extrairLista(data) {
+  // Chave real: ordens_servico.data (paginado)
+  if (Array.isArray(data.ordens_servico?.data)) return data.ordens_servico.data;
+  if (Array.isArray(data.ordens_servico))       return data.ordens_servico;
+  if (Array.isArray(data.ordem_servico?.data))  return data.ordem_servico.data;
+  if (Array.isArray(data.ordem_servico))        return data.ordem_servico;
+  if (Array.isArray(data.data))                 return data.data;
+  return [];
 }
 
 // ── CORS: permite acesso do dashboard em qualquer origem ─────────
@@ -199,8 +211,7 @@ app.get('/api/chamados', async (req, res) => {
     const { data_inicio, data_fim, limit = 200, page = 1 } = req.query;
     const body = bodyConsultaOS({ data_inicio, data_fim, limit, page });
     const data = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${limit}?page=${page}`, body);
-    const lista = Array.isArray(data.ordem_servico) ? data.ordem_servico
-                : Array.isArray(data.data)          ? data.data : [];
+    const lista = extrairLista(data);
 
     const chamados = lista.map(os => {
       const tipo  = os.tipo_ordem_servico?.descricao || os.tipo_os?.nome || 'Sem tipo';
@@ -258,7 +269,7 @@ app.get('/api/tecnicos', async (req, res) => {
 app.get('/api/cidades', async (req, res) => {
   try {
     const data = await hubsoftPost('v1/ordem_servico/consultar/paginado/500?page=1', bodyConsultaOS());
-    const todos = Array.isArray(data.ordem_servico) ? data.ordem_servico : (Array.isArray(data.data) ? data.data : []);
+    const todos = extrairLista(data);
     const mapaC = {};
     todos.forEach(os => {
       const end  = os.atendimento?.cliente_servico?.endereco_instalacao;
@@ -276,7 +287,7 @@ app.get('/api/cidades', async (req, res) => {
 app.get('/api/tipos-os', async (req, res) => {
   try {
     const data = await hubsoftPost('v1/ordem_servico/consultar/paginado/500?page=1', bodyConsultaOS());
-    const todos = Array.isArray(data.ordem_servico) ? data.ordem_servico : (Array.isArray(data.data) ? data.data : []);
+    const todos = extrairLista(data);
     const mapaT = {};
     todos.forEach(os => {
       const nome = os.tipo_ordem_servico?.descricao;
@@ -293,7 +304,7 @@ app.get('/api/tipos-os', async (req, res) => {
 app.get('/api/resumo', async (req, res) => {
   try {
     const data = await hubsoftPost('v1/ordem_servico/consultar/paginado/500?page=1', bodyConsultaOS());
-    const todos = Array.isArray(data.ordem_servico) ? data.ordem_servico : (Array.isArray(data.data) ? data.data : []);
+    const todos = extrairLista(data);
     const st = o => normalizarStatus(o.status_ordem_servico || o.status);
 
     const resumo = {
