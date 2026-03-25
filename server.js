@@ -205,6 +205,38 @@ app.get('/api/debug-os', async (req, res) => {
   }
 });
 
+// Debug: lista todos os tipos de OS e cidades únicos retornados pela API
+app.get('/api/debug-tipos-cidades', async (req, res) => {
+  try {
+    // Busca mais OS para cobrir mais tipos/cidades — 14 dias
+    const agora = new Date();
+    const body = bodyConsultaOS({
+      data_inicio: new Date(agora.getTime() - 14*24*60*60*1000).toISOString(),
+      data_fim:    new Date(agora.getTime() + 7*24*60*60*1000).toISOString(),
+    });
+    const data = await hubsoftPost('v1/ordem_servico/consultar/paginado/500?page=1', body);
+    const lista = extrairLista(data);
+    const tipos = {}, cidades = {};
+    lista.forEach(os => {
+      const tipo   = os.tipo_ordem_servico?.descricao || os.tipo_os?.nome || '?';
+      const id_tipo = os.tipo_ordem_servico?.id_tipo_ordem_servico || '?';
+      const end    = os.atendimento?.cliente_servico?.endereco_instalacao;
+      const cidade = end?.endereco_numero?.cidade?.nome || end?.cidade?.nome || null;
+      tipos[tipo]   = (tipos[tipo]   || 0) + 1;
+      if (cidade) cidades[cidade] = (cidades[cidade] || 0) + 1;
+    });
+    res.json({
+      total_os: lista.length,
+      tipos_os: Object.entries(tipos).sort((a,b)=>b[1]-a[1]).map(([nome,qtd])=>({nome, qtd, cat: normalizarTipo(nome)})),
+      cidades:  Object.entries(cidades).sort((a,b)=>b[1]-a[1]).map(([nome,qtd])=>({nome,qtd})),
+      os_sem_cidade: lista.filter(os => {
+        const end = os.atendimento?.cliente_servico?.endereco_instalacao;
+        return !end?.endereco_numero?.cidade?.nome && !end?.cidade?.nome;
+      }).length,
+    });
+  } catch(err) { res.status(500).json({ erro: err.message }); }
+});
+
 // Debug temporário: mostra estrutura bruta do primeiro OS
 app.get('/api/debug-raw', async (req, res) => {
   try {
