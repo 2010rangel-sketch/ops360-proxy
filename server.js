@@ -414,7 +414,15 @@ app.get('/api/chamados', async (req, res) => {
                   || end?.cidade?.id_cidade
                   || null;
       const cli    = cs?.display || cs?.cliente?.nome_razaosocial || cs?.cliente?.display || 'Cliente';
-      const stVal  = os.status || '';
+      const statusBase = os.status || '';
+      // Hubsoft mobile: status fica "pendente" mas reserva tem servico_iniciado=true,desreservada=false
+      // Só eleva para execucao se ainda NÃO finalizado (evita reclassificar finalizados com reservas antigas)
+      const stBase = normalizarStatus(statusBase);
+      const execAtiva = stBase === 'aguardando' && (
+        os.executando === true ||
+        (Array.isArray(os.reservas) && os.reservas.some(r => r.servico_iniciado && !r.desreservada))
+      );
+      const stVal = execAtiva ? 'em_execucao' : statusBase;
       return {
         id:         `#${os.id_ordem_servico || os.id}`,
         cli,
