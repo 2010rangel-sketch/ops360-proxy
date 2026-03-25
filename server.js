@@ -410,10 +410,11 @@ function normalizarStatus(status) {
 function normalizarTipo(nome) {
   if (!nome) return 'outros';
   const n = nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  if (n.includes('instal'))                                                    return 'instalacao';
+  if (n.includes('instal'))                                                          return 'instalacao';
+  if (n.includes('retrabalho'))                                                      return 'retrabalho';
   if (n.includes('reparo') || n.includes('manuten') || n.includes('troca') || n.includes('conser')) return 'reparo';
-  if (n.includes('mudan') || n.includes('migra') || n.includes('transfer'))   return 'mudanca';
-  if (n.includes('retrabalho'))                                                return 'retrabalho';
+  if (n.includes('remoc') || n.includes('cancelam') || n.includes('retirad'))       return 'remocao';
+  if (n.includes('mudan') || n.includes('migra') || (n.includes('trans') && n.includes('ender'))) return 'mudanca';
   // Para qualquer outro tipo: gera slug do nome real (sem espaço/acento)
   return n.replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'outros';
 }
