@@ -389,6 +389,21 @@ input[type="text"]::placeholder { color:var(--text3); }
 
     <!-- ═══ DASHBOARD ═══ -->
     <div class="page active" id="page-dashboard">
+      <!-- Filtros de período -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+        <div style="display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px">
+          <button class="chip active per-chip" data-p="hoje"   onclick="setPeriodo('hoje',this)">Hoje</button>
+          <button class="chip per-chip" data-p="amanha"        onclick="setPeriodo('amanha',this)">Amanhã</button>
+          <button class="chip per-chip" data-p="semana"        onclick="setPeriodo('semana',this)">Semana</button>
+          <button class="chip per-chip" data-p="mes"           onclick="setPeriodo('mes',this)">Mês</button>
+          <button class="chip per-chip" data-p="custom"        onclick="setPeriodo('custom',this)">Período</button>
+        </div>
+        <div id="dashDateRange" style="display:none;gap:6px;align-items:center">
+          <input type="date" id="dashDtDe"  onchange="syncDates('de',this.value);applyFilters()" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
+          <span style="color:var(--text3);font-size:12px">até</span>
+          <input type="date" id="dashDtAte" onchange="syncDates('ate',this.value);applyFilters()" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
+        </div>
+      </div>
       <!-- KPI Row (6 minis) -->
       <div class="kpi-row">
         <div class="kpi-mini">
@@ -510,6 +525,15 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
       </div>
 
+      <!-- ── TM ACUMULADO DO MÊS ── -->
+      <div class="tbl-card" style="margin-top:14px">
+        <div class="tbl-header">
+          <span class="tbl-title">TM acumulado do mês</span>
+          <span class="badge b-blue" id="tmMensalBadge"></span>
+        </div>
+        <div class="bar-chart" id="tmMensalChart" style="height:160px;gap:4px;padding-top:4px;overflow:hidden"></div>
+      </div>
+
       <!-- ── PRODUÇÃO POR TÉCNICO ── -->
       <div class="tbl-card" style="margin-top:14px">
         <div class="tbl-header">
@@ -538,11 +562,11 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
         <!-- Filtro período -->
         <div style="display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px">
-          <button class="chip active" id="perHoje"   onclick="setPeriodo('hoje',this)">Hoje</button>
-          <button class="chip"        id="perAmanha" onclick="setPeriodo('amanha',this)">Amanhã</button>
-          <button class="chip"        id="perSemana" onclick="setPeriodo('semana',this)">Semana</button>
-          <button class="chip"        id="perMes"    onclick="setPeriodo('mes',this)">Mês</button>
-          <button class="chip"        id="perCustom" onclick="setPeriodo('custom',this)">Período</button>
+          <button class="chip active per-chip" id="perHoje"   data-p="hoje"   onclick="setPeriodo('hoje',this)">Hoje</button>
+          <button class="chip per-chip"        id="perAmanha" data-p="amanha" onclick="setPeriodo('amanha',this)">Amanhã</button>
+          <button class="chip per-chip"        id="perSemana" data-p="semana" onclick="setPeriodo('semana',this)">Semana</button>
+          <button class="chip per-chip"        id="perMes"    data-p="mes"    onclick="setPeriodo('mes',this)">Mês</button>
+          <button class="chip per-chip"        id="perCustom" data-p="custom" onclick="setPeriodo('custom',this)">Período</button>
         </div>
         <div id="dateRange" style="display:none;gap:6px;align-items:center">
           <input type="date" id="dtDe"  onchange="applyFilters()" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
@@ -1055,12 +1079,21 @@ function populateDropdowns() {
   rePopulate(selCat, cats, c=>tiposConfig[c]?.label||c);
 }
 
+function syncDates(campo, val) {
+  const id = campo === 'de' ? (campo === 'de' ? 'dtDe' : 'dtAte') : 'dtAte';
+  const mirror = document.getElementById(campo === 'de' ? 'dtDe' : 'dtAte');
+  if(mirror) mirror.value = val;
+}
 function setPeriodo(p, el) {
   filtros.periodo = p;
-  document.querySelectorAll('[id^="per"]').forEach(b=>b.classList.remove('active'));
-  if(el) el.classList.add('active');
-  const dr = document.getElementById('dateRange');
-  if(dr) dr.style.display = p==='custom' ? 'flex' : 'none';
+  // Desativa todos os chips de período em ambas as páginas
+  document.querySelectorAll('.per-chip').forEach(b=>b.classList.remove('active'));
+  // Ativa todos os chips com o mesmo período
+  document.querySelectorAll(`.per-chip[data-p="${p}"]`).forEach(b=>b.classList.add('active'));
+  const dr  = document.getElementById('dateRange');
+  const ddr = document.getElementById('dashDateRange');
+  if(dr)  dr.style.display  = p==='custom' ? 'flex' : 'none';
+  if(ddr) ddr.style.display = p==='custom' ? 'flex' : 'none';
   applyFilters();
 }
 
@@ -1097,8 +1130,8 @@ function applyFilters() {
         // Mês atual
         if(diaC.getMonth() !== hoje.getMonth() || diaC.getFullYear() !== hoje.getFullYear()) return false;
       } else if(filtros.periodo === 'custom') {
-        const de  = document.getElementById('dtDe')?.value;
-        const ate = document.getElementById('dtAte')?.value;
+        const de  = document.getElementById('dashDtDe')?.value || document.getElementById('dtDe')?.value;
+        const ate = document.getElementById('dashDtAte')?.value || document.getElementById('dtAte')?.value;
         if(de  && diaC < new Date(de))  return false;
         if(ate && diaC > new Date(ate)) return false;
       }
@@ -1117,13 +1150,13 @@ function filterSt(st, el) {
   applyFilters();
 }
 
-// Calcula TMI (Tempo Médio de execução) por categoria
-function calcTMI() {
+// Calcula TM (Tempo Médio de execução) por categoria — usa chamadosFiltrados (respeita filtro de período)
+function calcTM() {
   const mapa = {};
-  chamadosDB.forEach(c => {
+  chamadosFiltrados.forEach(c => {
     if (c.st !== 'finalizado' || !c.tsInicioExec || !c.tsFimExec) return;
     const dur = (new Date(c.tsFimExec) - new Date(c.tsInicioExec)) / 60000;
-    if (dur <= 0 || dur > 600) return; // ignora valores absurdos
+    if (dur <= 0 || dur > 600) return;
     if (!mapa[c.cat]) mapa[c.cat] = { total: 0, count: 0 };
     mapa[c.cat].total += dur; mapa[c.cat].count++;
   });
@@ -1134,6 +1167,8 @@ function calcTMI() {
   });
   return result;
 }
+// Alias para compatibilidade
+function calcTMI() { return calcTM(); }
 
 // Label do período para os cards
 function labelPeriodo() {
@@ -1160,7 +1195,7 @@ function renderCatCards() {
   if(!tipos.length) { el.innerHTML=''; return; }
   const cols = Math.min(tipos.length, 6);
   el.style.gridTemplateColumns = `repeat(${cols},1fr)`;
-  const tmi = calcTMI();
+  const tmi = calcTM();
   const periodoLabel = labelPeriodo();
   el.innerHTML = tipos.map(([key, cfg]) => {
     const fil     = chamadosFiltrados.filter(c=>c.cat===key);
@@ -1192,7 +1227,7 @@ function renderCatCards() {
       <div class="prog" style="margin-bottom:8px"><div class="prog-fill" style="width:${pct_ok}%;background:${cfg.color}"></div></div>
       <!-- TMI -->
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:10px;color:var(--text3)">TMI (tempo médio)</span>
+        <span style="font-size:10px;color:var(--text3)">TM (tempo médio)</span>
         <span style="font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;color:${tmiVal?cfg.color:'var(--text3)'}">${tmiVal||'--'}</span>
       </div>
     </div>`;
@@ -1526,7 +1561,7 @@ function renderTecChart() {
   });
 
   // Legenda
-  legendEl.innerHTML = lista.slice(0,6).map(([tec, d], i) => {
+  legendEl.innerHTML = lista.map(([tec, d], i) => {
     const cor = cores[i % cores.length];
     const pct = Math.round(d.total/total*100);
     return `<div style="display:flex;align-items:center;gap:6px">
@@ -1694,6 +1729,60 @@ function renderRtbInsight() {
   </tr>`).join('');
 }
 
+// ── TM ACUMULADO DO MÊS ──────────────────────────────────────────────────
+function renderTmMensalChart() {
+  const el    = document.getElementById('tmMensalChart');
+  const badge = document.getElementById('tmMensalBadge');
+  if (!el) return;
+
+  const hoje  = new Date();
+  const mes   = hoje.getMonth();
+  const ano   = hoje.getFullYear();
+  const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  if (badge) badge.textContent = meses[mes] + '/' + ano;
+
+  // Agrupa finalizados por dia do mês usando timestamps reais (tsInicioExec / tsFimExec)
+  const tmPorDia = {};
+  chamadosDB.forEach(c => {
+    if (c.st !== 'finalizado') return;
+    // Usa dataProgramada como referência de dia se não tiver timestamp real
+    const refDate = c.tsFimExec || c.dataProgramada;
+    if (!refDate) return;
+    const d = new Date(refDate);
+    if (d.getMonth() !== mes || d.getFullYear() !== ano) return;
+    const dia = d.getDate();
+    if (!tmPorDia[dia]) tmPorDia[dia] = { total: 0, count: 0 };
+    if (c.tsInicioExec && c.tsFimExec) {
+      const dur = (new Date(c.tsFimExec) - new Date(c.tsInicioExec)) / 60000;
+      if (dur > 0 && dur < 600) { tmPorDia[dia].total += dur; tmPorDia[dia].count++; }
+    }
+  });
+
+  const dias = Object.keys(tmPorDia).map(Number).sort((a,b)=>a-b);
+  if (!dias.length) {
+    el.innerHTML = '<div style="font-size:11px;color:var(--text3);text-align:center;width:100%;padding:40px 0">Sem dados de TM no mês (requer registro de início/fim de execução)</div>';
+    return;
+  }
+
+  const vals  = dias.map(d => tmPorDia[d].count ? Math.round(tmPorDia[d].total / tmPorDia[d].count) : 0);
+  const maxV  = Math.max(...vals, 1);
+  const H     = 120;
+
+  el.innerHTML = dias.map((dia, i) => {
+    const val   = vals[i];
+    const h     = Math.max(Math.round(val / maxV * H), val > 0 ? 4 : 0);
+    const label = val >= 60
+      ? `${Math.floor(val/60)}h${val%60>0?String(val%60).padStart(2,'0')+'m':''}`
+      : `${val}min`;
+    return `<div class="bar-col" title="Dia ${dia}: TM ${label}">
+      <div style="display:flex;flex-direction:column;justify-content:flex-end;height:${H}px">
+        <div style="height:${h}px;background:#a78bfa;border-radius:4px 4px 0 0;min-height:${val>0?'4px':'0'}"></div>
+      </div>
+      <div class="bar-lbl">${dia}</div>
+    </div>`;
+  }).join('');
+}
+
 // ── REBUILD ALL ──────────────────────────────────────────────────────────
 function rebuildAll() {
   // Calcula SLA de cada chamado (hora de encerramento esperada)
@@ -1713,6 +1802,7 @@ function rebuildAll() {
   renderMainTable();
   renderFeed();
   renderTecChart();
+  renderTmMensalChart();
   renderRtbInsight();
   const el = document.getElementById('lastSync');
   if(el) el.textContent = new Date().toLocaleTimeString('pt-BR');
