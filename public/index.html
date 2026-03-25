@@ -1294,6 +1294,17 @@ function renderCidades() {
   const el = document.getElementById('cidadeList');
   if(!el) return;
   const cidMap = {};
+  // Garante que TODAS as cidades já vistas no sistema aparecem (mesmo com 0 no período)
+  chamadosDB.forEach(c=>{
+    const nome = c.cidade && c.cidade !== 'Sem cidade' ? c.cidade : null;
+    if(!nome) return;
+    if(!cidMap[nome]) cidMap[nome]={total:0,atrasado:0,execucao:0,finalizado:0,cats:{}};
+  });
+  // Cidades fixas (ex: Garrafão do Norte) sempre presentes
+  CIDADES_FIXAS.forEach(nome=>{
+    if(!cidMap[nome]) cidMap[nome]={total:0,atrasado:0,execucao:0,finalizado:0,cats:{}};
+  });
+  // Conta apenas os chamados do período filtrado
   chamadosFiltrados.forEach(c=>{
     const nome = c.cidade && c.cidade !== 'Sem cidade' ? c.cidade : null;
     if(!nome) return;
@@ -1301,9 +1312,6 @@ function renderCidades() {
     cidMap[nome].total++;
     cidMap[nome][c.st]=(cidMap[nome][c.st]||0)+1;
     cidMap[nome].cats[c.cat]=(cidMap[nome].cats[c.cat]||0)+1;
-  });
-  CIDADES_FIXAS.forEach(nome=>{
-    if(!cidMap[nome]) cidMap[nome]={total:0,atrasado:0,execucao:0,finalizado:0,cats:{}};
   });
   const cidades = Object.entries(cidMap).sort((a,b)=>b[1].total-a[1].total);
   const comChamados = cidades.filter(([,v])=>v.total>0).length;
