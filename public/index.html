@@ -546,9 +546,9 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
         <!-- Filtro período -->
         <div style="display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px">
-          <button class="chip"        id="perHoje"   onclick="setPeriodo('hoje',this)">Hoje</button>
+          <button class="chip active" id="perHoje"   onclick="setPeriodo('hoje',this)">Hoje</button>
           <button class="chip"        id="perAmanha" onclick="setPeriodo('amanha',this)">Amanhã</button>
-          <button class="chip active" id="perSemana" onclick="setPeriodo('semana',this)">Semana</button>
+          <button class="chip"        id="perSemana" onclick="setPeriodo('semana',this)">Semana</button>
           <button class="chip"        id="perMes"    onclick="setPeriodo('mes',this)">Mês</button>
           <button class="chip"        id="perCustom" onclick="setPeriodo('custom',this)">Período</button>
         </div>
@@ -1065,7 +1065,7 @@ const stBadge = {
 };
 
 // ── ESTADO DOS FILTROS ──────────────────────────────────────────────────────
-let filtros = {periodo:'semana', tec:'', cidade:'', cat:'', st:'todos'};
+let filtros = {periodo:'hoje', tec:'', cidade:'', cat:'', st:'todos'};
 let chamadosFiltrados = [...chamadosDB];
 
 // Popula dropdowns
