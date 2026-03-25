@@ -637,6 +637,23 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
       </div>
 
+      <!-- ── GRÁFICO POR TÉCNICO ── -->
+      <div class="tbl-card" style="margin-top:12px">
+        <div class="tbl-header">
+          <span class="tbl-title">Produção por técnico</span>
+          <span class="badge b-blue" id="tecChartPeriodo"></span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 260px;gap:24px;padding:8px 4px 4px;align-items:start">
+          <!-- Funil / barras horizontais -->
+          <div id="tecBarChart"></div>
+          <!-- Pizza / donut -->
+          <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+            <svg id="tecDonut" width="180" height="180" viewBox="0 0 180 180"></svg>
+            <div id="tecDonutLegend" style="display:flex;flex-direction:column;gap:4px;width:100%"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- Painel retrabalho insight (oculto por padrão) -->
       <div id="rtbInsight" style="display:none;margin-top:12px">
         <div class="tbl-card" style="margin-bottom:0">
@@ -1283,9 +1300,12 @@ function renderStatusLanes() {
             <span style="font-size:8px;color:var(--text3)">·</span>
             <span style="font-size:9.5px;color:var(--text3)">${c.cidade}</span>
           </div>
-          <div style="display:flex;justify-content:space-between;margin-top:2px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:3px">
             <span style="font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--text3)">${c.id}</span>
-            <span style="font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--text3)">${c.dataProgramada ? new Date(c.dataProgramada).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) + ' ' + (new Date(c.dataProgramada).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})) : c.ab||'--'}</span>
+            <span style="display:flex;align-items:center;gap:3px;font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--accent)">
+              <i class="fas fa-calendar-alt" style="font-size:8px"></i>
+              ${c.dataProgramada ? new Date(c.dataProgramada).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) + ' ' + new Date(c.dataProgramada).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : c.ab||'--'}
+            </span>
           </div>
         </div>
       `).join('')}
@@ -1458,6 +1478,83 @@ function renderFeed() {
   }).join('');
 }
 
+// ── RENDER: GRÁFICO POR TÉCNICO ───────────────────────────────────────────
+function renderTecChart() {
+  const barEl    = document.getElementById('tecBarChart');
+  const donutEl  = document.getElementById('tecDonut');
+  const legendEl = document.getElementById('tecDonutLegend');
+  const labelEl  = document.getElementById('tecChartPeriodo');
+  if(!barEl || !donutEl) return;
+
+  if(labelEl) labelEl.textContent = labelPeriodo();
+
+  // Agrupa por técnico
+  const mapa = {};
+  chamadosFiltrados.forEach(c => {
+    if(!c.tec) return;
+    if(!mapa[c.tec]) mapa[c.tec] = {total:0, ok:0, at:0};
+    mapa[c.tec].total++;
+    if(c.st==='finalizado') mapa[c.tec].ok++;
+    if(c.st==='atrasado')   mapa[c.tec].at++;
+  });
+  const lista = Object.entries(mapa).sort((a,b)=>b[1].total-a[1].total);
+  if(!lista.length) { barEl.innerHTML='<div style="font-size:11px;color:var(--text3);padding:8px">Sem dados</div>'; return; }
+
+  const maxT  = lista[0][1].total;
+  const cores = ['var(--accent)','var(--cyan)','var(--green)','var(--purple)','var(--orange)','var(--red)','var(--pink)','var(--amber)'];
+
+  // Barras horizontais (funil)
+  barEl.innerHTML = lista.map(([tec, d], i) => {
+    const cor  = cores[i % cores.length];
+    const pct  = Math.round(d.total / maxT * 100);
+    const taxa = d.total ? Math.round(d.ok / d.total * 100) : 0;
+    return `
+    <div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+        <span style="font-size:11.5px;font-weight:600;color:var(--text)">${tec}</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          ${d.at>0?`<span style="font-size:9.5px;color:var(--red)">⚠ ${d.at}</span>`:''}
+          <span style="font-size:10px;color:var(--text3)">${d.ok} ok</span>
+          <span style="font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace;color:${cor}">${d.total}</span>
+        </div>
+      </div>
+      <div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${cor};border-radius:4px;transition:.4s"></div>
+      </div>
+      <div style="font-size:9px;color:var(--text3);margin-top:2px">${taxa}% finalizado</div>
+    </div>`;
+  }).join('');
+
+  // Donut SVG
+  const total = lista.reduce((s,[,d])=>s+d.total, 0);
+  const cx=90, cy=90, r=70, ri=44;
+  let ang = -Math.PI/2;
+  let paths = '';
+  lista.forEach(([tec, d], i) => {
+    const cor   = cores[i % cores.length];
+    const slice = (d.total / total) * 2 * Math.PI;
+    const x1 = cx + r  * Math.cos(ang),       y1 = cy + r  * Math.sin(ang);
+    const x2 = cx + r  * Math.cos(ang+slice),  y2 = cy + r  * Math.sin(ang+slice);
+    const x3 = cx + ri * Math.cos(ang+slice),  y3 = cy + ri * Math.sin(ang+slice);
+    const x4 = cx + ri * Math.cos(ang),        y4 = cy + ri * Math.sin(ang);
+    const large = slice > Math.PI ? 1 : 0;
+    paths += `<path d="M${x1},${y1} A${r},${r} 0 ${large},1 ${x2},${y2} L${x3},${y3} A${ri},${ri} 0 ${large},0 ${x4},${y4} Z" fill="${cor}" stroke="var(--bg)" stroke-width="2"/>`;
+    ang += slice;
+  });
+  donutEl.innerHTML = paths + `<text x="90" y="87" text-anchor="middle" style="font-size:11px;fill:var(--text3);font-family:Inter,sans-serif">Total</text><text x="90" y="105" text-anchor="middle" style="font-size:18px;font-weight:700;fill:var(--text);font-family:Inter,sans-serif">${total}</text>`;
+
+  // Legenda
+  legendEl.innerHTML = lista.slice(0,6).map(([tec, d], i) => {
+    const cor = cores[i % cores.length];
+    const pct = Math.round(d.total/total*100);
+    return `<div style="display:flex;align-items:center;gap:6px">
+      <div style="width:10px;height:10px;border-radius:2px;background:${cor};flex-shrink:0"></div>
+      <span style="font-size:10px;color:var(--text2);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${tec}</span>
+      <span style="font-size:10px;font-weight:600;color:${cor}">${pct}%</span>
+    </div>`;
+  }).join('');
+}
+
 // ── RENDER: RETRABALHO INSIGHT ────────────────────────────────────────────
 function renderRtbInsight() {
   const causasRtb = [
@@ -1508,6 +1605,7 @@ function rebuildAll() {
   renderCidades();
   renderMainTable();
   renderFeed();
+  renderTecChart();
   renderRtbInsight();
   const el = document.getElementById('lastSync');
   if(el) el.textContent = new Date().toLocaleTimeString('pt-BR');
