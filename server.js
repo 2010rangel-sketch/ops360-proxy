@@ -19,6 +19,119 @@ const HUBSOFT_USERNAME      = process.env.HUBSOFT_USERNAME      || '2026rangel@g
 const HUBSOFT_PASSWORD      = process.env.HUBSOFT_PASSWORD      || 'Rangel26@';
 const grant_type           = process.env.grant_type             || 'password';
 
+// ── Apple iCloud CalDAV ───────────────────────────────────────────
+const APPLE_ID           = process.env.APPLE_ID           || '';
+const APPLE_APP_PASSWORD = process.env.APPLE_APP_PASSWORD || '';
+let caldavCache = null; // { auth, baseUrl, calPath } — descoberto na 1ª chamada
+
+function icsDateTime(d) {
+  return d.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
+}
+
+function buildICS(ev) {
+  const uid = `ops360-${Date.now()}-${Math.random().toString(36).slice(2)}@ops360`;
+  const lines = [
+    'BEGIN:VCALENDAR','VERSION:2.0',
+    'PRODID:-//OPS360//Dashboard//PT',
+    'CALSCALE:GREGORIAN',
+    'BEGIN:VEVENT',
+    `UID:${uid}`,
+    `DTSTAMP:${icsDateTime(new Date())}`,
+    `DTSTART:${icsDateTime(new Date(ev.inicio))}`,
+    `DTEND:${icsDateTime(new Date(ev.fim || new Date(new Date(ev.inicio).getTime()+3600000)))}`,
+    `SUMMARY:${(ev.titulo||'Evento OPS360').replace(/[\\;,]/g,'\\$&').replace(/\n/g,'\\n')}`,
+    ev.descricao ? `DESCRIPTION:${ev.descricao.replace(/[\\;,]/g,'\\$&').replace(/\n/g,'\\n')}` : null,
+    ev.local     ? `LOCATION:${ev.local.replace(/[\\;,]/g,'\\$&')}` : null,
+    'END:VEVENT','END:VCALENDAR',
+  ].filter(Boolean);
+  return { ics: lines.join('\r\n'), uid };
+}
+
+function parseICS(icsText) {
+  const events = [];
+  const vevents = icsText.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/g) || [];
+  const getP = (block, prop) => {
+    const m = block.match(new RegExp(`(?:^|\\r\\n)${prop}[^:]*:([^\\r\\n]+)(?:\\r\\n[ \\t]([^\\r\\n]+))*`, 'm'));
+    return m ? m[1].trim() : null;
+  };
+  const parseIcsDate = (s) => {
+    if (!s) return null;
+    // strip TZID prefix if present (e.g. "TZID=America/Sao_Paulo:20260325T100000")
+    const raw = s.includes(':') ? s.split(':').pop() : s;
+    const m = raw.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})(Z?))?$/);
+    if (!m) return null;
+    if (!m[4]) return new Date(+m[1], +m[2]-1, +m[3]).toISOString();
+    const iso = `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}${m[7]?'Z':''}`;
+    return new Date(iso).toISOString();
+  };
+  for (const ve of vevents) {
+    const uid   = getP(ve, 'UID');
+    const dtStart = ve.match(/DTSTART[^\r\n]*/)?.[0]?.split(':').pop()?.trim();
+    const dtEnd   = ve.match(/DTEND[^\r\n]*/)?.[0]?.split(':').pop()?.trim();
+    if (!uid || !dtStart) continue;
+    events.push({
+      uid,
+      titulo:    (getP(ve,'SUMMARY')  ||'Sem título').replace(/\\n/g,'\n').replace(/\\,/g,','),
+      inicio:    parseIcsDate(dtStart),
+      fim:       parseIcsDate(dtEnd),
+      descricao: (getP(ve,'DESCRIPTION')||'').replace(/\\n/g,'\n'),
+      local:     getP(ve,'LOCATION') || '',
+    });
+  }
+  return events;
+}
+
+async function getCaldavInfo() {
+  if (caldavCache) return caldavCache;
+  if (!APPLE_ID || !APPLE_APP_PASSWORD) throw new Error('nao_configurado');
+
+  const auth = `Basic ${Buffer.from(`${APPLE_ID}:${APPLE_APP_PASSWORD}`).toString('base64')}`;
+  const hdr  = (extra={}) => ({ Authorization:auth, 'Content-Type':'application/xml; charset=utf-8', ...extra });
+
+  // 1. Descobre principal URL
+  const r1 = await axios({
+    method:'PROPFIND', url:'https://caldav.icloud.com/',
+    data:'<?xml version="1.0"?><D:propfind xmlns:D="DAV:"><D:prop><D:current-user-principal/></D:prop></D:propfind>',
+    headers: hdr({ Depth:'0' }), validateStatus:()=>true, maxRedirects:10,
+  });
+  const hrefs1 = [...(r1.data||'').matchAll(/<(?:\w+:)?href>(\/[^<]+)<\/(?:\w+:)?href>/g)].map(m=>m[1]);
+  const principal = hrefs1.find(u => u.length > 2 && u !== '/');
+  if (!principal) throw new Error(`Principal não encontrado (status ${r1.status})`);
+
+  // 2. Calendar-home-set
+  const r2 = await axios({
+    method:'PROPFIND', url:`https://caldav.icloud.com${principal}`,
+    data:'<?xml version="1.0"?><D:propfind xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:prop><C:calendar-home-set/></D:prop></D:propfind>',
+    headers: hdr({ Depth:'0' }), validateStatus:()=>true,
+  });
+  const homeM = r2.data.match(/calendar-home-set[\s\S]{0,400}?<(?:\w+:)?href>(\/[^<]+\/)<\/(?:\w+:)?href>/);
+  if (!homeM) throw new Error('calendar-home-set não encontrado');
+  const homePath = homeM[1];
+
+  // 3. Lista calendários → encontra o 1º que suporte VEVENT
+  const r3 = await axios({
+    method:'PROPFIND', url:`https://caldav.icloud.com${homePath}`,
+    data:'<?xml version="1.0"?><D:propfind xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:prop><D:resourcetype/><C:supported-calendar-component-set/></D:prop></D:propfind>',
+    headers: hdr({ Depth:'1' }), validateStatus:()=>true,
+  });
+  const resps = (r3.data||'').split(/<(?:\w+:)?response>/).slice(1);
+  let calPath = null;
+  for (const resp of resps) {
+    const hm = resp.match(/<(?:\w+:)?href>(\/[^<]+\/)<\/(?:\w+:)?href>/);
+    if (!hm || hm[1] === homePath) continue;
+    if (resp.includes('VEVENT') || resp.includes('calendar')) { calPath = hm[1]; break; }
+  }
+  if (!calPath && resps.length > 1) {
+    const hm = resps[1].match(/<(?:\w+:)?href>(\/[^<]+\/)<\/(?:\w+:)?href>/);
+    if (hm) calPath = hm[1];
+  }
+  if (!calPath) throw new Error('Nenhum calendário encontrado');
+
+  caldavCache = { auth, baseUrl:'https://caldav.icloud.com', calPath };
+  console.log(`[CalDAV] Calendário descoberto: ${calPath}`);
+  return caldavCache;
+}
+
 // ── Token em memória (renovado automaticamente) ──────────────────
 let tokenCache = { access_token: null, expires_at: 0 };
 
@@ -755,6 +868,101 @@ function formatarHora(datetime) {
     return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
   } catch { return '--:--'; }
 }
+
+// ════════════════════════════════════════════════════════════════
+//  ROTAS — iCloud CalDAV Agenda
+// ════════════════════════════════════════════════════════════════
+
+// GET /api/agenda/eventos?mes=2026-03  → lista eventos do mês
+app.get('/api/agenda/eventos', async (req, res) => {
+  try {
+    const { auth, baseUrl, calPath } = await getCaldavInfo();
+    const mes = req.query.mes || new Date().toISOString().slice(0,7);
+    const [ano, mo] = mes.split('-').map(Number);
+    const inicio = new Date(ano, mo-1, 1);
+    const fim    = new Date(ano, mo,   1);
+    const fmtD   = d => icsDateTime(d).slice(0,8);
+    const body = `<?xml version="1.0" encoding="utf-8"?>
+<C:calendar-query xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:prop><D:getetag/><C:calendar-data/></D:prop>
+  <C:filter>
+    <C:comp-filter name="VCALENDAR">
+      <C:comp-filter name="VEVENT">
+        <C:time-range start="${fmtD(inicio)}T000000Z" end="${fmtD(fim)}T000000Z"/>
+      </C:comp-filter>
+    </C:comp-filter>
+  </C:filter>
+</C:calendar-query>`;
+    const r = await axios({
+      method:'REPORT', url:`${baseUrl}${calPath}`,
+      data: body,
+      headers:{ Authorization:auth, 'Content-Type':'application/xml; charset=utf-8', Depth:'1' },
+      validateStatus:()=>true,
+    });
+    // Extrai blocos BEGIN:VCALENDAR de cada resposta
+    const icsBlocks = [...(r.data||'').matchAll(/BEGIN:VCALENDAR[\s\S]*?END:VCALENDAR/g)].map(m=>m[0]);
+    const eventos = icsBlocks.flatMap(b => parseICS(b));
+    res.json({ ok:true, eventos });
+  } catch(err) {
+    const msg = err.message;
+    if (msg === 'nao_configurado') return res.status(503).json({ ok:false, erro:'nao_configurado' });
+    console.error('[CalDAV eventos]', msg);
+    res.status(500).json({ ok:false, erro: msg });
+  }
+});
+
+// POST /api/agenda/criar  { titulo, inicio, fim?, descricao?, local? }
+app.post('/api/agenda/criar', async (req, res) => {
+  try {
+    const { auth, baseUrl, calPath } = await getCaldavInfo();
+    const ev = req.body;
+    if (!ev.titulo || !ev.inicio) return res.status(400).json({ ok:false, erro:'titulo e inicio são obrigatórios' });
+    const { ics, uid } = buildICS(ev);
+    const url = `${baseUrl}${calPath}${uid}.ics`;
+    const r = await axios({
+      method:'PUT', url,
+      data: ics,
+      headers:{ Authorization:auth, 'Content-Type':'text/calendar; charset=utf-8', 'If-None-Match':'*' },
+      validateStatus:()=>true,
+    });
+    if (r.status >= 200 && r.status < 300) {
+      res.json({ ok:true, uid });
+    } else {
+      res.status(r.status).json({ ok:false, erro:`CalDAV respondeu ${r.status}`, body: r.data });
+    }
+  } catch(err) {
+    const msg = err.message;
+    if (msg === 'nao_configurado') return res.status(503).json({ ok:false, erro:'nao_configurado' });
+    console.error('[CalDAV criar]', msg);
+    res.status(500).json({ ok:false, erro: msg });
+  }
+});
+
+// DELETE /api/agenda/deletar/:uid
+app.delete('/api/agenda/deletar/:uid', async (req, res) => {
+  try {
+    const { auth, baseUrl, calPath } = await getCaldavInfo();
+    const uid = req.params.uid;
+    const url = `${baseUrl}${calPath}${uid}.ics`;
+    const r = await axios({
+      method:'DELETE', url,
+      headers:{ Authorization:auth },
+      validateStatus:()=>true,
+    });
+    if (r.status === 204 || r.status === 200) {
+      res.json({ ok:true });
+    } else if (r.status === 404) {
+      res.status(404).json({ ok:false, erro:'Evento não encontrado' });
+    } else {
+      res.status(r.status).json({ ok:false, erro:`CalDAV respondeu ${r.status}` });
+    }
+  } catch(err) {
+    const msg = err.message;
+    if (msg === 'nao_configurado') return res.status(503).json({ ok:false, erro:'nao_configurado' });
+    console.error('[CalDAV deletar]', msg);
+    res.status(500).json({ ok:false, erro: msg });
+  }
+});
 
 // ── Inicializa ────────────────────────────────────────────────────
 app.listen(PORT, () => {

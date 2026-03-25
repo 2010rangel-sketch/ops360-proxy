@@ -263,6 +263,7 @@ tr:hover td { background:var(--bg3); color:var(--text); }
 .cal-day.today { background:var(--accent); color:#fff; font-weight:600; }
 .cal-day.has-event::after { content:''; display:block; width:3px; height:3px; border-radius:50%; background:var(--green); margin:2px auto 0; }
 .cal-day.other { color:var(--text3); }
+.cal-day.selected:not(.today) { background:var(--accent-light); color:var(--accent); font-weight:600; }
 .event-item { display:flex; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); }
 .event-item:last-child { border-bottom:none; }
 .event-stripe { width:2.5px; border-radius:2px; flex-shrink:0; margin:1px 0; }
@@ -845,6 +846,43 @@ input[type="text"]::placeholder { color:var(--text3); }
 
     <!-- ═══ AGENDA ═══ -->
     <div class="page" id="page-agenda">
+      <!-- Modal novo evento -->
+      <div id="agendaModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center">
+        <div style="background:var(--bg2);border-radius:14px;width:420px;max-width:96vw;padding:24px;box-shadow:0 8px 40px rgba(0,0,0,.4)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <div style="font-size:14px;font-weight:700;color:var(--text)"><i class="fas fa-calendar-plus" style="color:var(--accent);margin-right:6px"></i> Novo Evento</div>
+            <button class="btn btn-sm" onclick="fecharFormEvento()">✕</button>
+          </div>
+          <div class="form-group" style="margin-bottom:10px">
+            <label>Título <span style="color:var(--red)">*</span></label>
+            <input type="text" id="evTitulo" placeholder="Reunião, tarefa...">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div class="form-group">
+              <label>Início <span style="color:var(--red)">*</span></label>
+              <input type="datetime-local" id="evInicio">
+            </div>
+            <div class="form-group">
+              <label>Fim</label>
+              <input type="datetime-local" id="evFim">
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:10px">
+            <label>Local</label>
+            <input type="text" id="evLocal" placeholder="Sala, endereço...">
+          </div>
+          <div class="form-group" style="margin-bottom:16px">
+            <label>Descrição</label>
+            <textarea id="evDesc" rows="2" style="resize:vertical;width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:8px;color:var(--text);font-size:12px" placeholder="Detalhes..."></textarea>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button class="btn btn-sm" onclick="fecharFormEvento()">Cancelar</button>
+            <button class="btn btn-primary btn-sm" id="btnSalvarEv" onclick="salvarEvento()"><i class="fas fa-cloud-upload-alt"></i> Salvar no iCloud</button>
+          </div>
+          <div id="evModalStatus" style="font-size:11px;color:var(--text3);margin-top:8px;text-align:center"></div>
+        </div>
+      </div>
+
       <div style="display:grid;grid-template-columns:280px 1fr;gap:16px">
         <div>
           <div class="tbl-card" style="margin-bottom:16px">
@@ -859,14 +897,15 @@ input[type="text"]::placeholder { color:var(--text3); }
               <div class="cal-grid" id="calGrid"></div>
             </div>
           </div>
-          <button class="btn btn-primary btn-sm" style="width:100%" onclick="alert('Integre com Google Calendar para adicionar eventos')"><i class="fas fa-plus"></i> Novo evento</button>
+          <button class="btn btn-primary btn-sm" style="width:100%" onclick="abrirFormEvento()"><i class="fas fa-plus"></i> Novo evento</button>
+          <div id="agendaStatus" style="font-size:11px;color:var(--text3);margin-top:8px;text-align:center"></div>
         </div>
         <div class="tbl-card" style="margin-bottom:0">
           <div class="tbl-header">
-            <span class="tbl-title" id="dayTitle">Hoje, 23 de Março</span>
-            <span class="badge b-blue" id="evCount">4 eventos</span>
+            <span class="tbl-title" id="dayTitle">Selecione um dia</span>
+            <span class="badge b-blue" id="evCount">0 eventos</span>
           </div>
-          <div style="padding:0 18px" id="evList"></div>
+          <div style="padding:0 18px" id="evList"><div style="color:var(--text3);font-size:12px;padding:16px 0">Clique em um dia para ver os eventos</div></div>
         </div>
       </div>
     </div>
@@ -2455,21 +2494,51 @@ function addTask() {
 renderTasks();
 
 // CALENDAR
-let calDate = new Date(2026,2,1);
-const calEvents = {
-  '2026-3-23':[
-    {tm:'08:00',c:'var(--accent)',ttl:'Reunião Diária Ops',sub:'Equipe técnica completa'},
-    {tm:'10:30',c:'var(--green)',ttl:'Análise KPIs Mensais',sub:'Hubsoft + ChatMix'},
-    {tm:'14:00',c:'var(--amber)',ttl:'1:1 Gestor de Suporte',sub:'João Gerente'},
-    {tm:'16:30',c:'var(--red)',ttl:'Revisão SLA e Retrabalhos',sub:'Relatório para diretoria'},
-  ],
-  '2026-3-24':[
-    {tm:'09:00',c:'var(--purple)',ttl:'Treinamento Técnicos',sub:'Qualidade e retrabalho'},
-    {tm:'15:00',c:'var(--cyan)',ttl:'Reunião ChatMix',sub:'Novos indicadores'},
-  ],
-};
+// ── Agenda iCloud ────────────────────────────────────────────────
+let calDate = new Date();
+calDate.setDate(1);
+let calEvents = {};   // key "YYYY-M-D" → [{uid,titulo,inicio,fim,descricao,local}]
+let calSelectedDay = new Date().getDate();
 const months=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const daysH=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+const evColors=['var(--accent)','var(--green)','var(--cyan)','var(--amber)','var(--purple)','var(--red)'];
+
+function fmtHm(iso) {
+  if(!iso) return '';
+  try { const d=new Date(iso); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; } catch{return '';}
+}
+
+async function carregarEventos() {
+  const statusEl = document.getElementById('agendaStatus');
+  if(statusEl) statusEl.textContent = 'Carregando eventos...';
+  const mes = `${calDate.getFullYear()}-${String(calDate.getMonth()+1).padStart(2,'0')}`;
+  try {
+    const r = await fetch(`/api/agenda/eventos?mes=${mes}`);
+    const j = await r.json();
+    if(!j.ok) {
+      if(j.erro === 'nao_configurado') {
+        if(statusEl) statusEl.textContent = '⚠️ Configure APPLE_ID e APPLE_APP_PASSWORD no Railway';
+      } else {
+        if(statusEl) statusEl.textContent = `Erro: ${j.erro}`;
+      }
+      calEvents = {};
+      renderCal(); return;
+    }
+    calEvents = {};
+    for(const ev of j.eventos) {
+      const d = new Date(ev.inicio);
+      const key = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+      if(!calEvents[key]) calEvents[key]=[];
+      calEvents[key].push(ev);
+    }
+    if(statusEl) statusEl.textContent = j.eventos.length ? `${j.eventos.length} evento(s) carregado(s)` : '';
+    renderCal();
+  } catch(e) {
+    if(statusEl) statusEl.textContent = `Erro de rede: ${e.message}`;
+    calEvents = {}; renderCal();
+  }
+}
+
 function renderCal() {
   document.getElementById('calTitle').textContent=`${months[calDate.getMonth()]} ${calDate.getFullYear()}`;
   const grid=document.getElementById('calGrid');
@@ -2480,29 +2549,112 @@ function renderCal() {
   for(let i=0;i<first;i++) h+=`<div class="cal-day other"></div>`;
   for(let d=1;d<=last;d++) {
     const isT=d===today.getDate()&&calDate.getMonth()===today.getMonth()&&calDate.getFullYear()===today.getFullYear();
+    const isSel = d === calSelectedDay;
     const key=`${calDate.getFullYear()}-${calDate.getMonth()+1}-${d}`;
-    h+=`<div class="cal-day ${isT?'today':''} ${calEvents[key]?'has-event':''}" onclick="showDay(${d})">${d}</div>`;
+    h+=`<div class="cal-day ${isT?'today':''} ${calEvents[key]?'has-event':''} ${isSel?'selected':''}" onclick="showDay(${d})">${d}</div>`;
   }
   grid.innerHTML=h;
-  showDay(today.getDate());
+  showDay(calSelectedDay);
 }
+
 function showDay(d) {
+  calSelectedDay = d;
   const key=`${calDate.getFullYear()}-${calDate.getMonth()+1}-${d}`;
   const evs=calEvents[key]||[];
   document.getElementById('evCount').textContent=`${evs.length} evento${evs.length!==1?'s':''}`;
   document.getElementById('dayTitle').textContent=`${d} de ${months[calDate.getMonth()]}`;
   const el=document.getElementById('evList');
-  el.innerHTML=evs.length?evs.map(e=>`
-    <div class="event-item">
-      <div class="event-tm">${e.tm}</div>
-      <div class="event-stripe" style="background:${e.c}"></div>
-      <div><div class="event-ttl">${e.ttl}</div><div class="event-sub">${e.sub}</div></div>
+  el.innerHTML=evs.length?evs.map((e,i)=>`
+    <div class="event-item" style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div class="event-tm" style="min-width:38px;font-size:11px;color:var(--text3);padding-top:2px">${fmtHm(e.inicio)||'—'}</div>
+      <div class="event-stripe" style="width:3px;align-self:stretch;background:${evColors[i%evColors.length]};border-radius:2px;flex-shrink:0"></div>
+      <div style="flex:1;min-width:0">
+        <div class="event-ttl" style="font-size:13px;font-weight:600;color:var(--text)">${e.titulo||'Sem título'}</div>
+        ${e.local?`<div class="event-sub" style="font-size:11px;color:var(--text3);margin-top:1px"><i class="fas fa-map-marker-alt" style="margin-right:3px"></i>${e.local}</div>`:''}
+        ${e.descricao?`<div class="event-sub" style="font-size:11px;color:var(--text3);margin-top:1px">${e.descricao}</div>`:''}
+      </div>
+      <button class="btn btn-sm" style="color:var(--red);padding:2px 6px;font-size:10px" onclick="deletarEvento('${e.uid}','${key}')" title="Deletar evento">✕</button>
     </div>
   `).join(''):'<div style="color:var(--text3);font-size:12px;padding:16px 0">Nenhum evento neste dia</div>';
+  // Atualiza seleção visual
+  document.querySelectorAll('.cal-day.selected').forEach(el2=>el2.classList.remove('selected'));
+  const cells = document.querySelectorAll('.cal-day');
+  const first = new Date(calDate.getFullYear(),calDate.getMonth(),1).getDay();
+  const cell = cells[first + d - 1];
+  if(cell) cell.classList.add('selected');
 }
-function prevMonth() { calDate=new Date(calDate.getFullYear(),calDate.getMonth()-1,1); renderCal(); }
-function nextMonth() { calDate=new Date(calDate.getFullYear(),calDate.getMonth()+1,1); renderCal(); }
-renderCal();
+
+function prevMonth() {
+  calDate=new Date(calDate.getFullYear(),calDate.getMonth()-1,1);
+  calSelectedDay=1;
+  renderCal();
+  carregarEventos();
+}
+function nextMonth() {
+  calDate=new Date(calDate.getFullYear(),calDate.getMonth()+1,1);
+  calSelectedDay=1;
+  renderCal();
+  carregarEventos();
+}
+
+function abrirFormEvento() {
+  const now = new Date();
+  const pad = n=>String(n).padStart(2,'0');
+  const localIso = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(calSelectedDay)}T${pad(now.getHours())}:00`;
+  document.getElementById('evTitulo').value='';
+  document.getElementById('evInicio').value=localIso;
+  document.getElementById('evFim').value='';
+  document.getElementById('evLocal').value='';
+  document.getElementById('evDesc').value='';
+  document.getElementById('evModalStatus').textContent='';
+  const m = document.getElementById('agendaModal');
+  m.style.display='flex';
+}
+function fecharFormEvento() {
+  document.getElementById('agendaModal').style.display='none';
+}
+async function salvarEvento() {
+  const titulo   = document.getElementById('evTitulo').value.trim();
+  const inicio   = document.getElementById('evInicio').value;
+  const fim      = document.getElementById('evFim').value;
+  const local    = document.getElementById('evLocal').value.trim();
+  const descricao= document.getElementById('evDesc').value.trim();
+  if(!titulo||!inicio){ document.getElementById('evModalStatus').textContent='Preencha título e início.'; return; }
+  const btn = document.getElementById('btnSalvarEv');
+  btn.disabled=true; btn.textContent='Salvando...';
+  document.getElementById('evModalStatus').textContent='';
+  try {
+    const r = await fetch('/api/agenda/criar',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({titulo,inicio:new Date(inicio).toISOString(),fim:fim?new Date(fim).toISOString():null,local,descricao})});
+    const j = await r.json();
+    if(j.ok) {
+      fecharFormEvento();
+      await carregarEventos();
+    } else {
+      document.getElementById('evModalStatus').textContent = `Erro: ${j.erro}`;
+    }
+  } catch(e) {
+    document.getElementById('evModalStatus').textContent = `Erro: ${e.message}`;
+  } finally {
+    btn.disabled=false; btn.innerHTML='<i class="fas fa-cloud-upload-alt"></i> Salvar no iCloud';
+  }
+}
+async function deletarEvento(uid,key) {
+  if(!confirm('Deletar este evento do iCloud?')) return;
+  try {
+    const r = await fetch(`/api/agenda/deletar/${encodeURIComponent(uid)}`,{method:'DELETE'});
+    const j = await r.json();
+    if(j.ok) { await carregarEventos(); }
+    else alert(`Erro ao deletar: ${j.erro}`);
+  } catch(e) { alert(`Erro: ${e.message}`); }
+}
+
+// Carrega ao abrir a aba
+const _origGoPage = typeof goPage === 'function' ? goPage : null;
+document.addEventListener('DOMContentLoaded',()=>{
+  renderCal();
+  carregarEventos();
+});
 
 // INTEGRATIONS
 const ints = [
