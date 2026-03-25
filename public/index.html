@@ -1337,7 +1337,7 @@ function renderCidades() {
       <div style="display:flex;flex-wrap:wrap;gap:2px;margin-bottom:5px">
         ${d.total===0
           ? `<span style="font-size:9.5px;color:var(--text3)">Sem chamados no período</span>`
-          : Object.entries(tiposConfig).map(([k,v])=>d.cats[k]?`<span style="font-size:9.5px;background:${v.color}18;color:${v.color};padding:1px 5px;border-radius:3px">${v.label.split(' ')[0]} ${d.cats[k]}</span>`:'').join('')
+          : Object.entries(tiposConfig).map(([k,v])=>d.cats[k]?`<span style="display:inline-flex;flex-direction:column;align-items:center;background:${v.color}18;color:${v.color};padding:2px 6px;border-radius:3px;line-height:1.2"><span style="font-size:9px">${v.label.split(' ')[0]}</span><span style="font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace">${d.cats[k]}</span></span>`:'').join('')
         }
       </div>
       <div class="prog"><div class="prog-fill" style="width:${Math.round(d.total/maxT*100)}%;background:var(--purple)"></div></div>
