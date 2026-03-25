@@ -666,7 +666,7 @@ input[type="text"]::placeholder { color:var(--text3); }
         <div class="tbl-card" style="margin-bottom:0;display:flex;flex-direction:column">
           <div class="tbl-header" style="padding-bottom:10px;flex-shrink:0">
             <span class="tbl-title">Chamados em andamento agora</span>
-            <span class="badge b-blue" id="liveCount">0 ativos</span>
+            <span class="badge b-blue" id="liveCount">0 pendentes</span>
           </div>
           <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;padding:0 4px 4px;flex:1" id="statusLanes"></div>
         </div>
@@ -1480,7 +1480,7 @@ function renderStatusLanes() {
   const el = document.getElementById('statusLanes');
   if(!el) return;
   const ativos = chamadosFiltrados.filter(c=>c.st!=='finalizado');
-  document.getElementById('liveCount').textContent = `${ativos.length} ativos`;
+  document.getElementById('liveCount').textContent = `${ativos.length} pendentes`;
 
   el.innerHTML = lanes.map(lane => {
     const baseItems = chamadosFiltrados.filter(c=>c.st===lane.st);
