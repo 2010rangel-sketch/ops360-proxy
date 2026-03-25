@@ -575,26 +575,22 @@ input[type="text"]::placeholder { color:var(--text3); }
       <!-- ── CARDS POR CATEGORIA (hoje + acumulado mês) ── -->
       <div id="catCards" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px"></div>
 
-      <!-- ── LINHA: STATUS AO VIVO + MAPA DE CIDADES ── -->
-      <div style="display:grid;grid-template-columns:1fr 340px;gap:12px;margin-bottom:14px">
-
-        <!-- STATUS AO VIVO — board kanban visual -->
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header" style="padding-bottom:10px">
-            <span class="tbl-title">Chamados em andamento agora</span>
-            <span class="badge b-blue" id="liveCount">0 ativos</span>
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:0 4px 4px" id="statusLanes"></div>
+      <!-- ── STATUS AO VIVO — kanban full width ── -->
+      <div class="tbl-card" style="margin-bottom:14px">
+        <div class="tbl-header" style="padding-bottom:10px">
+          <span class="tbl-title">Chamados em andamento agora</span>
+          <span class="badge b-blue" id="liveCount">0 ativos</span>
         </div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:0 4px 4px" id="statusLanes"></div>
+      </div>
 
-        <!-- MAPA DE CIDADES (visual SVG/CSS) -->
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header">
-            <span class="tbl-title">Por cidade</span>
-            <span class="badge b-purple" id="cidadeCount">0 cidades</span>
-          </div>
-          <div id="cidadeList" style="padding:0 4px 4px"></div>
+      <!-- ── POR CIDADE — abaixo do kanban, full width em colunas ── -->
+      <div class="tbl-card" style="margin-bottom:14px">
+        <div class="tbl-header">
+          <span class="tbl-title">Por cidade</span>
+          <span class="badge b-purple" id="cidadeCount">0 cidades</span>
         </div>
+        <div id="cidadeList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:0;padding:0 4px 4px"></div>
       </div>
 
       <!-- ── FEED AO VIVO + TABELA COMPLETA ── -->
@@ -1293,21 +1289,28 @@ function renderStatusLanes() {
 }
 
 // ── RENDER: POR CIDADE ─────────────────────────────────────────────────────
+const CIDADES_FIXAS = ['Garrafão do Norte'];
 function renderCidades() {
   const el = document.getElementById('cidadeList');
   if(!el) return;
   const cidMap = {};
   chamadosFiltrados.forEach(c=>{
-    if(!cidMap[c.cidade]) cidMap[c.cidade]={total:0,atrasado:0,execucao:0,finalizado:0,cats:{}};
-    cidMap[c.cidade].total++;
-    cidMap[c.cidade][c.st]=(cidMap[c.cidade][c.st]||0)+1;
-    cidMap[c.cidade].cats[c.cat]=(cidMap[c.cidade].cats[c.cat]||0)+1;
+    const nome = c.cidade && c.cidade !== 'Sem cidade' ? c.cidade : null;
+    if(!nome) return;
+    if(!cidMap[nome]) cidMap[nome]={total:0,atrasado:0,execucao:0,finalizado:0,cats:{}};
+    cidMap[nome].total++;
+    cidMap[nome][c.st]=(cidMap[nome][c.st]||0)+1;
+    cidMap[nome].cats[c.cat]=(cidMap[nome].cats[c.cat]||0)+1;
+  });
+  CIDADES_FIXAS.forEach(nome=>{
+    if(!cidMap[nome]) cidMap[nome]={total:0,atrasado:0,execucao:0,finalizado:0,cats:{}};
   });
   const cidades = Object.entries(cidMap).sort((a,b)=>b[1].total-a[1].total);
-  document.getElementById('cidadeCount').textContent = `${cidades.length} cidades`;
+  const comChamados = cidades.filter(([,v])=>v.total>0).length;
+  document.getElementById('cidadeCount').textContent = `${comChamados} cidades`;
   const maxT = Math.max(...cidades.map(([,v])=>v.total),1);
   el.innerHTML = cidades.map(([nome,d])=>`
-    <div style="padding:9px 4px;border-bottom:1px solid var(--border)">
+    <div style="padding:9px 12px;border-bottom:1px solid var(--border);${d.total===0?'opacity:0.45':''}">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
         <div style="display:flex;align-items:center;gap:6px">
           <i class="fas fa-map-marker-alt" style="font-size:10px;color:var(--purple)"></i>
@@ -1319,8 +1322,11 @@ function renderCidades() {
           <span style="font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--text)">${d.total}</span>
         </div>
       </div>
-      <div style="display:flex;gap:2px;margin-bottom:5px">
-        ${Object.entries(tiposConfig).map(([k,v])=>d.cats[k]?`<span style="font-size:9.5px;background:${v.color}18;color:${v.color};padding:1px 5px;border-radius:3px">${v.label.split(' ')[0]} ${d.cats[k]}</span>`:'').join('')}
+      <div style="display:flex;flex-wrap:wrap;gap:2px;margin-bottom:5px">
+        ${d.total===0
+          ? `<span style="font-size:9.5px;color:var(--text3)">Sem chamados no período</span>`
+          : Object.entries(tiposConfig).map(([k,v])=>d.cats[k]?`<span style="font-size:9.5px;background:${v.color}18;color:${v.color};padding:1px 5px;border-radius:3px">${v.label.split(' ')[0]} ${d.cats[k]}</span>`:'').join('')
+        }
       </div>
       <div class="prog"><div class="prog-fill" style="width:${Math.round(d.total/maxT*100)}%;background:var(--purple)"></div></div>
     </div>
