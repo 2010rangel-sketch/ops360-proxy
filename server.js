@@ -374,36 +374,20 @@ app.get('/api/atendimentos', async (req, res) => {
     const fim   = new Date(ini.getTime() + 24 * 60 * 60 * 1000);
     const body  = { data_inicio: ini.toISOString(), data_fim: fim.toISOString() };
 
-    const data = await hubsoftPost('v1/atendimento_os/consultar/paginado/500?page=1', body);
+    const data = await hubsoftPost('v1/atendimento/consultar/paginado/500?page=1', body);
 
-    // Extrai lista — tenta várias chaves possíveis da resposta
-    const lista =
-      (Array.isArray(data?.atendimentos_os?.data) ? data.atendimentos_os.data : null) ||
-      (Array.isArray(data?.atendimentos_os)        ? data.atendimentos_os       : null) ||
-      (Array.isArray(data?.atendimentos?.data)     ? data.atendimentos.data     : null) ||
-      (Array.isArray(data?.atendimentos)           ? data.atendimentos          : null) ||
-      (Array.isArray(data?.data)                   ? data.data                 : null) ||
-      [];
+    // Estrutura real: data.atendimentos.data (paginado Laravel)
+    const lista = Array.isArray(data?.atendimentos?.data) ? data.atendimentos.data : [];
 
     const atendimentos = lista.map(a => {
-      const tipo = a.tipo_atendimento_os?.descricao
-                || a.tipo_atendimento?.descricao
-                || a.tipo_atendimento
-                || a.tipo
-                || 'Sem tipo';
-
-      const statusRaw = a.status_atendimento?.descricao
-                     || a.status_atendimento
-                     || a.status || '';
+      const tipo      = a.tipo_atendimento?.descricao || 'Sem tipo';
+      const statusRaw = a.status?.descricao || a.status?.prefixo || '';
       const resolvido = /resolv|fechad|conclu/i.test(statusRaw);
-
-      const ordens = Array.isArray(a.ordens_servico) ? a.ordens_servico : [];
-      const temOS  = ordens.length > 0;
+      const temOS     = (a.ordem_servico_count || 0) > 0;
 
       let tmaMin = null;
-      const fechado = a.data_fechamento || a.data_encerramento;
-      if (a.data_cadastro && fechado) {
-        const dur = (new Date(fechado) - new Date(a.data_cadastro)) / 60000;
+      if (a.data_cadastro && a.data_fechamento) {
+        const dur = (new Date(a.data_fechamento) - new Date(a.data_cadastro)) / 60000;
         if (dur > 0 && dur < 600) tmaMin = Math.round(dur);
       }
 
@@ -445,7 +429,7 @@ app.get('/api/debug-atendimentos', async (req, res) => {
     const fim   = new Date(ini.getTime() + 24 * 60 * 60 * 1000);
     const body  = { data_inicio: ini.toISOString(), data_fim: fim.toISOString() };
     const resultados = {};
-    for (const ep of ['v1/atendimento_os/consultar/paginado/3?page=1', 'v1/atendimento/consultar/paginado/3?page=1']) {
+    for (const ep of ['v1/atendimento/consultar/paginado/3?page=1']) {
       try {
         const d = await hubsoftPost(ep, body);
         resultados[ep] = { ok: true, keys: Object.keys(d), amostra: d };
