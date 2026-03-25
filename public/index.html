@@ -407,26 +407,20 @@ input[type="text"]::placeholder { color:var(--text3); }
           <div class="kpi-mini-bar" style="background:var(--green)"></div>
           <div class="kpi-mini-label">Finalizados hoje</div>
           <div class="kpi-mini-val" style="color:var(--green)" id="kv-fin">134</div>
-          <div style="display:flex;gap:6px;margin-top:5px">
-            <span style="font-size:10.5px;color:var(--green);display:flex;align-items:center;gap:3px">
-              <span style="font-weight:700">109</span> <span style="color:var(--text3)">no prazo</span>
-            </span>
-            <span style="color:var(--border2)">·</span>
-            <span style="font-size:10.5px;color:var(--red);display:flex;align-items:center;gap:3px">
-              <span style="font-weight:700">25</span> <span style="color:var(--text3)">fora</span>
-            </span>
+          <div style="display:flex;gap:6px;margin-top:5px" id="kv-fin-sub">
+            <span style="font-size:10.5px;color:var(--text3)">—</span>
           </div>
         </div>
         <div class="kpi-mini">
           <div class="kpi-mini-bar" style="background:var(--orange)"></div>
           <div class="kpi-mini-label">Retrabalhos</div>
-          <div class="kpi-mini-val" style="color:var(--orange)" id="kv-rtb">12</div>
-          <div class="kpi-mini-sub">4.2% do total</div>
+          <div class="kpi-mini-val" style="color:var(--orange)" id="kv-rtb">0</div>
+          <div class="kpi-mini-sub" id="kv-rtb-sub">—</div>
         </div>
         <div class="kpi-mini" style="grid-column:span 1">
           <div class="kpi-mini-bar" style="background:var(--purple)"></div>
           <div class="kpi-mini-label">Reagendados</div>
-          <div class="kpi-mini-val" style="color:var(--purple)">4</div>
+          <div class="kpi-mini-val" style="color:var(--purple)" id="kv-reag">0</div>
           <div class="kpi-mini-sub">hoje</div>
         </div>
         <div class="kpi-mini">
@@ -445,32 +439,15 @@ input[type="text"]::placeholder { color:var(--text3); }
 
       <!-- 2x2 inspired by image -->
       <div class="dash-grid">
-        <!-- Status dos chamados (donut, like "Project status") -->
+        <!-- Status dos chamados (donut dinâmico) -->
         <div class="dash-card">
           <div class="dash-card-title">Status dos chamados <button class="more-btn">···</button></div>
           <div class="dash-card-sub">Tempo real · Hubsoft</div>
           <div class="donut-section">
-            <svg width="140" height="140" viewBox="0 0 140 140">
-              <!-- bg circle -->
+            <svg width="140" height="140" viewBox="0 0 140 140" id="dashDonutSvg">
               <circle cx="70" cy="70" r="52" fill="none" stroke="var(--bg3)" stroke-width="18"/>
-              <!-- execucao: 48 of 201 = 24% = 82/330 -->
-              <circle cx="70" cy="70" r="52" fill="none" stroke="#5b6af0" stroke-width="18" stroke-dasharray="82 245" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 70 70)"/>
-              <!-- atrasado: 7 of 201 = 3.5% = 12/327 -->
-              <circle cx="70" cy="70" r="52" fill="none" stroke="#f43f5e" stroke-width="18" stroke-dasharray="22 305" stroke-dashoffset="-84" stroke-linecap="round" transform="rotate(-90 70 70)"/>
-              <!-- finalizado: 134 of 201 = 66.7% = 218/327 -->
-              <circle cx="70" cy="70" r="52" fill="none" stroke="#22c55e" stroke-width="18" stroke-dasharray="145 182" stroke-dashoffset="-108" stroke-linecap="round" transform="rotate(-90 70 70)"/>
-              <!-- retrabalho: 12 of 201 = 6% = 19/327 -->
-              <circle cx="70" cy="70" r="52" fill="none" stroke="#f97316" stroke-width="18" stroke-dasharray="35 290" stroke-dashoffset="-255" stroke-linecap="round" transform="rotate(-90 70 70)"/>
-              <text x="70" y="64" text-anchor="middle" fill="var(--text)" font-family="Inter" font-weight="700" font-size="22">201</text>
-              <text x="70" y="80" text-anchor="middle" fill="var(--text3)" font-family="Inter" font-size="11">total</text>
             </svg>
-            <div class="donut-labels">
-              <div class="donut-label-row"><div class="dl-left"><div class="dl-dot" style="background:#5b6af0;border-radius:2px"></div>Em execução</div><span class="dl-count">48</span></div>
-              <div class="donut-label-row"><div class="dl-left"><div class="dl-dot" style="background:#f43f5e"></div>Atrasados</div><span class="dl-count" style="color:var(--red)">7</span></div>
-              <div class="donut-label-row"><div class="dl-left"><div class="dl-dot" style="background:#22c55e"></div>Finalizados</div><span class="dl-count" style="color:var(--green)">134</span></div>
-              <div class="donut-label-row"><div class="dl-left"><div class="dl-dot" style="background:#f97316"></div>Retrabalho</div><span class="dl-count" style="color:var(--orange)">12</span></div>
-              <div class="donut-label-row"><div class="dl-left"><div class="dl-dot" style="background:var(--text3)"></div>Aguardando</div><span class="dl-count">19</span></div>
-            </div>
+            <div class="donut-labels" id="dashDonutLabels"></div>
           </div>
         </div>
 
@@ -1545,17 +1522,35 @@ function renderTecChart() {
     const large = slice > Math.PI ? 1 : 0;
     const pct   = Math.round(d.total / total * 100);
     const nome  = tec.split(' ')[0]; // primeiro nome para tooltip
-    paths += `<path d="M${x1},${y1} A${r},${r} 0 ${large},1 ${x2},${y2} L${x3},${y3} A${ri},${ri} 0 ${large},0 ${x4},${y4} Z"
+    paths += `<path data-tec="${tec}" data-pct="${pct}" data-total="${d.total}"
+      d="M${x1},${y1} A${r},${r} 0 ${large},1 ${x2},${y2} L${x3},${y3} A${ri},${ri} 0 ${large},0 ${x4},${y4} Z"
       fill="${cor}" stroke="var(--bg)" stroke-width="2"
-      style="cursor:pointer;transition:opacity .15s,transform .15s;transform-origin:90px 90px"
-      onmouseenter="this.style.opacity='.75';this.style.transform='scale(1.06)';document.getElementById('donutLabel').textContent='${nome}';document.getElementById('donutPct').textContent='${pct}%';document.getElementById('donutTotal').textContent='${d.total} serv.'"
-      onmouseleave="this.style.opacity='1';this.style.transform='scale(1)';document.getElementById('donutLabel').textContent='Total';document.getElementById('donutPct').textContent='';document.getElementById('donutTotal').textContent='${total}'"/>`;
+      style="cursor:pointer;transition:opacity .15s,transform .15s;transform-origin:90px 90px"/>`;
     ang += slice;
   });
   donutEl.innerHTML = paths
     + `<text id="donutLabel" x="90" y="83" text-anchor="middle" style="font-size:10px;fill:var(--text3);font-family:Inter,sans-serif;pointer-events:none">Total</text>`
     + `<text id="donutPct"   x="90" y="99" text-anchor="middle" style="font-size:13px;font-weight:700;fill:var(--text);font-family:Inter,sans-serif;pointer-events:none"></text>`
     + `<text id="donutTotal" x="90" y="114" text-anchor="middle" style="font-size:16px;font-weight:700;fill:var(--text);font-family:Inter,sans-serif;pointer-events:none">${total}</text>`;
+
+  // Eventos hover via JS (evita problemas de IDs duplicados)
+  donutEl.querySelectorAll('path[data-tec]').forEach(p => {
+    p.addEventListener('mouseenter', () => {
+      p.style.opacity = '.72';
+      p.style.transform = 'scale(1.06)';
+      const nome = p.dataset.tec.split(' ')[0];
+      document.getElementById('donutLabel').textContent = nome;
+      document.getElementById('donutPct').textContent   = p.dataset.pct + '%';
+      document.getElementById('donutTotal').textContent = p.dataset.total + ' serv.';
+    });
+    p.addEventListener('mouseleave', () => {
+      p.style.opacity = '1';
+      p.style.transform = 'scale(1)';
+      document.getElementById('donutLabel').textContent = 'Total';
+      document.getElementById('donutPct').textContent   = '';
+      document.getElementById('donutTotal').textContent = total;
+    });
+  });
 
   // Legenda
   legendEl.innerHTML = lista.slice(0,6).map(([tec, d], i) => {
@@ -1567,6 +1562,122 @@ function renderTecChart() {
       <span style="font-size:10px;font-weight:600;color:${cor}">${pct}%</span>
     </div>`;
   }).join('');
+}
+
+// ── RENDER: DASHBOARD ─────────────────────────────────────────────────────
+function renderDashboard() {
+  if(!chamadosDB.length) return;
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+
+  // Chamados de hoje
+  const deHoje = chamadosDB.filter(c => {
+    if(!c.dataProgramada) return false;
+    const d = new Date(c.dataProgramada); d.setHours(0,0,0,0);
+    return d.getTime() === hoje.getTime();
+  });
+
+  const exec  = deHoje.filter(c=>['execucao','em_execucao'].includes(c.st)).length;
+  const atr   = deHoje.filter(c=>c.st==='atrasado').length;
+  const fin   = deHoje.filter(c=>c.st==='finalizado').length;
+  const reag  = deHoje.filter(c=>c.st==='reagendado').length;
+  const rtb   = deHoje.filter(c=>c.rtb||c.st==='retrabalho').length;
+  const ag    = deHoje.filter(c=>c.st==='aguardando').length;
+  const total = deHoje.length;
+
+  // KPIs
+  const eEl = document.getElementById('kv-exec');   if(eEl) eEl.textContent = exec;
+  const aEl = document.getElementById('kv-atr');    if(aEl) aEl.textContent = atr;
+  const fEl = document.getElementById('kv-fin');    if(fEl) fEl.textContent = fin;
+  const rEl = document.getElementById('kv-rtb');    if(rEl) rEl.textContent = rtb;
+  const rgEl= document.getElementById('kv-reag');   if(rgEl) rgEl.textContent = reag;
+  const fSub= document.getElementById('kv-fin-sub');
+  if(fSub && fin > 0) {
+    const pct = Math.round(fin/total*100);
+    fSub.innerHTML = `<span style="font-size:10.5px;color:var(--green);font-weight:700">${pct}%</span><span style="font-size:10.5px;color:var(--text3)"> do dia</span>`;
+  }
+  const rSub= document.getElementById('kv-rtb-sub');
+  if(rSub) rSub.textContent = total ? (rtb/total*100).toFixed(1)+'% do total' : '—';
+
+  // Donut de status
+  const svgEl = document.getElementById('dashDonutSvg');
+  const lblEl = document.getElementById('dashDonutLabels');
+  if(svgEl && total > 0) {
+    const fatias = [
+      {label:'Em execução', val:exec,  cor:'#5b6af0'},
+      {label:'Aguardando',  val:ag,    cor:'var(--amber)'},
+      {label:'Atrasados',   val:atr,   cor:'#f43f5e'},
+      {label:'Finalizados', val:fin,   cor:'#22c55e'},
+      {label:'Reagendados', val:reag,  cor:'var(--purple)'},
+      {label:'Retrabalho',  val:rtb,   cor:'#f97316'},
+    ].filter(f=>f.val>0);
+    const circ = 2 * Math.PI * 52;
+    let offset = 0;
+    let circles = `<circle cx="70" cy="70" r="52" fill="none" stroke="var(--bg3)" stroke-width="18"/>`;
+    fatias.forEach(f => {
+      const dash = (f.val / total) * circ;
+      circles += `<circle cx="70" cy="70" r="52" fill="none" stroke="${f.cor}" stroke-width="18" stroke-dasharray="${dash.toFixed(1)} ${(circ-dash).toFixed(1)}" stroke-dashoffset="${(-offset).toFixed(1)}" stroke-linecap="butt" transform="rotate(-90 70 70)"/>`;
+      offset += dash;
+    });
+    circles += `<text x="70" y="65" text-anchor="middle" fill="var(--text)" font-family="Inter" font-weight="700" font-size="22">${total}</text>`;
+    circles += `<text x="70" y="80" text-anchor="middle" fill="var(--text3)" font-family="Inter" font-size="11">hoje</text>`;
+    svgEl.innerHTML = circles;
+    if(lblEl) lblEl.innerHTML = fatias.map(f=>`
+      <div class="donut-label-row">
+        <div class="dl-left"><div class="dl-dot" style="background:${f.cor};border-radius:2px"></div>${f.label}</div>
+        <span class="dl-count" style="color:${f.cor}">${f.val}</span>
+      </div>`).join('');
+  }
+
+  // Gráfico de barras — chamados por hora (agendados hoje)
+  const barEl  = document.getElementById('barChart');
+  const labEl  = document.getElementById('barLabels');
+  if(barEl && deHoje.length) {
+    const horas = {};
+    deHoje.forEach(c => {
+      const h = new Date(c.dataProgramada).getHours();
+      if(!horas[h]) horas[h] = {ab:0, fin:0};
+      if(c.st==='finalizado') horas[h].fin++; else horas[h].ab++;
+    });
+    const hs = Object.keys(horas).map(Number).sort((a,b)=>a-b);
+    const maxV = Math.max(...hs.map(h=>horas[h].ab+horas[h].fin), 1);
+    barEl.innerHTML = `<div style="display:flex;align-items:flex-end;gap:4px;height:100%;padding-bottom:4px">`
+      + hs.map(h => {
+          const ab  = horas[h].ab, fn = horas[h].fin, tot = ab+fn;
+          const hAb = Math.round(ab/maxV*150), hFn = Math.round(fn/maxV*150);
+          return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:1px" title="${h}h: ${tot} chamados">
+            <div style="width:100%;height:${hFn}px;background:var(--green);border-radius:2px 2px 0 0"></div>
+            <div style="width:100%;height:${hAb}px;background:var(--accent);border-radius:2px 2px 0 0"></div>
+          </div>`;
+        }).join('') + `</div>`;
+    if(labEl) labEl.innerHTML = hs.map(h=>`<span style="font-size:9px;color:var(--text3);flex:1;text-align:center">${h}h</span>`).join('');
+  }
+
+  // Prioridades — OS atrasadas e próximas de atrasar
+  const priEl = document.getElementById('dashPriorities');
+  if(priEl) {
+    const urgentes = deHoje
+      .filter(c=>['atrasado','execucao','aguardando'].includes(c.st))
+      .sort((a,b)=>{ // atrasados primeiro, depois por hora agendada
+        if(a.st==='atrasado' && b.st!=='atrasado') return -1;
+        if(b.st==='atrasado' && a.st!=='atrasado') return 1;
+        return new Date(a.dataProgramada)-new Date(b.dataProgramada);
+      }).slice(0,6);
+    priEl.innerHTML = urgentes.length ? urgentes.map(c=>{
+      const cor = c.st==='atrasado'?'var(--red)':tiposConfig[c.cat]?.color||'var(--accent)';
+      const hora = c.dataProgramada ? new Date(c.dataProgramada).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '--';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
+        <div style="width:3px;height:32px;background:${cor};border-radius:2px;flex-shrink:0"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.cli}</div>
+          <div style="font-size:10px;color:var(--text3)">${c.tec} · ${c.cidade}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:10px;font-weight:600;color:${cor}">${c.st==='atrasado'?'⚠ Atrasado':hora}</div>
+          <div style="font-size:9px;color:var(--text3)">${tiposConfig[c.cat]?.label||c.cat}</div>
+        </div>
+      </div>`;
+    }).join('') : `<div style="font-size:11px;color:var(--text3);text-align:center;padding:16px 0">Nenhuma prioridade crítica</div>`;
+  }
 }
 
 // ── RENDER: RETRABALHO INSIGHT ────────────────────────────────────────────
@@ -1614,6 +1725,7 @@ function rebuildAll() {
       c.slaCalc = true;
     }
   });
+  renderDashboard();
   renderCatCards();
   renderStatusLanes();
   renderCidades();
