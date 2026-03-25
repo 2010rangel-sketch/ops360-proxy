@@ -868,7 +868,7 @@ function normalizarStatus(status) {
   if (s.includes('execu') || s.includes('andamento') || s.includes('iniciado')) return 'execucao';
   if (s.includes('conclu') || s.includes('finaliz') || s.includes('fechado')) return 'finalizado';
   if (s.includes('atraso') || s.includes('vencido') || s.includes('prazo')) return 'atrasado';
-  if (s.includes('reagend') || s.includes('remarca')) return 'reagendado';
+  if (s.includes('reagend') || s.includes('remarca') || s.includes('agendamento')) return 'reagendado';
   if (s.includes('retrabalho')) return 'retrabalho';
   if (s.includes('aguard') || s.includes('pendente') || s.includes('aberto')) return 'aguardando';
   return 'aguardando';
