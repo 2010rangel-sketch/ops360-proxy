@@ -366,24 +366,58 @@ app.get('/api/tipos-os', async (req, res) => {
   }
 });
 
-// ── Atendimentos do dia — agrupados por Tipo de Atendimento ──────
+// ── Atendimentos — por período, agrupado por atendente/setor/tipo ─
 app.get('/api/atendimentos', async (req, res) => {
   try {
+    const { data_inicio, data_fim } = req.query;
     const agora = new Date();
-    const ini   = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
-    const fim   = new Date(ini.getTime() + 24 * 60 * 60 * 1000);
-    const body  = { data_inicio: ini.toISOString(), data_fim: fim.toISOString() };
 
-    const data = await hubsoftPost('v1/atendimento/consultar/paginado/500?page=1', body);
+    // Período selecionado (ou hoje por default)
+    let ini, fim;
+    if (data_inicio) {
+      ini = new Date(data_inicio);
+      fim = data_fim ? new Date(new Date(data_fim).setHours(23,59,59,999))
+                     : new Date(ini.getTime() + 24*60*60*1000);
+    } else {
+      ini = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+      fim = new Date(ini.getTime() + 24*60*60*1000);
+    }
 
-    // Estrutura real: data.atendimentos.data (paginado Laravel)
-    const lista = Array.isArray(data?.atendimentos?.data) ? data.atendimentos.data : [];
+    // Período fixo 7 dias para recorrência (sempre independente do filtro)
+    const ini7 = new Date(agora.getTime() - 7*24*60*60*1000);
 
-    const atendimentos = lista.map(a => {
+    const [data, data7] = await Promise.all([
+      hubsoftPost('v1/atendimento/consultar/paginado/500?page=1', { data_inicio: ini.toISOString(), data_fim: fim.toISOString() }),
+      hubsoftPost('v1/atendimento/consultar/paginado/500?page=1', { data_inicio: ini7.toISOString(), data_fim: agora.toISOString() }),
+    ]);
+
+    const lista  = Array.isArray(data?.atendimentos?.data)  ? data.atendimentos.data  : [];
+    const lista7 = Array.isArray(data7?.atendimentos?.data) ? data7.atendimentos.data : [];
+
+    function parseA(a) {
       const tipo      = a.tipo_atendimento?.descricao || 'Sem tipo';
       const statusRaw = a.status?.descricao || a.status?.prefixo || '';
-      const resolvido = /resolv|fechad|conclu/i.test(statusRaw);
       const temOS     = (a.ordem_servico_count || 0) > 0;
+
+      // Atendente — tenta vários caminhos comuns do Hubsoft
+      const atendente = a.operador?.display || a.operador?.nome
+                     || a.atendente?.display || a.atendente?.nome
+                     || a.usuario?.display   || a.usuario?.nome
+                     || a.responsavel?.display || a.responsavel?.nome
+                     || 'Sem atendente';
+
+      // Setor — tenta vários caminhos; fallback usa tipo de atendimento
+      const setor = a.setor?.nome || a.setor?.descricao
+                 || a.departamento?.nome || a.departamento?.descricao
+                 || a.grupo?.nome || a.fila?.nome
+                 || a.origem?.descricao
+                 || tipo;
+
+      // Cliente
+      const cliente   = a.cliente?.nome_razaosocial || a.cliente?.display
+                     || a.contato?.nome || a.contato?.display
+                     || a.cliente_servico?.display || 'Sem cliente';
+      const clienteId = a.cliente?.id_cliente || a.contato?.id_contato || cliente;
 
       let tmaMin = null;
       if (a.data_cadastro && a.data_fechamento) {
@@ -391,34 +425,184 @@ app.get('/api/atendimentos', async (req, res) => {
         if (dur > 0 && dur < 600) tmaMin = Math.round(dur);
       }
 
-      return { tipo, resolvido, temOS, tmaMin };
+      return { tipo, atendente, setor, cliente, clienteId, temOS, tmaMin };
+    }
+
+    const parsed  = lista.map(parseA);
+    const parsed7 = lista7.map(parseA);
+
+    // Agrupa por atendente
+    const mapaAt = {};
+    parsed.forEach(a => {
+      const k = a.atendente;
+      if (!mapaAt[k]) mapaAt[k] = { atendente:k, total:0, comOS:0, semOS:0, tmaTot:0, tmaCount:0 };
+      mapaAt[k].total++;
+      if (a.temOS) mapaAt[k].comOS++; else mapaAt[k].semOS++;
+      if (a.tmaMin !== null) { mapaAt[k].tmaTot += a.tmaMin; mapaAt[k].tmaCount++; }
     });
+    const por_atendente = Object.values(mapaAt)
+      .map(a => ({ atendente:a.atendente, total:a.total, comOS:a.comOS, semOS:a.semOS,
+                   pctSemOS: a.total ? Math.round(a.semOS/a.total*100) : 0,
+                   tma: a.tmaCount ? Math.round(a.tmaTot/a.tmaCount) : null }))
+      .sort((a,b) => b.total - a.total);
 
-    // Agrupa por tipo
-    const mapa = {};
-    atendimentos.forEach(a => {
-      if (!mapa[a.tipo]) mapa[a.tipo] = { tipo: a.tipo, total: 0, comOS: 0, semOS: 0, tmaTot: 0, tmaCount: 0 };
-      mapa[a.tipo].total++;
-      if (a.temOS) mapa[a.tipo].comOS++; else mapa[a.tipo].semOS++;
-      if (a.tmaMin !== null) { mapa[a.tipo].tmaTot += a.tmaMin; mapa[a.tipo].tmaCount++; }
+    // Agrupa por setor
+    const mapaSet = {};
+    parsed.forEach(a => {
+      const k = a.setor;
+      if (!mapaSet[k]) mapaSet[k] = { setor:k, total:0, comOS:0, semOS:0 };
+      mapaSet[k].total++;
+      if (a.temOS) mapaSet[k].comOS++; else mapaSet[k].semOS++;
     });
+    const por_setor = Object.values(mapaSet)
+      .map(s => ({ ...s, pctSemOS: s.total ? Math.round(s.semOS/s.total*100) : 0 }))
+      .sort((a,b) => b.total - a.total);
 
-    const por_tipo = Object.values(mapa)
-      .map(t => ({
-        tipo:     t.tipo,
-        total:    t.total,
-        comOS:    t.comOS,
-        semOS:    t.semOS,
-        pctSemOS: t.total ? Math.round(t.semOS / t.total * 100) : 0,
-        tma:      t.tmaCount ? Math.round(t.tmaTot / t.tmaCount) : null,
-      }))
-      .sort((a, b) => b.total - a.total);
+    // Agrupa por tipo (backwards compat)
+    const mapaTipo = {};
+    parsed.forEach(a => {
+      const k = a.tipo;
+      if (!mapaTipo[k]) mapaTipo[k] = { tipo:k, total:0, comOS:0, semOS:0, tmaTot:0, tmaCount:0 };
+      mapaTipo[k].total++;
+      if (a.temOS) mapaTipo[k].comOS++; else mapaTipo[k].semOS++;
+      if (a.tmaMin !== null) { mapaTipo[k].tmaTot += a.tmaMin; mapaTipo[k].tmaCount++; }
+    });
+    const por_tipo = Object.values(mapaTipo)
+      .map(t => ({ tipo:t.tipo, total:t.total, comOS:t.comOS, semOS:t.semOS,
+                   pctSemOS: t.total ? Math.round(t.semOS/t.total*100) : 0,
+                   tma: t.tmaCount ? Math.round(t.tmaTot/t.tmaCount) : null }))
+      .sort((a,b) => b.total - a.total);
 
-    res.json({ ok: true, total: atendimentos.length, por_tipo, sincronizado_em: new Date().toISOString() });
+    // Clientes recorrentes (7 dias) — ordenados por frequência
+    const mapaClientes = {};
+    parsed7.forEach(a => {
+      const k = a.clienteId;
+      if (!mapaClientes[k]) mapaClientes[k] = { cliente:a.cliente, contatos:0, semOS:0, comOS:0, setor:a.setor };
+      mapaClientes[k].contatos++;
+      if (a.temOS) mapaClientes[k].comOS++; else mapaClientes[k].semOS++;
+    });
+    const clientes_recorrentes = Object.values(mapaClientes)
+      .filter(c => c.contatos > 1)
+      .sort((a,b) => b.contatos - a.contatos)
+      .slice(0, 50);
+
+    res.json({
+      ok: true,
+      total: parsed.length,
+      por_atendente, por_setor, por_tipo, clientes_recorrentes,
+      sincronizado_em: new Date().toISOString(),
+    });
   } catch (err) {
     console.error('Erro /api/atendimentos:', err.message);
     res.status(500).json({ ok: false, erro: err.message });
   }
+});
+
+// ── Contratos — cadastros e cancelamentos do mês ──────────────────
+app.get('/api/contratos', async (req, res) => {
+  try {
+    const agora  = new Date();
+    const iniMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
+    const fimMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 0, 23, 59, 59, 999);
+    const body   = { data_inicio: iniMes.toISOString(), data_fim: fimMes.toISOString() };
+
+    let cancelamentos = [], cadastros = [], vendedores = {}, erros = [];
+
+    // Helper para extrair lista de contratos de várias estruturas
+    function extrairContratos(d) {
+      return d?.clientes_servicos?.data || d?.cliente_servico?.data
+          || d?.contratos?.data || d?.contrato?.data
+          || d?.data || [];
+    }
+
+    // Cancelados
+    try {
+      const dc = await hubsoftPost('v1/cliente_servico/consultar/paginado/500?page=1', { ...body, situacao: ['cancelado'] });
+      const lista = extrairContratos(dc);
+      if (Array.isArray(lista) && lista.length) {
+        cancelamentos = lista.map(c => ({
+          cliente:  c.cliente?.nome_razaosocial || c.cliente?.display || c.display || 'Cliente',
+          plano:    c.plano?.descricao || c.plano?.nome || c.servico?.nome || '—',
+          motivo:   c.motivo_cancelamento?.descricao || c.motivo?.descricao || '—',
+          vendedor: c.vendedor?.nome || c.vendedor?.display || c.usuario?.nome || '—',
+          data:     c.data_cancelamento || c.updated_at || c.data_alteracao || null,
+        })).sort((a,b) => (b.data||'') > (a.data||'') ? 1 : -1).slice(0, 30);
+
+        lista.forEach(c => {
+          const v = c.vendedor?.nome || c.vendedor?.display || c.usuario?.nome;
+          if (v) { if (!vendedores[v]) vendedores[v] = { nome:v, ativados:0, cancelados:0 }; vendedores[v].cancelados++; }
+        });
+      }
+    } catch(e) { erros.push({ ep:'cancelados', msg: e.response?.status || e.message }); }
+
+    // Novos ativados
+    try {
+      const da = await hubsoftPost('v1/cliente_servico/consultar/paginado/500?page=1', { ...body, situacao: ['ativo'] });
+      const lista = extrairContratos(da);
+      if (Array.isArray(lista) && lista.length) {
+        cadastros = lista.map(c => ({
+          cliente:  c.cliente?.nome_razaosocial || c.cliente?.display || c.display || 'Cliente',
+          plano:    c.plano?.descricao || c.plano?.nome || c.servico?.nome || '—',
+          vendedor: c.vendedor?.nome || c.vendedor?.display || c.usuario?.nome || '—',
+          cidade:   c.endereco?.cidade?.nome || c.cliente?.cidade?.nome || '—',
+          data:     c.data_cadastro || c.data_ativacao || c.created_at || null,
+        })).sort((a,b) => (b.data||'') > (a.data||'') ? 1 : -1).slice(0, 30);
+
+        lista.forEach(c => {
+          const v = c.vendedor?.nome || c.vendedor?.display || c.usuario?.nome;
+          if (v) { if (!vendedores[v]) vendedores[v] = { nome:v, ativados:0, cancelados:0 }; vendedores[v].ativados++; }
+        });
+      }
+    } catch(e) { erros.push({ ep:'ativados', msg: e.response?.status || e.message }); }
+
+    const rankVendedores = Object.values(vendedores).sort((a,b) => b.ativados - a.ativados);
+    const saldo = cadastros.length - cancelamentos.length;
+
+    res.json({
+      ok: true,
+      novos: cadastros.length, cancelados: cancelamentos.length, saldo,
+      cadastros, cancelamentos, vendedores: rankVendedores,
+      erros: erros.length ? erros : undefined,
+      sincronizado_em: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error('Erro /api/contratos:', err.message);
+    res.status(500).json({ ok: false, erro: err.message });
+  }
+});
+
+// ── Debug: mostra um atendimento bruto para descobrir campos ──────
+app.get('/api/debug-atendimento-raw', async (req, res) => {
+  try {
+    const agora = new Date();
+    const ini   = new Date(agora.getTime() - 7*24*60*60*1000);
+    const data  = await hubsoftPost('v1/atendimento/consultar/paginado/3?page=1', {
+      data_inicio: ini.toISOString(), data_fim: agora.toISOString(),
+    });
+    const lista = Array.isArray(data?.atendimentos?.data) ? data.atendimentos.data : [];
+    res.json({ keys_raiz: lista[0] ? Object.keys(lista[0]) : [], primeiro: lista[0] || null, segundo: lista[1] || null });
+  } catch(err) { res.status(500).json({ erro: err.message }); }
+});
+
+// ── Debug: descobre estrutura de contratos ────────────────────────
+app.get('/api/debug-contratos', async (req, res) => {
+  try {
+    const agora  = new Date();
+    const iniMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
+    const fimMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 0, 23, 59, 59);
+    const body   = { data_inicio: iniMes.toISOString(), data_fim: fimMes.toISOString() };
+    const resultados = {};
+    for (const ep of ['v1/cliente_servico/consultar/paginado/3?page=1','v1/contrato/consultar/paginado/3?page=1']) {
+      for (const situacao of [[], ['cancelado'], ['ativo']]) {
+        const key = `${ep.split('/')[1]}__${situacao[0]||'sem_filtro'}`;
+        try {
+          const d = await hubsoftPost(ep, { ...body, situacao });
+          resultados[key] = { ok:true, keys:Object.keys(d), primeiro: (d?.clientes_servicos?.data||d?.data||[])[0] || null };
+        } catch(e) { resultados[key] = { ok:false, status:e.response?.status }; }
+      }
+    }
+    res.json(resultados);
+  } catch(err) { res.status(500).json({ erro: err.message }); }
 });
 
 // ── Debug: descobre estrutura da API de atendimentos ──────────────

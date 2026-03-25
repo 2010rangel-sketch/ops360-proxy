@@ -399,10 +399,11 @@ input[type="text"]::placeholder { color:var(--text3); }
           <button class="chip per-chip" data-p="custom"        onclick="setPeriodo('custom',this)">Período</button>
         </div>
         <div id="dashDateRange" style="display:none;gap:6px;align-items:center">
-          <input type="date" id="dashDtDe"  onchange="syncDates('de',this.value);applyFilters()" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
+          <input type="date" id="dashDtDe"  onchange="syncDates('de',this.value)" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
           <span style="color:var(--text3);font-size:12px">até</span>
-          <input type="date" id="dashDtAte" onchange="syncDates('ate',this.value);applyFilters()" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
+          <input type="date" id="dashDtAte" onchange="syncDates('ate',this.value)" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
         </div>
+        <button id="btnBuscarDash" class="btn btn-primary btn-sm" onclick="buscarPeriodo()" style="padding:5px 14px;font-size:12px"><i class="fas fa-search"></i> Buscar</button>
       </div>
       <!-- KPI Row (6 minis) -->
       <div class="kpi-row">
@@ -534,17 +535,32 @@ input[type="text"]::placeholder { color:var(--text3); }
         <div class="bar-chart" id="tmMensalChart" style="height:160px;gap:4px;padding-top:4px;overflow:hidden"></div>
       </div>
 
-      <!-- ── PRODUÇÃO POR TÉCNICO ── -->
-      <div class="tbl-card" style="margin-top:14px">
-        <div class="tbl-header">
-          <span class="tbl-title">Produção por técnico</span>
-          <span class="badge b-blue" id="tecChartPeriodo"></span>
+      <!-- ── PRODUÇÃO POR TÉCNICO + CHAMADOS POR CIDADE ── -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <span class="tbl-title">Produção por técnico</span>
+            <span class="badge b-blue" id="tecChartPeriodo"></span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 220px;gap:16px;padding:8px 4px 4px;align-items:start">
+            <div id="tecBarChart"></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+              <svg id="tecDonut" width="160" height="160" viewBox="0 0 180 180"></svg>
+              <div id="tecDonutLegend" style="display:flex;flex-direction:column;gap:4px;width:100%"></div>
+            </div>
+          </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 260px;gap:24px;padding:8px 4px 4px;align-items:start">
-          <div id="tecBarChart"></div>
-          <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
-            <svg id="tecDonut" width="180" height="180" viewBox="0 0 180 180"></svg>
-            <div id="tecDonutLegend" style="display:flex;flex-direction:column;gap:4px;width:100%"></div>
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <span class="tbl-title">Chamados por cidade</span>
+            <span class="badge b-blue" id="cidadeChartPeriodo"></span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 220px;gap:16px;padding:8px 4px 4px;align-items:start">
+            <div id="cidadeBarChart"></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+              <svg id="cidadeDonut" width="160" height="160" viewBox="0 0 180 180"></svg>
+              <div id="cidadeDonutLegend" style="display:flex;flex-direction:column;gap:4px;width:100%"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -569,10 +585,11 @@ input[type="text"]::placeholder { color:var(--text3); }
           <button class="chip per-chip"        id="perCustom" data-p="custom" onclick="setPeriodo('custom',this)">Período</button>
         </div>
         <div id="dateRange" style="display:none;gap:6px;align-items:center">
-          <input type="date" id="dtDe"  onchange="applyFilters()" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
+          <input type="date" id="dtDe"  onchange="syncDates('de',this.value)" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
           <span style="color:var(--text3);font-size:12px">até</span>
-          <input type="date" id="dtAte" onchange="applyFilters()" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
+          <input type="date" id="dtAte" onchange="syncDates('ate',this.value)" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
         </div>
+        <button id="btnBuscar" class="btn btn-primary btn-sm" onclick="buscarPeriodo()" style="padding:5px 14px;font-size:12px"><i class="fas fa-search"></i> Buscar</button>
         <!-- Filtros secundários -->
         <select id="filtTec"   onchange="applyFilters()" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:5px 10px;color:var(--text2);font-size:12px;font-family:'Inter',sans-serif">
           <option value="">Todos técnicos</option>
@@ -675,65 +692,116 @@ input[type="text"]::placeholder { color:var(--text3); }
 
     <!-- ═══ ATENDIMENTO ═══ -->
     <div class="page" id="page-atendimento">
-      <div class="kpi-row">
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--cyan)"></div><div class="kpi-mini-label">Atend. Hoje</div><div class="kpi-mini-val" style="color:var(--cyan)">312</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">1º contato</div><div class="kpi-mini-val" style="color:var(--green)">71%</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Em atend.</div><div class="kpi-mini-val" style="color:var(--accent)">18</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">TMA</div><div class="kpi-mini-val" style="color:var(--amber);font-size:18px">4m32s</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Abandonos</div><div class="kpi-mini-val" style="color:var(--red)">23</div><div class="kpi-mini-sub">7.4%</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--purple)"></div><div class="kpi-mini-label">NPS médio</div><div class="kpi-mini-val" style="color:var(--purple)">7.8</div></div>
-      </div>
-      <div class="tbl-card" style="margin-bottom:16px">
-        <div class="tbl-header">
-          <span class="tbl-title">Atendimentos por tipo — Hubsoft</span>
-          <span class="badge b-green" id="atend-sync-badge">Carregando...</span>
+      <!-- Filtros de período -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+        <div style="display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px">
+          <button class="chip active atend-chip" data-p="hoje"  onclick="setAtendPeriodo('hoje',this)">Hoje</button>
+          <button class="chip atend-chip" data-p="7dias"        onclick="setAtendPeriodo('7dias',this)">7 dias</button>
+          <button class="chip atend-chip" data-p="mes"          onclick="setAtendPeriodo('mes',this)">Mês</button>
+          <button class="chip atend-chip" data-p="custom"       onclick="setAtendPeriodo('custom',this)">Período</button>
         </div>
-        <div style="overflow-x:auto"><table><thead><tr>
-          <th>Tipo de Atendimento</th>
-          <th>Total</th>
-          <th title="Resolvido sem abrir OS — resolveu remotamente">Sem OS</th>
-          <th title="Gerou Ordem de Serviço — enviou técnico">Com OS</th>
-          <th title="% resolvido sem enviar técnico">% Remoto</th>
-          <th>TMA Médio</th>
-        </tr></thead><tbody id="setorTbl"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Carregando dados do Hubsoft...</td></tr></tbody></table></div>
+        <div id="atendDateRange" style="display:none;gap:6px;align-items:center">
+          <input type="date" id="atendDtDe" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
+          <span style="color:var(--text3);font-size:12px">até</span>
+          <input type="date" id="atendDtAte" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="loadAtendimentos()" style="padding:5px 14px;font-size:12px"><i class="fas fa-search"></i> Buscar</button>
+        <span class="badge b-green" id="atend-sync-badge" style="margin-left:auto">Carregando...</span>
       </div>
-      <div id="atend-kpi-extra" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px"></div>
+      <!-- KPIs dinâmicos -->
+      <div class="kpi-row" style="margin-bottom:14px">
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--cyan)"></div><div class="kpi-mini-label">Total</div><div class="kpi-mini-val" id="at-total" style="color:var(--cyan)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">Resolvido remoto</div><div class="kpi-mini-val" id="at-semOS" style="color:var(--green)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Gerou OS</div><div class="kpi-mini-val" id="at-comOS" style="color:var(--accent)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">TMA médio</div><div class="kpi-mini-val" id="at-tma" style="color:var(--amber);font-size:18px">—</div></div>
+      </div>
+      <!-- Por atendente + por setor -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <span class="tbl-title">Por Atendente</span>
+            <span class="badge b-blue" id="at-atend-count">—</span>
+          </div>
+          <div style="overflow-x:auto;max-height:300px;overflow-y:auto">
+            <table><thead><tr><th>#</th><th>Atendente</th><th>Total</th><th style="color:#22c55e">Sem OS</th><th style="color:var(--accent)">Com OS</th><th>TMA</th></tr></thead>
+            <tbody id="atendenteTbl"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Carregando...</td></tr></tbody></table>
+          </div>
+        </div>
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <span class="tbl-title">Por Setor</span>
+            <span class="badge b-blue" id="at-setor-count">—</span>
+          </div>
+          <div style="overflow-x:auto;max-height:300px;overflow-y:auto">
+            <table><thead><tr><th>#</th><th>Setor</th><th>Total</th><th style="color:#22c55e">Sem OS</th><th style="color:var(--accent)">Com OS</th><th>% Remoto</th></tr></thead>
+            <tbody id="setorTbl"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Carregando...</td></tr></tbody></table>
+          </div>
+        </div>
+      </div>
+      <!-- Clientes recorrentes 7 dias -->
+      <div class="tbl-card" style="margin-bottom:0">
+        <div class="tbl-header">
+          <span class="tbl-title">Clientes recorrentes — últimos 7 dias</span>
+          <span class="badge b-amber" id="at-recorr-count">—</span>
+        </div>
+        <div style="overflow-x:auto;max-height:260px;overflow-y:auto">
+          <table><thead><tr><th>#</th><th>Cliente</th><th>Contatos</th><th style="color:#22c55e">Sem OS</th><th style="color:var(--accent)">Com OS</th><th>Setor</th></tr></thead>
+          <tbody id="recorrTbl"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
+        </div>
+      </div>
     </div>
 
     <!-- ═══ RETENÇÃO ═══ -->
     <div class="page" id="page-retencao">
       <div class="ret-hero">
         <div class="ret-cell">
-          <div class="ret-val" style="color:var(--green)">+61</div>
+          <div class="ret-val" id="ret-novos" style="color:var(--green)">—</div>
           <div class="ret-label">Novos contratos</div>
           <div class="ret-sub" style="background:var(--green-light);color:var(--green)">este mês</div>
         </div>
         <div class="ret-divider"></div>
         <div class="ret-cell">
-          <div class="ret-val" style="color:var(--green)">+23</div>
+          <div class="ret-val" id="ret-saldo" style="color:var(--green)">—</div>
           <div class="ret-label">Saldo líquido</div>
-          <div class="ret-sub" style="background:var(--green-light);color:var(--green)">▲ Positivo</div>
+          <div class="ret-sub" id="ret-saldo-sub" style="background:var(--green-light);color:var(--green)">—</div>
         </div>
         <div class="ret-divider"></div>
         <div class="ret-cell">
-          <div class="ret-val" style="color:var(--red)">-38</div>
+          <div class="ret-val" id="ret-cancelados" style="color:var(--red)">—</div>
           <div class="ret-label">Cancelamentos</div>
           <div class="ret-sub" style="background:var(--red-light);color:var(--red)">este mês</div>
         </div>
       </div>
+      <!-- Vendedores + Motivos -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
         <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header"><span class="tbl-title">Motivos de cancelamento</span><span class="badge b-red">38 pedidos</span></div>
-          <div style="padding:16px 18px" id="motivosCancDiv"></div>
+          <div class="tbl-header"><span class="tbl-title">Vendedores — novos contratos</span><span class="badge b-green" id="ret-vend-badge">este mês</span></div>
+          <div style="overflow-x:auto;max-height:240px;overflow-y:auto">
+            <table><thead><tr><th>#</th><th>Vendedor</th><th style="color:#22c55e">Ativados</th><th style="color:var(--red)">Cancelados</th></tr></thead>
+            <tbody id="vendedoresTbl"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
+          </div>
         </div>
         <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header"><span class="tbl-title">Soluções de reversão</span><span class="badge b-green">Taxa 60.5%</span></div>
-          <div style="padding:16px 18px" id="solReversaoDiv"></div>
+          <div class="tbl-header"><span class="tbl-title">Motivos de cancelamento</span><span class="badge b-red" id="ret-motivos-badge">—</span></div>
+          <div style="padding:16px 18px" id="motivosCancDiv"></div>
         </div>
       </div>
-      <div class="tbl-card">
-        <div class="tbl-header"><span class="tbl-title">Últimas solicitações de cancelamento</span></div>
-        <div style="overflow-x:auto"><table><thead><tr><th>Cliente</th><th>Plano</th><th>Motivo</th><th>Atendente</th><th>Solução</th><th>Resultado</th></tr></thead><tbody id="retencaoTbl"></tbody></table></div>
+      <!-- Últimos cadastros + últimos cancelamentos -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header"><span class="tbl-title">Últimos cadastros</span><span class="badge b-green" id="ret-cadastros-badge">—</span></div>
+          <div style="overflow-x:auto;max-height:300px;overflow-y:auto">
+            <table><thead><tr><th>Cliente</th><th>Plano</th><th>Vendedor</th><th>Data</th></tr></thead>
+            <tbody id="cadastrosTbl"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
+          </div>
+        </div>
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header"><span class="tbl-title">Últimos cancelamentos</span><span class="badge b-red" id="ret-canc-badge">—</span></div>
+          <div style="overflow-x:auto;max-height:300px;overflow-y:auto">
+            <table><thead><tr><th>Cliente</th><th>Plano</th><th>Motivo</th><th>Data</th></tr></thead>
+            <tbody id="retencaoTbl"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1086,15 +1154,58 @@ function syncDates(campo, val) {
 }
 function setPeriodo(p, el) {
   filtros.periodo = p;
-  // Desativa todos os chips de período em ambas as páginas
   document.querySelectorAll('.per-chip').forEach(b=>b.classList.remove('active'));
-  // Ativa todos os chips com o mesmo período
   document.querySelectorAll(`.per-chip[data-p="${p}"]`).forEach(b=>b.classList.add('active'));
   const dr  = document.getElementById('dateRange');
   const ddr = document.getElementById('dashDateRange');
   if(dr)  dr.style.display  = p==='custom' ? 'flex' : 'none';
   if(ddr) ddr.style.display = p==='custom' ? 'flex' : 'none';
+  // Filtra localmente primeiro; usuário pode clicar Buscar para puxar da API
   applyFilters();
+}
+
+// Calcula datas do período selecionado
+function getPeriodDates() {
+  const agora = new Date();
+  const hoje  = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+  const amanha = new Date(hoje.getTime() + 24*60*60*1000);
+  const p = filtros.periodo;
+  if (p === 'hoje')   return { ini: hoje.toISOString(),   fim: amanha.toISOString() };
+  if (p === 'amanha') return { ini: amanha.toISOString(), fim: new Date(amanha.getTime() + 24*60*60*1000).toISOString() };
+  if (p === 'semana') {
+    const dow = hoje.getDay();
+    const seg = new Date(hoje.getTime() - ((dow===0?6:dow-1)*24*60*60*1000));
+    return { ini: seg.toISOString(), fim: new Date(seg.getTime() + 7*24*60*60*1000).toISOString() };
+  }
+  if (p === 'mes') {
+    const ini = new Date(agora.getFullYear(), agora.getMonth(), 1);
+    const fim = new Date(agora.getFullYear(), agora.getMonth() + 1, 0, 23, 59, 59, 999);
+    return { ini: ini.toISOString(), fim: fim.toISOString() };
+  }
+  if (p === 'custom') {
+    const de  = document.getElementById('dashDtDe')?.value || document.getElementById('dtDe')?.value;
+    const ate = document.getElementById('dashDtAte')?.value || document.getElementById('dtAte')?.value;
+    if (de && ate) return { ini: new Date(de).toISOString(), fim: new Date(new Date(ate).setHours(23,59,59,999)).toISOString() };
+  }
+  return { ini: hoje.toISOString(), fim: amanha.toISOString() };
+}
+
+// Busca chamados da API para o período selecionado
+async function buscarPeriodo() {
+  const { ini, fim } = getPeriodDates();
+  const setBtns = (txt, dis) => {
+    ['btnBuscar','btnBuscarDash'].forEach(id => {
+      const b = document.getElementById(id);
+      if (b) { b.innerHTML = `<i class="fas fa-search"></i> ${txt}`; b.disabled = dis; }
+    });
+  };
+  setBtns('Buscando...', true);
+  const chamados = await buscarChamadosHubsoft({ data_inicio: ini, data_fim: fim });
+  if (chamados && chamados.length > 0) {
+    salvarCache(chamados);
+    aplicarDados(chamados);
+  }
+  setBtns('Buscar', false);
 }
 
 function applyFilters() {
@@ -1572,6 +1683,103 @@ function renderTecChart() {
   }).join('');
 }
 
+// ── RENDER: GRÁFICO POR CIDADE ────────────────────────────────────────────
+function renderCidadeChart() {
+  const barEl    = document.getElementById('cidadeBarChart');
+  const donutEl  = document.getElementById('cidadeDonut');
+  const legendEl = document.getElementById('cidadeDonutLegend');
+  const labelEl  = document.getElementById('cidadeChartPeriodo');
+  if (!barEl || !donutEl) return;
+
+  if (labelEl) labelEl.textContent = labelPeriodo();
+
+  const mapa = {};
+  chamadosFiltrados.forEach(c => {
+    const cidade = c.cidade || 'Sem cidade';
+    if (!mapa[cidade]) mapa[cidade] = { total: 0, ok: 0, at: 0 };
+    mapa[cidade].total++;
+    if (c.st === 'finalizado') mapa[cidade].ok++;
+    if (c.st === 'atrasado')   mapa[cidade].at++;
+  });
+  const lista = Object.entries(mapa).sort((a, b) => b[1].total - a[1].total);
+  if (!lista.length) { barEl.innerHTML = '<div style="font-size:11px;color:var(--text3);padding:8px">Sem dados</div>'; return; }
+
+  const maxT  = lista[0][1].total;
+  const cores = ['var(--cyan)','var(--purple)','var(--amber)','var(--green)','var(--orange)','var(--accent)','var(--pink)','var(--red)'];
+
+  barEl.innerHTML = lista.map(([cidade, d], i) => {
+    const cor  = cores[i % cores.length];
+    const pct  = Math.round(d.total / maxT * 100);
+    const taxa = d.total ? Math.round(d.ok / d.total * 100) : 0;
+    return `
+    <div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+        <span style="font-size:11.5px;font-weight:600;color:var(--text)">${cidade}</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          ${d.at > 0 ? `<span style="font-size:9.5px;color:var(--red)">⚠ ${d.at}</span>` : ''}
+          <span style="font-size:10px;color:var(--text3)">${d.ok} ok</span>
+          <span style="font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace;color:${cor}">${d.total}</span>
+        </div>
+      </div>
+      <div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${cor};border-radius:4px;transition:.4s"></div>
+      </div>
+      <div style="font-size:9px;color:var(--text3);margin-top:2px">${taxa}% finalizado</div>
+    </div>`;
+  }).join('');
+
+  // Donut
+  const total = lista.reduce((s, [, d]) => s + d.total, 0);
+  const cx = 90, cy = 90, r = 70, ri = 44;
+  let ang = -Math.PI / 2, paths = '';
+  lista.forEach(([cidade, d], i) => {
+    const cor   = cores[i % cores.length];
+    const slice = (d.total / total) * 2 * Math.PI;
+    const x1 = cx + r  * Math.cos(ang),       y1 = cy + r  * Math.sin(ang);
+    const x2 = cx + r  * Math.cos(ang+slice),  y2 = cy + r  * Math.sin(ang+slice);
+    const x3 = cx + ri * Math.cos(ang+slice),  y3 = cy + ri * Math.sin(ang+slice);
+    const x4 = cx + ri * Math.cos(ang),        y4 = cy + ri * Math.sin(ang);
+    const large = slice > Math.PI ? 1 : 0;
+    const pct   = Math.round(d.total / total * 100);
+    paths += `<path data-cid="${cidade}" data-pct="${pct}" data-total="${d.total}"
+      d="M${x1},${y1} A${r},${r} 0 ${large},1 ${x2},${y2} L${x3},${y3} A${ri},${ri} 0 ${large},0 ${x4},${y4} Z"
+      fill="${cor}" stroke="var(--bg)" stroke-width="2"
+      style="cursor:pointer;transition:opacity .15s,transform .15s;transform-origin:90px 90px"/>`;
+    ang += slice;
+  });
+  donutEl.innerHTML = paths
+    + `<text id="cidLabel" x="90" y="83" text-anchor="middle" style="font-size:10px;fill:var(--text3);font-family:Inter,sans-serif;pointer-events:none">Total</text>`
+    + `<text id="cidPct"   x="90" y="99" text-anchor="middle" style="font-size:13px;font-weight:700;fill:var(--text);font-family:Inter,sans-serif;pointer-events:none"></text>`
+    + `<text id="cidTotal" x="90" y="114" text-anchor="middle" style="font-size:16px;font-weight:700;fill:var(--text);font-family:Inter,sans-serif;pointer-events:none">${total}</text>`;
+
+  donutEl.querySelectorAll('path[data-cid]').forEach(p => {
+    p.addEventListener('mouseenter', () => {
+      p.style.opacity = '.72'; p.style.transform = 'scale(1.06)';
+      document.getElementById('cidLabel').textContent = p.dataset.cid.split(' ')[0];
+      document.getElementById('cidPct').textContent   = p.dataset.pct + '%';
+      document.getElementById('cidTotal').textContent = p.dataset.total + ' ch.';
+    });
+    p.addEventListener('mouseleave', () => {
+      p.style.opacity = '1'; p.style.transform = 'scale(1)';
+      document.getElementById('cidLabel').textContent = 'Total';
+      document.getElementById('cidPct').textContent   = '';
+      document.getElementById('cidTotal').textContent = total;
+    });
+  });
+
+  if (legendEl) {
+    legendEl.innerHTML = lista.map(([cidade, d], i) => {
+      const cor = cores[i % cores.length];
+      const pct = Math.round(d.total / total * 100);
+      return `<div style="display:flex;align-items:center;gap:6px">
+        <div style="width:10px;height:10px;border-radius:2px;background:${cor};flex-shrink:0"></div>
+        <span style="font-size:10px;color:var(--text2);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${cidade}</span>
+        <span style="font-size:10px;font-weight:600;color:${cor}">${pct}%</span>
+      </div>`;
+    }).join('');
+  }
+}
+
 // ── RENDER: DASHBOARD ─────────────────────────────────────────────────────
 function renderDashboard() {
   if(!chamadosDB.length) return;
@@ -1802,6 +2010,7 @@ function rebuildAll() {
   renderMainTable();
   renderFeed();
   renderTecChart();
+  renderCidadeChart();
   renderTmMensalChart();
   renderRtbInsight();
   const el = document.getElementById('lastSync');
@@ -1968,12 +2177,35 @@ renderRtbInsight();
 
 
 // ── ATENDIMENTO — dados reais do Hubsoft ──────────────────────────
-async function buscarAtendimentosHubsoft() {
-  try {
-    const res  = await fetch(`${PROXY_URL}/api/atendimentos`);
-    const json = await res.json();
-    return json.ok ? json : null;
-  } catch(e) { console.warn('Erro ao buscar atendimentos:', e.message); return null; }
+let atendPeriodo = 'hoje';
+
+function setAtendPeriodo(p, el) {
+  atendPeriodo = p;
+  document.querySelectorAll('.atend-chip').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll(`.atend-chip[data-p="${p}"]`).forEach(b => b.classList.add('active'));
+  const dr = document.getElementById('atendDateRange');
+  if (dr) dr.style.display = p === 'custom' ? 'flex' : 'none';
+}
+
+function getAtendDates() {
+  const agora = new Date();
+  const hoje  = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+  if (atendPeriodo === 'hoje') {
+    return { ini: hoje.toISOString(), fim: new Date(hoje.getTime() + 24*60*60*1000).toISOString() };
+  }
+  if (atendPeriodo === '7dias') {
+    return { ini: new Date(agora.getTime() - 7*24*60*60*1000).toISOString(), fim: agora.toISOString() };
+  }
+  if (atendPeriodo === 'mes') {
+    const ini = new Date(agora.getFullYear(), agora.getMonth(), 1);
+    return { ini: ini.toISOString(), fim: agora.toISOString() };
+  }
+  if (atendPeriodo === 'custom') {
+    const de  = document.getElementById('atendDtDe')?.value;
+    const ate = document.getElementById('atendDtAte')?.value;
+    if (de && ate) return { ini: new Date(de).toISOString(), fim: new Date(new Date(ate).setHours(23,59,59,999)).toISOString() };
+  }
+  return { ini: hoje.toISOString(), fim: new Date(hoje.getTime() + 24*60*60*1000).toISOString() };
 }
 
 function fmtTma(min) {
@@ -1981,120 +2213,194 @@ function fmtTma(min) {
   return `${Math.floor(min/60) ? Math.floor(min/60)+'h ' : ''}${min%60}m`;
 }
 
-function renderAtendimentosTipos(data) {
-  const tbl   = document.getElementById('setorTbl');
+async function loadAtendimentos() {
+  const { ini, fim } = getAtendDates();
   const badge = document.getElementById('atend-sync-badge');
-  const kpiEl = document.getElementById('atend-kpi-extra');
-
-  if (!data || !data.por_tipo) {
-    if (tbl) tbl.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--red);padding:24px">Erro ao carregar dados do Hubsoft</td></tr>`;
+  if (badge) { badge.textContent = 'Buscando...'; badge.className = 'badge b-amber'; }
+  try {
+    const res  = await fetch(`${PROXY_URL}/api/atendimentos?data_inicio=${encodeURIComponent(ini)}&data_fim=${encodeURIComponent(fim)}`);
+    const data = await res.json();
+    if (data.ok) renderAtendimentos(data);
+    else { if (badge) { badge.textContent = 'Erro'; badge.className = 'badge b-red'; } }
+  } catch(e) {
+    console.warn('Erro ao buscar atendimentos:', e.message);
     if (badge) { badge.textContent = 'Erro'; badge.className = 'badge b-red'; }
-    return;
+  }
+}
+
+function renderAtendimentos(data) {
+  const badge = document.getElementById('atend-sync-badge');
+  const hora  = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+  if (badge) { badge.textContent = `Atualizado ${hora}`; badge.className = 'badge b-green'; }
+
+  const total     = data.total || 0;
+  const semOSTot  = (data.por_tipo||[]).reduce((s,t) => s+t.semOS, 0);
+  const comOSTot  = (data.por_tipo||[]).reduce((s,t) => s+t.comOS, 0);
+
+  const elVal = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
+  elVal('at-total', total);
+  elVal('at-semOS', semOSTot);
+  elVal('at-comOS', comOSTot);
+
+  const tmaVals = (data.por_atendente||[]).filter(a => a.tma !== null).map(a => a.tma);
+  const tmaMed  = tmaVals.length ? Math.round(tmaVals.reduce((s,v) => s+v, 0) / tmaVals.length) : null;
+  elVal('at-tma', fmtTma(tmaMed));
+
+  // Por atendente
+  const atTbl   = document.getElementById('atendenteTbl');
+  const atCount = document.getElementById('at-atend-count');
+  const porAt   = data.por_atendente || [];
+  if (atCount) atCount.textContent = `${porAt.length} atendentes`;
+  if (atTbl) {
+    atTbl.innerHTML = porAt.length ? porAt.map((a, i) => `<tr>
+      <td style="color:var(--text3)">${i+1}</td>
+      <td style="font-weight:500">${a.atendente}</td>
+      <td class="mono" style="font-weight:600">${a.total}</td>
+      <td class="mono" style="color:#22c55e">${a.semOS}</td>
+      <td class="mono" style="color:var(--accent)">${a.comOS}</td>
+      <td class="mono" style="color:var(--amber)">${fmtTma(a.tma)}</td>
+    </tr>`).join('')
+    : `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Nenhum atendente no período</td></tr>`;
   }
 
-  const tipos = data.por_tipo;
-  const total = data.total || tipos.reduce((s,t)=>s+t.total,0);
-  const totalSemOS = tipos.reduce((s,t)=>s+t.semOS,0);
-  const totalComOS = tipos.reduce((s,t)=>s+t.comOS,0);
-
-  if (tbl) {
-    tbl.innerHTML = tipos.length ? tipos.map(t => {
-      const pct = t.pctSemOS;
-      const cor = pct >= 60 ? 'var(--green)' : pct >= 30 ? 'var(--amber)' : 'var(--red)';
+  // Por setor
+  const setTbl   = document.getElementById('setorTbl');
+  const setCount = document.getElementById('at-setor-count');
+  const porSet   = data.por_setor || [];
+  if (setCount) setCount.textContent = `${porSet.length} setores`;
+  if (setTbl) {
+    setTbl.innerHTML = porSet.length ? porSet.map((s, i) => {
+      const cor = s.pctSemOS>=60?'#22c55e':s.pctSemOS>=30?'var(--amber)':'var(--red)';
       return `<tr>
-        <td style="font-weight:500">${t.tipo}</td>
-        <td class="mono">${t.total}</td>
-        <td class="mono" style="color:var(--green)">${t.semOS}</td>
-        <td class="mono" style="color:var(--accent)">${t.comOS}</td>
-        <td>
-          <div style="display:flex;align-items:center;gap:7px">
-            <div class="prog" style="width:70px"><div class="prog-fill" style="width:${pct}%;background:${cor}"></div></div>
-            <span class="mono" style="font-size:11px;color:${cor}">${pct}%</span>
-          </div>
-        </td>
-        <td class="mono">${fmtTma(t.tma)}</td>
+        <td style="color:var(--text3)">${i+1}</td>
+        <td style="font-weight:500">${s.setor}</td>
+        <td class="mono" style="font-weight:600">${s.total}</td>
+        <td class="mono" style="color:#22c55e">${s.semOS}</td>
+        <td class="mono" style="color:var(--accent)">${s.comOS}</td>
+        <td><div style="display:flex;align-items:center;gap:6px">
+          <div class="prog" style="width:55px"><div class="prog-fill" style="width:${s.pctSemOS}%;background:${cor}"></div></div>
+          <span class="mono" style="font-size:11px;color:${cor}">${s.pctSemOS}%</span>
+        </div></td>
       </tr>`;
-    }).join('') : `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Nenhum atendimento hoje</td></tr>`;
+    }).join('')
+    : `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Nenhum setor no período</td></tr>`;
   }
 
-  if (badge) {
-    const hora = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
-    badge.textContent = `Atualizado ${hora}`;
-    badge.className = 'badge b-green';
-  }
-
-  if (kpiEl) {
-    const pctRemoto = total ? Math.round(totalSemOS/total*100) : 0;
-    kpiEl.innerHTML = `
-      <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--cyan)"></div><div class="kpi-mini-label">Total hoje</div><div class="kpi-mini-val" style="color:var(--cyan)">${total}</div></div>
-      <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">Resolvido remoto (sem OS)</div><div class="kpi-mini-val" style="color:var(--green)">${totalSemOS}<span style="font-size:13px;margin-left:4px">${pctRemoto}%</span></div></div>
-      <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Gerou OS (enviou técnico)</div><div class="kpi-mini-val" style="color:var(--accent)">${totalComOS}</div></div>
-    `;
+  // Clientes recorrentes
+  const recTbl   = document.getElementById('recorrTbl');
+  const recCount = document.getElementById('at-recorr-count');
+  const recorr   = data.clientes_recorrentes || [];
+  if (recCount) recCount.textContent = `${recorr.length} clientes`;
+  if (recTbl) {
+    recTbl.innerHTML = recorr.length ? recorr.map((c, i) => `<tr>
+      <td style="color:var(--text3)">${i+1}</td>
+      <td style="font-weight:500">${c.cliente}</td>
+      <td><span class="badge ${c.contatos>=5?'b-red':c.contatos>=3?'b-amber':'b-blue'}" style="font-size:11px">${c.contatos}x</span></td>
+      <td class="mono" style="color:#22c55e">${c.semOS}</td>
+      <td class="mono" style="color:var(--accent)">${c.comOS}</td>
+      <td style="font-size:12px;color:var(--text2)">${c.setor}</td>
+    </tr>`).join('')
+    : `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Nenhum cliente contatou mais de uma vez nos últimos 7 dias</td></tr>`;
   }
 }
 
-async function autoRefreshAtendimentos() {
-  const data = await buscarAtendimentosHubsoft();
-  renderAtendimentosTipos(data);
-}
+async function autoRefreshAtendimentos() { await loadAtendimentos(); }
 autoRefreshAtendimentos();
 
-// RETENÇÃO
-const motivos = [
-  {m:'Preço do plano',n:14,p:37,c:'var(--red)'},
-  {m:'Instabilidade / Queda',n:10,p:26,c:'var(--orange)'},
-  {m:'Mudança de endereço',n:6,p:16,c:'var(--amber)'},
-  {m:'Concorrente com oferta',n:5,p:13,c:'var(--accent)'},
-  {m:'Atendimento ruim',n:3,p:8,c:'var(--text3)'},
-];
-const md = document.getElementById('motivosCancDiv');
-if(md) md.innerHTML = motivos.map(m=>`
-  <div style="margin-bottom:11px">
-    <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
-      <span style="color:var(--text2)">${m.m}</span>
-      <b style="color:${m.c};font-family:'JetBrains Mono',monospace">${m.n}</b>
-    </div>
-    <div class="prog"><div class="prog-fill" style="width:${m.p}%;background:${m.c}"></div></div>
-  </div>
-`).join('');
+// RETENÇÃO — dados reais do Hubsoft
+async function loadContratos() {
+  try {
+    const res  = await fetch(`${PROXY_URL}/api/contratos`);
+    const data = await res.json();
+    renderContratos(data);
+  } catch(e) { console.warn('Erro ao buscar contratos:', e.message); }
+}
 
-const solucoes = [
-  {s:'Desconto (10–30%)',rev:9,tent:12,taxa:75,c:'var(--green)'},
-  {s:'Upgrade sem custo',rev:5,tent:7,taxa:71,c:'var(--cyan)'},
-  {s:'Suporte imediato',rev:4,tent:8,taxa:50,c:'var(--amber)'},
-  {s:'Migração de endereço',rev:2,tent:6,taxa:33,c:'var(--orange)'},
-  {s:'Plano fidelidade',rev:3,tent:5,taxa:60,c:'var(--purple)'},
-];
-const sd = document.getElementById('solReversaoDiv');
-if(sd) sd.innerHTML = solucoes.map(s=>`
-  <div style="margin-bottom:11px">
-    <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;margin-bottom:4px">
-      <span style="color:var(--text2)">${s.s}</span>
-      <div style="display:flex;gap:6px;align-items:center">
-        <span style="color:${s.c};font-family:'JetBrains Mono',monospace;font-size:11px">${s.rev}/${s.tent}</span>
-        <span class="badge ${s.taxa>=60?'b-green':s.taxa>=40?'b-amber':'b-red'}" style="font-size:10px">${s.taxa}%</span>
-      </div>
-    </div>
-    <div class="prog"><div class="prog-fill" style="width:${s.taxa}%;background:${s.c}"></div></div>
-  </div>
-`).join('');
+function renderContratos(data) {
+  const novos     = data.novos     || 0;
+  const cancelados = data.cancelados || 0;
+  const saldo     = data.saldo     ?? (novos - cancelados);
 
-const retCasos = [
-  {cli:'Carlos Andrade',pl:'500MB Fibra',mot:'Preço',at:'Daniel Faria',sol:'Desconto 20%',res:'revertido'},
-  {cli:'Mariana Lopes',pl:'200MB',mot:'Instabilidade',at:'Ana Costa',sol:'Suporte técnico',res:'revertido'},
-  {cli:'Ricardo Gomes',pl:'1GB Empresarial',mot:'Concorrente',at:'Bruno Alves',sol:'Upgrade grátis',res:'revertido'},
-  {cli:'Fernanda Vaz',pl:'100MB',mot:'Mudança',at:'Carla Dias',sol:'Migração',res:'cancelado'},
-  {cli:'André Moura',pl:'300MB',mot:'Atendimento',at:'Daniel Faria',sol:'Desconto 15%',res:'analise'},
-];
-const rt = document.getElementById('retencaoTbl');
-if(rt) rt.innerHTML = retCasos.map(c=>`<tr>
-  <td style="font-weight:500">${c.cli}</td>
-  <td style="font-size:12px">${c.pl}</td>
-  <td><span class="badge b-red" style="font-size:10px">${c.mot}</span></td>
-  <td style="font-size:12px">${c.at}</td>
-  <td style="font-size:12px">${c.sol}</td>
-  <td>${c.res==='revertido'?'<span class="badge b-green">✓ Revertido</span>':c.res==='cancelado'?'<span class="badge b-red">✗ Cancelado</span>':'<span class="badge b-amber">⏳ Análise</span>'}</td>
-</tr>`).join('');
+  const elVal = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
+  elVal('ret-novos',     `+${novos}`);
+  elVal('ret-cancelados', `-${cancelados}`);
+
+  const saldoEl = document.getElementById('ret-saldo');
+  if (saldoEl) { saldoEl.textContent = saldo >= 0 ? `+${saldo}` : saldo; saldoEl.style.color = saldo >= 0 ? 'var(--green)' : 'var(--red)'; }
+  const saldoSub = document.getElementById('ret-saldo-sub');
+  if (saldoSub) { saldoSub.textContent = saldo >= 0 ? '▲ Positivo' : '▼ Negativo'; saldoSub.style.background = saldo >= 0 ? 'var(--green-light)' : 'var(--red-light)'; saldoSub.style.color = saldo >= 0 ? 'var(--green)' : 'var(--red)'; }
+
+  // Motivos de cancelamento agrupados
+  const motBadge = document.getElementById('ret-motivos-badge');
+  if (motBadge) motBadge.textContent = `${cancelados} pedidos`;
+  const md = document.getElementById('motivosCancDiv');
+  if (md) {
+    const cancelamentos = data.cancelamentos || [];
+    if (cancelamentos.length) {
+      const mapaM = {};
+      cancelamentos.forEach(c => { const k = c.motivo || '—'; mapaM[k] = (mapaM[k]||0)+1; });
+      const lista = Object.entries(mapaM).sort((a,b)=>b[1]-a[1]);
+      const maxN  = lista[0]?.[1] || 1;
+      const cores = ['var(--red)','var(--orange)','var(--amber)','var(--accent)','var(--text3)'];
+      md.innerHTML = lista.map(([mot, n], i) => `
+        <div style="margin-bottom:11px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+            <span style="color:var(--text2)">${mot}</span>
+            <b style="color:${cores[i%cores.length]};font-family:'JetBrains Mono',monospace">${n}</b>
+          </div>
+          <div class="prog"><div class="prog-fill" style="width:${Math.round(n/maxN*100)}%;background:${cores[i%cores.length]}"></div></div>
+        </div>`).join('');
+    } else {
+      md.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:8px 0">Sem dados de cancelamentos</div>';
+    }
+  }
+
+  // Vendedores
+  const vendTbl   = document.getElementById('vendedoresTbl');
+  const vendBadge = document.getElementById('ret-vend-badge');
+  const vendedores = data.vendedores || [];
+  if (vendBadge) vendBadge.textContent = `${vendedores.length} vendedores`;
+  if (vendTbl) {
+    vendTbl.innerHTML = vendedores.length ? vendedores.map((v, i) => `<tr>
+      <td style="color:var(--text3)">${i+1}</td>
+      <td style="font-weight:500">${v.nome}</td>
+      <td class="mono" style="color:#22c55e;font-weight:600">${v.ativados}</td>
+      <td class="mono" style="color:var(--red)">${v.cancelados}</td>
+    </tr>`).join('')
+    : `<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Sem dados de vendedores</td></tr>`;
+  }
+
+  // Últimos cadastros
+  const cadTbl   = document.getElementById('cadastrosTbl');
+  const cadBadge = document.getElementById('ret-cadastros-badge');
+  const cadastros = data.cadastros || [];
+  if (cadBadge) cadBadge.textContent = `${cadastros.length} registros`;
+  if (cadTbl) {
+    cadTbl.innerHTML = cadastros.length ? cadastros.map(c => `<tr>
+      <td style="font-weight:500">${c.cliente}</td>
+      <td style="font-size:12px">${c.plano}</td>
+      <td style="font-size:12px">${c.vendedor}</td>
+      <td style="font-size:12px">${c.data ? new Date(c.data).toLocaleDateString('pt-BR') : '—'}</td>
+    </tr>`).join('')
+    : `<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Nenhum cadastro no mês</td></tr>`;
+  }
+
+  // Últimos cancelamentos
+  const retTbl   = document.getElementById('retencaoTbl');
+  const cancBadge = document.getElementById('ret-canc-badge');
+  const cancelamentos = data.cancelamentos || [];
+  if (cancBadge) cancBadge.textContent = `${cancelamentos.length} registros`;
+  if (retTbl) {
+    retTbl.innerHTML = cancelamentos.length ? cancelamentos.map(c => `<tr>
+      <td style="font-weight:500">${c.cliente}</td>
+      <td style="font-size:12px">${c.plano}</td>
+      <td><span class="badge b-red" style="font-size:10px">${c.motivo}</span></td>
+      <td style="font-size:12px">${c.data ? new Date(c.data).toLocaleDateString('pt-BR') : '—'}</td>
+    </tr>`).join('')
+    : `<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Nenhum cancelamento no mês</td></tr>`;
+  }
+}
+loadContratos();
 
 // TASKS
 let tasks = [
