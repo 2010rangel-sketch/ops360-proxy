@@ -366,6 +366,97 @@ app.get('/api/tipos-os', async (req, res) => {
   }
 });
 
+// ── Atendimentos do dia — agrupados por Tipo de Atendimento ──────
+app.get('/api/atendimentos', async (req, res) => {
+  try {
+    const agora = new Date();
+    const ini   = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+    const fim   = new Date(ini.getTime() + 24 * 60 * 60 * 1000);
+    const body  = { data_inicio: ini.toISOString(), data_fim: fim.toISOString() };
+
+    const data = await hubsoftPost('v1/atendimento_os/consultar/paginado/500?page=1', body);
+
+    // Extrai lista — tenta várias chaves possíveis da resposta
+    const lista =
+      (Array.isArray(data?.atendimentos_os?.data) ? data.atendimentos_os.data : null) ||
+      (Array.isArray(data?.atendimentos_os)        ? data.atendimentos_os       : null) ||
+      (Array.isArray(data?.atendimentos?.data)     ? data.atendimentos.data     : null) ||
+      (Array.isArray(data?.atendimentos)           ? data.atendimentos          : null) ||
+      (Array.isArray(data?.data)                   ? data.data                 : null) ||
+      [];
+
+    const atendimentos = lista.map(a => {
+      const tipo = a.tipo_atendimento_os?.descricao
+                || a.tipo_atendimento?.descricao
+                || a.tipo_atendimento
+                || a.tipo
+                || 'Sem tipo';
+
+      const statusRaw = a.status_atendimento?.descricao
+                     || a.status_atendimento
+                     || a.status || '';
+      const resolvido = /resolv|fechad|conclu/i.test(statusRaw);
+
+      const ordens = Array.isArray(a.ordens_servico) ? a.ordens_servico : [];
+      const temOS  = ordens.length > 0;
+
+      let tmaMin = null;
+      const fechado = a.data_fechamento || a.data_encerramento;
+      if (a.data_cadastro && fechado) {
+        const dur = (new Date(fechado) - new Date(a.data_cadastro)) / 60000;
+        if (dur > 0 && dur < 600) tmaMin = Math.round(dur);
+      }
+
+      return { tipo, resolvido, temOS, tmaMin };
+    });
+
+    // Agrupa por tipo
+    const mapa = {};
+    atendimentos.forEach(a => {
+      if (!mapa[a.tipo]) mapa[a.tipo] = { tipo: a.tipo, total: 0, comOS: 0, semOS: 0, tmaTot: 0, tmaCount: 0 };
+      mapa[a.tipo].total++;
+      if (a.temOS) mapa[a.tipo].comOS++; else mapa[a.tipo].semOS++;
+      if (a.tmaMin !== null) { mapa[a.tipo].tmaTot += a.tmaMin; mapa[a.tipo].tmaCount++; }
+    });
+
+    const por_tipo = Object.values(mapa)
+      .map(t => ({
+        tipo:     t.tipo,
+        total:    t.total,
+        comOS:    t.comOS,
+        semOS:    t.semOS,
+        pctSemOS: t.total ? Math.round(t.semOS / t.total * 100) : 0,
+        tma:      t.tmaCount ? Math.round(t.tmaTot / t.tmaCount) : null,
+      }))
+      .sort((a, b) => b.total - a.total);
+
+    res.json({ ok: true, total: atendimentos.length, por_tipo, sincronizado_em: new Date().toISOString() });
+  } catch (err) {
+    console.error('Erro /api/atendimentos:', err.message);
+    res.status(500).json({ ok: false, erro: err.message });
+  }
+});
+
+// ── Debug: descobre estrutura da API de atendimentos ──────────────
+app.get('/api/debug-atendimentos', async (req, res) => {
+  try {
+    const agora = new Date();
+    const ini   = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+    const fim   = new Date(ini.getTime() + 24 * 60 * 60 * 1000);
+    const body  = { data_inicio: ini.toISOString(), data_fim: fim.toISOString() };
+    const resultados = {};
+    for (const ep of ['v1/atendimento_os/consultar/paginado/3?page=1', 'v1/atendimento/consultar/paginado/3?page=1']) {
+      try {
+        const d = await hubsoftPost(ep, body);
+        resultados[ep] = { ok: true, keys: Object.keys(d), amostra: d };
+      } catch(e) {
+        resultados[ep] = { ok: false, status: e.response?.status, erro: e.response?.data || e.message };
+      }
+    }
+    res.json(resultados);
+  } catch(err) { res.status(500).json({ erro: err.message }); }
+});
+
 // ── Resumo / KPIs do dia ──────────────────────────────────────────
 app.get('/api/resumo', async (req, res) => {
   try {

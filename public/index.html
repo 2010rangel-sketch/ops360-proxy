@@ -162,7 +162,7 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
 .dl-count { font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:500; color:var(--text); }
 
 /* Bar chart */
-.bar-chart { display:flex; align-items:flex-end; gap:6px; flex:1; padding-top:8px; }
+.bar-chart { display:flex; align-items:flex-end; gap:6px; height:170px; padding-top:8px; }
 .bar-col { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; }
 .bar-rect { width:100%; border-radius:4px 4px 0 0; transition:.6s ease; }
 .bar-lbl { font-size:10px; color:var(--text3); font-family:'JetBrains Mono',monospace; }
@@ -660,11 +660,20 @@ input[type="text"]::placeholder { color:var(--text3); }
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--purple)"></div><div class="kpi-mini-label">NPS médio</div><div class="kpi-mini-val" style="color:var(--purple)">7.8</div></div>
       </div>
       <div class="tbl-card" style="margin-bottom:16px">
-        <div class="tbl-header"><span class="tbl-title">Atendimentos por setor — ChatMix</span></div>
-        <div style="overflow-x:auto"><table><thead><tr><th>Setor</th><th>Volume</th><th>Resolvidos</th><th>TMA</th><th>NPS</th><th>Fila atual</th><th>Volume</th></tr></thead><tbody id="setorTbl"></tbody></table></div>
+        <div class="tbl-header">
+          <span class="tbl-title">Atendimentos por tipo — Hubsoft</span>
+          <span class="badge b-green" id="atend-sync-badge">Carregando...</span>
+        </div>
+        <div style="overflow-x:auto"><table><thead><tr>
+          <th>Tipo de Atendimento</th>
+          <th>Total</th>
+          <th title="Resolvido sem abrir OS — resolveu remotamente">Sem OS</th>
+          <th title="Gerou Ordem de Serviço — enviou técnico">Com OS</th>
+          <th title="% resolvido sem enviar técnico">% Remoto</th>
+          <th>TMA Médio</th>
+        </tr></thead><tbody id="setorTbl"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Carregando dados do Hubsoft...</td></tr></tbody></table></div>
       </div>
-      <div style="font-size:13px;font-weight:600;margin-bottom:12px">Atendentes em turno</div>
-      <div class="agent-grid" id="agentGrid"></div>
+      <div id="atend-kpi-extra" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px"></div>
     </div>
 
     <!-- ═══ RETENÇÃO ═══ -->
@@ -1606,16 +1615,18 @@ function renderDashboard() {
       });
       const hs   = Object.keys(horasMap).map(Number).sort((a,b)=>a-b);
       const maxV = Math.max(...hs.map(h=>horasMap[h].ab+horasMap[h].fin), 1);
-      barEl.innerHTML = `<div style="display:flex;align-items:flex-end;gap:4px;height:100%;padding-bottom:4px">`
-        + hs.map(h => {
-            const ab  = horasMap[h].ab, fn = horasMap[h].fin, tot = ab+fn;
-            const hAb = Math.round(ab/maxV*150), hFn = Math.round(fn/maxV*150);
-            return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:1px" title="${h}h: ${tot} chamados">
-              <div style="width:100%;height:${hFn}px;background:var(--green);border-radius:2px 2px 0 0"></div>
-              <div style="width:100%;height:${hAb}px;background:var(--accent);border-radius:2px 2px 0 0"></div>
-            </div>`;
-          }).join('') + `</div>`;
-      if(labEl) labEl.innerHTML = hs.map(h=>`<span style="font-size:9px;color:var(--text3);flex:1;text-align:center">${h}h</span>`).join('');
+      barEl.innerHTML = hs.map(h => {
+          const ab  = horasMap[h].ab, fn = horasMap[h].fin, tot = ab+fn;
+          const hAb = Math.round(ab/maxV*140), hFn = Math.round(fn/maxV*140);
+          return `<div class="bar-col" title="${h}h: ${tot} chamados">
+            <div style="display:flex;flex-direction:column;justify-content:flex-end;gap:1px;height:140px">
+              <div class="bar-rect" style="height:${hFn}px;background:var(--green)"></div>
+              <div class="bar-rect" style="height:${hAb}px;background:var(--accent)"></div>
+            </div>
+            <div class="bar-lbl">${h}h</div>
+          </div>`;
+        }).join('');
+      if(labEl) labEl.innerHTML = '';
     } else {
       barEl.innerHTML = `<div style="font-size:11px;color:var(--text3);text-align:center;padding:40px 0">Sem dados no período</div>`;
       if(labEl) labEl.innerHTML = '';
@@ -1866,50 +1877,77 @@ renderRtbInsight();
 
 
 
-// ATENDIMENTO
-const setores = [
-  {n:'Suporte Técnico',vol:98,res:71,tma:'3m42s',nps:7.9,fila:4},
-  {n:'Comercial',vol:62,res:85,tma:'5m10s',nps:8.4,fila:2},
-  {n:'Financeiro',vol:54,res:78,tma:'4m55s',nps:7.2,fila:3},
-  {n:'Retenção',vol:38,res:61,tma:'6m30s',nps:6.8,fila:5},
-  {n:'Instalação',vol:30,res:90,tma:'3m10s',nps:8.7,fila:1},
-  {n:'WhatsApp Bot',vol:212,res:55,tma:'1m22s',nps:7.0,fila:0},
-];
-const st2 = document.getElementById('setorTbl');
-if(st2) st2.innerHTML = setores.map(s=>`<tr>
-  <td style="font-weight:500">${s.n}</td>
-  <td class="mono">${s.vol}</td>
-  <td><div style="display:flex;align-items:center;gap:7px"><div class="prog" style="width:70px"><div class="prog-fill" style="width:${s.res}%;background:${s.res>=70?'var(--green)':s.res>=50?'var(--amber)':'var(--red)'}"></div></div><span class="mono" style="font-size:11px">${s.res}%</span></div></td>
-  <td class="mono">${s.tma}</td>
-  <td><span class="badge ${s.nps>=8?'b-green':s.nps>=7?'b-amber':'b-red'}">${s.nps}</span></td>
-  <td class="mono" style="color:${s.fila>3?'var(--red)':s.fila>1?'var(--amber)':'var(--green)'}">${s.fila}</td>
-  <td><div class="prog" style="width:100px"><div class="prog-fill" style="width:${Math.min(s.vol/2.5,100)}%;background:var(--accent)"></div></div></td>
-</tr>`).join('');
+// ── ATENDIMENTO — dados reais do Hubsoft ──────────────────────────
+async function buscarAtendimentosHubsoft() {
+  try {
+    const res  = await fetch(`${PROXY_URL}/api/atendimentos`);
+    const json = await res.json();
+    return json.ok ? json : null;
+  } catch(e) { console.warn('Erro ao buscar atendimentos:', e.message); return null; }
+}
 
-const agentes = [
-  {n:'Ana Costa',s:'Suporte',st:'online',c:'#5b6af0',at:28,res:89,tma:'3m20s',nps:8.2},
-  {n:'Bruno Alves',s:'Comercial',st:'online',c:'#22c55e',at:22,res:91,tma:'4m50s',nps:8.5},
-  {n:'Carla Dias',s:'Financeiro',st:'online',c:'#a78bfa',at:19,res:78,tma:'5m10s',nps:7.4},
-  {n:'Daniel Faria',s:'Retenção',st:'online',c:'#f59e0b',at:15,res:60,tma:'7m20s',nps:6.9},
-  {n:'Eduarda Mota',s:'Suporte',st:'pausa',c:'#f43f5e',at:16,res:75,tma:'4m10s',nps:7.8},
-  {n:'Felipe Neto',s:'Comercial',st:'offline',c:'#565b6e',at:12,res:83,tma:'4m45s',nps:8.0},
-];
-const ag = document.getElementById('agentGrid');
-if(ag) ag.innerHTML = agentes.map(a=>`
-  <div class="agent-card">
-    <div class="agent-head">
-      <div class="agent-av" style="background:${a.c}">${a.n.split(' ').map(x=>x[0]).join('').slice(0,2)}</div>
-      <div><div class="agent-nm">${a.n}</div><div class="agent-rl">${a.s}</div></div>
-      <div class="agent-status-dot" style="background:${a.st==='online'?'var(--green)':a.st==='pausa'?'var(--amber)':'var(--text3)'}"></div>
-    </div>
-    <div class="agent-stats">
-      <div class="agent-stat"><div class="agent-stat-v" style="color:var(--cyan)">${a.at}</div><div class="agent-stat-l">Atend.</div></div>
-      <div class="agent-stat"><div class="agent-stat-v" style="color:var(--green)">${a.res}%</div><div class="agent-stat-l">Resolv.</div></div>
-      <div class="agent-stat"><div class="agent-stat-v" style="color:var(--amber);font-size:13px">${a.tma}</div><div class="agent-stat-l">TMA</div></div>
-      <div class="agent-stat"><div class="agent-stat-v" style="color:var(--purple)">${a.nps}</div><div class="agent-stat-l">NPS</div></div>
-    </div>
-  </div>
-`).join('');
+function fmtTma(min) {
+  if (min === null || min === undefined) return '—';
+  return `${Math.floor(min/60) ? Math.floor(min/60)+'h ' : ''}${min%60}m`;
+}
+
+function renderAtendimentosTipos(data) {
+  const tbl   = document.getElementById('setorTbl');
+  const badge = document.getElementById('atend-sync-badge');
+  const kpiEl = document.getElementById('atend-kpi-extra');
+
+  if (!data || !data.por_tipo) {
+    if (tbl) tbl.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--red);padding:24px">Erro ao carregar dados do Hubsoft</td></tr>`;
+    if (badge) { badge.textContent = 'Erro'; badge.className = 'badge b-red'; }
+    return;
+  }
+
+  const tipos = data.por_tipo;
+  const total = data.total || tipos.reduce((s,t)=>s+t.total,0);
+  const totalSemOS = tipos.reduce((s,t)=>s+t.semOS,0);
+  const totalComOS = tipos.reduce((s,t)=>s+t.comOS,0);
+
+  if (tbl) {
+    tbl.innerHTML = tipos.length ? tipos.map(t => {
+      const pct = t.pctSemOS;
+      const cor = pct >= 60 ? 'var(--green)' : pct >= 30 ? 'var(--amber)' : 'var(--red)';
+      return `<tr>
+        <td style="font-weight:500">${t.tipo}</td>
+        <td class="mono">${t.total}</td>
+        <td class="mono" style="color:var(--green)">${t.semOS}</td>
+        <td class="mono" style="color:var(--accent)">${t.comOS}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:7px">
+            <div class="prog" style="width:70px"><div class="prog-fill" style="width:${pct}%;background:${cor}"></div></div>
+            <span class="mono" style="font-size:11px;color:${cor}">${pct}%</span>
+          </div>
+        </td>
+        <td class="mono">${fmtTma(t.tma)}</td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Nenhum atendimento hoje</td></tr>`;
+  }
+
+  if (badge) {
+    const hora = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+    badge.textContent = `Atualizado ${hora}`;
+    badge.className = 'badge b-green';
+  }
+
+  if (kpiEl) {
+    const pctRemoto = total ? Math.round(totalSemOS/total*100) : 0;
+    kpiEl.innerHTML = `
+      <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--cyan)"></div><div class="kpi-mini-label">Total hoje</div><div class="kpi-mini-val" style="color:var(--cyan)">${total}</div></div>
+      <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">Resolvido remoto (sem OS)</div><div class="kpi-mini-val" style="color:var(--green)">${totalSemOS}<span style="font-size:13px;margin-left:4px">${pctRemoto}%</span></div></div>
+      <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Gerou OS (enviou técnico)</div><div class="kpi-mini-val" style="color:var(--accent)">${totalComOS}</div></div>
+    `;
+  }
+}
+
+async function autoRefreshAtendimentos() {
+  const data = await buscarAtendimentosHubsoft();
+  renderAtendimentosTipos(data);
+}
+autoRefreshAtendimentos();
 
 // RETENÇÃO
 const motivos = [
