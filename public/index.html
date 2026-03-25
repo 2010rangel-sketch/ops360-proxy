@@ -651,7 +651,6 @@ input[type="text"]::placeholder { color:var(--text3); }
         <select id="filtCat"   onchange="applyFilters()" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:5px 10px;color:var(--text2);font-size:12px;font-family:'Inter',sans-serif">
           <option value="">Todos os tipos</option>
         </select>
-        <input id="filtBusca" oninput="applyFilters()" placeholder="🔍 Cliente, técnico ou cidade…" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:5px 10px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif;min-width:200px">
         <div style="margin-left:auto;display:flex;gap:6px">
           <button class="btn btn-sm" onclick="syncHubsoft()"><i class="fas fa-sync-alt" id="syncIcon"></i> Sincronizar</button>
         </div>
@@ -698,6 +697,7 @@ input[type="text"]::placeholder { color:var(--text3); }
         <div class="tbl-card" style="margin-bottom:0">
           <div class="tbl-header">
             <span class="tbl-title" id="tblMainTitle">Todos os chamados</span>
+            <input id="filtBusca" oninput="applyFilters()" placeholder="🔍 Cliente, técnico ou cidade…" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:4px 10px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif;width:220px;outline:none">
             <div style="display:flex;gap:4px;flex-wrap:wrap" id="statusChips">
               <button class="chip active" onclick="filterSt('todos',this)">Todos</button>
               <button class="chip" onclick="filterSt('execucao',this)">Em execução</button>
