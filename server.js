@@ -903,7 +903,7 @@ app.get('/api/agenda/debug-caldav', async (req, res) => {
         headers:{ Authorization:auth, 'Content-Type':'application/xml; charset=utf-8', 'User-Agent':UA, Depth:'0' },
         validateStatus:()=>true, maxRedirects:10,
       });
-      results[url] = { status: r.status, body: String(r.data).slice(0,500) };
+      results[url] = { status: r.status, headers: r.headers, body: String(r.data).slice(0,500) };
     } catch(e) { results[url] = { error: e.message }; }
   }
   res.json({ ok:true, APPLE_ID_SET: !!APPLE_ID, results });
