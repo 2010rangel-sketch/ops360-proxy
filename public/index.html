@@ -575,22 +575,26 @@ input[type="text"]::placeholder { color:var(--text3); }
       <!-- ── CARDS POR CATEGORIA (hoje + acumulado mês) ── -->
       <div id="catCards" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px"></div>
 
-      <!-- ── STATUS AO VIVO — kanban full width ── -->
-      <div class="tbl-card" style="margin-bottom:14px">
-        <div class="tbl-header" style="padding-bottom:10px">
-          <span class="tbl-title">Chamados em andamento agora</span>
-          <span class="badge b-blue" id="liveCount">0 ativos</span>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:0 4px 4px" id="statusLanes"></div>
-      </div>
+      <!-- ── LINHA: STATUS AO VIVO + CIDADES ── -->
+      <div style="display:grid;grid-template-columns:1fr 300px;gap:12px;margin-bottom:14px;align-items:stretch">
 
-      <!-- ── POR CIDADE — cards paisagem full width ── -->
-      <div class="tbl-card" style="margin-bottom:14px">
-        <div class="tbl-header">
-          <span class="tbl-title">Por cidade</span>
-          <span class="badge b-purple" id="cidadeCount">0 cidades</span>
+        <!-- STATUS AO VIVO — board kanban visual -->
+        <div class="tbl-card" style="margin-bottom:0;display:flex;flex-direction:column">
+          <div class="tbl-header" style="padding-bottom:10px;flex-shrink:0">
+            <span class="tbl-title">Chamados em andamento agora</span>
+            <span class="badge b-blue" id="liveCount">0 ativos</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:0 4px 4px;flex:1" id="statusLanes"></div>
         </div>
-        <div id="cidadeList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0;padding:0 4px 4px"></div>
+
+        <!-- POR CIDADE — lateral direita -->
+        <div class="tbl-card" style="margin-bottom:0;display:flex;flex-direction:column">
+          <div class="tbl-header" style="flex-shrink:0">
+            <span class="tbl-title">Por cidade</span>
+            <span class="badge b-purple" id="cidadeCount">0 cidades</span>
+          </div>
+          <div id="cidadeList" style="padding:0 4px 4px;overflow-y:auto;flex:1"></div>
+        </div>
       </div>
 
       <!-- ── FEED AO VIVO + TABELA COMPLETA ── -->
