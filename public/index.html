@@ -1475,7 +1475,25 @@ function renderStatusLanes() {
   document.getElementById('liveCount').textContent = `${ativos.length} ativos`;
 
   el.innerHTML = lanes.map(lane => {
-    const items = chamadosFiltrados.filter(c=>c.st===lane.st);
+    const baseItems = chamadosFiltrados.filter(c=>c.st===lane.st);
+    // Ordenação por coluna:
+    // execucao: mais recente no topo (ordem decrescente de início)
+    // finalizado: mais recente no topo (decrescente de fim)
+    // aguardando/atrasado/reagendado: mais recente no topo (decrescente de agendamento)
+    const items = baseItems.slice().sort((a,b)=>{
+      if(lane.st==='execucao'){
+        const ta = a.tsInicioExec ? new Date(a.tsInicioExec) : new Date(a.dataProgramada||0);
+        const tb = b.tsInicioExec ? new Date(b.tsInicioExec) : new Date(b.dataProgramada||0);
+        return tb - ta;
+      }
+      if(lane.st==='finalizado'){
+        const ta = a.tsFimExec ? new Date(a.tsFimExec) : new Date(a.dataProgramada||0);
+        const tb = b.tsFimExec ? new Date(b.tsFimExec) : new Date(b.dataProgramada||0);
+        return tb - ta;
+      }
+      // aguardando, atrasado, reagendado: mais recente agendado no topo
+      return new Date(b.dataProgramada||0) - new Date(a.dataProgramada||0);
+    });
     const laneMax = 5;
     const preview = items.slice(0, laneMax);
     return `
