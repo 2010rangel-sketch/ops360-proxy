@@ -509,6 +509,21 @@ input[type="text"]::placeholder { color:var(--text3); }
           <div class="priority-list" id="dashPriorities"></div>
         </div>
       </div>
+
+      <!-- ── PRODUÇÃO POR TÉCNICO ── -->
+      <div class="tbl-card" style="margin-top:14px">
+        <div class="tbl-header">
+          <span class="tbl-title">Produção por técnico</span>
+          <span class="badge b-blue" id="tecChartPeriodo"></span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 260px;gap:24px;padding:8px 4px 4px;align-items:start">
+          <div id="tecBarChart"></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+            <svg id="tecDonut" width="180" height="180" viewBox="0 0 180 180"></svg>
+            <div id="tecDonutLegend" style="display:flex;flex-direction:column;gap:4px;width:100%"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ═══ CHAMADOS (por tipo) ═══ -->
@@ -610,23 +625,6 @@ input[type="text"]::placeholder { color:var(--text3); }
               </thead>
               <tbody id="mainTbl"></tbody>
             </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── GRÁFICO POR TÉCNICO ── -->
-      <div class="tbl-card" style="margin-top:12px">
-        <div class="tbl-header">
-          <span class="tbl-title">Produção por técnico</span>
-          <span class="badge b-blue" id="tecChartPeriodo"></span>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 260px;gap:24px;padding:8px 4px 4px;align-items:start">
-          <!-- Funil / barras horizontais -->
-          <div id="tecBarChart"></div>
-          <!-- Pizza / donut -->
-          <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
-            <svg id="tecDonut" width="180" height="180" viewBox="0 0 180 180"></svg>
-            <div id="tecDonutLegend" style="display:flex;flex-direction:column;gap:4px;width:100%"></div>
           </div>
         </div>
       </div>
