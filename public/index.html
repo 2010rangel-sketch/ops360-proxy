@@ -2279,8 +2279,15 @@ function salvarCache(dados) {
   try { localStorage.setItem(CACHE_KEY, JSON.stringify({ dados, ts: Date.now() })); } catch {}
 }
 function aplicarDados(dados) {
+  const agora = new Date();
+  // Reclassifica "aguardando" cujo horário programado já passou → atrasado
   chamadosDB.length = 0;
-  chamadosDB.push(...dados);
+  chamadosDB.push(...dados.map(c => {
+    if (c.st === 'aguardando' && c.dataProgramada && new Date(c.dataProgramada) < agora) {
+      return { ...c, st: 'atrasado' };
+    }
+    return c;
+  }));
   buildTiposConfig();
   populateDropdowns();
   applyFilters();
