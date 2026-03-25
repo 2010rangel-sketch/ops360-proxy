@@ -1415,9 +1415,7 @@ function renderStatusLanes() {
   document.getElementById('liveCount').textContent = `${ativos.length} ativos`;
 
   el.innerHTML = lanes.map(lane => {
-    // "Em execução" mostra TODOS os ativos independente do filtro de período
-    const pool  = lane.st === 'execucao' ? chamadosDB : chamadosFiltrados;
-    const items = pool.filter(c=>c.st===lane.st);
+    const items = chamadosFiltrados.filter(c=>c.st===lane.st);
     const laneMax = 5;
     const preview = items.slice(0, laneMax);
     return `
