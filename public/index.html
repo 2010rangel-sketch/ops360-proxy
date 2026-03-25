@@ -1179,7 +1179,9 @@ function renderCatCards() {
   const el = document.getElementById('catCards');
   if(!el) return;
   // Coleta categorias com contagem e ordena decrescente por total no período filtrado
-  const catsReais = [...new Set(chamadosDB.map(c=>c.cat))].filter(Boolean);
+  // Categorias fixas sempre presentes mesmo com 0 chamados
+  const CATS_FIXAS = ['retrabalho'];
+  const catsReais = [...new Set([...chamadosDB.map(c=>c.cat), ...CATS_FIXAS])].filter(Boolean);
   const tipos = catsReais
     .map(k => {
       const fil = chamadosFiltrados.filter(c=>c.cat===k);
@@ -1187,7 +1189,7 @@ function renderCatCards() {
       return [k, tiposConfig[k], total];
     })
     .filter(([,v])=>v)
-    .sort((a,b) => b[2] - a[2]); // ordem decrescente por quantidade
+    .sort((a,b) => b[2] - a[2] || (CATS_FIXAS.includes(a[0])?1:-1)); // ordem decrescente; fixas com 0 vão pro fim
   if(!tipos.length) { el.innerHTML=''; return; }
   const cols = Math.min(tipos.length, 6);
   el.style.gridTemplateColumns = `repeat(${cols},1fr)`;
