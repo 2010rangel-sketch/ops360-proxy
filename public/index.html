@@ -969,41 +969,7 @@ function goPage(id, el) {
 // NOTIF
 function toggleNotif() { document.getElementById('notifOverlay').classList.toggle('open'); }
 
-// DASHBOARD BARS
-const horas = ['07','08','09','10','11','12','13','14','15','16'];
-const abertos = [8,14,22,18,28,32,19,24,16,11];
-const fechados = [6,10,18,20,22,28,24,20,18,14];
-const maxBar = Math.max(...abertos,...fechados);
-const bc = document.getElementById('barChart');
-const bl = document.getElementById('barLabels');
-if(bc) {
-  bc.innerHTML = horas.map((h,i)=>`
-    <div class="bar-col">
-      <div style="display:flex;gap:2px;align-items:flex-end;flex:1;width:100%">
-        <div class="bar-rect" style="flex:1;height:${(abertos[i]/maxBar)*150}px;background:var(--accent);opacity:.7"></div>
-        <div class="bar-rect" style="flex:1;height:${(fechados[i]/maxBar)*150}px;background:var(--green);opacity:.7"></div>
-      </div>
-      <div class="bar-lbl">${h}h</div>
-    </div>
-  `).join('');
-}
-
-// DASHBOARD PRIORITIES
-const priorities = [
-  {text:'Revisar SLA da semana com equipe',done:true,tag:'Relatório',color:'var(--green)'},
-  {text:'Reunião — retrabalhos recorrentes',done:true,tag:'Reunião',color:'var(--green)'},
-  {text:'Analisar indicadores de retenção',done:false,tag:'Retenção',color:'var(--accent)'},
-  {text:'Configurar alertas automáticos',done:false,tag:'Ops',color:'var(--amber)'},
-  {text:'Feedback com técnico João Silva',done:false,tag:'Equipe',color:'var(--red)'},
-];
-const dp = document.getElementById('dashPriorities');
-if(dp) dp.innerHTML = priorities.map(p=>`
-  <div class="p-item">
-    <div class="p-check ${p.done?'done':''}"></div>
-    <span class="p-text ${p.done?'done':''}">${p.text}</span>
-    <span class="p-badge" style="background:${p.color}1a;color:${p.color}">${p.tag}</span>
-  </div>
-`).join('');
+// Dados estáticos de dashboard removidos — renderDashboard() usa dados reais
 
 // ─── CHAMADOS — MONITORAMENTO AO VIVO ────────────────────────────────────────
 // Dados simulados que replicam o formato da API Hubsoft.
@@ -1626,28 +1592,34 @@ function renderDashboard() {
       </div>`).join('');
   }
 
-  // Gráfico de barras — chamados por hora (agendados hoje)
+  // Gráfico de barras — chamados por hora (período filtrado)
   const barEl  = document.getElementById('barChart');
   const labEl  = document.getElementById('barLabels');
-  if(barEl && deHoje.length) {
-    const horas = {};
-    deHoje.forEach(c => {
-      const h = new Date(c.dataProgramada).getHours();
-      if(!horas[h]) horas[h] = {ab:0, fin:0};
-      if(c.st==='finalizado') horas[h].fin++; else horas[h].ab++;
-    });
-    const hs = Object.keys(horas).map(Number).sort((a,b)=>a-b);
-    const maxV = Math.max(...hs.map(h=>horas[h].ab+horas[h].fin), 1);
-    barEl.innerHTML = `<div style="display:flex;align-items:flex-end;gap:4px;height:100%;padding-bottom:4px">`
-      + hs.map(h => {
-          const ab  = horas[h].ab, fn = horas[h].fin, tot = ab+fn;
-          const hAb = Math.round(ab/maxV*150), hFn = Math.round(fn/maxV*150);
-          return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:1px" title="${h}h: ${tot} chamados">
-            <div style="width:100%;height:${hFn}px;background:var(--green);border-radius:2px 2px 0 0"></div>
-            <div style="width:100%;height:${hAb}px;background:var(--accent);border-radius:2px 2px 0 0"></div>
-          </div>`;
-        }).join('') + `</div>`;
-    if(labEl) labEl.innerHTML = hs.map(h=>`<span style="font-size:9px;color:var(--text3);flex:1;text-align:center">${h}h</span>`).join('');
+  if(barEl) {
+    const fonte = chamadosFiltrados.filter(c=>c.dataProgramada);
+    if(fonte.length) {
+      const horasMap = {};
+      fonte.forEach(c => {
+        const h = new Date(c.dataProgramada).getHours();
+        if(!horasMap[h]) horasMap[h] = {ab:0, fin:0};
+        if(c.st==='finalizado') horasMap[h].fin++; else horasMap[h].ab++;
+      });
+      const hs   = Object.keys(horasMap).map(Number).sort((a,b)=>a-b);
+      const maxV = Math.max(...hs.map(h=>horasMap[h].ab+horasMap[h].fin), 1);
+      barEl.innerHTML = `<div style="display:flex;align-items:flex-end;gap:4px;height:100%;padding-bottom:4px">`
+        + hs.map(h => {
+            const ab  = horasMap[h].ab, fn = horasMap[h].fin, tot = ab+fn;
+            const hAb = Math.round(ab/maxV*150), hFn = Math.round(fn/maxV*150);
+            return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:1px" title="${h}h: ${tot} chamados">
+              <div style="width:100%;height:${hFn}px;background:var(--green);border-radius:2px 2px 0 0"></div>
+              <div style="width:100%;height:${hAb}px;background:var(--accent);border-radius:2px 2px 0 0"></div>
+            </div>`;
+          }).join('') + `</div>`;
+      if(labEl) labEl.innerHTML = hs.map(h=>`<span style="font-size:9px;color:var(--text3);flex:1;text-align:center">${h}h</span>`).join('');
+    } else {
+      barEl.innerHTML = `<div style="font-size:11px;color:var(--text3);text-align:center;padding:40px 0">Sem dados no período</div>`;
+      if(labEl) labEl.innerHTML = '';
+    }
   }
 
   // Prioridades — OS atrasadas e próximas de atrasar
