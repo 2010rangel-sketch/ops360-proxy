@@ -642,19 +642,33 @@ app.get('/api/debug-contratos', async (req, res) => {
       } catch(e) { resultados[`POST_${key}_vazio`] = { ok: false, status: e.response?.status }; }
     }
 
-    // ── Tenta GET v1/cliente com params de data ──
-    for (const params of [
-      { data_cadastro_inicio: body.data_inicio, data_cadastro_fim: body.data_fim },
-      { data_inicio: body.data_inicio, data_fim: body.data_fim, limit: 3 },
-      { situacao: 'cancelado', limit: 3 },
-    ]) {
-      const key = `GET_v1/cliente__${Object.keys(params).join('_')}`;
+    // ── Tenta variantes v2 e endpoints específicos de ISP ──
+    const maisEps = [
+      // v2
+      { m:'GET', ep:'v2/cliente' }, { m:'GET', ep:'v2/contrato' }, { m:'GET', ep:'v2/assinatura' },
+      // ISP/telecom específicos
+      { m:'GET', ep:'v1/proposta' }, { m:'GET', ep:'v1/adesao' }, { m:'GET', ep:'v1/fatura' },
+      { m:'GET', ep:'v1/internet' }, { m:'GET', ep:'v1/plano_internet' },
+      { m:'GET', ep:'v1/contrato_internet' }, { m:'GET', ep:'v1/novo_cliente' },
+      // com /consultar suffix
+      { m:'POST', ep:'v2/cliente/consultar/paginado/3?page=1' },
+      { m:'POST', ep:'v1/cliente/pesquisar/paginado/3?page=1' },
+      { m:'POST', ep:'v1/cliente/listar/paginado/3?page=1' },
+      { m:'POST', ep:'v1/adesao/consultar/paginado/3?page=1' },
+      { m:'POST', ep:'v1/fatura/consultar/paginado/3?page=1' },
+    ];
+    for (const { m, ep } of maisEps) {
+      const key = `${m}_${ep.replace(/\//g,'_').replace(/\?.*$/,'')}`;
       try {
-        const r = await axios.get(`${HUBSOFT_HOST}/api/v1/cliente`, {
-          headers: { Authorization: `Bearer ${token}` }, params, timeout: 6000,
-        });
-        resultados[key] = { ok: true, status: r.status, keys: Object.keys(r.data), sample: r.data };
-      } catch(e) { resultados[key] = { ok: false, status: e.response?.status }; }
+        let r;
+        if (m === 'GET') {
+          r = await axios.get(`${HUBSOFT_HOST}/api/${ep}`, { headers: { Authorization:`Bearer ${token}` }, timeout:5000 });
+          resultados[key] = { ok:true, status:r.status, keys:Object.keys(r.data), sample:r.data };
+        } else {
+          const d = await hubsoftPost(ep, body);
+          resultados[key] = { ok:true, keys:Object.keys(d), sample:d };
+        }
+      } catch(e) { resultados[key] = { ok:false, status:e.response?.status }; }
     }
 
     res.json(resultados);
