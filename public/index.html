@@ -1499,8 +1499,8 @@ function renderStatusLanes() {
         const tb = b.tsFimExec ? new Date(b.tsFimExec) : new Date(b.dataProgramada||0);
         return tb - ta;
       }
-      // aguardando, atrasado, reagendado: mais recente agendado no topo
-      return new Date(b.dataProgramada||0) - new Date(a.dataProgramada||0);
+      // aguardando, atrasado, reagendado: mais antigo no topo (esperou mais tempo)
+      return new Date(a.dataProgramada||0) - new Date(b.dataProgramada||0);
     });
     const laneMax = 5;
     const preview = items.slice(0, laneMax);
