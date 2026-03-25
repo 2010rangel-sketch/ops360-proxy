@@ -1628,6 +1628,27 @@ async function testarConexaoProxy() {
   }
 }
 
+// ── CACHE LOCAL — carrega/salva chamados no localStorage ────────────────────
+const CACHE_KEY = 'ops360_chamados_cache';
+function carregarCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const { dados, ts } = JSON.parse(raw);
+    return dados?.length ? { dados, ts } : null;
+  } catch { return null; }
+}
+function salvarCache(dados) {
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ dados, ts: Date.now() })); } catch {}
+}
+function aplicarDados(dados) {
+  chamadosDB.length = 0;
+  chamadosDB.push(...dados);
+  buildTiposConfig();
+  populateDropdowns();
+  applyFilters();
+}
+
 // ── AUTO-REFRESH A CADA 30s — busca dados reais do Hubsoft ────────
 async function autoRefresh() {
   const el = document.getElementById('lastSync');
@@ -1635,11 +1656,8 @@ async function autoRefresh() {
 
   const chamadosReais = await buscarChamadosHubsoft();
   if (chamadosReais && chamadosReais.length > 0) {
-    chamadosDB.length = 0;
-    chamadosDB.push(...chamadosReais);
-    buildTiposConfig();
-    populateDropdowns();
-    applyFilters();
+    salvarCache(chamadosReais);
+    aplicarDados(chamadosReais);
     const resumo = await buscarResumoHubsoft();
     if (resumo) {
       const e=document.getElementById('kv-exec'); if(e) e.textContent=resumo.execucao;
@@ -1878,7 +1896,16 @@ if(il) il.innerHTML=ints.map(i=>`
   </div>
 `).join('');
 
-// AUTO-INIT: conecta e sincroniza ao carregar a página
+// AUTO-INIT: carrega cache instantaneamente, depois sincroniza em background
+(function() {
+  const cache = carregarCache();
+  if (cache) {
+    aplicarDados(cache.dados);
+    const el = document.getElementById('lastSync');
+    const t  = new Date(cache.ts).toLocaleTimeString('pt-BR');
+    if(el) el.textContent = t + ' (cache)';
+  }
+})();
 testarConexaoProxy();
 setInterval(autoRefresh, 30000);
 </script>
