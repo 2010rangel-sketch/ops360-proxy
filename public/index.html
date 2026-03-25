@@ -651,6 +651,7 @@ input[type="text"]::placeholder { color:var(--text3); }
         <select id="filtCat"   onchange="applyFilters()" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:5px 10px;color:var(--text2);font-size:12px;font-family:'Inter',sans-serif">
           <option value="">Todos os tipos</option>
         </select>
+        <input id="filtBusca" oninput="applyFilters()" placeholder="🔍 Cliente, técnico ou cidade…" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:5px 10px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif;min-width:200px">
         <div style="margin-left:auto;display:flex;gap:6px">
           <button class="btn btn-sm" onclick="syncHubsoft()"><i class="fas fa-sync-alt" id="syncIcon"></i> Sincronizar</button>
         </div>
@@ -1311,12 +1312,17 @@ function applyFilters() {
   filtros.tec    = document.getElementById('filtTec')?.value    || '';
   filtros.cidade = document.getElementById('filtCidade')?.value || '';
   filtros.cat    = document.getElementById('filtCat')?.value    || '';
+  filtros.busca  = (document.getElementById('filtBusca')?.value || '').toLowerCase().trim();
   const agora = new Date();
   const hoje  = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
   chamadosFiltrados = chamadosDB.filter(c => {
     if(filtros.tec    && c.tec    !== filtros.tec)    return false;
     if(filtros.cidade && c.cidade !== filtros.cidade) return false;
     if(filtros.cat    && c.cat    !== filtros.cat)    return false;
+    if(filtros.busca) {
+      const haystack = `${c.cli} ${c.tec} ${c.cidade}`.toLowerCase();
+      if(!haystack.includes(filtros.busca)) return false;
+    }
     if(filtros.st !== 'todos' && filtros.st !== 'atrasado') {
       if(c.st !== filtros.st) return false;
     }
@@ -1645,28 +1651,34 @@ function getFeedDinamico() {
   const eventos = [];
   // Ativos: mostra hora real de início executado (se disponível)
   const ativos = chamadosDB.filter(c=>['execucao','em_execucao'].includes(c.st));
-  ativos.slice(0,4).forEach(c=>eventos.push({
+  ativos.forEach(c=>eventos.push({
     tipo:'inicio', id:c.id, tec:c.tec, cli:c.cli, cat:c.cat, cidade:c.cidade,
     tempo: c.inicioExec || formatarDataFeed(c.dataProgramada),
+    ts: c.tsInicioExec || c.dataProgramada || '',
   }));
   // Finalizados: mostra hora real de fim executado
   const finalizados = chamadosDB.filter(c=>c.st==='finalizado' && c.fimExec);
-  finalizados.slice(0,4).forEach(c=>eventos.push({
+  finalizados.forEach(c=>eventos.push({
     tipo:'fim', id:c.id, tec:c.tec, cli:c.cli, cat:c.cat, cidade:c.cidade,
     tempo: c.fimExec,
+    ts: c.tsFimExec || c.dataProgramada || '',
   }));
-  // Atrasados: mostra hora de início real ou agendada
+  // Atrasados
   const atrasados = chamadosDB.filter(c=>c.st==='atrasado');
-  atrasados.slice(0,2).forEach(c=>eventos.push({
+  atrasados.forEach(c=>eventos.push({
     tipo:'atraso', id:c.id, tec:c.tec, cli:c.cli, cat:c.cat, cidade:c.cidade,
     tempo: c.inicioExec || c.ab || '--',
+    ts: c.tsInicioExec || c.dataProgramada || '',
   }));
   // Retrabalhos
   const reworks = chamadosDB.filter(c=>c.rtb||c.st==='retrabalho');
-  reworks.slice(0,1).forEach(c=>eventos.push({
+  reworks.forEach(c=>eventos.push({
     tipo:'retrabalho', id:c.id, tec:c.tec, cli:c.cli, cat:c.cat, cidade:c.cidade,
     tempo: c.inicioExec || c.ab || '--',
+    ts: c.tsInicioExec || c.dataProgramada || '',
   }));
+  // Ordena mais recente no topo
+  eventos.sort((a,b)=> new Date(b.ts||0) - new Date(a.ts||0));
   return eventos.slice(0,10);
 }
 function renderFeed() {
