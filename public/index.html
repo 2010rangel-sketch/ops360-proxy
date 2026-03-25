@@ -1530,7 +1530,7 @@ function renderTecChart() {
     </div>`;
   }).join('');
 
-  // Donut SVG
+  // Donut SVG com hover interativo
   const total = lista.reduce((s,[,d])=>s+d.total, 0);
   const cx=90, cy=90, r=70, ri=44;
   let ang = -Math.PI/2;
@@ -1543,10 +1543,19 @@ function renderTecChart() {
     const x3 = cx + ri * Math.cos(ang+slice),  y3 = cy + ri * Math.sin(ang+slice);
     const x4 = cx + ri * Math.cos(ang),        y4 = cy + ri * Math.sin(ang);
     const large = slice > Math.PI ? 1 : 0;
-    paths += `<path d="M${x1},${y1} A${r},${r} 0 ${large},1 ${x2},${y2} L${x3},${y3} A${ri},${ri} 0 ${large},0 ${x4},${y4} Z" fill="${cor}" stroke="var(--bg)" stroke-width="2"/>`;
+    const pct   = Math.round(d.total / total * 100);
+    const nome  = tec.split(' ')[0]; // primeiro nome para tooltip
+    paths += `<path d="M${x1},${y1} A${r},${r} 0 ${large},1 ${x2},${y2} L${x3},${y3} A${ri},${ri} 0 ${large},0 ${x4},${y4} Z"
+      fill="${cor}" stroke="var(--bg)" stroke-width="2"
+      style="cursor:pointer;transition:opacity .15s,transform .15s;transform-origin:90px 90px"
+      onmouseenter="this.style.opacity='.75';this.style.transform='scale(1.06)';document.getElementById('donutLabel').textContent='${nome}';document.getElementById('donutPct').textContent='${pct}%';document.getElementById('donutTotal').textContent='${d.total} serv.'"
+      onmouseleave="this.style.opacity='1';this.style.transform='scale(1)';document.getElementById('donutLabel').textContent='Total';document.getElementById('donutPct').textContent='';document.getElementById('donutTotal').textContent='${total}'"/>`;
     ang += slice;
   });
-  donutEl.innerHTML = paths + `<text x="90" y="87" text-anchor="middle" style="font-size:11px;fill:var(--text3);font-family:Inter,sans-serif">Total</text><text x="90" y="105" text-anchor="middle" style="font-size:18px;font-weight:700;fill:var(--text);font-family:Inter,sans-serif">${total}</text>`;
+  donutEl.innerHTML = paths
+    + `<text id="donutLabel" x="90" y="83" text-anchor="middle" style="font-size:10px;fill:var(--text3);font-family:Inter,sans-serif;pointer-events:none">Total</text>`
+    + `<text id="donutPct"   x="90" y="99" text-anchor="middle" style="font-size:13px;font-weight:700;fill:var(--text);font-family:Inter,sans-serif;pointer-events:none"></text>`
+    + `<text id="donutTotal" x="90" y="114" text-anchor="middle" style="font-size:16px;font-weight:700;fill:var(--text);font-family:Inter,sans-serif;pointer-events:none">${total}</text>`;
 
   // Legenda
   legendEl.innerHTML = lista.slice(0,6).map(([tec, d], i) => {
