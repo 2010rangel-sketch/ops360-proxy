@@ -86,17 +86,32 @@ async function getCaldavInfo() {
   if (!APPLE_ID || !APPLE_APP_PASSWORD) throw new Error('nao_configurado');
 
   const auth = `Basic ${Buffer.from(`${APPLE_ID}:${APPLE_APP_PASSWORD}`).toString('base64')}`;
-  const hdr  = (extra={}) => ({ Authorization:auth, 'Content-Type':'application/xml; charset=utf-8', ...extra });
+  const UA   = 'OPS360/1.0 (Node.js; CalDAV Client)';
+  const hdr  = (extra={}) => ({ Authorization:auth, 'Content-Type':'application/xml; charset=utf-8', 'User-Agent':UA, ...extra });
 
-  // 1. Descobre principal URL
-  const r1 = await axios({
+  // 1. Descobre principal URL — tenta também via /.well-known/caldav
+  let r1 = await axios({
     method:'PROPFIND', url:'https://caldav.icloud.com/',
     data:'<?xml version="1.0"?><D:propfind xmlns:D="DAV:"><D:prop><D:current-user-principal/></D:prop></D:propfind>',
-    headers: hdr({ Depth:'0' }), validateStatus:()=>true, maxRedirects:10,
+    headers: hdr({ Depth:'0' }), validateStatus:()=>true, maxRedirects:5,
   });
-  const hrefs1 = [...(r1.data||'').matchAll(/<(?:\w+:)?href>(\/[^<]+)<\/(?:\w+:)?href>/g)].map(m=>m[1]);
-  const principal = hrefs1.find(u => u.length > 2 && u !== '/');
-  if (!principal) throw new Error(`Principal não encontrado (status ${r1.status})`);
+  // Se 401 ou sem href, tenta com o Apple ID embutido na URL
+  if (r1.status === 401 || r1.status === 403) {
+    throw new Error(`CalDAV autenticação recusada (${r1.status}) — verifique APPLE_ID e APPLE_APP_PASSWORD`);
+  }
+  let hrefs1 = [...(r1.data||'').matchAll(/<(?:\w+:)?href>(\/[^<]+)<\/(?:\w+:)?href>/g)].map(m=>m[1]);
+  let principal = hrefs1.find(u => u.length > 2 && u !== '/');
+  // Se não encontrou, tenta well-known
+  if (!principal) {
+    const rWK = await axios({
+      method:'PROPFIND', url:'https://caldav.icloud.com/.well-known/caldav',
+      data:'<?xml version="1.0"?><D:propfind xmlns:D="DAV:"><D:prop><D:current-user-principal/></D:prop></D:propfind>',
+      headers: hdr({ Depth:'0' }), validateStatus:()=>true, maxRedirects:10,
+    });
+    hrefs1 = [...(rWK.data||'').matchAll(/<(?:\w+:)?href>(\/[^<]+)<\/(?:\w+:)?href>/g)].map(m=>m[1]);
+    principal = hrefs1.find(u => u.length > 2 && u !== '/');
+  }
+  if (!principal) throw new Error(`Principal não encontrado (status ${r1.status}) body: ${String(r1.data).slice(0,300)}`);
 
   // 2. Calendar-home-set
   const r2 = await axios({
@@ -872,6 +887,27 @@ function formatarHora(datetime) {
 // ════════════════════════════════════════════════════════════════
 //  ROTAS — iCloud CalDAV Agenda
 // ════════════════════════════════════════════════════════════════
+
+// GET /api/agenda/debug-caldav → diagnóstico de autenticação CalDAV
+app.get('/api/agenda/debug-caldav', async (req, res) => {
+  if (!APPLE_ID || !APPLE_APP_PASSWORD) return res.json({ ok:false, erro:'nao_configurado', APPLE_ID: !!APPLE_ID, APPLE_APP_PASSWORD: !!APPLE_APP_PASSWORD });
+  const auth = `Basic ${Buffer.from(`${APPLE_ID}:${APPLE_APP_PASSWORD}`).toString('base64')}`;
+  const UA = 'OPS360/1.0 (Node.js; CalDAV Client)';
+  const urls = ['https://caldav.icloud.com/', 'https://caldav.icloud.com/.well-known/caldav'];
+  const results = {};
+  for (const url of urls) {
+    try {
+      const r = await axios({
+        method:'PROPFIND', url,
+        data:'<?xml version="1.0"?><D:propfind xmlns:D="DAV:"><D:prop><D:current-user-principal/></D:prop></D:propfind>',
+        headers:{ Authorization:auth, 'Content-Type':'application/xml; charset=utf-8', 'User-Agent':UA, Depth:'0' },
+        validateStatus:()=>true, maxRedirects:10,
+      });
+      results[url] = { status: r.status, body: String(r.data).slice(0,500) };
+    } catch(e) { results[url] = { error: e.message }; }
+  }
+  res.json({ ok:true, APPLE_ID_SET: !!APPLE_ID, results });
+});
 
 // GET /api/agenda/eventos?mes=2026-03  → lista eventos do mês
 app.get('/api/agenda/eventos', async (req, res) => {
