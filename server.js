@@ -587,20 +587,53 @@ app.get('/api/debug-atendimento-raw', async (req, res) => {
 // ── Debug: descobre estrutura de contratos ────────────────────────
 app.get('/api/debug-contratos', async (req, res) => {
   try {
+    const token  = await getToken();
     const agora  = new Date();
     const iniMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
     const fimMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 0, 23, 59, 59);
     const body   = { data_inicio: iniMes.toISOString(), data_fim: fimMes.toISOString() };
     const resultados = {};
-    for (const ep of ['v1/cliente_servico/consultar/paginado/3?page=1','v1/contrato/consultar/paginado/3?page=1']) {
-      for (const situacao of [[], ['cancelado'], ['ativo']]) {
-        const key = `${ep.split('/')[1]}__${situacao[0]||'sem_filtro'}`;
-        try {
-          const d = await hubsoftPost(ep, { ...body, situacao });
-          resultados[key] = { ok:true, keys:Object.keys(d), primeiro: (d?.clientes_servicos?.data||d?.data||[])[0] || null };
-        } catch(e) { resultados[key] = { ok:false, status:e.response?.status }; }
-      }
+
+    // ── Testa GET em endpoints comuns de cadastro/contrato ──
+    const getEps = [
+      'v1/assinatura','v1/assinaturas',
+      'v1/contrato','v1/contratos',
+      'v1/cliente','v1/clientes',
+      'v1/plano','v1/planos',
+      'v1/cliente_servico','v1/clientes_servicos',
+      'v1/contrato_cliente','v1/servico_cliente',
+      'v1/cadastro','v1/cancelamento','v1/cancelamentos',
+      'v1/plano_cliente','v1/servico',
+    ];
+    for (const ep of getEps) {
+      try {
+        const r = await axios.get(`${HUBSOFT_HOST}/api/${ep}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { limit: 1, page: 1 },
+          timeout: 5000,
+        });
+        resultados[`GET_${ep}`] = { ok: true, status: r.status, keys: Object.keys(r.data), sample: r.data };
+      } catch(e) { resultados[`GET_${ep}`] = { ok: false, status: e.response?.status }; }
     }
+
+    // ── Testa POST paginado em endpoints prováveis ──
+    const postEps = [
+      'v1/assinatura/consultar/paginado/3?page=1',
+      'v1/contrato/consultar/paginado/3?page=1',
+      'v1/cliente_servico/consultar/paginado/3?page=1',
+      'v1/plano_cliente/consultar/paginado/3?page=1',
+      'v1/cadastro/consultar/paginado/3?page=1',
+      'v1/cancelamento/consultar/paginado/3?page=1',
+      'v1/servico_cliente/consultar/paginado/3?page=1',
+      'v1/contrato_servico/consultar/paginado/3?page=1',
+    ];
+    for (const ep of postEps) {
+      try {
+        const d = await hubsoftPost(ep, body);
+        resultados[`POST_${ep.split('/')[1]}`] = { ok: true, keys: Object.keys(d), sample: d };
+      } catch(e) { resultados[`POST_${ep.split('/')[1]}`] = { ok: false, status: e.response?.status }; }
+    }
+
     res.json(resultados);
   } catch(err) { res.status(500).json({ erro: err.message }); }
 });
