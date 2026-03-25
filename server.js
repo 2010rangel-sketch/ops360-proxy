@@ -414,11 +414,7 @@ app.get('/api/chamados', async (req, res) => {
                   || end?.cidade?.id_cidade
                   || null;
       const cli    = cs?.display || cs?.cliente?.nome_razaosocial || cs?.cliente?.display || 'Cliente';
-      // "Em execução" no Hubsoft mobile: status fica "pendente" mas executando=true ou reserva com servico_iniciado=true,desreservada=false
-      const execAtiva = os.executando === true ||
-        (Array.isArray(os.reservas) && os.reservas.some(r => r.servico_iniciado && !r.desreservada));
-      const stVal  = execAtiva ? 'em_execucao' :
-        (os.status_ordem_servico?.descricao || os.status_ordem_servico || os.status || os.situacao || '');
+      const stVal  = os.status || '';
       return {
         id:         `#${os.id_ordem_servico || os.id}`,
         cli,
