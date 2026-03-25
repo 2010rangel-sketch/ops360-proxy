@@ -618,7 +618,7 @@ input[type="text"]::placeholder { color:var(--text3); }
             <span class="tbl-title">Chamados em andamento agora</span>
             <span class="badge b-blue" id="liveCount">0 ativos</span>
           </div>
-          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:0 4px 4px;flex:1" id="statusLanes"></div>
+          <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;padding:0 4px 4px;flex:1" id="statusLanes"></div>
         </div>
 
         <!-- POR CIDADE — lateral direita -->
@@ -1428,7 +1428,7 @@ function renderStatusLanes() {
       <div>
       ${items.length===0?`<div style="font-size:10px;color:var(--text3);text-align:center;padding:8px 0">Nenhum</div>`:''}
       ${preview.map(c=>`
-        <div style="background:var(--surface);border-radius:4px;padding:5px 7px;margin-bottom:4px;border-left:2px solid ${tiposConfig[c.cat]?.color||'var(--border2)'}">
+        <div style="background:var(--surface);border-radius:4px;padding:5px 7px;margin-bottom:4px;border-left:2px solid ${tiposConfig[c.cat]?.color||'var(--border2)'};min-width:0;overflow:hidden">
           <div style="font-size:10.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.cli}</div>
           <div style="display:flex;align-items:center;gap:4px;margin-top:2px;flex-wrap:wrap">
             <span style="font-size:9.5px;color:var(--text3)">${c.tec}</span>
