@@ -2302,13 +2302,7 @@ async function autoRefresh() {
   if (chamadosReais && chamadosReais.length > 0) {
     salvarCache(chamadosReais);
     aplicarDados(chamadosReais);
-    const resumo = await buscarResumoHubsoft();
-    if (resumo) {
-      const e=document.getElementById('kv-exec'); if(e) e.textContent=resumo.execucao;
-      const a=document.getElementById('kv-atr');  if(a) a.textContent=resumo.atrasado;
-      const f=document.getElementById('kv-fin');  if(f) f.textContent=resumo.finalizado;
-      const r=document.getElementById('kv-rtb');  if(r) r.textContent=resumo.retrabalho;
-    }
+    // KPIs calculados localmente (filtrados por hoje) — não sobrescrever com resumo global
     console.log('['+new Date().toLocaleTimeString('pt-BR')+'] '+chamadosReais.length+' chamados sincronizados do Hubsoft');
   }
 }
