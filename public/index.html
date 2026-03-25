@@ -618,7 +618,7 @@ input[type="text"]::placeholder { color:var(--text3); }
             <span class="tbl-title">Chamados em andamento agora</span>
             <span class="badge b-blue" id="liveCount">0 ativos</span>
           </div>
-          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:0 4px 4px;flex:1" id="statusLanes"></div>
+          <div style="display:grid;grid-template-columns:0.8fr 1fr 1fr 1fr 1fr;gap:8px;padding:0 4px 4px;flex:1" id="statusLanes"></div>
         </div>
 
         <!-- POR CIDADE — lateral direita -->
@@ -1441,6 +1441,10 @@ function renderStatusLanes() {
               <span style="display:flex;align-items:center;gap:3px;font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--green)">
                 <i class="fas fa-check-circle" style="font-size:8px"></i>
                 ${c.tsFimExec ? new Date(c.tsFimExec).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) + ' ' + new Date(c.tsFimExec).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : c.fimExec}
+              </span>` : lane.st==='execucao' && (c.tsInicioExec || c.inicioExec) ? `
+              <span style="display:flex;align-items:center;gap:3px;font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--accent)">
+                <i class="fas fa-play-circle" style="font-size:8px"></i>
+                ${c.tsInicioExec ? new Date(c.tsInicioExec).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) + ' ' + new Date(c.tsInicioExec).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : c.inicioExec}
               </span>` : `
               <span style="display:flex;align-items:center;gap:3px;font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--accent)">
                 <i class="fas fa-calendar-alt" style="font-size:8px"></i>
