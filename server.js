@@ -618,6 +618,7 @@ app.get('/api/debug-contratos', async (req, res) => {
 
     // ── Testa POST paginado em endpoints prováveis ──
     const postEps = [
+      'v1/cliente/consultar/paginado/3?page=1',
       'v1/assinatura/consultar/paginado/3?page=1',
       'v1/contrato/consultar/paginado/3?page=1',
       'v1/cliente_servico/consultar/paginado/3?page=1',
@@ -627,11 +628,33 @@ app.get('/api/debug-contratos', async (req, res) => {
       'v1/servico_cliente/consultar/paginado/3?page=1',
       'v1/contrato_servico/consultar/paginado/3?page=1',
     ];
+    // Tenta com body de data e também body vazio
     for (const ep of postEps) {
+      const key = ep.split('/')[1];
       try {
         const d = await hubsoftPost(ep, body);
-        resultados[`POST_${ep.split('/')[1]}`] = { ok: true, keys: Object.keys(d), sample: d };
-      } catch(e) { resultados[`POST_${ep.split('/')[1]}`] = { ok: false, status: e.response?.status }; }
+        resultados[`POST_${key}`] = { ok: true, keys: Object.keys(d), sample: d };
+      } catch(e) { resultados[`POST_${key}`] = { ok: false, status: e.response?.status }; }
+      // Tenta com body vazio também
+      try {
+        const d = await hubsoftPost(ep, {});
+        resultados[`POST_${key}_vazio`] = { ok: true, keys: Object.keys(d), sample: d };
+      } catch(e) { resultados[`POST_${key}_vazio`] = { ok: false, status: e.response?.status }; }
+    }
+
+    // ── Tenta GET v1/cliente com params de data ──
+    for (const params of [
+      { data_cadastro_inicio: body.data_inicio, data_cadastro_fim: body.data_fim },
+      { data_inicio: body.data_inicio, data_fim: body.data_fim, limit: 3 },
+      { situacao: 'cancelado', limit: 3 },
+    ]) {
+      const key = `GET_v1/cliente__${Object.keys(params).join('_')}`;
+      try {
+        const r = await axios.get(`${HUBSOFT_HOST}/api/v1/cliente`, {
+          headers: { Authorization: `Bearer ${token}` }, params, timeout: 6000,
+        });
+        resultados[key] = { ok: true, status: r.status, keys: Object.keys(r.data), sample: r.data };
+      } catch(e) { resultados[key] = { ok: false, status: e.response?.status }; }
     }
 
     res.json(resultados);
