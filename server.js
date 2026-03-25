@@ -375,7 +375,10 @@ app.get('/api/debug-raw', async (req, res) => {
     // Extrai caminhos que possam ter cidade
     res.json({
       id_ordem_servico: os.id_ordem_servico,
-      status: os.status,
+      status_raw:               os.status,
+      status_ordem_servico_raw: os.status_ordem_servico,
+      situacao_raw:             os.situacao,
+      st_normalizado: normalizarStatus(os.status_ordem_servico?.descricao || os.status_ordem_servico || os.status || os.situacao || ''),
       atendimento_keys: os.atendimento ? Object.keys(os.atendimento) : null,
       cliente_servico_keys: os.atendimento?.cliente_servico ? Object.keys(os.atendimento.cliente_servico) : null,
       endereco_instalacao: os.atendimento?.cliente_servico?.endereco_instalacao || null,
@@ -411,7 +414,7 @@ app.get('/api/chamados', async (req, res) => {
                   || end?.cidade?.id_cidade
                   || null;
       const cli    = cs?.display || cs?.cliente?.nome_razaosocial || cs?.cliente?.display || 'Cliente';
-      const stVal  = os.status || '';
+      const stVal  = os.status_ordem_servico?.descricao || os.status_ordem_servico || os.status || os.situacao || '';
       return {
         id:         `#${os.id_ordem_servico || os.id}`,
         cli,
