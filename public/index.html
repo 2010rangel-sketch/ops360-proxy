@@ -347,7 +347,7 @@ input[type="text"]::placeholder { color:var(--text3); }
   </div>
 
   <div class="sidebar-section">Painel</div>
-  <div class="nav-item active" onclick="goPage('dashboard',this)"><i class="fas fa-chart-pie"></i> Dashboard<span class="nav-count nc-red" id="navChamadosCount">0</span></div>
+  <div class="nav-item active" onclick="goPage('dashboard',this)"><i class="fas fa-chart-pie"></i> Dashboard</div>
   <div class="nav-item" onclick="goPage('chamados',this)"><i class="fas fa-ticket-alt"></i> Chamados<span class="nav-count nc-red" id="navChamadosCount2">0</span></div>
 
   <div class="sidebar-section">Atendimento</div>
@@ -1707,9 +1707,7 @@ function rebuildAll() {
   if(el) el.textContent = new Date().toLocaleTimeString('pt-BR');
   // Atualiza contadores da nav lateral
   const abertos = chamadosDB.filter(c=>!['finalizado','cancelado'].includes(c.st)).length;
-  const nc1 = document.getElementById('navChamadosCount');
   const nc2 = document.getElementById('navChamadosCount2');
-  if(nc1) nc1.textContent = abertos;
   if(nc2) nc2.textContent = abertos;
 }
 
