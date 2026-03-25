@@ -1319,8 +1319,7 @@ function renderCidades() {
     cidMap[nome].cats[c.cat]=(cidMap[nome].cats[c.cat]||0)+1;
   });
   const cidades = Object.entries(cidMap).sort((a,b)=>b[1].total-a[1].total);
-  const comChamados = cidades.filter(([,v])=>v.total>0).length;
-  document.getElementById('cidadeCount').textContent = `${comChamados} cidades`;
+  document.getElementById('cidadeCount').textContent = `${cidades.length} cidades`;
   const maxT = Math.max(...cidades.map(([,v])=>v.total),1);
   el.innerHTML = cidades.map(([nome,d])=>`
     <div style="padding:9px 12px;border-bottom:1px solid var(--border);${d.total===0?'opacity:0.45':''}">
