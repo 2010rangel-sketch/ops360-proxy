@@ -1285,7 +1285,7 @@ function renderStatusLanes() {
           </div>
           <div style="display:flex;justify-content:space-between;margin-top:2px">
             <span style="font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--text3)">${c.id}</span>
-            <span style="font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--text3)">${formatarDataFeed(c.dataProgramada)}</span>
+            <span style="font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--text3)">${c.dataProgramada ? new Date(c.dataProgramada).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) + ' ' + (new Date(c.dataProgramada).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})) : c.ab||'--'}</span>
           </div>
         </div>
       `).join('')}
