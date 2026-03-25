@@ -695,10 +695,12 @@ input[type="text"]::placeholder { color:var(--text3); }
 
         <!-- Tabela completa filtrável -->
         <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header">
-            <span class="tbl-title" id="tblMainTitle">Todos os chamados</span>
-            <input id="filtBusca" oninput="applyFilters()" placeholder="🔍 Cliente, técnico ou cidade…" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:4px 10px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif;width:220px;outline:none">
-            <div style="display:flex;gap:4px;flex-wrap:wrap" id="statusChips">
+          <div class="tbl-header" style="flex-wrap:wrap;gap:6px">
+            <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
+              <span class="tbl-title" id="tblMainTitle">Todos os chamados</span>
+              <input id="filtBusca" oninput="applyFilters()" placeholder="🔍 Cliente, técnico ou cidade…" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:4px 10px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif;width:210px;outline:none">
+            </div>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;flex:1;justify-content:flex-end" id="statusChips">
               <button class="chip active" onclick="filterSt('todos',this)">Todos</button>
               <button class="chip" onclick="filterSt('execucao',this)">Em execução</button>
               <button class="chip" onclick="filterSt('aguardando',this)">Aguardando</button>
