@@ -576,7 +576,7 @@ input[type="text"]::placeholder { color:var(--text3); }
       <div id="catCards" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px"></div>
 
       <!-- ── LINHA: STATUS AO VIVO + MAPA DE CIDADES ── -->
-      <div style="display:grid;grid-template-columns:1fr 340px;gap:12px;margin-bottom:14px;align-items:stretch">
+      <div style="display:grid;grid-template-columns:1fr 240px;gap:12px;margin-bottom:14px;align-items:stretch">
 
         <!-- STATUS AO VIVO — board kanban visual -->
         <div class="tbl-card" style="margin-bottom:0;display:flex;flex-direction:column">
@@ -1262,7 +1262,8 @@ function renderStatusLanes() {
 
   el.innerHTML = lanes.map(lane => {
     const items   = chamadosFiltrados.filter(c=>c.st===lane.st);
-    const preview = items.slice(0, 4); // mostra só 4 para não tomar espaço
+    const laneMax = lane.st === 'finalizado' ? 8 : 4;
+    const preview = items.slice(0, laneMax);
     return `
     <div style="background:var(--bg3);border-radius:var(--r);padding:8px;display:flex;flex-direction:column">
       <div style="display:flex;align-items:center;gap:5px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--border);flex-shrink:0">
@@ -1286,7 +1287,7 @@ function renderStatusLanes() {
           </div>
         </div>
       `).join('')}
-      ${items.length>4?`<div onclick="filterSt('${lane.st}',null);document.getElementById('mainTbl')?.closest('div[style*=overflow-x]')?.scrollIntoView({behavior:'smooth',block:'nearest'})" style="font-size:10px;color:${lane.color};text-align:center;padding:4px;cursor:pointer;border-radius:4px;background:${lane.color}12;margin-top:2px">Ver todos (${items.length}) ↓</div>`:''}
+      ${items.length>laneMax?`<div onclick="filterSt('${lane.st}',null);document.getElementById('mainTbl')?.closest('div[style*=overflow-x]')?.scrollIntoView({behavior:'smooth',block:'nearest'})" style="font-size:10px;color:${lane.color};text-align:center;padding:4px;cursor:pointer;border-radius:4px;background:${lane.color}12;margin-top:2px">Ver todos (${items.length}) ↓</div>`:''}
       </div>
     </div>`;
   }).join('');
