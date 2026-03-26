@@ -8,6 +8,35 @@ const axios    = require('axios');
 const cors     = require('cors');
 const path     = require('path');
 
+// ── Mapeamento definitivo: ID do usuário → Setor ──────────────────
+// Fonte: planilha de usuários do Hubsoft (atualizar aqui se mudar)
+const SETOR_POR_ID = {
+  // Cobrança
+  326:'Cobrança', 120:'Cobrança', 258:'Cobrança', 292:'Cobrança', 218:'Cobrança',
+  325:'Cobrança', 127:'Cobrança', 129:'Cobrança', 261:'Cobrança', 194:'Cobrança', 286:'Cobrança',
+  // Comercial
+  123:'Comercial', 115:'Comercial',
+  // Call Center
+  282:'Call Center', 297:'Call Center', 283:'Call Center', 329:'Call Center',
+  278:'Call Center', 321:'Call Center', 328:'Call Center', 299:'Call Center', 316:'Call Center',
+  // NOC
+  99:'NOC', 101:'NOC', 97:'NOC', 100:'NOC',
+  // Financeiro
+  198:'Financeiro', 95:'Financeiro', 254:'Financeiro',
+};
+// Nome do usuário → Setor (fallback quando só temos o nome)
+const SETOR_POR_NOME = {
+  'Ana Beatriz':'Cobrança','Anna':'Cobrança','Anna Carla':'Cobrança','Evellem':'Cobrança',
+  'Kiara':'Cobrança','Mileny':'Cobrança','Nayla':'Cobrança','Paula':'Cobrança',
+  'Sara':'Cobrança','Talita':'Cobrança','Vanessa':'Cobrança',
+  'Jamilly - COMERCIAL':'Comercial','Samara - COMERCIAL':'Comercial',
+  'Clara':'Call Center','Cleiza':'Call Center','Eduarda Reis':'Call Center',
+  'Graziela':'Call Center','Kamila':'Call Center','Liane':'Call Center',
+  'Maiza':'Call Center','Mirian':'Call Center','Ana Carolina':'Call Center',
+  'Thiago - NOC':'NOC','Eduardo - NOC':'NOC','Mateus - NOC':'NOC','Paulo - NOC':'NOC',
+  'Ruth Oliveira':'Financeiro','Rakezia':'Financeiro','Isabel':'Financeiro',
+};
+
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
@@ -639,8 +668,11 @@ app.get('/api/atendimentos', async (req, res) => {
                      || a.usuario_fechamento?.name || a.usuario_fechamento?.nome
                      || 'Sem atendente';
 
-      // Setor: não existe campo setor na API — inferir pelo tipo_atendimento
-      const setor = inferirSetor(tipo);
+      // Setor: busca pelo ID do usuário responsável (mapeamento definitivo)
+      const respPrincipal = resps[0] || a.usuario_fechamento || {};
+      const setor = SETOR_POR_ID[respPrincipal.id]
+                 || SETOR_POR_NOME[atendente]
+                 || inferirSetor(tipo);
 
       // Cliente: cliente_servico.cliente.nome_razaosocial (não cliente_servico.display que é o plano)
       const cli    = a.cliente_servico?.cliente;
@@ -941,8 +973,10 @@ app.get('/api/usuarios-setores', async (_req, res) => {
       (a.usuarios_responsaveis || []).forEach(u => { if (u.id && u.name) idsMap[u.id] = u.name; });
       if (a.usuario_fechamento?.id) idsMap[a.usuario_fechamento.id] = a.usuario_fechamento.name;
     });
-    // API não expõe grupos — retorna apenas id+nome para o modal de config manual
-    const usuarios = Object.entries(idsMap).map(([id, nome]) => ({ id: Number(id), nome }));
+    // Retorna id + nome + setor (do mapeamento definitivo)
+    const usuarios = Object.entries(idsMap)
+      .map(([id, nome]) => ({ id: Number(id), nome, setor: SETOR_POR_ID[Number(id)] || SETOR_POR_NOME[nome] || '' }))
+      .sort((a,b) => a.nome.localeCompare(b.nome));
     res.json({ ok: true, total: usuarios.length, usuarios });
   } catch(err) { res.status(500).json({ ok: false, erro: err.message }); }
 });

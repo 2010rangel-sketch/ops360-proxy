@@ -2417,21 +2417,31 @@ async function abrirConfigSetores() {
   lista.innerHTML = '<p style="color:var(--text3);font-size:12px">Carregando atendentes...</p>';
   modal.style.display = 'flex';
 
-  // Busca lista completa de usuários do sistema
-  let nomes = [];
+  // Busca lista completa de usuários do sistema (com setores pré-configurados)
+  let usuarios = [];
   try {
     const res = await fetch(`${PROXY_URL}/api/usuarios-setores`);
     const data = await res.json();
-    if (data.ok && data.usuarios?.length) {
-      nomes = data.usuarios.map(u => u.nome).filter(Boolean).sort();
-    }
+    if (data.ok && data.usuarios?.length) usuarios = data.usuarios;
   } catch {}
-  // Fallback: usa atendentes do período atual se a busca falhar
-  if (!nomes.length && _atendData) {
-    nomes = (_atendData.por_atendente || []).map(a => a.atendente).filter(n => n && n !== 'Sem atendente');
+  // Fallback: usa atendentes do período atual
+  if (!usuarios.length && _atendData) {
+    usuarios = (_atendData.por_atendente || [])
+      .filter(a => a.atendente && a.atendente !== 'Sem atendente')
+      .map(a => ({ nome: a.atendente, setor: a.setor || '' }));
+  }
+
+  // Pré-preenche localStorage com setores do servidor (sem sobrescrever configurações manuais)
+  const mapaAtual = carregarMapaSetores();
+  const preencheu = Object.keys(mapaAtual).length > 0;
+  if (!preencheu) {
+    const novo = {};
+    usuarios.forEach(u => { if (u.setor) novo[u.nome] = u.setor; });
+    if (Object.keys(novo).length) salvarMapaSetores(novo);
   }
 
   const mapa = carregarMapaSetores();
+  const nomes = usuarios.map(u => u.nome).filter(Boolean);
   lista.innerHTML = nomes.length ? nomes.map(nome => `
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
       <span style="flex:1;font-size:13px;color:var(--text)">${nome}</span>
