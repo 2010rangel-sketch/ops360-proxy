@@ -1318,15 +1318,21 @@ function setPeriodo(p, el) {
   const ddr = document.getElementById('dashDateRange');
   if(dr)  dr.style.display  = p==='custom' ? 'flex' : 'none';
   if(ddr) ddr.style.display = p==='custom' ? 'flex' : 'none';
-  // Restaura cache do período, se existir
+  // Período custom: não busca automaticamente — aguarda o usuário preencher datas
+  if (p === 'custom') return;
+
   const cached = carregarCache(p);
-  if (cached?.dados?.length) {
-    filtros.rangeIni = null;
-    filtros.rangeFim = null;
+  const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+  const cacheValido = cached?.dados?.length && cached?.ts && (Date.now() - cached.ts) < CACHE_TTL;
+
+  if (cacheValido) {
+    // Cache recente: mostra na hora e atualiza em segundo plano silenciosamente
     aplicarDados(cached.dados);
+    buscarPeriodo(); // refresh background sem travar a UI
     return;
   }
-  // Sem cache: zera display imediatamente (mostra 0 enquanto carrega) e busca
+
+  // Cache velho ou inexistente: zera imediatamente e busca
   aplicarDados([]);
   buscarPeriodo();
 }
