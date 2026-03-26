@@ -922,16 +922,18 @@ app.get('/api/retencao', async (req, res) => {
     const fim = data_fim    || fimMes.toISOString();
 
     // Fetch all atendimentos in period (parallel pagination)
+    const extractAtend = d => d?.atendimentos?.data || d?.atendimento?.data || d?.data || [];
+    const extractPages = d => d?.atendimentos?.last_page || d?.atendimento?.last_page || d?.last_page || 1;
     const first = await hubsoftPost('v1/atendimento/consultar/paginado/500?page=1', { data_inicio: ini, data_fim: fim });
-    const lista1     = first?.atendimento?.data || first?.data || [];
-    const totalPages = first?.atendimento?.last_page || first?.last_page || 1;
+    const lista1     = extractAtend(first);
+    const totalPages = extractPages(first);
     let lista = [...lista1];
     if (all === 'true' && totalPages > 1) {
       const pages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
       const results = await Promise.all(pages.map(async pg => {
         try {
           const d = await hubsoftPost(`v1/atendimento/consultar/paginado/500?page=${pg}`, { data_inicio: ini, data_fim: fim });
-          return d?.atendimento?.data || d?.data || [];
+          return extractAtend(d);
         } catch { return []; }
       }));
       results.forEach(r => lista.push(...r));

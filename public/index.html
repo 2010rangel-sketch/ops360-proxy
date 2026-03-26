@@ -1484,7 +1484,8 @@ async function buscarPeriodo() {
   const chamados = await buscarChamadosHubsoft(params);
   // Se um fetch mais recente já completou, descarta este resultado (anti-race)
   if (mySeq !== _fetchSeq) { setBtns('Buscar', false); return; }
-  if (chamados && chamados.length > 0) {
+  // Aplica mesmo se vazio (null = erro de rede; [] = período sem OS — ambos devem atualizar a UI)
+  if (chamados !== null) {
     filtros.rangeIni = new Date(ini);
     filtros.rangeFim = new Date(fim);
     salvarCache(chamados, periodoSnapshot);
@@ -1644,7 +1645,7 @@ function expandCatCards() {
   const periodoLabel = labelPeriodo();
   const catsReais = [...new Set([...Object.keys(tiposConfig), ...chamadosDB.map(c=>c.cat)])].filter(Boolean);
   const todos = catsReais.map(k=>[k,tiposConfig[k],chamadosFiltrados.filter(c=>c.cat===k).length]).filter(([,v])=>v).sort((a,b)=>b[2]-a[2]);
-  const ocultos = todos.slice(15);
+  const ocultos = todos.slice(14);
   const div = document.createElement('div');
   div.id = 'catExtras';
   div.style.display = 'contents';
@@ -1674,7 +1675,7 @@ function renderCatCards() {
     .sort((a,b) => b[2] - a[2]);
   if(!tipos.length) { el.innerHTML=''; return; }
 
-  const MAX = 15;
+  const MAX = 14;
   const visivel = tipos.slice(0, MAX);
   const ocultos = tipos.slice(MAX);
   const totalOcultos = ocultos.reduce((s,[,,n])=>s+n, 0);
