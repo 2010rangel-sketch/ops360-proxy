@@ -925,6 +925,39 @@ app.get('/api/debug-atendimentos', async (req, res) => {
 });
 
 // ── Debug: estrutura de usuários/setores ─────────────────────────
+// ── Endpoint: busca usuários com grupo_permissao e popula mapa setor
+app.get('/api/usuarios-setores', async (_req, res) => {
+  try {
+    // Busca atendimentos recentes para coletar IDs únicos de usuários
+    const agora = new Date();
+    const ini7  = new Date(agora.getTime() - 7*24*60*60*1000);
+    const data  = await hubsoftPost('v1/atendimento/consultar/paginado/500?page=1', {
+      data_inicio: ini7.toISOString(), data_fim: agora.toISOString()
+    });
+    const lista = Array.isArray(data?.atendimentos?.data) ? data.atendimentos.data : [];
+    // Coleta IDs únicos
+    const idsMap = {};
+    lista.forEach(a => {
+      (a.usuarios_responsaveis || []).forEach(u => { if (u.id && u.name) idsMap[u.id] = u.name; });
+      if (a.usuario_fechamento?.id) idsMap[a.usuario_fechamento.id] = a.usuario_fechamento.name;
+    });
+    // Busca grupo de cada usuário via v1/funcionario/{id}
+    const usuarios = [];
+    for (const [id, nome] of Object.entries(idsMap)) {
+      try {
+        const u = await hubsoftGet(`v1/funcionario/${id}`, {});
+        const grupo = u.grupo_permissao?.nome || u.grupo_permissao?.descricao
+                   || u.grupo?.nome || u.setor?.nome
+                   || u.perfil?.nome || u.role?.name || null;
+        usuarios.push({ id: Number(id), nome, grupo, keys: Object.keys(u) });
+      } catch(e) {
+        usuarios.push({ id: Number(id), nome, grupo: null, erro: e.message });
+      }
+    }
+    res.json({ ok: true, total: usuarios.length, usuarios });
+  } catch(err) { res.status(500).json({ ok: false, erro: err.message }); }
+});
+
 app.get('/api/debug-usuarios', async (_req, res) => {
   try {
     // Try GET endpoints
