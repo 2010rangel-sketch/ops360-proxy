@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Preview — Dashboard de Chamados</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  :root {
+    --bg:       #0f1117; --bg2: #151821; --bg3: #1c2030;
+    --surface:  #1e2235; --surface2: #252a40;
+    --border:   #2a2f4a; --border2: #353b5a;
+    --text:     #e2e8f0; --text2: #94a3b8; --text3: #64748b;
+    --accent:   #5b6af0; --accent-light: #1e2a6e;
+    --cyan:     #06b6d4; --green: #22c55e; --red: #ef4444;
+    --amber:    #f59e0b; --purple: #a78bfa; --orange: #f97316;
+    --r: 8px; --r-lg: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 13px; padding: 20px; }
+  h2 { font-size: 14px; font-weight: 600; color: var(--text2); margin-bottom: 16px; }
+
+  /* View selector */
+  .view-bar { display:flex; align-items:center; gap:6px; margin-bottom:20px; }
+  .view-label { font-size:11px; color:var(--text3); font-weight:500; letter-spacing:.04em; text-transform:uppercase; margin-right:4px; }
+  .view-btn-wrap { display:flex; gap:2px; background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:3px; }
+  .vbtn { display:flex; align-items:center; gap:5px; font-size:11px; font-weight:500; padding:5px 11px; border-radius:6px; cursor:pointer; border:none; color:var(--text3); background:transparent; }
+  .vbtn.active { background:var(--accent); color:#fff; }
+  .vbtn i { font-size:10px; }
+
+  /* KPI row */
+  .kpi-row { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:14px; }
+  .kpi-mini { background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:14px 16px; position:relative; overflow:hidden; }
+  .kpi-mini-bar { position:absolute; left:0; top:0; bottom:0; width:3px; border-radius:3px 0 0 3px; }
+  .kpi-mini-label { font-size:10.5px; color:var(--text3); text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px; }
+  .kpi-mini-val { font-size:26px; font-weight:700; font-family:'JetBrains Mono', monospace; line-height:1; }
+  .kpi-mini-sub { font-size:10px; color:var(--text3); margin-top:4px; }
+
+  /* Tbl card */
+  .tbl-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); margin-bottom:14px; overflow:hidden; }
+  .tbl-header { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--border); }
+  .tbl-title { font-size:12.5px; font-weight:600; color:var(--text); }
+  .badge { font-size:10px; font-weight:600; padding:2px 8px; border-radius:20px; }
+  .b-blue { background:#1e2a6e; color:#818cf8; }
+  .b-green { background:#14532d; color:#4ade80; }
+  .b-red { background:#450a0a; color:#f87171; }
+
+  /* Bar chart */
+  .bar-chart { display:flex; align-items:stretch; gap:4px; height:180px; padding:8px 12px 0; }
+  .bar-col { flex:1; display:flex; flex-direction:column; align-items:center; min-width:0; }
+  .bar-col-count { font-size:9px; color:var(--text2); font-family:'JetBrains Mono',monospace; height:14px; line-height:14px; }
+  .bar-col-bars { flex:1; width:100%; display:flex; flex-direction:column; justify-content:flex-end; gap:1px; min-height:0; }
+  .bar-rect { width:88%; border-radius:3px 3px 0 0; min-height:2px; margin:0 auto; }
+  .bar-lbl { font-size:10px; color:var(--text3); font-family:'JetBrains Mono',monospace; height:16px; line-height:16px; }
+
+  /* Grid layouts */
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); overflow:hidden; }
+  .card-body { padding:12px 16px; }
+
+  /* Table */
+  table { width:100%; border-collapse:collapse; }
+  th { padding:8px 14px; text-align:left; font-size:10.5px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text3); background:var(--surface2); }
+  td { padding:10px 14px; border-top:1px solid var(--border); font-size:12.5px; color:var(--text2); }
+  tr:hover td { background:var(--bg3); }
+  .mono { font-family:'JetBrains Mono',monospace; font-size:12px; }
+
+  /* Progress bar */
+  .prog-wrap { background:var(--border); border-radius:4px; height:7px; overflow:hidden; }
+  .prog-fill { height:100%; border-radius:4px; transition:.4s; }
+
+  /* SLA */
+  .sla-num { font-size:32px; font-weight:700; font-family:'JetBrains Mono',monospace; text-align:center; }
+
+  select { background:var(--surface); border:1px solid var(--border2); border-radius:var(--r); padding:3px 8px; color:var(--text); font-size:11px; }
+</style>
+</head>
+<body>
+
+<!-- SELETOR DE VISÃO -->
+<div class="view-bar">
+  <span class="view-label">Visão</span>
+  <div class="view-btn-wrap">
+    <button class="vbtn"><i class="fas fa-th-large"></i> Geral</button>
+    <button class="vbtn"><i class="fas fa-users-cog"></i> Técnicos</button>
+    <button class="vbtn active"><i class="fas fa-ticket-alt"></i> Chamados</button>
+    <button class="vbtn"><i class="fas fa-headset"></i> Atend.</button>
+    <button class="vbtn"><i class="fas fa-users"></i> Retenção</button>
+    <button class="vbtn"><i class="fas fa-plug"></i> Integ.</button>
+  </div>
+</div>
+
+<!-- KPI ROW -->
+<div class="kpi-row">
+  <div class="kpi-mini">
+    <div class="kpi-mini-bar" style="background:#5b6af0"></div>
+    <div class="kpi-mini-label">Abertos</div>
+    <div class="kpi-mini-val" style="color:#5b6af0">48</div>
+  </div>
+  <div class="kpi-mini">
+    <div class="kpi-mini-bar" style="background:#06b6d4"></div>
+    <div class="kpi-mini-label">Em andamento</div>
+    <div class="kpi-mini-val" style="color:#06b6d4">12</div>
+  </div>
+  <div class="kpi-mini">
+    <div class="kpi-mini-bar" style="background:#22c55e"></div>
+    <div class="kpi-mini-label">Finalizados</div>
+    <div class="kpi-mini-val" style="color:#22c55e">93</div>
+  </div>
+  <div class="kpi-mini">
+    <div class="kpi-mini-bar" style="background:#ef4444"></div>
+    <div class="kpi-mini-label">Atrasados</div>
+    <div class="kpi-mini-val" style="color:#ef4444">7</div>
+  </div>
+  <div class="kpi-mini">
+    <div class="kpi-mini-bar" style="background:#a78bfa"></div>
+    <div class="kpi-mini-label">TM Geral</div>
+    <div class="kpi-mini-val" style="color:#a78bfa">42m</div>
+    <div class="kpi-mini-sub">38 OS com dados</div>
+  </div>
+</div>
+
+<!-- CHAMADOS POR HORA -->
+<div class="tbl-card">
+  <div class="tbl-header">
+    <span class="tbl-title">Chamados por hora</span>
+    <div style="display:flex;gap:12px;align-items:center">
+      <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text3)">
+        <span style="width:10px;height:10px;border-radius:2px;background:#818cf8;display:inline-block"></span>Abertos
+      </span>
+      <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text3)">
+        <span style="width:10px;height:10px;border-radius:2px;background:#22c55e;display:inline-block"></span>Fechados
+      </span>
+    </div>
+  </div>
+  <div class="bar-chart" id="horaChart"></div>
+</div>
+
+<!-- SLA + CIDADES -->
+<div class="grid-2">
+
+  <!-- SLA -->
+  <div class="card">
+    <div class="tbl-header"><span class="tbl-title">SLA de Chamados</span></div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+        <div style="text-align:center">
+          <div class="sla-num" style="color:#22c55e">87%</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px">Dentro do SLA</div>
+        </div>
+        <div style="text-align:center">
+          <div class="sla-num" style="color:#ef4444">13%</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px">Fora do SLA</div>
+        </div>
+      </div>
+      <div class="prog-wrap" style="margin-bottom:8px">
+        <div class="prog-fill" style="width:87%;background:#22c55e"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3)">
+        <span>TM médio: <strong style="color:var(--text)">38m</strong></span>
+        <span>SLA padrão: <strong style="color:var(--text)">4h</strong></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cidades -->
+  <div class="card">
+    <div class="tbl-header">
+      <span class="tbl-title">Chamados por cidade</span>
+      <span class="badge b-blue">4 cidades</span>
+    </div>
+    <div class="card-body" id="cidadeEl"></div>
+  </div>
+</div>
+
+<!-- PRODUÇÃO POR TÉCNICO + TM POR TÉCNICO -->
+<div class="grid-2">
+
+  <!-- Produção -->
+  <div class="card">
+    <div class="tbl-header">
+      <span class="tbl-title">Produção por técnico</span>
+      <span class="badge b-blue">4 técnicos</span>
+    </div>
+    <div class="card-body" id="tecBarsEl"></div>
+  </div>
+
+  <!-- TM por técnico -->
+  <div class="card">
+    <div class="tbl-header">
+      <span class="tbl-title">Tempo médio por técnico</span>
+      <select><option>Todos os tipos</option><option>Instalação</option><option>Reparo</option><option>Remoção</option></select>
+    </div>
+    <table>
+      <thead><tr>
+        <th>#</th><th>Técnico</th><th>OS</th><th style="color:#a78bfa">TM médio</th>
+      </tr></thead>
+      <tbody id="tmTecTbl"></tbody>
+    </table>
+    <div style="display:flex;justify-content:space-between;padding:10px 16px 12px;font-size:11px;color:var(--text3);border-top:1px solid var(--border)">
+      <span>🏆 Mais rápido: <strong style="color:#22c55e">João Silva (28m)</strong></span>
+      <span>🐢 Mais lento: <strong style="color:#ef4444">Carlos Melo (1h12m)</strong></span>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── HORA CHART ─────────────────────────────────────────────────────────
+const horasData = [
+  {h:7,ab:2,fin:0},{h:8,ab:9,fin:3},{h:9,ab:8,fin:5},{h:10,ab:8,fin:6},
+  {h:11,ab:3,fin:8},{h:12,ab:2,fin:4},{h:13,ab:13,fin:2},{h:14,ab:12,fin:7},
+  {h:15,ab:11,fin:9},{h:16,ab:1,fin:6},{h:17,ab:2,fin:3},{h:18,ab:1,fin:1},
+];
+const maxH = Math.max(...horasData.map(d=>d.ab+d.fin));
+document.getElementById('horaChart').innerHTML = horasData.map(d => {
+  const tot=d.ab+d.fin, pAb=Math.round(d.ab/maxH*100), pFin=Math.round(d.fin/maxH*100);
+  return `<div class="bar-col" title="${d.h}h: ${tot} chamados">
+    <div class="bar-col-count">${tot||''}</div>
+    <div class="bar-col-bars">
+      ${d.fin>0?`<div class="bar-rect" style="height:${pFin}%;background:#22c55e"></div>`:''}
+      ${d.ab>0 ?`<div class="bar-rect" style="height:${pAb}%;background:#818cf8"></div>`:''}
+    </div>
+    <div class="bar-lbl">${d.h}h</div>
+  </div>`;
+}).join('');
+
+// ── CIDADES ─────────────────────────────────────────────────────────────
+const cidades = [
+  {nome:'Aurora do Norte',n:45},{nome:'Formoso do Araguaia',n:28},
+  {nome:'São Félix do Araguaia',n:18},{nome:'Sandolândia',n:9},
+];
+const maxC = cidades[0].n;
+document.getElementById('cidadeEl').innerHTML = cidades.map(c => `
+  <div style="margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+      <span style="font-size:11.5px;font-weight:500;color:var(--text)">${c.nome}</span>
+      <span class="mono" style="color:#06b6d4;font-weight:700">${c.n}</span>
+    </div>
+    <div class="prog-wrap"><div class="prog-fill" style="width:${Math.round(c.n/maxC*100)}%;background:#06b6d4"></div></div>
+  </div>`).join('');
+
+// ── TÉCNICOS ─────────────────────────────────────────────────────────────
+const tecs = [
+  {nome:'João Silva',  total:32, fin:28, at:1, cor:'#818cf8'},
+  {nome:'Pedro Alves', total:20, fin:18, at:0, cor:'#22c55e'},
+  {nome:'Carlos Melo', total:15, fin:10, at:3, cor:'#06b6d4'},
+  {nome:'Ana Ferreira',total:8,  fin:7,  at:0, cor:'#a78bfa'},
+];
+const maxT = tecs[0].total;
+document.getElementById('tecBarsEl').innerHTML = tecs.map(t => {
+  const pct=Math.round(t.total/maxT*100), taxa=Math.round(t.fin/t.total*100);
+  return `<div style="margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+      <span style="font-size:12px;font-weight:600;color:var(--text)">${t.nome}</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        ${t.at>0?`<span style="font-size:9.5px;color:#ef4444">⚠${t.at}</span>`:''}
+        <span style="font-size:10px;color:#22c55e">${t.fin} fin.</span>
+        <span style="font-size:13px;font-weight:700;font-family:'JetBrains Mono',monospace;color:${t.cor}">${t.total}</span>
+      </div>
+    </div>
+    <div class="prog-wrap"><div class="prog-fill" style="width:${pct}%;background:${t.cor}"></div></div>
+    <div style="font-size:9px;color:var(--text3);margin-top:2px">${taxa}% finalizado</div>
+  </div>`;
+}).join('');
+
+// ── TM POR TÉCNICO ────────────────────────────────────────────────────────
+const tmTecs = [
+  {nome:'João Silva',  os:28, tm:'28m'},
+  {nome:'Pedro Alves', os:18, tm:'35m'},
+  {nome:'Ana Ferreira',os:7,  tm:'51m'},
+  {nome:'Carlos Melo', os:10, tm:'1h12m'},
+];
+document.getElementById('tmTecTbl').innerHTML = tmTecs.map((t,i) => `<tr>
+  <td style="color:var(--text3)">${i+1}</td>
+  <td style="font-weight:500">${t.nome}</td>
+  <td class="mono">${t.os}</td>
+  <td class="mono" style="font-weight:700;color:#a78bfa">${t.tm}</td>
+</tr>`).join('');
+</script>
+</body>
+</html>

@@ -485,9 +485,10 @@ input[type="text"]::placeholder { color:var(--text3); }
         <!-- Filtros de período -->
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <div style="display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px">
-            <button class="chip active per-chip" data-p="hoje"   onclick="setPeriodo('hoje',this)">Hoje</button>
-            <button class="chip per-chip" data-p="amanha"        onclick="setPeriodo('amanha',this)">Amanhã</button>
-            <button class="chip per-chip" data-p="custom"        onclick="setPeriodo('custom',this)">Período</button>
+            <button class="chip active per-chip" data-p="hoje"         onclick="setPeriodo('hoje',this)">Hoje</button>
+            <button class="chip per-chip"        data-p="ontem"        onclick="setPeriodo('ontem',this)">Ontem</button>
+            <button class="chip per-chip"        data-p="hoje_ontem"   onclick="setPeriodo('hoje_ontem',this)">Hoje+Ontem</button>
+            <button class="chip per-chip"        data-p="custom"       onclick="setPeriodo('custom',this)">Período</button>
           </div>
           <div id="dashDateRange" style="display:none;gap:6px;align-items:center">
             <input type="date" id="dashDtDe"  onchange="syncDates('de',this.value)" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
@@ -636,6 +637,37 @@ input[type="text"]::placeholder { color:var(--text3); }
       <!-- ═══ DASH-CHAMADOS ═══ -->
       <div id="dash-tab-chamados" style="display:none">
 
+        <!-- KPI row (sem Atendimentos / Saldo clientes) -->
+        <div class="kpi-row" style="margin-bottom:14px">
+          <div class="kpi-mini">
+            <div class="kpi-mini-bar" style="background:var(--accent)"></div>
+            <div class="kpi-mini-label">Em execução</div>
+            <div class="kpi-mini-val" style="color:var(--accent)" id="dch-exec">—</div>
+          </div>
+          <div class="kpi-mini">
+            <div class="kpi-mini-bar" style="background:var(--red)"></div>
+            <div class="kpi-mini-label">Atrasados</div>
+            <div class="kpi-mini-val" style="color:var(--red)" id="dch-atrasado">—</div>
+            <div class="kpi-mini-sub">SLA crítico</div>
+          </div>
+          <div class="kpi-mini">
+            <div class="kpi-mini-bar" style="background:var(--green)"></div>
+            <div class="kpi-mini-label">Finalizados</div>
+            <div class="kpi-mini-val" style="color:var(--green)" id="dch-fin">—</div>
+            <div class="kpi-mini-sub" id="dch-fin-pct">—</div>
+          </div>
+          <div class="kpi-mini">
+            <div class="kpi-mini-bar" style="background:var(--orange)"></div>
+            <div class="kpi-mini-label">Retrabalhos</div>
+            <div class="kpi-mini-val" style="color:var(--orange)" id="dch-rtb">—</div>
+          </div>
+          <div class="kpi-mini">
+            <div class="kpi-mini-bar" style="background:var(--purple)"></div>
+            <div class="kpi-mini-label">Reagendados</div>
+            <div class="kpi-mini-val" style="color:var(--purple)" id="dch-reag">—</div>
+          </div>
+        </div>
+
         <!-- Status dos chamados + Chamados por hora -->
         <div class="dash-grid" style="margin-bottom:14px">
           <div class="dash-card">
@@ -660,8 +692,8 @@ input[type="text"]::placeholder { color:var(--text3); }
           </div>
         </div>
 
-        <!-- SLA -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        <!-- SLA + TM técnico + TM por tipo -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px">
           <div class="tbl-card" style="margin-bottom:0">
             <div class="tbl-header"><span class="tbl-title">SLA de Chamados</span></div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:8px 4px">
@@ -679,16 +711,16 @@ input[type="text"]::placeholder { color:var(--text3); }
                 <div id="dch-sla-bar" style="height:100%;width:0%;background:var(--green);border-radius:4px;transition:.5s"></div>
               </div>
               <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3)">
-                <span>TM médio: <span id="dch-sla-tm" style="color:var(--text);font-weight:600">—</span></span>
+                <span>TMA médio: <span id="dch-sla-tm" style="color:var(--text);font-weight:600">—</span></span>
                 <span>SLA padrão: <span id="dch-sla-limite" style="color:var(--text);font-weight:600">—</span></span>
               </div>
             </div>
           </div>
 
-          <!-- TM por técnico -->
+          <!-- TMA por técnico -->
           <div class="tbl-card" style="margin-bottom:0">
             <div class="tbl-header">
-              <span class="tbl-title">Tempo médio por técnico</span>
+              <span class="tbl-title">TMA por técnico</span>
               <select id="dch-filtTipo" onchange="renderChamadosDash()" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:3px 8px;color:var(--text);font-size:11px">
                 <option value="">Todos os tipos</option>
               </select>
@@ -696,13 +728,28 @@ input[type="text"]::placeholder { color:var(--text3); }
             <div style="overflow-x:auto;max-height:200px;overflow-y:auto">
               <table><thead><tr>
                 <th>#</th><th>Técnico</th><th>OS</th>
-                <th style="color:#a78bfa">TM médio</th>
+                <th style="color:#a78bfa">TMA</th>
               </tr></thead>
               <tbody id="dch-tm-tec-tbl"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">—</td></tr></tbody></table>
             </div>
             <div style="display:flex;justify-content:space-between;padding:8px 16px 6px;font-size:11px;color:var(--text3);border-top:1px solid var(--border)">
               <span>🏆 Mais rápido: <span id="dch-tm-rapido" style="color:var(--green);font-weight:600">—</span></span>
               <span>🐢 Mais lento: <span id="dch-tm-lento" style="color:var(--red);font-weight:600">—</span></span>
+            </div>
+          </div>
+
+          <!-- TMA por tipo de chamado -->
+          <div class="tbl-card" style="margin-bottom:0">
+            <div class="tbl-header">
+              <span class="tbl-title">TMA por tipo de chamado</span>
+              <span class="badge b-blue" id="dch-tipo-badge"></span>
+            </div>
+            <div style="overflow-x:auto;max-height:200px;overflow-y:auto">
+              <table><thead><tr>
+                <th>#</th><th>Tipo</th><th>OS</th>
+                <th style="color:#a78bfa">TMA</th>
+              </tr></thead>
+              <tbody id="dch-tm-tipo-tbl"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">—</td></tr></tbody></table>
             </div>
           </div>
         </div>
@@ -753,9 +800,10 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
         <!-- Filtro período -->
         <div style="display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px">
-          <button class="chip active per-chip" id="perHoje"   data-p="hoje"   onclick="setPeriodo('hoje',this)">Hoje</button>
-          <button class="chip per-chip"        id="perAmanha"     data-p="amanha"       onclick="setPeriodo('amanha',this)">Amanhã</button>
-          <button class="chip per-chip"        id="perCustom"     data-p="custom"       onclick="setPeriodo('custom',this)">Período</button>
+          <button class="chip active per-chip" id="perHoje"      data-p="hoje"       onclick="setPeriodo('hoje',this)">Hoje</button>
+          <button class="chip per-chip"        id="perOntem"     data-p="ontem"      onclick="setPeriodo('ontem',this)">Ontem</button>
+          <button class="chip per-chip"        id="perHojeOntem" data-p="hoje_ontem" onclick="setPeriodo('hoje_ontem',this)">Hoje+Ontem</button>
+          <button class="chip per-chip"        id="perCustom"    data-p="custom"     onclick="setPeriodo('custom',this)">Período</button>
         </div>
         <div id="dateRange" style="display:none;gap:6px;align-items:center">
           <input type="date" id="dtDe"  onchange="syncDates('de',this.value)" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
@@ -1100,15 +1148,23 @@ input[type="text"]::placeholder { color:var(--text3); }
 
     <!-- ═══ TAREFAS ═══ -->
     <div class="page" id="page-tarefas">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <div style="display:flex;gap:16px">
-          <div class="kpi-mini" style="min-width:100px"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Ativas</div><div class="kpi-mini-val" style="color:var(--accent)" id="tk-at">8</div></div>
-          <div class="kpi-mini" style="min-width:100px"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Urgentes</div><div class="kpi-mini-val" style="color:var(--red)" id="tk-ur">3</div></div>
-          <div class="kpi-mini" style="min-width:100px"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">Concluídas</div><div class="kpi-mini-val" style="color:var(--green)" id="tk-co">5</div></div>
+
+      <!-- Header -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+        <div style="display:flex;gap:14px;flex-wrap:wrap">
+          <div class="kpi-mini" style="min-width:90px"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Ativas</div><div class="kpi-mini-val" style="color:var(--accent)" id="tk-at">—</div></div>
+          <div class="kpi-mini" style="min-width:90px"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Urgentes</div><div class="kpi-mini-val" style="color:var(--red)" id="tk-ur">—</div></div>
+          <div class="kpi-mini" style="min-width:90px"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">Concluídas</div><div class="kpi-mini-val" style="color:var(--green)" id="tk-co">—</div></div>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="showAddTask()"><i class="fas fa-plus"></i> Nova tarefa</button>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-sm" onclick="showTaskSettings()" title="Configurar notificações"><i class="fas fa-bell"></i> Notificações</button>
+          <button class="btn btn-sm" onclick="copyIcsUrl()" title="Assinar calendário no iPhone"><i class="fas fa-calendar-alt"></i> iPhone Calendar</button>
+          <button class="btn btn-primary btn-sm" onclick="showAddTask()"><i class="fas fa-plus"></i> Nova tarefa</button>
+        </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+      <!-- Task lists -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
         <div class="tbl-card" style="margin-bottom:0">
           <div class="tbl-header"><span class="tbl-title">🔴 Alta prioridade</span></div>
           <div style="padding:0 16px" class="task-list" id="tasks-h"></div>
@@ -1118,22 +1174,107 @@ input[type="text"]::placeholder { color:var(--text3); }
           <div style="padding:0 16px" class="task-list" id="tasks-m"></div>
         </div>
       </div>
-      <div class="tbl-card" style="margin-top:16px">
+      <div class="tbl-card">
         <div class="tbl-header"><span class="tbl-title">🟢 Baixa / Concluídas</span></div>
         <div style="padding:0 16px" class="task-list" id="tasks-l"></div>
       </div>
-      <div class="add-form" id="addTaskForm">
-        <div class="form-row">
-          <div class="form-group"><label>Título</label><input type="text" id="nt-title" placeholder="Descreva a tarefa..."></div>
+
+      <!-- Add task form -->
+      <div class="add-form" id="addTaskForm" style="margin-top:14px">
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px"><i class="fas fa-plus-circle" style="color:var(--accent);margin-right:6px"></i>Nova Tarefa</div>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin-bottom:10px">
+          <div class="form-group"><label>Título *</label><input type="text" id="nt-title" placeholder="Descreva a tarefa..."></div>
           <div class="form-group"><label>Prioridade</label><select id="nt-pri"><option value="h">🔴 Alta</option><option value="m" selected>🟡 Média</option><option value="l">🟢 Baixa</option></select></div>
-          <div class="form-group"><label>Categoria</label><select id="nt-tag"><option>Operações</option><option>Chamados</option><option>Retenção</option><option>Reunião</option><option>Relatório</option></select></div>
-          <div class="form-group"><label>Prazo</label><input type="datetime-local" id="nt-date"></div>
+          <div class="form-group"><label>Categoria</label><select id="nt-tag"><option>Operações</option><option>Chamados</option><option>Retenção</option><option>Reunião</option><option>Relatório</option><option>Equipe</option><option>Outro</option></select></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+          <div class="form-group"><label>Prazo (data/hora)</label><input type="datetime-local" id="nt-date"></div>
+          <div class="form-group"><label>Lembrete antes</label><select id="nt-alarm"><option value="10">10 minutos</option><option value="15" selected>15 minutos</option><option value="30">30 minutos</option><option value="60">1 hora</option><option value="120">2 horas</option><option value="1440">1 dia antes</option></select></div>
+          <div class="form-group"><label>Descrição</label><input type="text" id="nt-desc" placeholder="Detalhes opcionais..."></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px">
+          <span style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase">Notificar via:</span>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px">
+            <input type="checkbox" id="nt-notif-email" checked> <i class="fas fa-envelope" style="color:var(--accent)"></i> Email
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px">
+            <input type="checkbox" id="nt-notif-wa" checked> <i class="fab fa-whatsapp" style="color:#22c55e"></i> WhatsApp
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px">
+            <input type="checkbox" id="nt-notif-ical" checked> <i class="fas fa-calendar" style="color:var(--cyan)"></i> iPhone Cal.
+          </label>
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-primary btn-sm" onclick="addTask()"><i class="fas fa-plus"></i> Adicionar</button>
           <button class="btn btn-sm" onclick="hideAddTask()">Cancelar</button>
         </div>
       </div>
+
+      <!-- Notification settings panel -->
+      <div id="taskSettingsPanel" style="display:none;margin-top:14px">
+        <div class="tbl-card">
+          <div class="tbl-header">
+            <span class="tbl-title"><i class="fas fa-bell" style="color:var(--accent);margin-right:6px"></i>Configurar Notificações</span>
+            <button class="btn btn-sm" onclick="document.getElementById('taskSettingsPanel').style.display='none'">✕</button>
+          </div>
+          <div style="padding:12px 16px;display:grid;grid-template-columns:1fr 1fr;gap:24px">
+
+            <!-- Email -->
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                <i class="fas fa-envelope" style="color:var(--accent);font-size:16px"></i>
+                <span style="font-size:13px;font-weight:700">Email</span>
+                <span id="emailConfigBadge" class="badge" style="font-size:10px">não configurado</span>
+              </div>
+              <div class="form-group" style="margin-bottom:8px"><label>Seu email (destinatário)</label><input type="email" id="cfg-email" placeholder="voce@gmail.com"></div>
+              <div class="form-group" style="margin-bottom:8px"><label>SMTP usuário (remetente)</label><input type="email" id="cfg-smtp-user" placeholder="remetente@gmail.com"></div>
+              <div class="form-group" style="margin-bottom:8px"><label>Senha de app Gmail</label><input type="password" id="cfg-smtp-pass" placeholder="xxxx xxxx xxxx xxxx"></div>
+              <div style="font-size:10.5px;color:var(--text3);margin-bottom:10px">Gmail: Conta → Segurança → Senhas de app. Use <b>smtp.gmail.com</b> porta 587.</div>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-primary btn-sm" onclick="saveNotifConfig()"><i class="fas fa-save"></i> Salvar nas vars Railway</button>
+                <button class="btn btn-sm" onclick="testNotif('email')"><i class="fas fa-paper-plane"></i> Testar email</button>
+              </div>
+            </div>
+
+            <!-- WhatsApp -->
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                <i class="fab fa-whatsapp" style="color:#22c55e;font-size:16px"></i>
+                <span style="font-size:13px;font-weight:700">WhatsApp</span>
+                <span id="waConfigBadge" class="badge" style="font-size:10px">não configurado</span>
+              </div>
+              <div style="background:var(--bg3);border-radius:8px;padding:10px;margin-bottom:10px;font-size:11.5px;color:var(--text2);line-height:1.7">
+                <b>Passo 1:</b> Salve <b>+34 644 75 55 56</b> na agenda como "CallMeBot"<br>
+                <b>Passo 2:</b> Envie <span style="background:var(--surface);padding:1px 5px;border-radius:3px;font-family:monospace">I allow callmebot to send me messages</span> por WhatsApp<br>
+                <b>Passo 3:</b> Você receberá sua <b>API Key</b> em segundos
+              </div>
+              <div class="form-group" style="margin-bottom:8px"><label>Seu número (+55DDDnúmero)</label><input type="text" id="cfg-wa-phone" placeholder="5511999999999"></div>
+              <div class="form-group" style="margin-bottom:10px"><label>API Key CallMeBot</label><input type="text" id="cfg-wa-key" placeholder="123456"></div>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-primary btn-sm" onclick="saveNotifConfig()"><i class="fas fa-save"></i> Salvar</button>
+                <button class="btn btn-sm" onclick="testNotif('whatsapp')"><i class="fab fa-whatsapp"></i> Testar WA</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- iPhone Calendar -->
+          <div style="padding:12px 16px;border-top:1px solid var(--border)">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <i class="fas fa-calendar-alt" style="color:var(--cyan);font-size:16px"></i>
+              <span style="font-size:13px;font-weight:700">iPhone / Apple Calendar</span>
+            </div>
+            <div style="font-size:11.5px;color:var(--text2);margin-bottom:10px;line-height:1.7">
+              Assine a URL abaixo no iPhone: <b>Calendário → Adicionar conta → Outros → Adicionar calendário de inscrições</b><br>
+              O iPhone sincroniza a cada 15 min e mostra lembretes automáticos antes de cada tarefa.
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <code id="icsUrlDisplay" style="background:var(--bg3);padding:7px 12px;border-radius:6px;font-size:12px;flex:1;word-break:break-all;color:var(--cyan)">—</code>
+              <button class="btn btn-sm" onclick="copyIcsUrl()"><i class="fas fa-copy"></i> Copiar URL</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <!-- ═══ AGENDA ═══ -->
@@ -1567,8 +1708,11 @@ function getPeriodDates() {
   const hoje  = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
   const amanha = new Date(hoje.getTime() + 24*60*60*1000);
   const p = filtros.periodo;
-  if (p === 'hoje')   return { ini: hoje.toISOString(),   fim: amanha.toISOString() };
-  if (p === 'amanha') return { ini: amanha.toISOString(), fim: new Date(amanha.getTime() + 24*60*60*1000).toISOString() };
+  const ontem = new Date(hoje.getTime() - 24*60*60*1000);
+  if (p === 'hoje')        return { ini: hoje.toISOString(),   fim: amanha.toISOString() };
+  if (p === 'ontem')       return { ini: ontem.toISOString(),  fim: hoje.toISOString() };
+  if (p === 'hoje_ontem')  return { ini: ontem.toISOString(),  fim: amanha.toISOString() };
+  if (p === 'amanha')      return { ini: amanha.toISOString(), fim: new Date(amanha.getTime() + 24*60*60*1000).toISOString() };
   if (p === 'semana') {
     const dow = hoje.getDay();
     const seg = new Date(hoje.getTime() - ((dow===0?6:dow-1)*24*60*60*1000));
@@ -1598,7 +1742,7 @@ async function buscarPeriodo() {
   const periodoSnapshot = filtros.periodo;
   const { ini, fim } = getPeriodDates();
   // Use full pagination for non-today queries (semana, mes, custom)
-  const useAll = periodoSnapshot !== 'hoje' && periodoSnapshot !== 'amanha';
+  const useAll = !['hoje','ontem','hoje_ontem','amanha'].includes(periodoSnapshot);
   const setBtns = (txt, dis) => {
     ['btnBuscar','btnBuscarDash'].forEach(id => {
       const b = document.getElementById(id);
@@ -3232,6 +3376,21 @@ function renderChamadosDash() {
   const fmtTM = m => m == null ? '—' : m < 60 ? `${m}m` : `${Math.floor(m/60)}h${String(m%60).padStart(2,'0')}m`;
   const ev = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
 
+  // ── KPI row ───────────────────────────────────────────────────────
+  const exec  = fonte.filter(c=>['execucao','em_execucao'].includes(c.st)).length;
+  const atr   = fonte.filter(c=>c.st==='atrasado').length;
+  const fin   = fonte.filter(c=>c.st==='finalizado').length;
+  const rtb   = fonte.filter(c=>c.rtb||c.st==='retrabalho').length;
+  const reag  = fonte.filter(c=>c.st==='reagendado').length;
+  const total = fonte.length;
+  ev('dch-exec',   exec);
+  ev('dch-atrasado', atr);
+  ev('dch-fin',    fin);
+  ev('dch-rtb',    rtb);
+  ev('dch-reag',   reag);
+  const fpct = document.getElementById('dch-fin-pct');
+  if (fpct) fpct.textContent = total ? `${Math.round(fin/total*100)}% do total` : '—';
+
   // ── SLA ───────────────────────────────────────────────────────────
   const finalizados = fonte.filter(c => c.st === 'finalizado' && c.tsInicioExec && c.tsFimExec && c.dataProgramada);
   let slaOk=0, slaFora=0, slaTMtot=0;
@@ -3291,6 +3450,29 @@ function renderChamadosDash() {
     ev('dch-tm-rapido', `${tmTecLista[0].tec} (${fmtTM(tmTecLista[0].tm)})`);
     ev('dch-tm-lento',  `${tmTecLista[tmTecLista.length-1].tec} (${fmtTM(tmTecLista[tmTecLista.length-1].tm)})`);
   }
+
+  // ── TM por tipo de chamado ────────────────────────────────────────
+  const tmTipoMap = {};
+  fonte.filter(c => c.tsInicioExec && c.tsFimExec && c.cat && c.st === 'finalizado').forEach(c => {
+    const dur = (new Date(c.tsFimExec) - new Date(c.tsInicioExec)) / 60000;
+    if (dur <= 0 || dur >= 720) return;
+    if (!tmTipoMap[c.cat]) tmTipoMap[c.cat] = { total:0, soma:0 };
+    tmTipoMap[c.cat].total++;
+    tmTipoMap[c.cat].soma += dur;
+  });
+  const tmTipoLista = Object.entries(tmTipoMap)
+    .map(([tipo,d]) => ({ tipo, total:d.total, tm:Math.round(d.soma/d.total) }))
+    .sort((a,b) => a.tm - b.tm);
+  const tipoTbl   = document.getElementById('dch-tm-tipo-tbl');
+  const tipoBadge = document.getElementById('dch-tipo-badge');
+  if (tipoBadge) tipoBadge.textContent = `${tmTipoLista.length} tipos`;
+  if (tipoTbl) tipoTbl.innerHTML = tmTipoLista.length ? tmTipoLista.map((t,i) => `<tr>
+    <td style="color:var(--text3)">${i+1}</td>
+    <td style="font-weight:500;font-size:11.5px">${t.tipo}</td>
+    <td class="mono">${t.total}</td>
+    <td class="mono" style="font-weight:700;color:#a78bfa">${fmtTM(t.tm)}</td>
+  </tr>`).join('')
+  : `<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">Sem dados de execução</td></tr>`;
 }
 
 function renderTMAranking() {
@@ -3330,56 +3512,189 @@ loadRetencaoAtend();
 loadContratos();
 
 // TASKS
-let tasks = [
-  {id:1,t:'Revisar relatório de SLA semanal',p:'h',tag:'Relatório',done:false,time:'Hoje 14:00'},
-  {id:2,t:'Reunião equipe técnica — retrabalhos',p:'h',tag:'Reunião',done:false,time:'Hoje 15:30'},
-  {id:3,t:'Analisar indicadores de retenção',p:'h',tag:'Retenção',done:false,time:'Hoje 17:00'},
-  {id:4,t:'Configurar alertas automáticos',p:'m',tag:'Operações',done:false,time:'Amanhã'},
-  {id:5,t:'Preparar apresentação diretoria',p:'m',tag:'Relatório',done:false,time:'Quinta'},
-  {id:6,t:'Feedback individual com técnicos',p:'m',tag:'Equipe',done:false,time:'Sexta'},
-  {id:7,t:'Atualizar procedimentos atendimento',p:'l',tag:'Operações',done:true,time:'Ontem'},
-  {id:8,t:'Revisar contrato ChatMix',p:'l',tag:'Outro',done:false,time:'Próx. semana'},
-];
+// ── TAREFAS — API-backed ──────────────────────────────────────────
+let tasks = [];
+
+async function loadTasksFromAPI() {
+  try {
+    const r = await fetch('/api/tasks');
+    tasks = await r.json();
+    renderTasks();
+    loadNotifConfig();
+  } catch(e) { console.error('tasks load error', e); }
+}
+
+function fmtDue(iso) {
+  if (!iso) return 'Sem prazo';
+  const d = new Date(iso);
+  const now = new Date();
+  const diff = d - now;
+  const isToday = d.toDateString() === now.toDateString();
+  const yesterday = new Date(now); yesterday.setDate(now.getDate()-1);
+  const isYest = d.toDateString() === yesterday.toDateString();
+  const tomorrow = new Date(now); tomorrow.setDate(now.getDate()+1);
+  const isTomorrow = d.toDateString() === tomorrow.toDateString();
+  const hm = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  if (isToday) return `Hoje ${hm}`;
+  if (isTomorrow) return `Amanhã ${hm}`;
+  if (isYest) return `Ontem ${hm}`;
+  return `${d.toLocaleDateString('pt-BR')} ${hm}`;
+}
+
+function taskUrgency(t) {
+  if (!t.dueAt) return '';
+  const diff = new Date(t.dueAt) - new Date();
+  if (diff < 0) return 'overdue';
+  if (diff < 30*60000) return 'soon';
+  return '';
+}
+
 function renderTasks() {
   const renderTo = (id, fn) => {
     const el = document.getElementById(id);
-    if(!el) return;
+    if (!el) return;
     const filtered = tasks.filter(fn);
-    el.innerHTML = filtered.length ? filtered.map(t=>`
-      <div class="task-item">
-        <div class="task-check ${t.done?'done':''}" onclick="toggleTask(${t.id})">${t.done?'✓':''}</div>
+    el.innerHTML = filtered.length ? filtered.map(t => {
+      const urg = taskUrgency(t);
+      const urgStyle = urg==='overdue' ? 'border-left:3px solid var(--red);padding-left:8px'
+                     : urg==='soon'    ? 'border-left:3px solid var(--amber);padding-left:8px' : '';
+      const notifIcons = [
+        t.notifEmail!==false ? '<i class="fas fa-envelope" style="color:var(--accent);font-size:9px" title="Email"></i>' : '',
+        t.notifWA!==false    ? '<i class="fab fa-whatsapp" style="color:#22c55e;font-size:9px" title="WhatsApp"></i>' : '',
+        t.notifICal!==false  ? '<i class="fas fa-calendar" style="color:var(--cyan);font-size:9px" title="iPhone Cal"></i>' : '',
+      ].filter(Boolean).join('');
+      return `<div class="task-item" style="${urgStyle}">
+        <div class="task-check ${t.done?'done':''}" onclick="toggleTask('${t.id}')">${t.done?'✓':''}</div>
         <div class="task-body">
-          <div class="task-title ${t.done?'done':''}">${t.t}</div>
+          <div class="task-title ${t.done?'done':''}">${t.title||t.t}</div>
           <div class="task-meta">
-            <span class="task-tag">${t.tag}</span>
+            <span class="task-tag">${t.tag||''}</span>
             <span class="task-pri pri-${t.p}">${t.p==='h'?'Alta':t.p==='m'?'Média':'Baixa'}</span>
-            <span class="task-time">${t.time}</span>
+            <span class="task-time" style="${urg==='overdue'?'color:var(--red)':urg==='soon'?'color:var(--amber)':''}">${fmtDue(t.dueAt)}</span>
+            <span style="display:flex;gap:3px;align-items:center">${notifIcons}</span>
           </div>
+          ${t.desc ? `<div style="font-size:11px;color:var(--text3);margin-top:3px">${t.desc}</div>` : ''}
         </div>
-        <button class="task-del" onclick="delTask(${t.id})">✕</button>
-      </div>
-    `).join('') : '<div style="color:var(--text3);font-size:12px;padding:12px 0">Nenhuma tarefa</div>';
+        <button class="task-del" onclick="delTask('${t.id}')">✕</button>
+      </div>`;
+    }).join('') : '<div style="color:var(--text3);font-size:12px;padding:12px 0">Nenhuma tarefa</div>';
   };
-  renderTo('tasks-h', t=>t.p==='h'&&!t.done);
-  renderTo('tasks-m', t=>t.p==='m'&&!t.done);
-  renderTo('tasks-l', t=>t.p==='l'||t.done);
-  const a=tasks.filter(t=>!t.done).length, u=tasks.filter(t=>t.p==='h'&&!t.done).length, c=tasks.filter(t=>t.done).length;
+  renderTo('tasks-h', t => t.p==='h' && !t.done);
+  renderTo('tasks-m', t => t.p==='m' && !t.done);
+  renderTo('tasks-l', t => t.p==='l' || t.done);
+  const a = tasks.filter(t=>!t.done).length;
+  const u = tasks.filter(t=>t.p==='h'&&!t.done).length;
+  const c = tasks.filter(t=>t.done).length;
   const ta=document.getElementById('tk-at'); if(ta) ta.textContent=a;
   const tu=document.getElementById('tk-ur'); if(tu) tu.textContent=u;
   const tc2=document.getElementById('tk-co'); if(tc2) tc2.textContent=c;
 }
-function toggleTask(id) { tasks=tasks.map(t=>t.id===id?{...t,done:!t.done}:t); renderTasks(); }
-function delTask(id) { tasks=tasks.filter(t=>t.id!==id); renderTasks(); }
+
+async function toggleTask(id) {
+  const t = tasks.find(x=>x.id===id);
+  if (!t) return;
+  try {
+    const r = await fetch(`/api/tasks/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({done:!t.done}) });
+    const updated = await r.json();
+    tasks = tasks.map(x=>x.id===id?updated:x);
+    renderTasks();
+  } catch(e) { console.error(e); }
+}
+
+async function delTask(id) {
+  try {
+    await fetch(`/api/tasks/${id}`, { method:'DELETE' });
+    tasks = tasks.filter(x=>x.id!==id);
+    renderTasks();
+  } catch(e) { console.error(e); }
+}
+
 function showAddTask() { document.getElementById('addTaskForm').style.display='block'; }
 function hideAddTask() { document.getElementById('addTaskForm').style.display='none'; }
-function addTask() {
+
+async function addTask() {
   const title = document.getElementById('nt-title').value.trim();
-  if(!title) return;
-  tasks.push({id:Date.now(),t:title,p:document.getElementById('nt-pri').value,tag:document.getElementById('nt-tag').value,done:false,time:document.getElementById('nt-date').value||'Sem prazo'});
-  document.getElementById('nt-title').value='';
-  renderTasks(); hideAddTask();
+  if (!title) return;
+  const body = {
+    title,
+    t: title,
+    p:           document.getElementById('nt-pri').value,
+    tag:         document.getElementById('nt-tag').value,
+    dueAt:       document.getElementById('nt-date').value || null,
+    notifyMin:   parseInt(document.getElementById('nt-alarm').value),
+    desc:        document.getElementById('nt-desc').value.trim() || null,
+    notifEmail:  document.getElementById('nt-notif-email').checked,
+    notifWA:     document.getElementById('nt-notif-wa').checked,
+    notifICal:   document.getElementById('nt-notif-ical').checked,
+  };
+  try {
+    const r = await fetch('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    const t = await r.json();
+    tasks.push(t);
+    renderTasks();
+    document.getElementById('nt-title').value = '';
+    document.getElementById('nt-date').value = '';
+    document.getElementById('nt-desc').value = '';
+    hideAddTask();
+  } catch(e) { console.error(e); }
 }
-renderTasks();
+
+// ── Notification config ───────────────────────────────────────────
+async function loadNotifConfig() {
+  try {
+    const r = await fetch('/api/notif-config');
+    const c = await r.json();
+    const eb = document.getElementById('emailConfigBadge');
+    const wb = document.getElementById('waConfigBadge');
+    if (eb) { eb.textContent = c.emailConfigured ? '✓ configurado' : 'não configurado'; eb.style.background = c.emailConfigured ? 'var(--green)' : 'var(--red)'; eb.style.color = '#fff'; }
+    if (wb) { wb.textContent = c.waConfigured ? '✓ configurado' : 'não configurado'; wb.style.background = c.waConfigured ? 'var(--green)' : 'var(--red)'; wb.style.color = '#fff'; }
+    if (c.email) { const el=document.getElementById('cfg-email'); if(el) el.value=c.email; }
+    if (c.waPhone) { const el=document.getElementById('cfg-wa-phone'); if(el) el.value=c.waPhone; }
+    // ICS URL
+    const icsEl = document.getElementById('icsUrlDisplay');
+    if (icsEl) icsEl.textContent = `${location.origin}/api/tasks/calendar.ics`;
+  } catch(e) {}
+}
+
+function showTaskSettings() {
+  const p = document.getElementById('taskSettingsPanel');
+  p.style.display = p.style.display==='none' ? 'block' : 'none';
+  loadNotifConfig();
+}
+
+function saveNotifConfig() {
+  const vars = {
+    NOTIF_EMAIL: document.getElementById('cfg-email')?.value?.trim(),
+    SMTP_USER:   document.getElementById('cfg-smtp-user')?.value?.trim(),
+    SMTP_PASS:   document.getElementById('cfg-smtp-pass')?.value?.trim(),
+    WA_PHONE:    document.getElementById('cfg-wa-phone')?.value?.trim(),
+    WA_CALLMEBOT_KEY: document.getElementById('cfg-wa-key')?.value?.trim(),
+  };
+  const lines = Object.entries(vars).filter(([,v])=>v).map(([k,v])=>`${k}=${v}`).join('\n');
+  navigator.clipboard.writeText(lines).then(() => {
+    alert('Variáveis copiadas!\n\nCole no Railway: seu projeto → Variables → Raw Editor\n\n' + lines);
+  }).catch(() => {
+    alert('Configure no Railway → Variables:\n\n' + lines);
+  });
+}
+
+async function testNotif(type) {
+  try {
+    const r = await fetch('/api/tasks/test-notif', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({type}) });
+    const j = await r.json();
+    if (j.ok) alert(`✅ ${type === 'email' ? 'Email' : 'WhatsApp'} enviado com sucesso!`);
+    else alert(`❌ Erro: ${j.error}`);
+  } catch(e) { alert('Erro ao testar: ' + e.message); }
+}
+
+function copyIcsUrl() {
+  const url = `${location.origin}/api/tasks/calendar.ics`;
+  navigator.clipboard.writeText(url).then(() => {
+    alert(`URL copiada!\n\n${url}\n\nNo iPhone:\nCalendário → Adicionar conta → Outros → Adicionar calendário de inscrições → cole a URL`);
+  }).catch(() => alert(url));
+}
+
+loadTasksFromAPI();
 
 // CALENDAR
 // ── Agenda iCloud ────────────────────────────────────────────────

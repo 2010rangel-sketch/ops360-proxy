@@ -1125,6 +1125,199 @@ app.delete('/api/agenda/deletar/:uid', async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════
+//  TAREFAS — Persistência, ICS, Email, WhatsApp
+// ═══════════════════════════════════════════════════════════════
+
+const fs         = require('fs');
+const nodemailer = require('nodemailer');
+const cron       = require('node-cron');
+
+const TASKS_FILE = path.join(__dirname, 'data', 'tasks.json');
+
+function loadTasks() {
+  try { return JSON.parse(fs.readFileSync(TASKS_FILE, 'utf8')); } catch { return []; }
+}
+function saveTasks(tasks) {
+  try {
+    fs.mkdirSync(path.dirname(TASKS_FILE), { recursive:true });
+    fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2));
+  } catch(e) { console.error('[tasks] save error', e.message); }
+}
+
+// ── CRUD ─────────────────────────────────────────────────────────
+app.get('/api/tasks', (req, res) => res.json(loadTasks()));
+
+app.post('/api/tasks', (req, res) => {
+  const tasks = loadTasks();
+  const t = { ...req.body, id: Date.now().toString(), done: false, createdAt: new Date().toISOString() };
+  tasks.push(t);
+  saveTasks(tasks);
+  res.json(t);
+});
+
+app.put('/api/tasks/:id', (req, res) => {
+  const tasks = loadTasks();
+  const idx = tasks.findIndex(t => t.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'not found' });
+  tasks[idx] = { ...tasks[idx], ...req.body };
+  saveTasks(tasks);
+  res.json(tasks[idx]);
+});
+
+app.delete('/api/tasks/:id', (req, res) => {
+  let tasks = loadTasks();
+  tasks = tasks.filter(t => t.id !== req.params.id);
+  saveTasks(tasks);
+  res.json({ ok: true });
+});
+
+// ── Configurações de notificação (em memória / env) ───────────────
+function getNotifConfig() {
+  return {
+    email:       process.env.NOTIF_EMAIL       || '',
+    smtpUser:    process.env.SMTP_USER         || '',
+    smtpPass:    process.env.SMTP_PASS         || '',
+    smtpHost:    process.env.SMTP_HOST         || 'smtp.gmail.com',
+    smtpPort:    parseInt(process.env.SMTP_PORT||'587'),
+    waPhone:     process.env.WA_PHONE          || '',  // ex: 5511999999999
+    waApiKey:    process.env.WA_CALLMEBOT_KEY  || '',
+  };
+}
+
+app.get('/api/notif-config', (req, res) => {
+  const c = getNotifConfig();
+  res.json({
+    emailConfigured: !!(c.smtpUser && c.smtpPass),
+    waConfigured:    !!(c.waPhone && c.waApiKey),
+    email: c.email,
+    waPhone: c.waPhone,
+  });
+});
+
+// ── Email ─────────────────────────────────────────────────────────
+async function sendEmail(subject, html) {
+  const c = getNotifConfig();
+  if (!c.smtpUser || !c.smtpPass || !c.email) return false;
+  const transporter = nodemailer.createTransport({
+    host: c.smtpHost, port: c.smtpPort, secure: c.smtpPort === 465,
+    auth: { user: c.smtpUser, pass: c.smtpPass },
+  });
+  await transporter.sendMail({ from: c.smtpUser, to: c.email, subject, html });
+  return true;
+}
+
+// ── WhatsApp via CallMeBot ────────────────────────────────────────
+async function sendWhatsApp(message) {
+  const c = getNotifConfig();
+  if (!c.waPhone || !c.waApiKey) return false;
+  const url = `https://api.callmebot.com/whatsapp.php?phone=${c.waPhone}&text=${encodeURIComponent(message)}&apikey=${c.waApiKey}`;
+  await axios.get(url, { timeout: 8000 });
+  return true;
+}
+
+// ── Endpoint para testar notificações ────────────────────────────
+app.post('/api/tasks/test-notif', async (req, res) => {
+  const { type } = req.body;
+  try {
+    if (type === 'email') {
+      await sendEmail('✅ OPS360 — Teste de notificação',
+        '<h2>Notificação de email funcionando!</h2><p>Suas tarefas serão enviadas por aqui.</p>');
+      return res.json({ ok: true });
+    }
+    if (type === 'whatsapp') {
+      await sendWhatsApp('✅ OPS360: Notificações WhatsApp ativadas!');
+      return res.json({ ok: true });
+    }
+    res.status(400).json({ error: 'type inválido' });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── ICS Calendar feed (iPhone assina esta URL) ────────────────────
+app.get('/api/tasks/calendar.ics', (req, res) => {
+  const tasks = loadTasks().filter(t => !t.done && t.dueAt);
+  const stamp = new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d+/,'');
+  const host  = req.get('host') || 'ops360.railway.app';
+
+  const events = tasks.map(t => {
+    const due   = new Date(t.dueAt);
+    const start = due.toISOString().replace(/[-:]/g,'').replace(/\.\d+/,'');
+    const end   = new Date(due.getTime() + 30*60000).toISOString().replace(/[-:]/g,'').replace(/\.\d+/,'');
+    const alarm = t.notifyMin || 15;
+    return [
+      'BEGIN:VEVENT',
+      `UID:ops360-${t.id}@${host}`,
+      `DTSTAMP:${stamp}`,
+      `DTSTART:${start}`,
+      `DTEND:${end}`,
+      `SUMMARY:${(t.title||t.t||'Tarefa').replace(/[,;]/g,' ')}`,
+      `DESCRIPTION:${(t.tag||'')+(t.desc?' — '+t.desc:'')}`,
+      `CATEGORIES:${t.tag||'Tarefas'}`,
+      'BEGIN:VALARM',
+      'ACTION:DISPLAY',
+      `DESCRIPTION:Lembrete: ${(t.title||t.t||'Tarefa')}`,
+      `TRIGGER:-PT${alarm}M`,
+      'END:VALARM',
+      'END:VEVENT',
+    ].join('\r\n');
+  }).join('\r\n');
+
+  const ics = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//OPS360//Tarefas//PT',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    `X-WR-CALNAME:OPS360 Tarefas`,
+    'X-WR-TIMEZONE:America/Sao_Paulo',
+    'REFRESH-INTERVAL;VALUE=DURATION:PT15M',
+    'X-PUBLISHED-TTL:PT15M',
+    events,
+    'END:VCALENDAR',
+  ].join('\r\n');
+
+  res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="ops360-tarefas.ics"');
+  res.send(ics);
+});
+
+// ── Cron: verifica tarefas e envia alertas ────────────────────────
+const notifSent = new Set(); // evita enviar duplicado na mesma janela
+
+cron.schedule('* * * * *', async () => {
+  const tasks = loadTasks();
+  const now   = Date.now();
+
+  for (const t of tasks) {
+    if (t.done || !t.dueAt) continue;
+    const due     = new Date(t.dueAt).getTime();
+    const diffMin = Math.round((due - now) / 60000);
+    const alarm   = t.notifyMin || 15;
+
+    // Avisa quando falta exatamente `alarm` minutos (janela ±1 min)
+    if (Math.abs(diffMin - alarm) > 1) continue;
+
+    const key = `${t.id}-${alarm}`;
+    if (notifSent.has(key)) continue;
+    notifSent.add(key);
+
+    const titulo  = t.title || t.t || 'Tarefa';
+    const hora    = new Date(t.dueAt).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', timeZone:'America/Sao_Paulo' });
+    const msg     = `⏰ OPS360 — Lembrete: *${titulo}* às ${hora} (em ${alarm} min)`;
+
+    if (t.notifEmail !== false) sendEmail(`⏰ Lembrete: ${titulo}`,
+      `<h3>Lembrete de tarefa</h3><p><b>${titulo}</b></p><p>Prevista para <b>${hora}</b></p><p>Categoria: ${t.tag||'—'}</p>`
+    ).catch(console.error);
+
+    if (t.notifWA !== false) sendWhatsApp(msg).catch(console.error);
+  }
+
+  // Limpa chaves antigas após 2h
+  if (notifSent.size > 500) notifSent.clear();
+});
+
 // ── Inicializa ────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`\n🚀 OPS360 Proxy rodando na porta ${PORT}`);
