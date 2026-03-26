@@ -454,6 +454,16 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
         <button id="btnBuscarDash" class="btn btn-primary btn-sm" onclick="buscarPeriodo()" style="padding:5px 14px;font-size:12px"><i class="fas fa-search"></i> Buscar</button>
       </div>
+      <!-- Dashboard sub-tabs -->
+      <div style="display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px;margin-bottom:12px;flex-wrap:wrap">
+        <button class="chip active" id="dash-tab-btn-geral"    onclick="showDashTab('geral')">Geral</button>
+        <button class="chip"        id="dash-tab-btn-tecnico"  onclick="showDashTab('tecnico')">Técnicos</button>
+        <button class="chip"        onclick="goPage('chamados')">Chamados</button>
+        <button class="chip"        onclick="goPage('atendimento')">Atendimento</button>
+        <button class="chip"        onclick="goPage('retencao')">Retenção</button>
+        <button class="chip"        onclick="goPage('integracoes')">Integrações</button>
+      </div>
+      <div id="dash-tab-geral">
       <!-- KPI Row (6 minis) -->
       <div class="kpi-row">
         <div class="kpi-mini">
@@ -613,6 +623,24 @@ input[type="text"]::placeholder { color:var(--text3); }
           </div>
         </div>
       </div>
+      </div><!-- /#dash-tab-geral -->
+
+      <div id="dash-tab-tecnico" style="display:none">
+        <!-- filter + TMA ranking table -->
+        <div class="tbl-card">
+          <div class="tbl-header">
+            <span class="tbl-title">Tempo médio por técnico / atendente</span>
+            <select id="filtTMATipo" onchange="renderTMAranking()" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:4px 8px;color:var(--text);font-size:12px">
+              <option value="">Todos os tipos</option>
+            </select>
+          </div>
+          <div style="overflow-x:auto;max-height:400px;overflow-y:auto">
+            <table><thead><tr><th>#</th><th>Atendente</th><th>Setor</th><th>Total</th><th style="color:var(--cyan)">TMA</th><th style="color:#22c55e">Resolvido</th><th style="color:var(--accent)">O.S Aberta</th></tr></thead>
+            <tbody id="tmaRankingTbl"><tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
+          </div>
+        </div>
+      </div><!-- /#dash-tab-tecnico -->
+
     </div>
 
     <!-- ═══ CHAMADOS (por tipo) ═══ -->
@@ -1281,6 +1309,9 @@ function goPage(id, el) {
   const titles = {dashboard:'Dashboard',chamados:'Chamados',atendimento:'Atendimento',retencao:'Cadastros & Retenção',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
   document.getElementById('pageTitle').textContent = titles[id]||id;
   // Restaura dados em memória ao navegar de volta para páginas com dados
+  if (id === 'dashboard') {
+    showDashTab('geral');
+  }
   if (id === 'chamados' && chamadosDB.length > 0) {
     aplicarDados(chamadosDB);
   }
@@ -2250,12 +2281,13 @@ function renderDashboard() {
       barEl.innerHTML = hs.map(h => {
           const ab  = horasMap[h].ab, fn = horasMap[h].fin, tot = ab+fn;
           const hAb = Math.round(ab/maxV*140), hFn = Math.round(fn/maxV*140);
-          return `<div class="bar-col" title="${h}h: ${tot} chamados">
+          return `<div class="bar-col" title="${h}h: ${tot} chamados (${ab} abertos, ${fn} fechados)">
+            ${tot > 0 ? `<div style="font-size:9px;color:var(--text2);font-family:'JetBrains Mono',monospace;text-align:center;margin-bottom:2px">${tot}</div>` : '<div style="height:13px"></div>'}
             <div style="display:flex;flex-direction:column;justify-content:flex-end;gap:1px;height:140px">
-              <div class="bar-rect" style="height:${hFn}px;background:#22c55e"></div>
-              <div class="bar-rect" style="height:${hAb}px;background:#5b6af0"></div>
+              <div class="bar-rect" style="height:${hFn}px;background:#22c55e;opacity:0.9"></div>
+              <div class="bar-rect" style="height:${hAb}px;background:#818cf8;opacity:0.9"></div>
             </div>
-            <div class="bar-lbl">${h}h</div>
+            <div style="font-size:10px;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-top:3px">${h}h</div>
           </div>`;
         }).join('');
       if(labEl) labEl.innerHTML = '';
@@ -2411,7 +2443,7 @@ function rebuildAll() {
 }
 
 // ── SINCRONIZAÇÃO HUBSOFT (simulada) ─────────────────────────────────────
-function testarHubsoft() {
+async function testarHubsoft() {
   const host     = document.getElementById('hs-host')?.value?.trim();
   const clientId = document.getElementById('hs-client-id')?.value?.trim();
   const secret   = document.getElementById('hs-client-secret')?.value?.trim();
@@ -2428,17 +2460,7 @@ function testarHubsoft() {
   // Chamada real à API Hubsoft:
   // POST https://{host}/oauth/token
   // Body: { grant_type:'password', client_id, client_secret, username, password }
-  setTimeout(() => {
-    if(badge) { badge.textContent='● Conectado'; badge.className='badge b-green'; }
-    const t = new Date().toLocaleTimeString('pt-BR');
-    if(log) log.innerHTML = `<span style="color:var(--green)">✓</span> [${t}] Token OAuth2 obtido com sucesso<br><span style="color:var(--green)">✓</span> Endpoint: https://${host}/api<br><span style="color:var(--green)">✓</span> Módulos acessíveis: Chamados, Clientes, Técnicos<br><span style="color:var(--text3)">→</span> Pronto para sincronizar`;
-    // Atualiza KPI card
-    const st = document.getElementById('int-hubsoft-st');
-    const sub = document.getElementById('int-hubsoft-sub');
-    if(st) { st.textContent='Conectado'; st.style.color='var(--green)'; st.style.fontSize='18px'; }
-    if(sub) sub.textContent='Último sync agora';
-    const bar = document.getElementById('int-hubsoft-bar'); if(bar) bar.style.background='var(--green)';
-  }, 1200);
+  testarConexaoProxy();
 }
 
 function salvarHubsoft() {
@@ -3081,6 +3103,51 @@ function renderRetencao(data) {
     </tr>`).join('')
     : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Nenhum pedido no período</td></tr>`;
   }
+}
+
+function showDashTab(name) {
+  const geral   = document.getElementById('dash-tab-geral');
+  const tecnico = document.getElementById('dash-tab-tecnico');
+  const btnGeral   = document.getElementById('dash-tab-btn-geral');
+  const btnTecnico = document.getElementById('dash-tab-btn-tecnico');
+  if (geral)   geral.style.display   = name === 'geral'   ? '' : 'none';
+  if (tecnico) tecnico.style.display = name === 'tecnico' ? '' : 'none';
+  if (btnGeral)   btnGeral.classList.toggle('active',   name === 'geral');
+  if (btnTecnico) btnTecnico.classList.toggle('active', name === 'tecnico');
+  if (name === 'tecnico') renderTMAranking();
+}
+
+function renderTMAranking() {
+  const tbl = document.getElementById('tmaRankingTbl');
+  if (!tbl || !_atendData) return;
+
+  // populate tipo select
+  const sel = document.getElementById('filtTMATipo');
+  if (sel && sel.options.length <= 1 && _atendData.por_tipo?.length) {
+    _atendData.por_tipo.forEach(t => {
+      const o = document.createElement('option');
+      o.value = t.tipo; o.textContent = t.tipo;
+      sel.appendChild(o);
+    });
+  }
+
+  let lista = _atendData.por_atendente || [];
+  lista = [...lista].sort((a, b) => (b.tma || 0) - (a.tma || 0));
+
+  const fmtTMA = m => m == null ? '—' : m < 60 ? `${m}m` : `${Math.floor(m/60)}h${String(m%60).padStart(2,'0')}m`;
+  tbl.innerHTML = lista.length ? lista.map((a, i) => {
+    const pctRes = a.total > 0 ? Math.round((a.semOS||0) / a.total * 100) : 0;
+    const pctOS  = a.total > 0 ? Math.round((a.comOS||0) / a.total * 100) : 0;
+    return `<tr>
+      <td style="color:var(--text3)">${i+1}</td>
+      <td style="font-weight:500">${a.atendente}</td>
+      <td style="font-size:11px;color:var(--text3)">${a.setor||'—'}</td>
+      <td class="mono" style="font-weight:600">${a.total}</td>
+      <td class="mono" style="color:var(--cyan);font-weight:600">${fmtTMA(a.tma)}</td>
+      <td class="mono" style="color:#22c55e">${a.semOS||0}<div style="font-size:10px;color:var(--text3)">${pctRes}%</div></td>
+      <td class="mono" style="color:var(--accent)">${a.comOS||0}<div style="font-size:10px;color:var(--text3)">${pctOS}%</div></td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">Sem dados de atendimento</td></tr>`;
 }
 
 loadRetencaoAtend();
