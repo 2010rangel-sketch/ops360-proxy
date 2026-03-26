@@ -767,6 +767,34 @@ app.get('/api/atendimentos', async (req, res) => {
 });
 
 
+// ── Debug temporário: raw de atendimento de cancelamento ─────────
+app.get('/api/debug-retencao-raw', async (_req, res) => {
+  try {
+    const agora = new Date();
+    const ini   = new Date(agora.getFullYear(), agora.getMonth(), 1);
+    const data  = await hubsoftPost('v1/atendimento/consultar/paginado/10?page=1', {
+      data_inicio: ini.toISOString(), data_fim: agora.toISOString(),
+    });
+    const lista = data?.atendimentos?.data || data?.atendimento?.data || data?.data || [];
+    const isCancelTipo = t => { const u=(t||'').toUpperCase(); return u.includes('CANCELAMENTO')||u.includes('RESCIS'); };
+    const pedidos = lista.filter(a => isCancelTipo(a.tipo_atendimento?.descricao));
+    const amostra = pedidos.slice(0, 3).map(a => ({
+      keys: Object.keys(a),
+      tipo_atendimento: a.tipo_atendimento,
+      status_fechamento: a.status_fechamento,
+      status: a.status,
+      motivo_fechamento: a.motivo_fechamento,
+      descricao_fechamento: a.descricao_fechamento,
+      tipo_fechamento: a.tipo_fechamento,
+      situacao: a.situacao,
+      desfecho: a.desfecho,
+      resultado: a.resultado,
+      raw: a,
+    }));
+    res.json({ total_cancelamento: pedidos.length, total_lista: lista.length, amostra });
+  } catch(err) { res.status(500).json({ erro: err.message }); }
+});
+
 // ── Retenção — pedidos de cancelamento (atendimentos) por período ─
 app.get('/api/retencao', async (req, res) => {
   try {
