@@ -734,23 +734,26 @@ app.get('/api/atendimentos', async (req, res) => {
                    tma: t.tmaCount ? Math.round(t.tmaTot/t.tmaCount) : null }))
       .sort((a,b) => b.total - a.total);
 
-    // Clientes recorrentes (7 dias) — ordenados por frequência
+    // Clientes recorrentes — do período selecionado (dinâmico), com tipos de atendimento
     const mapaClientes = {};
-    parsed7.forEach(a => {
+    parsed.forEach(a => {
       const k = a.clienteId;
-      if (!mapaClientes[k]) mapaClientes[k] = { cliente:a.cliente, contatos:0, semOS:0, comOS:0, setor:a.setor };
+      if (!mapaClientes[k]) mapaClientes[k] = { cliente:a.cliente, contatos:0, semOS:0, comOS:0, setor:a.setor, tipos:{} };
       mapaClientes[k].contatos++;
       if (a.temOS) mapaClientes[k].comOS++; else mapaClientes[k].semOS++;
+      mapaClientes[k].tipos[a.tipo] = (mapaClientes[k].tipos[a.tipo] || 0) + 1;
     });
-    const clientes_recorrentes = Object.values(mapaClientes)
-      .filter(c => c.contatos > 1)
+    const clientes_recorrentes = Object.entries(mapaClientes)
+      .filter(([,c]) => c.contatos > 1)
+      .map(([clienteId, c]) => ({ ...c, clienteId, tipos: Object.entries(c.tipos).sort((a,b)=>b[1]-a[1]).map(([tipo,n])=>({tipo,n})) }))
       .sort((a,b) => b.contatos - a.contatos)
       .slice(0, 50);
 
+    const periodo = req.query.periodo || 'custom';
     res.json({
       ok: true,
       total: parsed.length,
-      por_atendente, por_setor, por_tipo, clientes_recorrentes,
+      por_atendente, por_setor, por_tipo, clientes_recorrentes, periodo,
       sincronizado_em: new Date().toISOString(),
     });
   } catch (err) {

@@ -824,10 +824,21 @@ input[type="text"]::placeholder { color:var(--text3); }
           </div>
         </div>
       </div>
-      <!-- Clientes recorrentes 7 dias -->
+      <!-- Modal detalhe cliente -->
+      <div id="modalClienteDetalhe" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:24px;width:420px;max-width:95vw;max-height:70vh;overflow-y:auto">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <span id="modalClienteNome" style="font-weight:600;font-size:14px"></span>
+            <button onclick="document.getElementById('modalClienteDetalhe').style.display='none'" style="background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer">✕</button>
+          </div>
+          <div id="modalClienteTipos"></div>
+        </div>
+      </div>
+
+      <!-- Clientes recorrentes — período dinâmico -->
       <div class="tbl-card" style="margin-bottom:0">
         <div class="tbl-header">
-          <span class="tbl-title">Clientes recorrentes — últimos 7 dias</span>
+          <span class="tbl-title" id="at-recorr-titulo">Clientes recorrentes</span>
           <span class="badge b-amber" id="at-recorr-count">—</span>
         </div>
         <div style="overflow-x:auto;max-height:260px;overflow-y:auto">
@@ -1304,7 +1315,8 @@ function setPeriodo(p, el) {
     aplicarDados(cached.dados);
     return;
   }
-  applyFilters();
+  // Sem cache: busca os dados corretos do período na API
+  buscarPeriodo();
 }
 
 // Calcula datas do período selecionado
@@ -2471,6 +2483,7 @@ function setAtendPeriodo(p, el) {
   document.querySelectorAll(`.atend-chip[data-p="${p}"]`).forEach(b => b.classList.add('active'));
   const dr = document.getElementById('atendDateRange');
   if (dr) dr.style.display = p === 'custom' ? 'flex' : 'none';
+  if (p !== 'custom') loadAtendimentos();
 }
 
 function getAtendDates() {
@@ -2521,7 +2534,7 @@ async function loadAtendimentos() {
   const badge = document.getElementById('atend-sync-badge');
   if (badge) { badge.textContent = useAll ? 'Carregando páginas...' : 'Buscando...'; badge.className = 'badge b-amber'; }
   try {
-    const qs = `data_inicio=${encodeURIComponent(ini)}&data_fim=${encodeURIComponent(fim)}${useAll ? '&all=true' : ''}`;
+    const qs = `data_inicio=${encodeURIComponent(ini)}&data_fim=${encodeURIComponent(fim)}${useAll ? '&all=true' : ''}&periodo=${encodeURIComponent(atendPeriodo)}`;
     const res  = await fetch(`${PROXY_URL}/api/atendimentos?${qs}`);
     const data = await res.json();
     if (data.ok) renderAtendimentos(data);
@@ -2624,19 +2637,49 @@ function renderAtendimentosFiltrado() {
   // Clientes recorrentes
   const recTbl   = document.getElementById('recorrTbl');
   const recCount = document.getElementById('at-recorr-count');
+  const recTitulo = document.getElementById('at-recorr-titulo');
   const recorr   = data.clientes_recorrentes || [];
   if (recCount) recCount.textContent = `${recorr.length} clientes`;
+  if (recTitulo) {
+    const pLabel = { hoje:'hoje', semana:'esta semana', mes:'este mês', mes_anterior:'mês anterior', custom:'período' };
+    recTitulo.textContent = `Clientes recorrentes — ${pLabel[data.periodo] || 'período'}`;
+  }
+  // Armazena os tipos no DOM para o modal
+  window._recorrTipos = {};
+  recorr.forEach(c => { window._recorrTipos[c.clienteId || c.cliente] = c; });
   if (recTbl) {
-    recTbl.innerHTML = recorr.length ? recorr.map((c, i) => `<tr>
+    recTbl.innerHTML = recorr.length ? recorr.map((c, i) => `<tr style="cursor:pointer" onclick="verDetalhesCliente(${JSON.stringify(c.clienteId || c.cliente).replace(/"/g,'&quot;')})" title="Ver tipos de atendimento">
       <td style="color:var(--text3)">${i+1}</td>
-      <td style="font-weight:500">${c.cliente}</td>
+      <td style="font-weight:500;color:var(--accent);text-decoration:underline dotted">${c.cliente}</td>
       <td><span class="badge ${c.contatos>=5?'b-red':c.contatos>=3?'b-amber':'b-blue'}" style="font-size:11px">${c.contatos}x</span></td>
       <td class="mono" style="color:#22c55e">${c.semOS}</td>
       <td class="mono" style="color:var(--accent)">${c.comOS}</td>
-      <td style="font-size:12px;color:var(--text2)">${c.setor}</td>
+      <td style="font-size:12px;color:var(--text2)">${c.setor||'—'}</td>
     </tr>`).join('')
-    : `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Nenhum cliente contatou mais de uma vez nos últimos 7 dias</td></tr>`;
+    : `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Nenhum cliente contatou mais de uma vez no período</td></tr>`;
   }
+}
+
+function verDetalhesCliente(key) {
+  const c = window._recorrTipos && window._recorrTipos[key];
+  if (!c) return;
+  const modal = document.getElementById('modalClienteDetalhe');
+  const nome  = document.getElementById('modalClienteNome');
+  const tipos = document.getElementById('modalClienteTipos');
+  if (!modal) return;
+  if (nome) nome.textContent = c.cliente;
+  if (tipos) {
+    const arr = Array.isArray(c.tipos) ? c.tipos : [];
+    tipos.innerHTML = arr.length
+      ? `<table style="width:100%;border-collapse:collapse">${arr.map(t=>`
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:7px 4px;font-size:13px">${t.tipo||'Sem tipo'}</td>
+            <td style="padding:7px 4px;text-align:right"><span class="badge b-blue" style="font-size:11px">${t.n}x</span></td>
+          </tr>`).join('')}
+        </table>`
+      : `<p style="color:var(--text3);font-size:13px">Sem dados de tipo disponíveis</p>`;
+  }
+  modal.style.display = 'flex';
 }
 
 async function autoRefreshAtendimentos() { await loadAtendimentos(); }
