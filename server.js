@@ -834,32 +834,42 @@ app.get('/api/retencao', async (req, res) => {
     }
 
     // Classify tipo and desfecho
-    // Tipo do atendimento: "SOLICITAÇÃO DE CANCELAMENTO" (campo tipo_atendimento.descricao)
     const isCancelTipo = t => { const u = (t||'').toUpperCase(); return u.includes('CANCELAMENTO') || u.includes('RESCIS'); };
-    // Desfecho via status_fechamento: "cancelamento" | "reverteu_cancelamento" | outro = pendente
-    const desfechoOf = s => {
-      const u = (s||'').toLowerCase().replace(/[_\s]/g,'');
-      if (u.includes('reverteu') || u.includes('revert')) return 'revertido';
-      if (u.includes('cancelamento') || u.includes('cancel')) return 'cancelado';
-      return 'pendente';
+    // Desfecho via status.prefixo + id_motivo_fechamento_atendimento:
+    // - status.prefixo "pendente" ou status_fechamento null → pendente (em aberto)
+    // - status_fechamento "concluido" + id_motivo 89 → cancelado (cancelamento realizado)
+    // - status_fechamento "concluido" + id_motivo 90 → revertido (cliente retido)
+    // - status_fechamento "concluido" + id_motivo desconhecido → revertido (default: retido)
+    const MOTIVO_CANCELADO  = new Set([89]);   // IDs que indicam cancelamento efetivado
+    const MOTIVO_REVERTIDO  = new Set([90]);   // IDs que indicam retenção
+    const desfechoOf = (a) => {
+      const sp = (a.status?.prefixo || '').toLowerCase();
+      const sf = (a.status_fechamento || '').toLowerCase();
+      if (!sf || sf === 'pendente' || sp === 'pendente' || sp === 'aguardando_analise') return 'pendente';
+      // Fechado — usa id_motivo para classificar
+      const idMotivo = a.id_motivo_fechamento_atendimento;
+      if (idMotivo && MOTIVO_CANCELADO.has(idMotivo)) return 'cancelado';
+      if (idMotivo && MOTIVO_REVERTIDO.has(idMotivo)) return 'revertido';
+      // Fallback: verifica descricao_fechamento por keywords
+      const df = (a.descricao_fechamento || '').toLowerCase();
+      if (df.includes('cancel') && !df.includes('não') && !df.includes('nao') && !df.includes('não irá')) return 'cancelado';
+      return 'revertido'; // padrão: se fechou sem motivo específico, considera retido
     };
 
     const pedidos = lista
       .filter(a => isCancelTipo(a.tipo_atendimento?.descricao))
       .map(a => {
-        const tipo       = a.tipo_atendimento?.descricao || 'Sem tipo';
-        // status_fechamento: "cancelamento" | "reverteu_cancelamento" | "sem_conclusao" etc
-        const sfech      = a.status_fechamento || a.status?.prefixo || '';
-        const desfecho   = desfechoOf(sfech);
-        const motivoFech = a.descricao_fechamento || a.descricao_abertura || sfech || '';
-        const resps      = Array.isArray(a.usuarios_responsaveis) ? a.usuarios_responsaveis : [];
-        const atendente  = resps.map(u => u.name || u.nome).filter(Boolean).join(', ')
-                        || a.usuario_fechamento?.name || a.usuario_fechamento?.nome
-                        || 'Sem atendente';
-        const cli        = a.cliente_servico?.cliente;
-        const cliente    = cli?.nome_razaosocial || cli?.display || a.cliente_servico?.display || 'Sem cliente';
-        const data       = a.data_fechamento || a.data_cadastro || null;
-        return { tipo, motivoFech: sfech, desfecho, atendente, cliente, data };
+        const tipo      = a.tipo_atendimento?.descricao || 'Sem tipo';
+        const desfecho  = desfechoOf(a);
+        const resps     = Array.isArray(a.usuarios_responsaveis) ? a.usuarios_responsaveis : [];
+        const atendente = resps.map(u => u.name || u.nome).filter(Boolean).join(', ')
+                       || a.usuario_fechamento?.name || a.usuario_fechamento?.nome
+                       || 'Sem atendente';
+        const cli       = a.cliente_servico?.cliente;
+        const cliente   = cli?.nome_razaosocial || cli?.display || a.cliente_servico?.display || 'Sem cliente';
+        const data      = a.data_fechamento || a.data_cadastro || null;
+        const resumo    = a.descricao_fechamento || a.descricao_abertura || '';
+        return { tipo, desfecho, atendente, cliente, data, resumo };
       });
 
     const total      = pedidos.length;
