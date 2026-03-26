@@ -924,6 +924,25 @@ app.get('/api/debug-atendimentos', async (req, res) => {
   } catch(err) { res.status(500).json({ erro: err.message }); }
 });
 
+// ── Debug: estrutura de usuários/setores ─────────────────────────
+app.get('/api/debug-usuarios', async (_req, res) => {
+  try {
+    const endpoints = ['v1/usuario', 'v1/funcionario', 'v1/usuario?limit=5', 'v1/funcionario?limit=5'];
+    const resultados = {};
+    for (const ep of endpoints) {
+      try {
+        const d = await hubsoftGet(ep, {});
+        const lista = d.data || d.items || d || [];
+        const primeiro = Array.isArray(lista) ? lista[0] : lista;
+        resultados[ep] = { ok: true, total: Array.isArray(lista) ? lista.length : 1, keys: primeiro ? Object.keys(primeiro) : [], primeiro };
+      } catch(e) {
+        resultados[ep] = { ok: false, status: e.response?.status, erro: e.message };
+      }
+    }
+    res.json(resultados);
+  } catch(err) { res.status(500).json({ erro: err.message }); }
+});
+
 // ── Resumo / KPIs do dia ──────────────────────────────────────────
 app.get('/api/resumo', async (req, res) => {
   try {
