@@ -348,37 +348,69 @@ input[type="text"]::placeholder { color:var(--text3); }
   }
   .sidebar-overlay.open { display:block; }
   .main { height:auto; min-height:100vh; }
-  .page-content { padding:12px 14px; }
-  .kpi-row { grid-template-columns:repeat(2,1fr); }
+  .page-content { padding:10px 10px; }
+  .kpi-row { grid-template-columns:repeat(2,1fr); gap:8px; }
   .dash-grid { grid-template-columns:1fr; }
   #statusLanes {
     overflow-x:auto; display:flex!important;
     gap:8px; min-width:0;
   }
-  #statusLanes > * { min-width:140px; flex-shrink:0; }
+  #statusLanes > * { min-width:150px; flex-shrink:0; }
   .topbar-clock { display:none; }
   #menuBtn { display:grid!important; }
   table { font-size:11px; }
-  .tbl-card [style*="overflow-x:auto"] { overflow-x:auto; }
-  /* Collapse 2-col grids to 1 col */
+  .tbl-card { overflow-x:auto; }
+  .tbl-card table { min-width:400px; }
+
+  /* catCards: scroll horizontal em vez de colapsar */
+  #catCards {
+    overflow-x:auto!important;
+    display:flex!important;
+    flex-wrap:nowrap!important;
+    gap:8px!important;
+    padding-bottom:6px;
+  }
+  #catCards > * { min-width:120px!important; flex-shrink:0!important; }
+
+  /* Collapse 2-col+ grids to 1 col */
   [style*="grid-template-columns:1fr 1fr"],
   [style*="grid-template-columns:1fr 268px"],
   [style*="grid-template-columns:300px 1fr"],
   [style*="grid-template-columns:280px 1fr"],
+  [style*="grid-template-columns:1fr 220px"],
   [style*="grid-template-columns:repeat(4,1fr)"],
   [style*="grid-template-columns:repeat(5,1fr)"],
   [style*="grid-template-columns:1fr 1px 1fr 1px 1fr"],
   [style*="grid-template-columns:1fr 1fr 1fr"] {
     grid-template-columns:1fr!important;
   }
+  /* dash-grid específicos */
+  [style*="grid-template-columns:1fr 1fr;gap:14px"],
+  [style*="grid-template-columns:1fr 1fr;gap:16px"],
+  [style*="grid-template-columns:1fr 1fr;gap:12px"] {
+    grid-template-columns:1fr!important;
+  }
   .ret-hero { grid-template-columns:1fr!important; }
   .ret-divider { display:none; }
-  [style*="grid-template-columns:repeat(5,minmax(0,1fr))"] {
-    overflow-x:auto; display:flex!important; gap:8px;
+
+  /* KPI minis no dash */
+  .kpi-mini-val { font-size:20px; }
+
+  /* Chips/filtros */
+  .per-chip, .atend-chip, .ret-chip { padding:4px 8px; font-size:11px; }
+
+  /* Status lanes e tabs do dash */
+  [style*="grid-template-columns:repeat(5,minmax(0,1fr))"],
+  [style*="grid-template-columns:repeat(6,minmax(0,1fr))"] {
+    overflow-x:auto; display:flex!important; gap:6px; flex-wrap:nowrap;
   }
-  [style*="grid-template-columns:repeat(5,minmax(0,1fr))"] > * {
-    min-width:140px; flex-shrink:0;
+  [style*="grid-template-columns:repeat(5,minmax(0,1fr))"] > *,
+  [style*="grid-template-columns:repeat(6,minmax(0,1fr))"] > * {
+    min-width:120px; flex-shrink:0;
   }
+
+  /* Tab bar do dashboard */
+  #dashTabBar { overflow-x:auto; flex-wrap:nowrap!important; }
 }
 </style>
 </head>
@@ -1312,8 +1344,9 @@ function goPage(id, el) {
   if (id === 'dashboard') {
     showDashTab('geral');
   }
-  if (id === 'chamados' && chamadosDB.length > 0) {
-    aplicarDados(chamadosDB);
+  if (id === 'chamados') {
+    // DOM já está atualizado pelo autoRefresh — só força rebuild se ainda sem dados
+    if (chamadosDB.length === 0) buscarPeriodo();
   }
   if (id === 'atendimento') {
     if (_atendData) {
@@ -1638,7 +1671,7 @@ function _makeCatCard(key, cfg, tmi, periodoLabel) {
   const total   = hoje_ab + hoje_at + hoje_ok;
   const pct_ok  = total ? Math.round(hoje_ok/total*100) : 0;
   const tmiVal  = tmi[key] || null;
-  return `<div style="background:var(--surface);border:1px solid var(--border);border-top:3px solid ${cfg.color};border-radius:var(--r-lg);padding:14px 16px;cursor:pointer;transition:.15s" onclick="setCatFilter('${key}')" onmouseover="this.style.borderColor='${cfg.color}'" onmouseout="this.style.borderTopColor='${cfg.color}';this.style.borderColor='';this.style.borderTopColor='${cfg.color}'">
+  return `<div style="background:var(--surface);border:1px solid var(--border);border-top:3px solid ${cfg.color};border-radius:var(--r-lg);padding:14px 16px;cursor:pointer;transition:.15s;min-width:130px;flex-shrink:0" onclick="setCatFilter('${key}')" onmouseover="this.style.borderColor='${cfg.color}'" onmouseout="this.style.borderTopColor='${cfg.color}';this.style.borderColor='';this.style.borderTopColor='${cfg.color}'">
     <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
       <div style="width:26px;height:26px;border-radius:6px;background:${cfg.color}20;color:${cfg.color};display:grid;place-items:center;font-size:11px;flex-shrink:0"><i class="fas ${cfg.icon}"></i></div>
       <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text3)">${cfg.label}</span>
@@ -1708,8 +1741,19 @@ function renderCatCards() {
   const ocultos = tipos.slice(MAX);
   const totalOcultos = ocultos.reduce((s,[,,n])=>s+n, 0);
 
-  const cols = Math.min(visivel.length + (ocultos.length ? 1 : 0), 6);
-  el.style.gridTemplateColumns = `repeat(${cols},1fr)`;
+  const isMobile = window.innerWidth <= 768;
+  if (isMobile) {
+    el.style.gridTemplateColumns = '';
+    el.style.display = 'flex';
+    el.style.flexWrap = 'nowrap';
+    el.style.overflowX = 'auto';
+  } else {
+    const cols = Math.min(visivel.length + (ocultos.length ? 1 : 0), 6);
+    el.style.gridTemplateColumns = `repeat(${cols},1fr)`;
+    el.style.display = 'grid';
+    el.style.flexWrap = '';
+    el.style.overflowX = '';
+  }
   const tmi = calcTM();
   const periodoLabel = labelPeriodo();
 
