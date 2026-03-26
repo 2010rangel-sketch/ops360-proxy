@@ -772,27 +772,36 @@ app.get('/api/debug-retencao-raw', async (_req, res) => {
   try {
     const agora = new Date();
     const ini   = new Date(agora.getFullYear(), agora.getMonth(), 1);
-    const data  = await hubsoftPost('v1/atendimento/consultar/paginado/10?page=1', {
+    // Busca mais registros para achar "SOLICITAÇÃO DE CANCELAMENTO" concluídos
+    const data  = await hubsoftPost('v1/atendimento/consultar/paginado/100?page=1', {
       data_inicio: ini.toISOString(), data_fim: agora.toISOString(),
     });
     const lista = data?.atendimentos?.data || data?.atendimento?.data || data?.data || [];
-    // Sem filtro — mostra os tipos reais dos primeiros 10
-    const amostra = lista.slice(0, 5).map(a => ({
-      keys: Object.keys(a),
-      tipo_atendimento: a.tipo_atendimento,
-      tipo: a.tipo,
+    const isCancelTipo = t => { const u=(t||'').toUpperCase(); return u.includes('CANCELAMENTO')||u.includes('RESCIS'); };
+    const cancelamentos = lista.filter(a => isCancelTipo(a.tipo_atendimento?.descricao));
+    // Pega até 5 concluídos e até 5 pendentes para comparar
+    const concluidos = cancelamentos.filter(a => a.status_fechamento && a.status_fechamento !== 'pendente').slice(0,5);
+    const pendentes  = cancelamentos.filter(a => !a.status_fechamento || a.status_fechamento === 'pendente').slice(0,3);
+    const mapFields = a => ({
+      tipo_atendimento_descricao: a.tipo_atendimento?.descricao,
       status_fechamento: a.status_fechamento,
-      status: a.status,
-      motivo_fechamento: a.motivo_fechamento,
+      status_prefixo: a.status?.prefixo,
+      status_descricao: a.status?.descricao,
+      id_atendimento_status: a.id_atendimento_status || a.status?.id_atendimento_status,
       descricao_fechamento: a.descricao_fechamento,
-      tipo_fechamento: a.tipo_fechamento,
-      situacao: a.situacao,
-      desfecho: a.desfecho,
-      resultado: a.resultado,
-    }));
-    // Lista todos os tipos únicos encontrados
-    const tipos_unicos = [...new Set(lista.map(a => a.tipo_atendimento?.descricao || a.tipo?.descricao || a.tipo || 'SEM_TIPO'))];
-    res.json({ total_lista: lista.length, tipos_unicos, amostra });
+      descricao_abertura: a.descricao_abertura,
+      id_motivo_fechamento: a.id_motivo_fechamento_atendimento,
+    });
+    const status_unicos = [...new Set(cancelamentos.map(a => JSON.stringify({
+      sf: a.status_fechamento, sp: a.status?.prefixo, sd: a.status?.descricao
+    })))].map(s => JSON.parse(s));
+    res.json({
+      total_todos: lista.length,
+      total_cancelamento: cancelamentos.length,
+      status_unicos,
+      concluidos: concluidos.map(mapFields),
+      pendentes: pendentes.map(mapFields),
+    });
   } catch(err) { res.status(500).json({ erro: err.message }); }
 });
 
