@@ -2504,6 +2504,17 @@ function fmtTma(min) {
   return `${Math.floor(min/60) ? Math.floor(min/60)+'h ' : ''}${min%60}m`;
 }
 
+function filtrarPorSetor(setor) {
+  const sel = document.getElementById('filtAtendSetor');
+  if (!sel) return;
+  // Toggle: clicou no mesmo setor já ativo → limpa filtro
+  sel.value = sel.value === setor ? '' : setor;
+  renderAtendimentosFiltrado();
+  // Scroll suave para a tabela de atendentes
+  const atTbl = document.getElementById('atendenteTbl');
+  if (atTbl) atTbl.closest('.tbl-card')?.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
 async function loadAtendimentos() {
   const { ini, fim } = getAtendDates();
   const useAll = atendPeriodo !== 'hoje';
@@ -2586,17 +2597,18 @@ function renderAtendimentosFiltrado() {
     .map(s => ({ ...s, pctSemOS: s.total ? Math.round(s.semOS/s.total*100) : 0 }))
     .sort((a,b) => b.total - a.total);
 
-  // Por setor (usa setor real dos atendentes configurados)
+  // Por setor (clicável — filtra atendentes ao lado)
   const setTbl   = document.getElementById('setorTbl');
   const setCount = document.getElementById('at-setor-count');
   const porSet   = porSetorReal;
   if (setCount) setCount.textContent = `${porSet.length} setores`;
   if (setTbl) {
     setTbl.innerHTML = porSet.length ? porSet.map((s, i) => {
-      const cor = s.pctSemOS>=60?'#22c55e':s.pctSemOS>=30?'var(--amber)':'var(--red)';
-      return `<tr>
+      const cor     = s.pctSemOS>=60?'#22c55e':s.pctSemOS>=30?'var(--amber)':'var(--red)';
+      const ativo   = filtSetor === s.setor;
+      return `<tr onclick="filtrarPorSetor('${s.setor.replace(/'/g,"\\'")}')" style="cursor:pointer;${ativo?'background:var(--surface3,rgba(255,255,255,.06));outline:1px solid var(--accent);border-radius:4px':''}">
         <td style="color:var(--text3)">${i+1}</td>
-        <td style="font-weight:500">${s.setor}</td>
+        <td style="font-weight:600;color:${ativo?'var(--accent)':'var(--text)'}">${s.setor}${ativo?' <span style="font-size:10px">✕</span>':''}</td>
         <td class="mono" style="font-weight:600">${s.total}</td>
         <td class="mono" style="color:#22c55e">${s.semOS}</td>
         <td class="mono" style="color:var(--accent)">${s.comOS}</td>
