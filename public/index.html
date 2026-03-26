@@ -2332,11 +2332,14 @@ async function autoRefresh() {
   const el = document.getElementById('lastSync');
   if(el) el.textContent = new Date().toLocaleTimeString('pt-BR');
 
+  // Só atualiza automaticamente se o usuário estiver no período "hoje"
+  // Para períodos históricos (semana, mês, custom), não sobrescreve os dados buscados
+  if (filtros.periodo !== 'hoje') return;
+
   const chamadosReais = await buscarChamadosHubsoft();
   if (chamadosReais && chamadosReais.length > 0) {
     salvarCache(chamadosReais);
     aplicarDados(chamadosReais);
-    // KPIs calculados localmente (filtrados por hoje) — não sobrescrever com resumo global
     console.log('['+new Date().toLocaleTimeString('pt-BR')+'] '+chamadosReais.length+' chamados sincronizados do Hubsoft');
   }
 }

@@ -406,34 +406,47 @@ app.get('/api/chamados', async (req, res) => {
     let lista = [];
     if (all === 'true') {
       const PAGE_SIZE = 500;
-      const MAX_PAGES = 100;
+      const MAX_PAGES = 50;
       // Fetch page 1 to discover total pages
       const body1 = bodyConsultaOS({ data_inicio, data_fim });
       const data1 = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=1`, body1);
       const page1Lista = extrairLista(data1);
       lista.push(...page1Lista);
       const { lastPage, total, perPage } = extrairPaginacao(data1);
-      // Determine total pages: prefer last_page, else calculate from total
+      // Determine total pages from metadata
       let totalPages = lastPage || (total && perPage ? Math.ceil(total / perPage) : null);
-      if (!totalPages) {
-        // Fallback: if page1 was full, there may be more pages — scan sequentially
-        totalPages = page1Lista.length >= PAGE_SIZE ? MAX_PAGES : 1;
-      }
+      const knowsTotal = !!totalPages;
+      if (!totalPages) totalPages = page1Lista.length >= PAGE_SIZE ? MAX_PAGES : 1;
       totalPages = Math.min(totalPages, MAX_PAGES);
-      console.log(`[chamados] page 1: ${page1Lista.length} records | totalPages=${totalPages} | total=${total}`);
+      console.log(`[chamados] page 1: ${page1Lista.length} | totalPages=${totalPages} | total=${total} | knowsTotal=${knowsTotal}`);
+
       if (totalPages > 1) {
-        // Fetch remaining pages in parallel (batch of 10 to avoid rate limits)
-        const BATCH = 10;
-        for (let start = 2; start <= totalPages; start += BATCH) {
-          const end = Math.min(start + BATCH - 1, totalPages);
-          const pages = Array.from({ length: end - start + 1 }, (_, i) => start + i);
-          const results = await Promise.all(pages.map(async pg => {
+        if (knowsTotal) {
+          // Parallel fetch — we know exactly how many pages
+          const BATCH = 10;
+          for (let start = 2; start <= totalPages; start += BATCH) {
+            const end = Math.min(start + BATCH - 1, totalPages);
+            const pages = Array.from({ length: end - start + 1 }, (_, i) => start + i);
+            const results = await Promise.all(pages.map(async pg => {
+              const body = bodyConsultaOS({ data_inicio, data_fim });
+              const d = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=${pg}`, body);
+              return extrairLista(d);
+            }));
+            for (const r of results) lista.push(...r);
+            console.log(`[chamados] batch ${start}-${end}: total so far ${lista.length}`);
+          }
+        } else {
+          // Sequential fallback — stop as soon as a page returns < PAGE_SIZE
+          let pg = 2;
+          while (pg <= MAX_PAGES) {
             const body = bodyConsultaOS({ data_inicio, data_fim });
             const d = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=${pg}`, body);
-            return extrairLista(d);
-          }));
-          for (const r of results) lista.push(...r);
-          console.log(`[chamados] batch ${start}-${end}: total so far ${lista.length}`);
+            const r = extrairLista(d);
+            lista.push(...r);
+            console.log(`[chamados] seq page ${pg}: ${r.length} records`);
+            if (r.length < PAGE_SIZE) break;
+            pg++;
+          }
         }
       }
     } else {
