@@ -3154,7 +3154,7 @@ function renderRetencao(data) {
       <td style="font-weight:500;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.cliente}</td>
       <td style="font-size:12px;color:var(--text2)">${p.tipo}</td>
       <td style="font-size:12px">${p.atendente}</td>
-      <td>${desfechoBadge(p.desfecho, p.motivoFech)}</td>
+      <td>${desfechoBadge(p.desfecho, p.resumo)}</td>
       <td style="font-size:12px;color:var(--text3)">${p.data ? new Date(p.data).toLocaleDateString('pt-BR') : '—'}</td>
     </tr>`).join('')
     : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Nenhum pedido no período</td></tr>`;
