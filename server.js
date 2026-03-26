@@ -228,13 +228,22 @@ function bodyConsultaOS({ data_inicio, data_fim, tecnicos = [], cidades = [], st
 
 // ── Extrai lista de OS da resposta do Hubsoft ─────────────────────
 function extrairLista(data) {
-  // Chave real: ordens_servico.data (paginado)
   if (Array.isArray(data.ordens_servico?.data)) return data.ordens_servico.data;
   if (Array.isArray(data.ordens_servico))       return data.ordens_servico;
   if (Array.isArray(data.ordem_servico?.data))  return data.ordem_servico.data;
   if (Array.isArray(data.ordem_servico))        return data.ordem_servico;
   if (Array.isArray(data.data))                 return data.data;
   return [];
+}
+
+// Extrai metadados de paginação (last_page / total)
+function extrairPaginacao(data) {
+  const pag = data.ordens_servico || data.ordem_servico || data;
+  return {
+    lastPage:   pag.last_page  || null,
+    total:      pag.total      || null,
+    perPage:    pag.per_page   || null,
+  };
 }
 
 // ── CORS: permite acesso do dashboard em qualquer origem ─────────
@@ -396,18 +405,36 @@ app.get('/api/chamados', async (req, res) => {
 
     let lista = [];
     if (all === 'true') {
-      // Paginate through all results (500/page, up to 100 pages safety cap)
-      let pg = 1;
       const PAGE_SIZE = 500;
       const MAX_PAGES = 100;
-      while (pg <= MAX_PAGES) {
-        const body = bodyConsultaOS({ data_inicio, data_fim });
-        const data = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=${pg}`, body);
-        const pageLista = extrairLista(data);
-        lista.push(...pageLista);
-        console.log(`[chamados] page ${pg}: ${pageLista.length} records (total so far: ${lista.length})`);
-        if (pageLista.length < PAGE_SIZE) break;
-        pg++;
+      // Fetch page 1 to discover total pages
+      const body1 = bodyConsultaOS({ data_inicio, data_fim });
+      const data1 = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=1`, body1);
+      const page1Lista = extrairLista(data1);
+      lista.push(...page1Lista);
+      const { lastPage, total, perPage } = extrairPaginacao(data1);
+      // Determine total pages: prefer last_page, else calculate from total
+      let totalPages = lastPage || (total && perPage ? Math.ceil(total / perPage) : null);
+      if (!totalPages) {
+        // Fallback: if page1 was full, there may be more pages — scan sequentially
+        totalPages = page1Lista.length >= PAGE_SIZE ? MAX_PAGES : 1;
+      }
+      totalPages = Math.min(totalPages, MAX_PAGES);
+      console.log(`[chamados] page 1: ${page1Lista.length} records | totalPages=${totalPages} | total=${total}`);
+      if (totalPages > 1) {
+        // Fetch remaining pages in parallel (batch of 10 to avoid rate limits)
+        const BATCH = 10;
+        for (let start = 2; start <= totalPages; start += BATCH) {
+          const end = Math.min(start + BATCH - 1, totalPages);
+          const pages = Array.from({ length: end - start + 1 }, (_, i) => start + i);
+          const results = await Promise.all(pages.map(async pg => {
+            const body = bodyConsultaOS({ data_inicio, data_fim });
+            const d = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=${pg}`, body);
+            return extrairLista(d);
+          }));
+          for (const r of results) lista.push(...r);
+          console.log(`[chamados] batch ${start}-${end}: total so far ${lista.length}`);
+        }
       }
     } else {
       const body = bodyConsultaOS({ data_inicio, data_fim, limit, page });
