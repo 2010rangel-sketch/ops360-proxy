@@ -1246,7 +1246,6 @@ const tiposConfig = {
   mudanca:    {label:'Mudança End.', icon:'fa-map-marker-alt',  color:'var(--purple)', cl:'b-purple'},
   retrabalho: {label:'Retrabalho',   icon:'fa-redo-alt',        color:'var(--orange)', cl:'b-orange'},
   remocao:    {label:'Remoção',      icon:'fa-minus-circle',    color:'var(--red)',    cl:'b-red'},
-  outros:     {label:'Outros',       icon:'fa-tools',           color:'var(--text3)',  cl:'b-amber'},
 };
 // Paleta para tipos extras que vierem do Hubsoft
 const _catPalette = [
@@ -1494,83 +1493,102 @@ function labelPeriodo() {
 // ── RENDER: CARDS POR CATEGORIA ────────────────────────────────────────────
 let _catCardsExpanded = false;
 
+function _makeCatCard(key, cfg, tmi, periodoLabel) {
+  const fil     = chamadosFiltrados.filter(c=>c.cat===key);
+  const hoje_ab = fil.filter(c=>['execucao','aguardando','retrabalho'].includes(c.st)).length;
+  const hoje_at = fil.filter(c=>c.st==='atrasado').length;
+  const hoje_ok = fil.filter(c=>c.st==='finalizado').length;
+  const total   = hoje_ab + hoje_at + hoje_ok;
+  const pct_ok  = total ? Math.round(hoje_ok/total*100) : 0;
+  const tmiVal  = tmi[key] || null;
+  return `<div style="background:var(--surface);border:1px solid var(--border);border-top:3px solid ${cfg.color};border-radius:var(--r-lg);padding:14px 16px;cursor:pointer;transition:.15s" onclick="setCatFilter('${key}')" onmouseover="this.style.borderColor='${cfg.color}'" onmouseout="this.style.borderTopColor='${cfg.color}';this.style.borderColor='';this.style.borderTopColor='${cfg.color}'">
+    <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
+      <div style="width:26px;height:26px;border-radius:6px;background:${cfg.color}20;color:${cfg.color};display:grid;place-items:center;font-size:11px;flex-shrink:0"><i class="fas ${cfg.icon}"></i></div>
+      <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text3)">${cfg.label}</span>
+    </div>
+    <div style="margin-bottom:8px">
+      <div style="font-size:9.5px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">${periodoLabel}</div>
+      <div style="display:flex;align-items:baseline;gap:6px">
+        <span style="font-size:26px;font-weight:700;font-family:'JetBrains Mono',monospace;color:${cfg.color};line-height:1">${total}</span>
+        <div style="display:flex;flex-direction:column;gap:1px">
+          <span style="font-size:10px;color:var(--accent)">● ${hoje_ab} ativos</span>
+          ${hoje_at>0?`<span style="font-size:10px;color:var(--red)">⚠ ${hoje_at} atr.</span>`:''}
+          <span style="font-size:10px;color:var(--green)">✓ ${hoje_ok} ok</span>
+        </div>
+      </div>
+    </div>
+    <div class="prog" style="margin-bottom:8px"><div class="prog-fill" style="width:${pct_ok}%;background:${cfg.color}"></div></div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:10px;color:var(--text3)">TM (tempo médio)</span>
+      <span style="font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;color:${tmiVal?cfg.color:'var(--text3)'}">${tmiVal||'--'}</span>
+    </div>
+  </div>`;
+}
+
+function expandCatCards() {
+  const el = document.getElementById('catCards');
+  if (!el) return;
+  _catCardsExpanded = true;
+  // Remove o card "Outros" (último filho) e injeta os cards ocultos + recolher
+  const outrosCard = el.querySelector('#catOutrosBtn');
+  if (outrosCard) outrosCard.remove();
+  const tmi = calcTM();
+  const periodoLabel = labelPeriodo();
+  const catsReais = [...new Set([...Object.keys(tiposConfig), ...chamadosDB.map(c=>c.cat)])].filter(Boolean);
+  const todos = catsReais.map(k=>[k,tiposConfig[k],chamadosFiltrados.filter(c=>c.cat===k).length]).filter(([,v])=>v).sort((a,b)=>b[2]-a[2]);
+  const ocultos = todos.slice(16);
+  const div = document.createElement('div');
+  div.id = 'catExtras';
+  div.style.display = 'contents';
+  div.innerHTML = ocultos.map(([k,cfg])=>_makeCatCard(k,cfg,tmi,periodoLabel)).join('') +
+    `<div id="catRecolherBtn" style="background:var(--surface);border:2px dashed var(--border2);border-radius:var(--r-lg);padding:14px 16px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;opacity:.7;transition:.15s" onclick="collapseCatCards()" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='.7'">
+      <i class="fas fa-chevron-up" style="font-size:18px;color:var(--text3)"></i>
+      <span style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Recolher</span>
+    </div>`;
+  el.appendChild(div);
+}
+
+function collapseCatCards() {
+  _catCardsExpanded = false;
+  const extras = document.getElementById('catExtras');
+  if (extras) extras.remove();
+  // Reinsere o card Outros
+  renderCatCards();
+}
+
 function renderCatCards() {
   const el = document.getElementById('catCards');
   if(!el) return;
   const catsReais = [...new Set([...Object.keys(tiposConfig), ...chamadosDB.map(c=>c.cat)])].filter(Boolean);
   const tipos = catsReais
-    .map(k => {
-      const fil = chamadosFiltrados.filter(c=>c.cat===k);
-      return [k, tiposConfig[k], fil.length];
-    })
+    .map(k => [k, tiposConfig[k], chamadosFiltrados.filter(c=>c.cat===k).length])
     .filter(([,v])=>v)
     .sort((a,b) => b[2] - a[2]);
   if(!tipos.length) { el.innerHTML=''; return; }
 
-  const MAX = 16; // primeiros 16 + card "Outros"
-  const visivel = _catCardsExpanded ? tipos : tipos.slice(0, MAX);
-  const outros  = !_catCardsExpanded ? tipos.slice(MAX) : [];
-  const totalOutros = outros.reduce((s,[,,n])=>s+n, 0);
+  const MAX = 16;
+  const visivel = tipos.slice(0, MAX);
+  const ocultos = tipos.slice(MAX);
+  const totalOcultos = ocultos.reduce((s,[,,n])=>s+n, 0);
 
-  const cols = Math.min(visivel.length + (outros.length ? 1 : 0), 6);
+  const cols = Math.min(visivel.length + (ocultos.length ? 1 : 0), 6);
   el.style.gridTemplateColumns = `repeat(${cols},1fr)`;
   const tmi = calcTM();
   const periodoLabel = labelPeriodo();
 
-  function makeCard(key, cfg) {
-    const fil     = chamadosFiltrados.filter(c=>c.cat===key);
-    const hoje_ab = fil.filter(c=>['execucao','aguardando','retrabalho'].includes(c.st)).length;
-    const hoje_at = fil.filter(c=>c.st==='atrasado').length;
-    const hoje_ok = fil.filter(c=>c.st==='finalizado').length;
-    const total   = hoje_ab + hoje_at + hoje_ok;
-    const pct_ok  = total ? Math.round(hoje_ok/total*100) : 0;
-    const tmiVal  = tmi[key] || null;
-    return `
-    <div style="background:var(--surface);border:1px solid var(--border);border-top:3px solid ${cfg.color};border-radius:var(--r-lg);padding:14px 16px;cursor:pointer;transition:.15s" onclick="setCatFilter('${key}')" onmouseover="this.style.borderColor='${cfg.color}'" onmouseout="this.style.borderTopColor='${cfg.color}';this.style.borderColor='';this.style.borderTopColor='${cfg.color}'">
-      <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
-        <div style="width:26px;height:26px;border-radius:6px;background:${cfg.color}20;color:${cfg.color};display:grid;place-items:center;font-size:11px;flex-shrink:0"><i class="fas ${cfg.icon}"></i></div>
-        <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text3)">${cfg.label}</span>
-      </div>
-      <div style="margin-bottom:8px">
-        <div style="font-size:9.5px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">${periodoLabel}</div>
-        <div style="display:flex;align-items:baseline;gap:6px">
-          <span style="font-size:26px;font-weight:700;font-family:'JetBrains Mono',monospace;color:${cfg.color};line-height:1">${total}</span>
-          <div style="display:flex;flex-direction:column;gap:1px">
-            <span style="font-size:10px;color:var(--accent)">● ${hoje_ab} ativos</span>
-            ${hoje_at>0?`<span style="font-size:10px;color:var(--red)">⚠ ${hoje_at} atr.</span>`:''}
-            <span style="font-size:10px;color:var(--green)">✓ ${hoje_ok} ok</span>
-          </div>
-        </div>
-      </div>
-      <div class="prog" style="margin-bottom:8px"><div class="prog-fill" style="width:${pct_ok}%;background:${cfg.color}"></div></div>
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:10px;color:var(--text3)">TM (tempo médio)</span>
-        <span style="font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;color:${tmiVal?cfg.color:'var(--text3)'}">${tmiVal||'--'}</span>
-      </div>
-    </div>`;
-  }
+  let html = visivel.map(([k,cfg]) => _makeCatCard(k, cfg, tmi, periodoLabel)).join('');
 
-  let html = visivel.map(([k,cfg]) => makeCard(k, cfg)).join('');
-
-  if (_catCardsExpanded) {
-    // botão recolher no fim
-    html += `
-    <div style="background:var(--surface);border:2px dashed var(--border2);border-radius:var(--r-lg);padding:14px 16px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;opacity:.7;transition:.15s" onclick="_catCardsExpanded=false;renderCatCards()" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='.7'">
-      <i class="fas fa-chevron-up" style="font-size:18px;color:var(--text3)"></i>
-      <span style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Recolher</span>
-    </div>`;
-  } else if (outros.length) {
-    // card "Outros"
-    html += `
-    <div style="background:var(--surface);border:2px dashed var(--border2);border-radius:var(--r-lg);padding:14px 16px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;transition:.15s" onclick="_catCardsExpanded=true;renderCatCards()" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)'">
+  if (ocultos.length) {
+    html += `<div id="catOutrosBtn" style="background:var(--surface);border:2px dashed var(--border2);border-radius:var(--r-lg);padding:14px 16px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;transition:.15s" onclick="expandCatCards()" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)'">
       <i class="fas fa-plus-circle" style="font-size:22px;color:var(--text3)"></i>
-      <span style="font-size:18px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--text2)">${totalOutros}</span>
-      <span style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Outros (${outros.length})</span>
+      <span style="font-size:18px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--text2)">${totalOcultos}</span>
+      <span style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">+ ${ocultos.length} tipos</span>
       <span style="font-size:9.5px;color:var(--text3)">${periodoLabel}</span>
     </div>`;
   }
 
   el.innerHTML = html;
+  _catCardsExpanded = false;
 }
 
 function setCatFilter(cat) {

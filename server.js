@@ -1082,15 +1082,16 @@ function normalizarStatus(status) {
 
 // Mapeia nome do tipo de OS → categoria do dashboard
 function normalizarTipo(nome) {
-  if (!nome) return 'outros';
+  if (!nome) return null;
   const n = nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   if (n.includes('instal'))                                                          return 'instalacao';
   if (n.includes('retrabalho'))                                                      return 'retrabalho';
   if (n.includes('reparo') || n.includes('manuten') || n.includes('troca') || n.includes('conser')) return 'reparo';
   if (n.includes('remoc') || n.includes('cancelam') || n.includes('retirad'))       return 'remocao';
   if (n.includes('mudan') || n.includes('migra') || (n.includes('trans') && n.includes('ender'))) return 'mudanca';
-  // Para qualquer outro tipo: gera slug do nome real (sem espaço/acento)
-  return n.replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'outros';
+  // Gera slug do nome real — nunca retorna 'outros'
+  const slug = n.replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+  return slug || null;
 }
 
 function formatarHora(datetime) {
