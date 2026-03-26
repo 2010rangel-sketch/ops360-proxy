@@ -447,6 +447,7 @@ input[type="text"]::placeholder { color:var(--text3); }
           <button class="chip per-chip" data-p="amanha"        onclick="setPeriodo('amanha',this)">Amanhã</button>
           <button class="chip per-chip" data-p="semana"        onclick="setPeriodo('semana',this)">Semana</button>
           <button class="chip per-chip" data-p="mes"           onclick="setPeriodo('mes',this)">Mês</button>
+          <button class="chip per-chip" data-p="mes_anterior"  onclick="setPeriodo('mes_anterior',this)">Mês anterior</button>
           <button class="chip per-chip" data-p="custom"        onclick="setPeriodo('custom',this)">Período</button>
         </div>
         <div id="dashDateRange" style="display:none;gap:6px;align-items:center">
@@ -630,10 +631,11 @@ input[type="text"]::placeholder { color:var(--text3); }
         <!-- Filtro período -->
         <div style="display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px">
           <button class="chip active per-chip" id="perHoje"   data-p="hoje"   onclick="setPeriodo('hoje',this)">Hoje</button>
-          <button class="chip per-chip"        id="perAmanha" data-p="amanha" onclick="setPeriodo('amanha',this)">Amanhã</button>
-          <button class="chip per-chip"        id="perSemana" data-p="semana" onclick="setPeriodo('semana',this)">Semana</button>
-          <button class="chip per-chip"        id="perMes"    data-p="mes"    onclick="setPeriodo('mes',this)">Mês</button>
-          <button class="chip per-chip"        id="perCustom" data-p="custom" onclick="setPeriodo('custom',this)">Período</button>
+          <button class="chip per-chip"        id="perAmanha"     data-p="amanha"       onclick="setPeriodo('amanha',this)">Amanhã</button>
+          <button class="chip per-chip"        id="perSemana"     data-p="semana"       onclick="setPeriodo('semana',this)">Semana</button>
+          <button class="chip per-chip"        id="perMes"        data-p="mes"          onclick="setPeriodo('mes',this)">Mês</button>
+          <button class="chip per-chip"        id="perMesAnterior" data-p="mes_anterior" onclick="setPeriodo('mes_anterior',this)">Mês anterior</button>
+          <button class="chip per-chip"        id="perCustom"     data-p="custom"       onclick="setPeriodo('custom',this)">Período</button>
         </div>
         <div id="dateRange" style="display:none;gap:6px;align-items:center">
           <input type="date" id="dtDe"  onchange="syncDates('de',this.value)" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
@@ -752,6 +754,7 @@ input[type="text"]::placeholder { color:var(--text3); }
           <button class="chip active atend-chip" data-p="hoje"  onclick="setAtendPeriodo('hoje',this)">Hoje</button>
           <button class="chip atend-chip" data-p="7dias"        onclick="setAtendPeriodo('7dias',this)">7 dias</button>
           <button class="chip atend-chip" data-p="mes"          onclick="setAtendPeriodo('mes',this)">Mês</button>
+          <button class="chip atend-chip" data-p="mes_anterior" onclick="setAtendPeriodo('mes_anterior',this)">Mês anterior</button>
           <button class="chip atend-chip" data-p="custom"       onclick="setAtendPeriodo('custom',this)">Período</button>
         </div>
         <div id="atendDateRange" style="display:none;gap:6px;align-items:center">
@@ -769,7 +772,7 @@ input[type="text"]::placeholder { color:var(--text3); }
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Gerou OS</div><div class="kpi-mini-val" id="at-comOS" style="color:var(--accent)">—</div></div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">TMA médio</div><div class="kpi-mini-val" id="at-tma" style="color:var(--amber);font-size:18px">—</div></div>
       </div>
-      <!-- Filtro por setor -->
+      <!-- Filtro por setor + botão configurar -->
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
         <span style="font-size:12px;color:var(--text3)">Setor:</span>
         <select id="filtAtendSetor" onchange="renderAtendimentosFiltrado()" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:4px 10px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
@@ -780,6 +783,23 @@ input[type="text"]::placeholder { color:var(--text3); }
           <option>Financeiro</option>
           <option>Call Center</option>
         </select>
+        <button onclick="abrirConfigSetores()" class="btn btn-sm" style="padding:4px 12px;font-size:11px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);color:var(--text2);cursor:pointer"><i class="fas fa-cog"></i> Configurar setores</button>
+      </div>
+
+      <!-- Modal configurar setores -->
+      <div id="modalSetores" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:24px;width:480px;max-width:95vw;max-height:80vh;overflow-y:auto">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <span style="font-weight:600;font-size:14px">Configurar Setores por Atendente</span>
+            <button onclick="fecharConfigSetores()" style="background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer">✕</button>
+          </div>
+          <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Atribua cada atendente ao seu setor. Salvo no navegador.</p>
+          <div id="listaConfigSetores"></div>
+          <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
+            <button onclick="fecharConfigSetores()" class="btn btn-sm" style="padding:6px 16px;font-size:12px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);color:var(--text2);cursor:pointer">Cancelar</button>
+            <button onclick="salvarConfigSetores()" class="btn btn-primary btn-sm" style="padding:6px 16px;font-size:12px"><i class="fas fa-save"></i> Salvar</button>
+          </div>
+        </div>
       </div>
       <!-- Por atendente + por setor -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
@@ -1276,7 +1296,14 @@ function setPeriodo(p, el) {
   const ddr = document.getElementById('dashDateRange');
   if(dr)  dr.style.display  = p==='custom' ? 'flex' : 'none';
   if(ddr) ddr.style.display = p==='custom' ? 'flex' : 'none';
-  // Filtra localmente primeiro; usuário pode clicar Buscar para puxar da API
+  // Restaura cache do período, se existir
+  const cached = carregarCache(p);
+  if (cached?.dados?.length) {
+    filtros.rangeIni = null;
+    filtros.rangeFim = null;
+    aplicarDados(cached.dados);
+    return;
+  }
   applyFilters();
 }
 
@@ -1296,6 +1323,11 @@ function getPeriodDates() {
   if (p === 'mes') {
     const ini = new Date(agora.getFullYear(), agora.getMonth(), 1);
     const fim = new Date(agora.getFullYear(), agora.getMonth() + 1, 0, 23, 59, 59, 999);
+    return { ini: ini.toISOString(), fim: fim.toISOString() };
+  }
+  if (p === 'mes_anterior') {
+    const ini = new Date(agora.getFullYear(), agora.getMonth() - 1, 1);
+    const fim = new Date(agora.getFullYear(), agora.getMonth(), 0, 23, 59, 59, 999);
     return { ini: ini.toISOString(), fim: fim.toISOString() };
   }
   if (p === 'custom') {
@@ -1374,6 +1406,13 @@ function applyFilters() {
         } else {
           if(diaC.getMonth() !== hoje.getMonth() || diaC.getFullYear() !== hoje.getFullYear()) return false;
         }
+      } else if(filtros.periodo === 'mes_anterior') {
+        const mesAnt = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+        if(filtros.rangeIni && filtros.rangeFim) {
+          if(diaC < filtros.rangeIni || diaC >= filtros.rangeFim) return false;
+        } else {
+          if(diaC.getMonth() !== mesAnt.getMonth() || diaC.getFullYear() !== mesAnt.getFullYear()) return false;
+        }
       } else if(filtros.periodo === 'custom') {
         const de  = document.getElementById('dashDtDe')?.value || document.getElementById('dtDe')?.value;
         const ate = document.getElementById('dashDtAte')?.value || document.getElementById('dtAte')?.value;
@@ -1424,7 +1463,7 @@ function calcTMI() { return calcTM(); }
 
 // Label do período para os cards
 function labelPeriodo() {
-  const map = {hoje:'Hoje', amanha:'Amanhã', semana:'Semana', mes:'Mês', custom:'Período'};
+  const map = {hoje:'Hoje', amanha:'Amanhã', semana:'Semana', mes:'Mês', mes_anterior:'Mês anterior', custom:'Período'};
   return map[filtros.periodo] || 'Período';
 }
 
@@ -2301,16 +2340,20 @@ async function testarConexaoProxy() {
 
 // ── CACHE LOCAL — carrega/salva chamados no localStorage ────────────────────
 const CACHE_KEY = 'ops360_chamados_cache';
-function carregarCache() {
+// Cache por período: chave = 'ops360_cache_<periodo>', ex: ops360_cache_mes_anterior
+function _cacheKey(periodo) {
+  return periodo && periodo !== 'hoje' ? `ops360_cache_${periodo}` : CACHE_KEY;
+}
+function carregarCache(periodo) {
   try {
-    const raw = localStorage.getItem(CACHE_KEY);
+    const raw = localStorage.getItem(_cacheKey(periodo || filtros.periodo));
     if (!raw) return null;
     const { dados, ts } = JSON.parse(raw);
     return dados?.length ? { dados, ts } : null;
   } catch { return null; }
 }
-function salvarCache(dados) {
-  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ dados, ts: Date.now() })); } catch {}
+function salvarCache(dados, periodo) {
+  try { localStorage.setItem(_cacheKey(periodo || filtros.periodo), JSON.stringify({ dados, ts: Date.now() })); } catch {}
 }
 function aplicarDados(dados) {
   const agora = new Date();
@@ -2353,6 +2396,51 @@ renderRtbInsight();
 let atendPeriodo = 'hoje';
 let _atendData = null; // cache do último resultado
 
+const SETORES_KEY = 'ops360_setor_map';
+const SETORES_LISTA = ['NOC','Comercial','Cobrança','Financeiro','Call Center'];
+
+function carregarMapaSetores() {
+  try { return JSON.parse(localStorage.getItem(SETORES_KEY) || '{}'); } catch { return {}; }
+}
+function salvarMapaSetores(mapa) {
+  localStorage.setItem(SETORES_KEY, JSON.stringify(mapa));
+}
+function getSetorAtendente(nome) {
+  const mapa = carregarMapaSetores();
+  return mapa[nome] || '';
+}
+
+function abrirConfigSetores() {
+  if (!_atendData) return;
+  const mapa = carregarMapaSetores();
+  const atendentes = (_atendData.por_atendente || []).map(a => a.atendente).filter(n => n && n !== 'Sem atendente');
+  const lista = document.getElementById('listaConfigSetores');
+  if (!lista) return;
+  lista.innerHTML = atendentes.length ? atendentes.map(nome => `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <span style="flex:1;font-size:13px;color:var(--text)">${nome}</span>
+      <select data-nome="${nome}" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:4px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif;width:140px">
+        <option value="">Sem setor</option>
+        ${SETORES_LISTA.map(s => `<option value="${s}"${mapa[nome]===s?' selected':''}>${s}</option>`).join('')}
+      </select>
+    </div>`).join('') : '<p style="color:var(--text3);font-size:12px">Nenhum atendente carregado. Clique em Buscar primeiro.</p>';
+  const modal = document.getElementById('modalSetores');
+  if (modal) { modal.style.display = 'flex'; }
+}
+function fecharConfigSetores() {
+  const modal = document.getElementById('modalSetores');
+  if (modal) modal.style.display = 'none';
+}
+function salvarConfigSetores() {
+  const mapa = {};
+  document.querySelectorAll('#listaConfigSetores select[data-nome]').forEach(sel => {
+    if (sel.value) mapa[sel.dataset.nome] = sel.value;
+  });
+  salvarMapaSetores(mapa);
+  fecharConfigSetores();
+  renderAtendimentosFiltrado();
+}
+
 function setAtendPeriodo(p, el) {
   atendPeriodo = p;
   document.querySelectorAll('.atend-chip').forEach(b => b.classList.remove('active'));
@@ -2373,6 +2461,11 @@ function getAtendDates() {
   if (atendPeriodo === 'mes') {
     const ini = new Date(agora.getFullYear(), agora.getMonth(), 1);
     return { ini: ini.toISOString(), fim: agora.toISOString() };
+  }
+  if (atendPeriodo === 'mes_anterior') {
+    const ini = new Date(agora.getFullYear(), agora.getMonth() - 1, 1);
+    const fim = new Date(agora.getFullYear(), agora.getMonth(), 0, 23, 59, 59, 999);
+    return { ini: ini.toISOString(), fim: fim.toISOString() };
   }
   if (atendPeriodo === 'custom') {
     const de  = document.getElementById('atendDtDe')?.value;
@@ -2429,18 +2522,25 @@ function renderAtendimentos(data) {
 function renderAtendimentosFiltrado() {
   if (!_atendData) return;
   const data   = _atendData;
-  const setor  = document.getElementById('filtAtendSetor')?.value || '';
+  const filtSetor = document.getElementById('filtAtendSetor')?.value || '';
+  const mapa   = carregarMapaSetores();
+
+  // Aplica setor configurado manualmente (sobrescreve o inferido do servidor)
+  const porAtComSetor = (data.por_atendente || []).map(a => ({
+    ...a,
+    setor: mapa[a.atendente] || a.setor || ''
+  }));
 
   // Por atendente (com filtro de setor)
   const atTbl   = document.getElementById('atendenteTbl');
   const atCount = document.getElementById('at-atend-count');
-  let porAt = data.por_atendente || [];
-  if (setor) porAt = porAt.filter(a => (a.setor||'').toLowerCase().includes(setor.toLowerCase()));
+  let porAt = porAtComSetor;
+  if (filtSetor) porAt = porAt.filter(a => a.setor === filtSetor);
   if (atCount) atCount.textContent = `${porAt.length} atendentes`;
   if (atTbl) {
     atTbl.innerHTML = porAt.length ? porAt.map((a, i) => `<tr>
       <td style="color:var(--text3)">${i+1}</td>
-      <td style="font-weight:500">${a.atendente}<br><span style="font-size:10px;color:var(--text3)">${a.setor||''}</span></td>
+      <td style="font-weight:500">${a.atendente}${a.setor ? `<br><span style="font-size:10px;color:var(--text3)">${a.setor}</span>` : ''}</td>
       <td class="mono" style="font-weight:600">${a.total}</td>
       <td class="mono" style="color:#22c55e">${a.semOS}</td>
       <td class="mono" style="color:var(--accent)">${a.comOS}</td>
@@ -2449,10 +2549,23 @@ function renderAtendimentosFiltrado() {
     : `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Nenhum atendente no período</td></tr>`;
   }
 
-  // Por setor
+  // Recalcula Por Setor com base no setor real de cada atendente
+  const mapaSetorReal = {};
+  porAtComSetor.forEach(a => {
+    const s = a.setor || 'Sem setor';
+    if (!mapaSetorReal[s]) mapaSetorReal[s] = { setor:s, total:0, comOS:0, semOS:0 };
+    mapaSetorReal[s].total += a.total;
+    mapaSetorReal[s].comOS += a.comOS;
+    mapaSetorReal[s].semOS += a.semOS;
+  });
+  const porSetorReal = Object.values(mapaSetorReal)
+    .map(s => ({ ...s, pctSemOS: s.total ? Math.round(s.semOS/s.total*100) : 0 }))
+    .sort((a,b) => b.total - a.total);
+
+  // Por setor (usa setor real dos atendentes configurados)
   const setTbl   = document.getElementById('setorTbl');
   const setCount = document.getElementById('at-setor-count');
-  const porSet   = data.por_setor || [];
+  const porSet   = porSetorReal;
   if (setCount) setCount.textContent = `${porSet.length} setores`;
   if (setTbl) {
     setTbl.innerHTML = porSet.length ? porSet.map((s, i) => {
