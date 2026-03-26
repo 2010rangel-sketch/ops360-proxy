@@ -392,10 +392,28 @@ app.get('/api/debug-raw', async (req, res) => {
 // ── Ordens de Serviço (Chamados) ─────────────────────────────────
 app.get('/api/chamados', async (req, res) => {
   try {
-    const { data_inicio, data_fim, limit = 200, page = 1 } = req.query;
-    const body = bodyConsultaOS({ data_inicio, data_fim, limit, page });
-    const data = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${limit}?page=${page}`, body);
-    const lista = extrairLista(data);
+    const { data_inicio, data_fim, limit = 200, page = 1, all } = req.query;
+
+    let lista = [];
+    if (all === 'true') {
+      // Paginate through all results (500/page, up to 100 pages safety cap)
+      let pg = 1;
+      const PAGE_SIZE = 500;
+      const MAX_PAGES = 100;
+      while (pg <= MAX_PAGES) {
+        const body = bodyConsultaOS({ data_inicio, data_fim });
+        const data = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=${pg}`, body);
+        const pageLista = extrairLista(data);
+        lista.push(...pageLista);
+        console.log(`[chamados] page ${pg}: ${pageLista.length} records (total so far: ${lista.length})`);
+        if (pageLista.length < PAGE_SIZE) break;
+        pg++;
+      }
+    } else {
+      const body = bodyConsultaOS({ data_inicio, data_fim, limit, page });
+      const data = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${limit}?page=${page}`, body);
+      lista = extrairLista(data);
+    }
 
     const chamados = lista.map(os => {
       const tipo  = os.tipo_ordem_servico?.descricao || os.tipo_os?.nome || 'Sem tipo';

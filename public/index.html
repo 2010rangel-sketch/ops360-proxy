@@ -1295,14 +1295,18 @@ function getPeriodDates() {
 // Busca chamados da API para o período selecionado
 async function buscarPeriodo() {
   const { ini, fim } = getPeriodDates();
+  // Use full pagination for non-today queries (semana, mes, custom)
+  const useAll = filtros.periodo !== 'hoje' && filtros.periodo !== 'amanha';
   const setBtns = (txt, dis) => {
     ['btnBuscar','btnBuscarDash'].forEach(id => {
       const b = document.getElementById(id);
       if (b) { b.innerHTML = `<i class="fas fa-search"></i> ${txt}`; b.disabled = dis; }
     });
   };
-  setBtns('Buscando...', true);
-  const chamados = await buscarChamadosHubsoft({ data_inicio: ini, data_fim: fim });
+  setBtns(useAll ? 'Carregando todas as páginas...' : 'Buscando...', true);
+  const params = { data_inicio: ini, data_fim: fim };
+  if (useAll) params.all = 'true';
+  const chamados = await buscarChamadosHubsoft(params);
   if (chamados && chamados.length > 0) {
     salvarCache(chamados);
     aplicarDados(chamados);
