@@ -684,7 +684,10 @@ app.get('/api/atendimentos', async (req, res) => {
     }
 
     const SETORES_EXCLUIDOS = ['NOC', ''];
-    const parsed = lista.map(parseA).filter(a => !SETORES_EXCLUIDOS.includes(a.setor));
+    const parsedAll = lista.map(parseA);
+    const parsed = parsedAll.filter(a => !SETORES_EXCLUIDOS.includes(a.setor));
+
+    const isLC = (nome) => (nome || '').toUpperCase().includes('LC VIRTUAL') || (nome || '').toUpperCase().includes('LCVIRTUAL');
 
     // Agrupa por atendente (inclui setor para filtro no cliente)
     const mapaAt = {};
@@ -728,9 +731,10 @@ app.get('/api/atendimentos', async (req, res) => {
                    tma: t.tmaCount ? Math.round(t.tmaTot/t.tmaCount) : null }))
       .sort((a,b) => b.total - a.total);
 
-    // Clientes recorrentes — do período selecionado (dinâmico), com tipos de atendimento
+    // Clientes recorrentes — excluindo LC Virtual Net
     const mapaClientes = {};
     parsed.forEach(a => {
+      if (isLC(a.cliente)) return;
       const k = a.clienteId;
       if (!mapaClientes[k]) mapaClientes[k] = { cliente:a.cliente, contatos:0, semOS:0, comOS:0, setor:a.setor, tipos:{} };
       mapaClientes[k].contatos++;
@@ -743,11 +747,23 @@ app.get('/api/atendimentos', async (req, res) => {
       .sort((a,b) => b.contatos - a.contatos)
       .slice(0, 50);
 
+    // LC Virtual Net — Reparo, Expansão e Correção de Rede (usa parsedAll para incluir todos os setores)
+    const LC_TIPOS_KEYWORDS = ['REPARO', 'EXPANS', 'CORRE'];
+    const mapaLC = {};
+    parsedAll.filter(a => isLC(a.cliente)).forEach(a => {
+      const t = (a.tipo || '').toUpperCase();
+      if (!LC_TIPOS_KEYWORDS.some(k => t.includes(k))) return;
+      if (!mapaLC[a.tipo]) mapaLC[a.tipo] = { tipo: a.tipo, total: 0, comOS: 0, semOS: 0 };
+      mapaLC[a.tipo].total++;
+      if (a.temOS) mapaLC[a.tipo].comOS++; else mapaLC[a.tipo].semOS++;
+    });
+    const lc_virtual = Object.values(mapaLC).sort((a, b) => b.total - a.total);
+
     const periodo = req.query.periodo || 'custom';
     res.json({
       ok: true,
       total: parsed.length,
-      por_atendente, por_setor, por_tipo, clientes_recorrentes, periodo,
+      por_atendente, por_setor, por_tipo, clientes_recorrentes, lc_virtual, periodo,
       sincronizado_em: new Date().toISOString(),
     });
   } catch (err) {
