@@ -927,16 +927,37 @@ app.get('/api/debug-atendimentos', async (req, res) => {
 // ── Debug: estrutura de usuários/setores ─────────────────────────
 app.get('/api/debug-usuarios', async (_req, res) => {
   try {
-    const endpoints = ['v1/usuario', 'v1/funcionario', 'v1/usuario?limit=5', 'v1/funcionario?limit=5'];
+    // Try GET endpoints
+    const getEps = [
+      'v1/usuario', 'v1/usuario/listar', 'v1/usuario/consultar',
+      'v1/funcionario', 'v1/funcionario/listar',
+      'v1/acl/usuario', 'v1/acl/usuarios',
+      'v1/configuracao/usuario', 'v1/configuracao/usuarios',
+    ];
+    // Try POST endpoints
+    const postEps = [
+      'v1/usuario/consultar/paginado/20?page=1',
+      'v1/funcionario/consultar/paginado/20?page=1',
+    ];
     const resultados = {};
-    for (const ep of endpoints) {
+    for (const ep of getEps) {
       try {
         const d = await hubsoftGet(ep, {});
         const lista = d.data || d.items || d || [];
         const primeiro = Array.isArray(lista) ? lista[0] : lista;
-        resultados[ep] = { ok: true, total: Array.isArray(lista) ? lista.length : 1, keys: primeiro ? Object.keys(primeiro) : [], primeiro };
+        resultados[`GET ${ep}`] = { ok: true, total: Array.isArray(lista) ? lista.length : 1, keys: primeiro ? Object.keys(primeiro) : [], primeiro };
       } catch(e) {
-        resultados[ep] = { ok: false, status: e.response?.status, erro: e.message };
+        resultados[`GET ${ep}`] = { ok: false, status: e.response?.status, erro: e.message };
+      }
+    }
+    for (const ep of postEps) {
+      try {
+        const d = await hubsoftPost(ep, {});
+        const lista = d.data || d.items || d.usuarios?.data || d.funcionarios?.data || d || [];
+        const primeiro = Array.isArray(lista) ? lista[0] : lista;
+        resultados[`POST ${ep}`] = { ok: true, total: Array.isArray(lista) ? lista.length : 1, keys: primeiro ? Object.keys(primeiro) : [], primeiro };
+      } catch(e) {
+        resultados[`POST ${ep}`] = { ok: false, status: e.response?.status, erro: e.message };
       }
     }
     res.json(resultados);
