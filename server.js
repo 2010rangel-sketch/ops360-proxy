@@ -941,19 +941,8 @@ app.get('/api/usuarios-setores', async (_req, res) => {
       (a.usuarios_responsaveis || []).forEach(u => { if (u.id && u.name) idsMap[u.id] = u.name; });
       if (a.usuario_fechamento?.id) idsMap[a.usuario_fechamento.id] = a.usuario_fechamento.name;
     });
-    // Busca grupo de cada usuário via v1/funcionario/{id}
-    const usuarios = [];
-    for (const [id, nome] of Object.entries(idsMap)) {
-      try {
-        const u = await hubsoftGet(`v1/funcionario/${id}`, {});
-        const grupo = u.grupo_permissao?.nome || u.grupo_permissao?.descricao
-                   || u.grupo?.nome || u.setor?.nome
-                   || u.perfil?.nome || u.role?.name || null;
-        usuarios.push({ id: Number(id), nome, grupo, keys: Object.keys(u) });
-      } catch(e) {
-        usuarios.push({ id: Number(id), nome, grupo: null, erro: e.message });
-      }
-    }
+    // API não expõe grupos — retorna apenas id+nome para o modal de config manual
+    const usuarios = Object.entries(idsMap).map(([id, nome]) => ({ id: Number(id), nome }));
     res.json({ ok: true, total: usuarios.length, usuarios });
   } catch(err) { res.status(500).json({ ok: false, erro: err.message }); }
 });

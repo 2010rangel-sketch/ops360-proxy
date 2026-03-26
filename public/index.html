@@ -2410,22 +2410,36 @@ function getSetorAtendente(nome) {
   return mapa[nome] || '';
 }
 
-function abrirConfigSetores() {
-  if (!_atendData) return;
-  const mapa = carregarMapaSetores();
-  const atendentes = (_atendData.por_atendente || []).map(a => a.atendente).filter(n => n && n !== 'Sem atendente');
+async function abrirConfigSetores() {
+  const modal = document.getElementById('modalSetores');
   const lista = document.getElementById('listaConfigSetores');
-  if (!lista) return;
-  lista.innerHTML = atendentes.length ? atendentes.map(nome => `
+  if (!lista || !modal) return;
+  lista.innerHTML = '<p style="color:var(--text3);font-size:12px">Carregando atendentes...</p>';
+  modal.style.display = 'flex';
+
+  // Busca lista completa de usuários do sistema
+  let nomes = [];
+  try {
+    const res = await fetch(`${PROXY_URL}/api/usuarios-setores`);
+    const data = await res.json();
+    if (data.ok && data.usuarios?.length) {
+      nomes = data.usuarios.map(u => u.nome).filter(Boolean).sort();
+    }
+  } catch {}
+  // Fallback: usa atendentes do período atual se a busca falhar
+  if (!nomes.length && _atendData) {
+    nomes = (_atendData.por_atendente || []).map(a => a.atendente).filter(n => n && n !== 'Sem atendente');
+  }
+
+  const mapa = carregarMapaSetores();
+  lista.innerHTML = nomes.length ? nomes.map(nome => `
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
       <span style="flex:1;font-size:13px;color:var(--text)">${nome}</span>
       <select data-nome="${nome}" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:4px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif;width:140px">
         <option value="">Sem setor</option>
         ${SETORES_LISTA.map(s => `<option value="${s}"${mapa[nome]===s?' selected':''}>${s}</option>`).join('')}
       </select>
-    </div>`).join('') : '<p style="color:var(--text3);font-size:12px">Nenhum atendente carregado. Clique em Buscar primeiro.</p>';
-  const modal = document.getElementById('modalSetores');
-  if (modal) { modal.style.display = 'flex'; }
+    </div>`).join('') : '<p style="color:var(--text3);font-size:12px">Nenhum atendente encontrado.</p>';
 }
 function fecharConfigSetores() {
   const modal = document.getElementById('modalSetores');
