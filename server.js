@@ -553,7 +553,7 @@ app.get('/api/tipos-os', async (req, res) => {
 // ── Atendimentos — por período, agrupado por atendente/setor/tipo ─
 app.get('/api/atendimentos', async (req, res) => {
   try {
-    const { data_inicio, data_fim } = req.query;
+    const { data_inicio, data_fim, all } = req.query;
     const agora = new Date();
 
     // Período selecionado (ou hoje por default)
@@ -567,16 +567,43 @@ app.get('/api/atendimentos', async (req, res) => {
       fim = new Date(ini.getTime() + 24*60*60*1000);
     }
 
-    // Período fixo 7 dias para recorrência (sempre independente do filtro)
-    const ini7 = new Date(agora.getTime() - 7*24*60*60*1000);
+    // Período fixo 7 dias para recorrência (usado em fetchAtendPages abaixo)
 
-    const [data, data7] = await Promise.all([
-      hubsoftPost('v1/atendimento/consultar/paginado/500?page=1', { data_inicio: ini.toISOString(), data_fim: fim.toISOString() }),
-      hubsoftPost('v1/atendimento/consultar/paginado/500?page=1', { data_inicio: ini7.toISOString(), data_fim: agora.toISOString() }),
+    // Helper: fetch all pages in parallel for atendimentos
+    async function fetchAtendPages(iniDate, fimDate, forceAll = false) {
+      const PAGE_SIZE = 500;
+      const MAX_PAGES = 100;
+      const body1 = { data_inicio: iniDate.toISOString(), data_fim: fimDate.toISOString() };
+      const d1 = await hubsoftPost(`v1/atendimento/consultar/paginado/${PAGE_SIZE}?page=1`, body1);
+      const list1 = Array.isArray(d1?.atendimentos?.data) ? d1.atendimentos.data : [];
+      if (!forceAll) return list1;
+      const lastPage = d1?.atendimentos?.last_page || null;
+      const total    = d1?.atendimentos?.total || null;
+      const perPage  = d1?.atendimentos?.per_page || PAGE_SIZE;
+      let totalPages = lastPage || (total ? Math.ceil(total / perPage) : null) || (list1.length >= PAGE_SIZE ? MAX_PAGES : 1);
+      totalPages = Math.min(totalPages, MAX_PAGES);
+      console.log(`[atendimentos] page 1: ${list1.length} | totalPages=${totalPages} | total=${total}`);
+      if (totalPages <= 1) return list1;
+      const BATCH = 10;
+      let all_list = [...list1];
+      for (let start = 2; start <= totalPages; start += BATCH) {
+        const end = Math.min(start + BATCH - 1, totalPages);
+        const pages = Array.from({ length: end - start + 1 }, (_, i) => start + i);
+        const results = await Promise.all(pages.map(async pg => {
+          const d = await hubsoftPost(`v1/atendimento/consultar/paginado/${PAGE_SIZE}?page=${pg}`, body1);
+          return Array.isArray(d?.atendimentos?.data) ? d.atendimentos.data : [];
+        }));
+        for (const r of results) all_list.push(...r);
+        console.log(`[atendimentos] batch ${start}-${end}: total so far ${all_list.length}`);
+      }
+      return all_list;
+    }
+
+    const useAll = all === 'true';
+    const [lista, lista7] = await Promise.all([
+      fetchAtendPages(ini, fim, useAll),
+      fetchAtendPages(new Date(agora.getTime() - 7*24*60*60*1000), agora, false),
     ]);
-
-    const lista  = Array.isArray(data?.atendimentos?.data)  ? data.atendimentos.data  : [];
-    const lista7 = Array.isArray(data7?.atendimentos?.data) ? data7.atendimentos.data : [];
 
     function parseA(a) {
       const tipo      = a.tipo_atendimento?.descricao || 'Sem tipo';
@@ -615,17 +642,17 @@ app.get('/api/atendimentos', async (req, res) => {
     const parsed  = lista.map(parseA);
     const parsed7 = lista7.map(parseA);
 
-    // Agrupa por atendente
+    // Agrupa por atendente (inclui setor para filtro no cliente)
     const mapaAt = {};
     parsed.forEach(a => {
       const k = a.atendente;
-      if (!mapaAt[k]) mapaAt[k] = { atendente:k, total:0, comOS:0, semOS:0, tmaTot:0, tmaCount:0 };
+      if (!mapaAt[k]) mapaAt[k] = { atendente:k, setor:a.setor, total:0, comOS:0, semOS:0, tmaTot:0, tmaCount:0 };
       mapaAt[k].total++;
       if (a.temOS) mapaAt[k].comOS++; else mapaAt[k].semOS++;
       if (a.tmaMin !== null) { mapaAt[k].tmaTot += a.tmaMin; mapaAt[k].tmaCount++; }
     });
     const por_atendente = Object.values(mapaAt)
-      .map(a => ({ atendente:a.atendente, total:a.total, comOS:a.comOS, semOS:a.semOS,
+      .map(a => ({ atendente:a.atendente, setor:a.setor, total:a.total, comOS:a.comOS, semOS:a.semOS,
                    pctSemOS: a.total ? Math.round(a.semOS/a.total*100) : 0,
                    tma: a.tmaCount ? Math.round(a.tmaTot/a.tmaCount) : null }))
       .sort((a,b) => b.total - a.total);

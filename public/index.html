@@ -769,6 +769,18 @@ input[type="text"]::placeholder { color:var(--text3); }
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Gerou OS</div><div class="kpi-mini-val" id="at-comOS" style="color:var(--accent)">—</div></div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">TMA médio</div><div class="kpi-mini-val" id="at-tma" style="color:var(--amber);font-size:18px">—</div></div>
       </div>
+      <!-- Filtro por setor -->
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+        <span style="font-size:12px;color:var(--text3)">Setor:</span>
+        <select id="filtAtendSetor" onchange="renderAtendimentosFiltrado()" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:4px 10px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
+          <option value="">Todos</option>
+          <option>NOC</option>
+          <option>Comercial</option>
+          <option>Cobrança</option>
+          <option>Financeiro</option>
+          <option>Call Center</option>
+        </select>
+      </div>
       <!-- Por atendente + por setor -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
         <div class="tbl-card" style="margin-bottom:0">
@@ -2336,6 +2348,7 @@ renderRtbInsight();
 
 // ── ATENDIMENTO — dados reais do Hubsoft ──────────────────────────
 let atendPeriodo = 'hoje';
+let _atendData = null; // cache do último resultado
 
 function setAtendPeriodo(p, el) {
   atendPeriodo = p;
@@ -2373,10 +2386,12 @@ function fmtTma(min) {
 
 async function loadAtendimentos() {
   const { ini, fim } = getAtendDates();
+  const useAll = atendPeriodo !== 'hoje';
   const badge = document.getElementById('atend-sync-badge');
-  if (badge) { badge.textContent = 'Buscando...'; badge.className = 'badge b-amber'; }
+  if (badge) { badge.textContent = useAll ? 'Carregando páginas...' : 'Buscando...'; badge.className = 'badge b-amber'; }
   try {
-    const res  = await fetch(`${PROXY_URL}/api/atendimentos?data_inicio=${encodeURIComponent(ini)}&data_fim=${encodeURIComponent(fim)}`);
+    const qs = `data_inicio=${encodeURIComponent(ini)}&data_fim=${encodeURIComponent(fim)}${useAll ? '&all=true' : ''}`;
+    const res  = await fetch(`${PROXY_URL}/api/atendimentos?${qs}`);
     const data = await res.json();
     if (data.ok) renderAtendimentos(data);
     else { if (badge) { badge.textContent = 'Erro'; badge.className = 'badge b-red'; } }
@@ -2387,6 +2402,7 @@ async function loadAtendimentos() {
 }
 
 function renderAtendimentos(data) {
+  _atendData = data;
   const badge = document.getElementById('atend-sync-badge');
   const hora  = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
   if (badge) { badge.textContent = `Atualizado ${hora}`; badge.className = 'badge b-green'; }
@@ -2404,15 +2420,24 @@ function renderAtendimentos(data) {
   const tmaMed  = tmaVals.length ? Math.round(tmaVals.reduce((s,v) => s+v, 0) / tmaVals.length) : null;
   elVal('at-tma', fmtTma(tmaMed));
 
-  // Por atendente
+  renderAtendimentosFiltrado();
+}
+
+function renderAtendimentosFiltrado() {
+  if (!_atendData) return;
+  const data   = _atendData;
+  const setor  = document.getElementById('filtAtendSetor')?.value || '';
+
+  // Por atendente (com filtro de setor)
   const atTbl   = document.getElementById('atendenteTbl');
   const atCount = document.getElementById('at-atend-count');
-  const porAt   = data.por_atendente || [];
+  let porAt = data.por_atendente || [];
+  if (setor) porAt = porAt.filter(a => (a.setor||'').toLowerCase().includes(setor.toLowerCase()));
   if (atCount) atCount.textContent = `${porAt.length} atendentes`;
   if (atTbl) {
     atTbl.innerHTML = porAt.length ? porAt.map((a, i) => `<tr>
       <td style="color:var(--text3)">${i+1}</td>
-      <td style="font-weight:500">${a.atendente}</td>
+      <td style="font-weight:500">${a.atendente}<br><span style="font-size:10px;color:var(--text3)">${a.setor||''}</span></td>
       <td class="mono" style="font-weight:600">${a.total}</td>
       <td class="mono" style="color:#22c55e">${a.semOS}</td>
       <td class="mono" style="color:var(--accent)">${a.comOS}</td>
