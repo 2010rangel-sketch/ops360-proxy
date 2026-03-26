@@ -1226,7 +1226,7 @@ const stBadge = {
 };
 
 // ── ESTADO DOS FILTROS ──────────────────────────────────────────────────────
-let filtros = {periodo:'hoje', tec:'', cidade:'', cat:'', st:'todos'};
+let filtros = {periodo:'hoje', tec:'', cidade:'', cat:'', st:'todos', rangeIni:null, rangeFim:null};
 let chamadosFiltrados = [...chamadosDB];
 
 // Popula dropdowns
@@ -1256,6 +1256,8 @@ function syncDates(campo, val) {
 }
 function setPeriodo(p, el) {
   filtros.periodo = p;
+  filtros.rangeIni = null;
+  filtros.rangeFim = null;
   document.querySelectorAll('.per-chip').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll(`.per-chip[data-p="${p}"]`).forEach(b=>b.classList.add('active'));
   const dr  = document.getElementById('dateRange');
@@ -1308,6 +1310,9 @@ async function buscarPeriodo() {
   if (useAll) params.all = 'true';
   const chamados = await buscarChamadosHubsoft(params);
   if (chamados && chamados.length > 0) {
+    // Store the fetched range so applyFilters can use it for non-custom periods
+    filtros.rangeIni = new Date(ini);
+    filtros.rangeFim = new Date(fim);
     salvarCache(chamados);
     aplicarDados(chamados);
   }
@@ -1343,19 +1348,32 @@ function applyFilters() {
         const amanha = new Date(hoje.getTime() + 24*60*60*1000);
         if(diaC.getTime() !== amanha.getTime()) return false;
       } else if(filtros.periodo === 'semana') {
-        // Semana atual: segunda a domingo
-        const dow  = hoje.getDay(); // 0=Dom..6=Sab
-        const seg  = new Date(hoje.getTime() - ((dow===0?6:dow-1)*24*60*60*1000));
-        const dom  = new Date(seg.getTime() + 6*24*60*60*1000);
-        if(diaC < seg || diaC > dom) return false;
+        if(filtros.rangeIni && filtros.rangeFim) {
+          if(diaC < filtros.rangeIni || diaC >= filtros.rangeFim) return false;
+        } else {
+          const dow  = hoje.getDay();
+          const seg  = new Date(hoje.getTime() - ((dow===0?6:dow-1)*24*60*60*1000));
+          const dom  = new Date(seg.getTime() + 6*24*60*60*1000);
+          if(diaC < seg || diaC > dom) return false;
+        }
       } else if(filtros.periodo === 'mes') {
-        // Mês atual
-        if(diaC.getMonth() !== hoje.getMonth() || diaC.getFullYear() !== hoje.getFullYear()) return false;
+        if(filtros.rangeIni && filtros.rangeFim) {
+          if(diaC < filtros.rangeIni || diaC >= filtros.rangeFim) return false;
+        } else {
+          if(diaC.getMonth() !== hoje.getMonth() || diaC.getFullYear() !== hoje.getFullYear()) return false;
+        }
       } else if(filtros.periodo === 'custom') {
         const de  = document.getElementById('dashDtDe')?.value || document.getElementById('dtDe')?.value;
         const ate = document.getElementById('dashDtAte')?.value || document.getElementById('dtAte')?.value;
-        if(de  && diaC < new Date(de))  return false;
-        if(ate && diaC > new Date(ate)) return false;
+        // Parse local dates (YYYY-MM-DD) to avoid UTC timezone offset bug
+        if(de) {
+          const [dy,dm,dd] = de.split('-').map(Number);
+          if(diaC < new Date(dy, dm-1, dd)) return false;
+        }
+        if(ate) {
+          const [ay,am,ad] = ate.split('-').map(Number);
+          if(diaC > new Date(ay, am-1, ad)) return false;
+        }
       }
     }
     return true;
