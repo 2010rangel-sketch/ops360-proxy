@@ -631,13 +631,13 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
       </div>
 
-      <!-- ── CHAMADOS FINALIZADOS POR DIA ── -->
+      <!-- ── TM ACUMULADO DO MÊS ── -->
       <div class="tbl-card" style="margin-top:14px">
         <div class="tbl-header">
-          <span class="tbl-title">Finalizados por dia</span>
+          <span class="tbl-title">TM acumulado do mês</span>
           <span class="badge b-blue" id="tmMensalBadge"></span>
         </div>
-        <div class="bar-chart" id="tmMensalChart" style="height:160px;gap:3px;overflow:hidden"></div>
+        <div class="bar-chart" id="tmMensalChart" style="height:160px;gap:4px;padding-top:4px;overflow:hidden"></div>
       </div>
 
       <!-- ── PRODUÇÃO POR TÉCNICO + CHAMADOS POR CIDADE ── -->
@@ -672,46 +672,17 @@ input[type="text"]::placeholder { color:var(--text3); }
       </div><!-- /#dash-tab-geral -->
 
       <div id="dash-tab-tecnico" style="display:none">
-        <!-- KPIs rápidos de técnicos -->
-        <div class="kpi-row" id="tecKpiRow" style="margin-bottom:14px"></div>
-
-        <!-- Produção por técnico — barras horizontais -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-          <div class="tbl-card" style="margin-bottom:0">
-            <div class="tbl-header">
-              <span class="tbl-title">Chamados por técnico</span>
-              <span class="badge b-blue" id="tecPeriodoBadge"></span>
-            </div>
-            <div id="tecProdBars" style="padding:8px 4px 4px"></div>
-          </div>
-          <div class="tbl-card" style="margin-bottom:0">
-            <div class="tbl-header">
-              <span class="tbl-title">Ranking detalhado</span>
-            </div>
-            <div style="overflow-x:auto;max-height:340px;overflow-y:auto">
-              <table><thead><tr>
-                <th>#</th><th>Técnico</th><th>Total</th>
-                <th style="color:var(--green)">Finaliz.</th>
-                <th style="color:var(--accent)">Andamento</th>
-                <th style="color:var(--red)">Atrasado</th>
-                <th>Taxa %</th>
-              </tr></thead>
-              <tbody id="tecRankingTbl"><tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">—</td></tr></tbody></table>
-            </div>
-          </div>
-        </div>
-
-        <!-- Por tipo de chamado por técnico -->
+        <!-- filter + TMA ranking table -->
         <div class="tbl-card">
           <div class="tbl-header">
-            <span class="tbl-title">Tipos de chamado por técnico</span>
-            <select id="filtTecNome" onchange="renderTecnicos()" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:4px 8px;color:var(--text);font-size:12px">
-              <option value="">Todos os técnicos</option>
+            <span class="tbl-title">Tempo médio por técnico / atendente</span>
+            <select id="filtTMATipo" onchange="renderTMAranking()" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:4px 8px;color:var(--text);font-size:12px">
+              <option value="">Todos os tipos</option>
             </select>
           </div>
-          <div style="overflow-x:auto;max-height:280px;overflow-y:auto">
-            <table><thead><tr><th>#</th><th>Tipo</th><th>Total</th><th style="color:var(--green)">Finaliz.</th><th style="color:var(--red)">Atrasado</th></tr></thead>
-            <tbody id="tecTipoTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">—</td></tr></tbody></table>
+          <div style="overflow-x:auto;max-height:400px;overflow-y:auto">
+            <table><thead><tr><th>#</th><th>Atendente</th><th>Setor</th><th>Total</th><th style="color:var(--cyan)">TMA</th><th style="color:#22c55e">Resolvido</th><th style="color:var(--accent)">O.S Aberta</th></tr></thead>
+            <tbody id="tmaRankingTbl"><tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
           </div>
         </div>
       </div><!-- /#dash-tab-tecnico -->
@@ -2445,158 +2416,58 @@ function renderRtbInsight() {
   </tr>`).join('');
 }
 
-// ── FINALIZADOS POR DIA (substitui TM acumulado) ─────────────────────────
+// ── TM ACUMULADO DO MÊS ──────────────────────────────────────────────────
 function renderTmMensalChart() {
   const el    = document.getElementById('tmMensalChart');
   const badge = document.getElementById('tmMensalBadge');
   if (!el) return;
 
   const hoje  = new Date();
+  const mes   = hoje.getMonth();
+  const ano   = hoje.getFullYear();
   const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-  if (badge) badge.textContent = meses[hoje.getMonth()] + '/' + hoje.getFullYear();
+  if (badge) badge.textContent = meses[mes] + '/' + ano;
 
-  // Agrupa chamadosDB por dia — finalizados vs total
-  const porDia = {};
+  // Agrupa finalizados por dia do mês usando timestamps reais (tsInicioExec / tsFimExec)
+  const tmPorDia = {};
   chamadosDB.forEach(c => {
-    const ref = c.dataProgramada;
-    if (!ref) return;
-    const dia = new Date(ref).getDate();
-    if (!porDia[dia]) porDia[dia] = { total: 0, fin: 0, at: 0 };
-    porDia[dia].total++;
-    if (c.st === 'finalizado') porDia[dia].fin++;
-    if (c.st === 'atrasado')   porDia[dia].at++;
+    if (c.st !== 'finalizado') return;
+    // Usa dataProgramada como referência de dia se não tiver timestamp real
+    const refDate = c.tsFimExec || c.dataProgramada;
+    if (!refDate) return;
+    const d = new Date(refDate);
+    if (d.getMonth() !== mes || d.getFullYear() !== ano) return;
+    const dia = d.getDate();
+    if (!tmPorDia[dia]) tmPorDia[dia] = { total: 0, count: 0 };
+    if (c.tsInicioExec && c.tsFimExec) {
+      const dur = (new Date(c.tsFimExec) - new Date(c.tsInicioExec)) / 60000;
+      if (dur > 0 && dur < 600) { tmPorDia[dia].total += dur; tmPorDia[dia].count++; }
+    }
   });
 
-  const dias = Object.keys(porDia).map(Number).sort((a,b)=>a-b);
+  const dias = Object.keys(tmPorDia).map(Number).sort((a,b)=>a-b);
   if (!dias.length) {
-    el.innerHTML = '<div style="font-size:11px;color:var(--text3);text-align:center;width:100%;padding:40px 0">Sem dados no período</div>';
+    el.innerHTML = '<div style="font-size:11px;color:var(--text3);text-align:center;width:100%;padding:40px 0">Sem dados de TM no mês (requer registro de início/fim de execução)</div>';
     return;
   }
-  const maxV = Math.max(...dias.map(d => porDia[d].total), 1);
-  el.innerHTML = dias.map(dia => {
-    const { total, fin, at } = porDia[dia];
-    const pTot = Math.round(total / maxV * 100);
-    const pFin = Math.round(fin   / maxV * 100);
-    return `<div class="bar-col" title="Dia ${dia}: ${total} chamados, ${fin} finalizados, ${at} atrasados">
-      <div class="bar-col-count">${total}</div>
-      <div class="bar-col-bars">
-        <div class="bar-rect" style="height:${pFin}%;background:#22c55e"></div>
-        <div class="bar-rect" style="height:${Math.max(pTot-pFin,0)}%;background:#818cf8;opacity:.7"></div>
+
+  const vals  = dias.map(d => tmPorDia[d].count ? Math.round(tmPorDia[d].total / tmPorDia[d].count) : 0);
+  const maxV  = Math.max(...vals, 1);
+  const H     = 120;
+
+  el.innerHTML = dias.map((dia, i) => {
+    const val   = vals[i];
+    const h     = Math.max(Math.round(val / maxV * H), val > 0 ? 4 : 0);
+    const label = val >= 60
+      ? `${Math.floor(val/60)}h${val%60>0?String(val%60).padStart(2,'0')+'m':''}`
+      : `${val}min`;
+    return `<div class="bar-col" title="Dia ${dia}: TM ${label}">
+      <div style="display:flex;flex-direction:column;justify-content:flex-end;height:${H}px">
+        <div style="height:${h}px;background:#a78bfa;border-radius:4px 4px 0 0;min-height:${val>0?'4px':'0'}"></div>
       </div>
       <div class="bar-lbl">${dia}</div>
     </div>`;
   }).join('');
-}
-
-// ── TÉCNICOS — chamados por técnico executante ────────────────────────────
-function renderTecnicos() {
-  const barsEl   = document.getElementById('tecProdBars');
-  const rankTbl  = document.getElementById('tecRankingTbl');
-  const tipoTbl  = document.getElementById('tecTipoTbl');
-  const badge    = document.getElementById('tecPeriodoBadge');
-  const selNome  = document.getElementById('filtTecNome');
-  if (!barsEl) return;
-
-  if (badge) badge.textContent = labelPeriodo();
-
-  // Agrupa por técnico
-  const mapa = {};
-  chamadosFiltrados.forEach(c => {
-    const tec = c.tec || 'Sem técnico';
-    if (!mapa[tec]) mapa[tec] = { total:0, fin:0, andamento:0, at:0, tipos:{} };
-    mapa[tec].total++;
-    if (c.st === 'finalizado') mapa[tec].fin++;
-    else if (c.st === 'atrasado') mapa[tec].at++;
-    else mapa[tec].andamento++;
-    mapa[tec].tipos[c.cat] = (mapa[tec].tipos[c.cat] || 0) + 1;
-  });
-
-  const lista = Object.entries(mapa).sort((a,b) => b[1].total - a[1].total);
-  const maxT  = lista[0]?.[1]?.total || 1;
-  const cores = ['#818cf8','#22c55e','#06b6d4','#a78bfa','#f59e0b','#ef4444','#ec4899','#84cc16'];
-
-  // Populate técnico filter
-  if (selNome) {
-    const atual = selNome.value;
-    selNome.innerHTML = '<option value="">Todos os técnicos</option>' +
-      lista.map(([tec]) => `<option value="${tec}" ${tec===atual?'selected':''}>${tec}</option>`).join('');
-  }
-
-  // Barras horizontais
-  if (barsEl) barsEl.innerHTML = lista.length ? lista.map(([tec, d], i) => {
-    const cor  = cores[i % cores.length];
-    const pct  = Math.round(d.total / maxT * 100);
-    const taxa = d.total ? Math.round(d.fin / d.total * 100) : 0;
-    return `<div style="margin-bottom:9px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-        <span style="font-size:12px;font-weight:600;color:var(--text)">${tec}</span>
-        <div style="display:flex;gap:8px;align-items:center">
-          ${d.at>0?`<span style="font-size:9.5px;color:var(--red)">⚠${d.at}</span>`:''}
-          <span style="font-size:10px;color:var(--green)">${d.fin} fin.</span>
-          <span style="font-size:13px;font-weight:700;font-family:'JetBrains Mono',monospace;color:${cor}">${d.total}</span>
-        </div>
-      </div>
-      <div style="background:var(--border);border-radius:4px;height:7px;overflow:hidden">
-        <div style="height:100%;width:${pct}%;background:${cor};border-radius:4px;transition:.4s"></div>
-      </div>
-      <div style="font-size:9px;color:var(--text3);margin-top:2px">${taxa}% finalizado</div>
-    </div>`;
-  }).join('') : '<div style="font-size:11px;color:var(--text3);padding:12px">Sem dados no período</div>';
-
-  // Ranking table
-  if (rankTbl) rankTbl.innerHTML = lista.length ? lista.map(([tec, d], i) => {
-    const taxa = d.total ? Math.round(d.fin / d.total * 100) : 0;
-    const cor  = taxa >= 70 ? 'var(--green)' : taxa >= 40 ? 'var(--amber)' : 'var(--red)';
-    return `<tr>
-      <td style="color:var(--text3)">${i+1}</td>
-      <td style="font-weight:500">${tec}</td>
-      <td class="mono" style="font-weight:700">${d.total}</td>
-      <td class="mono" style="color:var(--green)">${d.fin}</td>
-      <td class="mono" style="color:var(--accent)">${d.andamento}</td>
-      <td class="mono" style="color:var(--red)">${d.at}</td>
-      <td class="mono"><span style="font-weight:600;color:${cor}">${taxa}%</span></td>
-    </tr>`;
-  }).join('') : `<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">Sem dados</td></tr>`;
-
-  // Por tipo filtrado
-  const filtTec = selNome?.value || '';
-  const fonte = filtTec ? chamadosFiltrados.filter(c => (c.tec||'Sem técnico') === filtTec) : chamadosFiltrados;
-  const tipoMap = {};
-  fonte.forEach(c => {
-    const k = c.cat || 'Sem tipo';
-    if (!tipoMap[k]) tipoMap[k] = { total:0, fin:0, at:0 };
-    tipoMap[k].total++;
-    if (c.st==='finalizado') tipoMap[k].fin++;
-    if (c.st==='atrasado')   tipoMap[k].at++;
-  });
-  const tipoLista = Object.entries(tipoMap).sort((a,b)=>b[1].total-a[1].total);
-  if (tipoTbl) tipoTbl.innerHTML = tipoLista.length ? tipoLista.map(([tipo, d], i) => `<tr>
-    <td style="color:var(--text3)">${i+1}</td>
-    <td style="font-weight:500">${tipo}</td>
-    <td class="mono" style="font-weight:700">${d.total}</td>
-    <td class="mono" style="color:var(--green)">${d.fin}</td>
-    <td class="mono" style="color:var(--red)">${d.at}</td>
-  </tr>`).join('')
-  : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Sem dados</td></tr>`;
-
-  // KPIs
-  const kpiEl = document.getElementById('tecKpiRow');
-  if (kpiEl) {
-    const totalTecs = lista.length;
-    const totalOS   = chamadosFiltrados.length;
-    const finOS     = chamadosFiltrados.filter(c=>c.st==='finalizado').length;
-    const atOS      = chamadosFiltrados.filter(c=>c.st==='atrasado').length;
-    kpiEl.innerHTML = [
-      { label:'Técnicos ativos', val:totalTecs, color:'var(--accent)' },
-      { label:'OS no período',   val:totalOS,   color:'var(--cyan)' },
-      { label:'Finalizadas',     val:finOS,      color:'var(--green)' },
-      { label:'Atrasadas',       val:atOS,       color:'var(--red)' },
-    ].map(k=>`<div class="kpi-mini">
-      <div class="kpi-mini-bar" style="background:${k.color}"></div>
-      <div class="kpi-mini-label">${k.label}</div>
-      <div class="kpi-mini-val" style="color:${k.color}">${k.val}</div>
-    </div>`).join('');
-  }
 }
 
 // ── REBUILD ALL ──────────────────────────────────────────────────────────
@@ -3301,7 +3172,7 @@ function showDashTab(name) {
   if (tecnico) tecnico.style.display = name === 'tecnico' ? '' : 'none';
   if (btnGeral)   btnGeral.classList.toggle('active',   name === 'geral');
   if (btnTecnico) btnTecnico.classList.toggle('active', name === 'tecnico');
-  if (name === 'tecnico') renderTecnicos();
+  if (name === 'tecnico') renderTMAranking();
 }
 
 function renderTMAranking() {
