@@ -424,33 +424,6 @@ app.get('/api/debug-raw', async (req, res) => {
   } catch(err) { res.status(500).json({ erro: err.message }); }
 });
 
-// Debug temporário: mostra estrutura bruta de cliente_servico
-app.get('/api/debug-contratos', async (req, res) => {
-  try {
-    const raw = await hubsoftPost('v1/cliente_servico/consultar/paginado/3?page=1', { situacao: ['cancelado'] });
-    const topKeys = Object.keys(raw || {});
-    // Tenta encontrar o array dentro da resposta
-    let lista = null;
-    let listaKey = null;
-    for (const k of topKeys) {
-      if (Array.isArray(raw[k])) { lista = raw[k]; listaKey = k; break; }
-      if (raw[k] && typeof raw[k] === 'object') {
-        for (const k2 of Object.keys(raw[k])) {
-          if (Array.isArray(raw[k][k2])) { lista = raw[k][k2]; listaKey = `${k}.${k2}`; break; }
-        }
-      }
-      if (lista) break;
-    }
-    res.json({
-      top_keys: topKeys,
-      last_page: raw?.last_page || raw?.meta?.last_page,
-      lista_key: listaKey,
-      lista_length: lista?.length,
-      primeiro_registro: lista?.[0] ? { keys: Object.keys(lista[0]), sample: lista[0] } : null,
-    });
-  } catch(err) { res.status(500).json({ erro: err.message }); }
-});
-
 // ── Ordens de Serviço (Chamados) ─────────────────────────────────
 app.get('/api/chamados', async (req, res) => {
   try {
