@@ -424,6 +424,33 @@ app.get('/api/debug-raw', async (req, res) => {
   } catch(err) { res.status(500).json({ erro: err.message }); }
 });
 
+// Debug temporário: mostra estrutura bruta de cliente_servico
+app.get('/api/debug-contratos', async (req, res) => {
+  try {
+    const raw = await hubsoftPost('v1/cliente_servico/consultar/paginado/3?page=1', { situacao: ['cancelado'] });
+    const topKeys = Object.keys(raw || {});
+    // Tenta encontrar o array dentro da resposta
+    let lista = null;
+    let listaKey = null;
+    for (const k of topKeys) {
+      if (Array.isArray(raw[k])) { lista = raw[k]; listaKey = k; break; }
+      if (raw[k] && typeof raw[k] === 'object') {
+        for (const k2 of Object.keys(raw[k])) {
+          if (Array.isArray(raw[k][k2])) { lista = raw[k][k2]; listaKey = `${k}.${k2}`; break; }
+        }
+      }
+      if (lista) break;
+    }
+    res.json({
+      top_keys: topKeys,
+      last_page: raw?.last_page || raw?.meta?.last_page,
+      lista_key: listaKey,
+      lista_length: lista?.length,
+      primeiro_registro: lista?.[0] ? { keys: Object.keys(lista[0]), sample: lista[0] } : null,
+    });
+  } catch(err) { res.status(500).json({ erro: err.message }); }
+});
+
 // ── Ordens de Serviço (Chamados) ─────────────────────────────────
 app.get('/api/chamados', async (req, res) => {
   try {
@@ -772,56 +799,100 @@ app.get('/api/contratos', async (req, res) => {
     const agora  = new Date();
     const iniMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
     const fimMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 0, 23, 59, 59, 999);
-    const body   = { data_inicio: iniMes.toISOString(), data_fim: fimMes.toISOString() };
 
     let cancelamentos = [], cadastros = [], vendedores = {}, erros = [];
 
-    // Helper para extrair lista de contratos de várias estruturas
+    // Tenta extrair lista de várias estruturas possíveis do Hubsoft
     function extrairContratos(d) {
-      return d?.clientes_servicos?.data || d?.cliente_servico?.data
-          || d?.contratos?.data || d?.contrato?.data
+      return d?.clientes_servicos?.data   || d?.clientes_servicos
+          || d?.cliente_servico?.data     || d?.cliente_servico
+          || d?.contratos?.data           || d?.contratos
+          || d?.contrato?.data            || d?.contrato
+          || d?.servicos_clientes?.data   || d?.servicos_clientes
           || d?.data || [];
     }
 
-    // Cancelados
+    // Body sem data — a API cliente_servico filtra por situacao, não por data_inicio/fim
+    const bodyCanc = { situacao: ['cancelado'] };
+    const bodyAtiv = { situacao: ['ativo'] };
+
+    // Helper: busca todas as páginas de um endpoint paginado
+    async function fetchAllPages(endpoint, body) {
+      const PAGE = 500;
+      const base = endpoint.replace(/\d+\?page=\d+$/, '');
+      const r1 = await hubsoftPost(`${base}${PAGE}?page=1`, body);
+      const lastPage = r1?.last_page || r1?.meta?.last_page || 1;
+      const lista = extrairContratos(r1);
+      if (lastPage <= 1) return lista;
+      const rest = await Promise.all(
+        Array.from({ length: lastPage - 1 }, (_, i) =>
+          hubsoftPost(`${base}${PAGE}?page=${i + 2}`, body).then(extrairContratos).catch(() => [])
+        )
+      );
+      return lista.concat(...rest);
+    }
+
+    // Cancelados — filtra por data_cancelamento no servidor
+    let debugCanc = null;
     try {
-      const dc = await hubsoftPost('v1/cliente_servico/consultar/paginado/500?page=1', { ...body, situacao: ['cancelado'] });
-      const lista = extrairContratos(dc);
-      if (Array.isArray(lista) && lista.length) {
-        cancelamentos = lista.map(c => ({
-          cliente:  c.cliente?.nome_razaosocial || c.cliente?.display || c.display || 'Cliente',
-          plano:    c.plano?.descricao || c.plano?.nome || c.servico?.nome || '—',
-          motivo:   c.motivo_cancelamento?.descricao || c.motivo?.descricao || '—',
-          vendedor: c.vendedor?.nome || c.vendedor?.display || c.usuario?.nome || '—',
-          data:     c.data_cancelamento || c.updated_at || c.data_alteracao || null,
-        })).sort((a,b) => (b.data||'') > (a.data||'') ? 1 : -1).slice(0, 30);
-
-        lista.forEach(c => {
-          const v = c.vendedor?.nome || c.vendedor?.display || c.usuario?.nome;
-          if (v) { if (!vendedores[v]) vendedores[v] = { nome:v, ativados:0, cancelados:0 }; vendedores[v].cancelados++; }
-        });
+      const lista = await fetchAllPages('v1/cliente_servico/consultar/paginado/500?page=1', bodyCanc);
+      console.log('[contratos] cancelados total registros:', lista.length);
+      if (lista.length) {
+        debugCanc = Object.keys(lista[0]);
+        console.log('[contratos] cancelados campos[0]:', debugCanc);
+        console.log('[contratos] cancelados sample dates:', lista[0]?.data_cancelamento, lista[0]?.updated_at, lista[0]?.data_alteracao);
       }
-    } catch(e) { erros.push({ ep:'cancelados', msg: e.response?.status || e.message }); }
+      const doMes = lista.filter(c => {
+        const d = c.data_cancelamento || c.updated_at || c.data_alteracao || c.data_fim || null;
+        if (!d) return false;
+        const dt = new Date(d.replace(' ', 'T'));
+        return dt >= iniMes && dt <= fimMes;
+      });
+      console.log('[contratos] cancelados doMes:', doMes.length, 'de', iniMes.toISOString(), 'a', fimMes.toISOString());
+      cancelamentos = doMes.map(c => ({
+        cliente:  c.cliente?.nome_razaosocial || c.cliente?.display || c.display || 'Cliente',
+        plano:    c.plano?.descricao || c.plano?.nome || c.servico?.nome || '—',
+        motivo:   c.motivo_cancelamento?.descricao || c.motivo?.descricao || '—',
+        vendedor: c.vendedor?.nome || c.vendedor?.display || c.usuario?.nome || '—',
+        data:     c.data_cancelamento || c.updated_at || c.data_alteracao || null,
+      })).sort((a,b) => (b.data||'') > (a.data||'') ? 1 : -1).slice(0, 30);
 
-    // Novos ativados
+      doMes.forEach(c => {
+        const v = c.vendedor?.nome || c.vendedor?.display || c.usuario?.nome;
+        if (v) { if (!vendedores[v]) vendedores[v] = { nome:v, ativados:0, cancelados:0 }; vendedores[v].cancelados++; }
+      });
+    } catch(e) { erros.push({ ep:'cancelados', msg: e.response?.status || e.message }); console.error('[contratos] erro cancelados:', e.message); }
+
+    // Novos ativados — filtra por data_cadastro/ativacao no servidor
+    let debugAtiv = null;
     try {
-      const da = await hubsoftPost('v1/cliente_servico/consultar/paginado/500?page=1', { ...body, situacao: ['ativo'] });
-      const lista = extrairContratos(da);
-      if (Array.isArray(lista) && lista.length) {
-        cadastros = lista.map(c => ({
-          cliente:  c.cliente?.nome_razaosocial || c.cliente?.display || c.display || 'Cliente',
-          plano:    c.plano?.descricao || c.plano?.nome || c.servico?.nome || '—',
-          vendedor: c.vendedor?.nome || c.vendedor?.display || c.usuario?.nome || '—',
-          cidade:   c.endereco?.cidade?.nome || c.cliente?.cidade?.nome || '—',
-          data:     c.data_cadastro || c.data_ativacao || c.created_at || null,
-        })).sort((a,b) => (b.data||'') > (a.data||'') ? 1 : -1).slice(0, 30);
-
-        lista.forEach(c => {
-          const v = c.vendedor?.nome || c.vendedor?.display || c.usuario?.nome;
-          if (v) { if (!vendedores[v]) vendedores[v] = { nome:v, ativados:0, cancelados:0 }; vendedores[v].ativados++; }
-        });
+      const lista = await fetchAllPages('v1/cliente_servico/consultar/paginado/500?page=1', bodyAtiv);
+      console.log('[contratos] ativados total registros:', lista.length);
+      if (lista.length) {
+        debugAtiv = Object.keys(lista[0]);
+        console.log('[contratos] ativados campos[0]:', debugAtiv);
+        console.log('[contratos] ativados sample dates:', lista[0]?.data_cadastro, lista[0]?.data_ativacao, lista[0]?.created_at);
       }
-    } catch(e) { erros.push({ ep:'ativados', msg: e.response?.status || e.message }); }
+      const doMes = lista.filter(c => {
+        const d = c.data_cadastro || c.data_ativacao || c.created_at || c.data_inicio || null;
+        if (!d) return false;
+        const dt = new Date(d.replace(' ', 'T'));
+        return dt >= iniMes && dt <= fimMes;
+      });
+      console.log('[contratos] ativados doMes:', doMes.length);
+      cadastros = doMes.map(c => ({
+        cliente:  c.cliente?.nome_razaosocial || c.cliente?.display || c.display || 'Cliente',
+        plano:    c.plano?.descricao || c.plano?.nome || c.servico?.nome || '—',
+        vendedor: c.vendedor?.nome || c.vendedor?.display || c.usuario?.nome || '—',
+        cidade:   c.endereco?.cidade?.nome || c.cliente?.cidade?.nome || '—',
+        data:     c.data_cadastro || c.data_ativacao || c.created_at || null,
+      })).sort((a,b) => (b.data||'') > (a.data||'') ? 1 : -1).slice(0, 30);
+
+      doMes.forEach(c => {
+        const v = c.vendedor?.nome || c.vendedor?.display || c.usuario?.nome;
+        if (v) { if (!vendedores[v]) vendedores[v] = { nome:v, ativados:0, cancelados:0 }; vendedores[v].ativados++; }
+      });
+    } catch(e) { erros.push({ ep:'ativados', msg: e.response?.status || e.message }); console.error('[contratos] erro ativados:', e.message); }
 
     const rankVendedores = Object.values(vendedores).sort((a,b) => b.ativados - a.ativados);
     const saldo = cadastros.length - cancelamentos.length;
@@ -831,10 +902,110 @@ app.get('/api/contratos', async (req, res) => {
       novos: cadastros.length, cancelados: cancelamentos.length, saldo,
       cadastros, cancelamentos, vendedores: rankVendedores,
       erros: erros.length ? erros : undefined,
+      _debug: { campos_cancelado: debugCanc, campos_ativo: debugAtiv },
       sincronizado_em: new Date().toISOString(),
     });
   } catch (err) {
     console.error('Erro /api/contratos:', err.message);
+    res.status(500).json({ ok: false, erro: err.message });
+  }
+});
+
+// ── Retenção — pedidos de cancelamento (atendimentos) por período ─
+app.get('/api/retencao', async (req, res) => {
+  try {
+    const { data_inicio, data_fim, all } = req.query;
+    const agora  = new Date();
+    const iniMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
+    const fimMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 0, 23, 59, 59, 999);
+    const ini = data_inicio || iniMes.toISOString();
+    const fim = data_fim    || fimMes.toISOString();
+
+    // Fetch all atendimentos in period (parallel pagination)
+    const first = await hubsoftPost('v1/atendimento/consultar/paginado/500?page=1', { data_inicio: ini, data_fim: fim });
+    const lista1     = first?.atendimento?.data || first?.data || [];
+    const totalPages = first?.atendimento?.last_page || first?.last_page || 1;
+    let lista = [...lista1];
+    if (all === 'true' && totalPages > 1) {
+      const pages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+      const results = await Promise.all(pages.map(async pg => {
+        try {
+          const d = await hubsoftPost(`v1/atendimento/consultar/paginado/500?page=${pg}`, { data_inicio: ini, data_fim: fim });
+          return d?.atendimento?.data || d?.data || [];
+        } catch { return []; }
+      }));
+      results.forEach(r => lista.push(...r));
+    }
+
+    // Classify tipo and desfecho
+    // Tipo do atendimento: "SOLICITAÇÃO DE CANCELAMENTO" (Hubsoft)
+    const isCancelTipo = t => { const u = (t||'').toUpperCase(); return u.includes('CANCELAMENTO') || u.includes('RESCIS'); };
+    // Motivo fechamento: "Reverteu cancelamento" | "Cancelamento" (campo motivo_fechamento.descricao)
+    const desfechoOf   = s => {
+      const u = (s||'').toUpperCase();
+      if (u.includes('REVERT')) return 'revertido';
+      if (u.includes('CANCEL')) return 'cancelado';
+      return 'pendente';
+    };
+
+    const pedidos = lista
+      .filter(a => isCancelTipo(a.tipo_atendimento?.descricao))
+      .map(a => {
+        const tipo         = a.tipo_atendimento?.descricao || 'Sem tipo';
+        const motivoFech   = a.motivo_fechamento?.descricao || a.motivo_fechamento?.nome || '';
+        const desfecho     = desfechoOf(motivoFech);
+        const resps        = Array.isArray(a.usuarios_responsaveis) ? a.usuarios_responsaveis : [];
+        const atendente    = resps.map(u => u.name || u.nome).filter(Boolean).join(', ')
+                          || a.usuario_fechamento?.name || a.usuario_fechamento?.nome
+                          || 'Sem atendente';
+        const cli          = a.cliente_servico?.cliente;
+        const cliente      = cli?.nome_razaosocial || cli?.display || a.cliente_servico?.display || 'Sem cliente';
+        const data         = a.data_fechamento || a.data_cadastro || null;
+        return { tipo, motivoFech, desfecho, atendente, cliente, data };
+      });
+
+    const total      = pedidos.length;
+    const revertidos = pedidos.filter(p => p.desfecho === 'revertido').length;
+    const cancelados = pedidos.filter(p => p.desfecho === 'cancelado').length;
+    const pendentes  = pedidos.filter(p => p.desfecho === 'pendente').length;
+    const fechados   = revertidos + cancelados;
+    const taxa_retencao = fechados > 0 ? Math.round(revertidos / fechados * 100) : null;
+
+    // Por atendente
+    const mapaAt = {};
+    pedidos.forEach(p => {
+      if (!mapaAt[p.atendente]) mapaAt[p.atendente] = { atendente: p.atendente, total: 0, revertidos: 0, cancelados: 0, pendentes: 0 };
+      mapaAt[p.atendente].total++;
+      if (p.desfecho === 'revertido') mapaAt[p.atendente].revertidos++;
+      else if (p.desfecho === 'cancelado') mapaAt[p.atendente].cancelados++;
+      else mapaAt[p.atendente].pendentes++;
+    });
+    const por_atendente = Object.values(mapaAt)
+      .map(a => ({ ...a, taxa: (a.revertidos + a.cancelados) > 0 ? Math.round(a.revertidos / (a.revertidos + a.cancelados) * 100) : null }))
+      .sort((a, b) => b.total - a.total);
+
+    // Por tipo de atendimento
+    const mapaTipo = {};
+    pedidos.forEach(p => {
+      if (!mapaTipo[p.tipo]) mapaTipo[p.tipo] = { tipo: p.tipo, total: 0, revertidos: 0, cancelados: 0 };
+      mapaTipo[p.tipo].total++;
+      if (p.desfecho === 'revertido') mapaTipo[p.tipo].revertidos++;
+      else if (p.desfecho === 'cancelado') mapaTipo[p.tipo].cancelados++;
+    });
+    const por_tipo = Object.values(mapaTipo).sort((a, b) => b.total - a.total);
+
+    const ultimos = [...pedidos]
+      .sort((a, b) => (b.data || '') > (a.data || '') ? 1 : -1)
+      .slice(0, 30);
+
+    res.json({
+      ok: true,
+      total, revertidos, cancelados, pendentes, taxa_retencao,
+      por_atendente, por_tipo, ultimos,
+      sincronizado_em: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error('Erro /api/retencao:', err.message);
     res.status(500).json({ ok: false, erro: err.message });
   }
 });

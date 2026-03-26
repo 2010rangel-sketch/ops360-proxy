@@ -445,8 +445,6 @@ input[type="text"]::placeholder { color:var(--text3); }
         <div style="display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px">
           <button class="chip active per-chip" data-p="hoje"   onclick="setPeriodo('hoje',this)">Hoje</button>
           <button class="chip per-chip" data-p="amanha"        onclick="setPeriodo('amanha',this)">Amanhã</button>
-          <button class="chip per-chip" data-p="semana"        onclick="setPeriodo('semana',this)">Semana</button>
-          <button class="chip per-chip" data-p="mes"           onclick="setPeriodo('mes',this)">Mês atual</button>
           <button class="chip per-chip" data-p="mes_anterior"  onclick="setPeriodo('mes_anterior',this)">Mês anterior</button>
           <button class="chip per-chip" data-p="custom"        onclick="setPeriodo('custom',this)">Período</button>
         </div>
@@ -632,8 +630,6 @@ input[type="text"]::placeholder { color:var(--text3); }
         <div style="display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px">
           <button class="chip active per-chip" id="perHoje"   data-p="hoje"   onclick="setPeriodo('hoje',this)">Hoje</button>
           <button class="chip per-chip"        id="perAmanha"     data-p="amanha"       onclick="setPeriodo('amanha',this)">Amanhã</button>
-          <button class="chip per-chip"        id="perSemana"     data-p="semana"       onclick="setPeriodo('semana',this)">Semana</button>
-          <button class="chip per-chip"        id="perMes"        data-p="mes"          onclick="setPeriodo('mes',this)">Mês atual</button>
           <button class="chip per-chip"        id="perMesAnterior" data-p="mes_anterior" onclick="setPeriodo('mes_anterior',this)">Mês anterior</button>
           <button class="chip per-chip"        id="perCustom"     data-p="custom"       onclick="setPeriodo('custom',this)">Período</button>
         </div>
@@ -769,7 +765,7 @@ input[type="text"]::placeholder { color:var(--text3); }
       <div class="kpi-row" style="margin-bottom:14px">
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--cyan)"></div><div class="kpi-mini-label">Total</div><div class="kpi-mini-val" id="at-total" style="color:var(--cyan)">—</div></div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">Resolvido remoto</div><div class="kpi-mini-val" id="at-semOS" style="color:var(--green)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Gerou OS</div><div class="kpi-mini-val" id="at-comOS" style="color:var(--accent)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">O.S Aberta</div><div class="kpi-mini-val" id="at-comOS" style="color:var(--accent)">—</div></div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">TMA médio</div><div class="kpi-mini-val" id="at-tma" style="color:var(--amber);font-size:18px">—</div></div>
       </div>
       <!-- Filtro por setor + botão configurar -->
@@ -809,8 +805,8 @@ input[type="text"]::placeholder { color:var(--text3); }
             <span class="badge b-blue" id="at-atend-count">—</span>
           </div>
           <div style="overflow-x:auto;max-height:300px;overflow-y:auto">
-            <table><thead><tr><th>#</th><th>Atendente</th><th>Total</th><th style="color:#22c55e">Sem OS</th><th style="color:var(--accent)">Com OS</th><th>TMA</th></tr></thead>
-            <tbody id="atendenteTbl"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Carregando...</td></tr></tbody></table>
+            <table><thead><tr><th>#</th><th>Atendente</th><th>Total</th><th style="color:#22c55e">Resolvido</th><th style="color:var(--accent)">O.S Aberta</th></tr></thead>
+            <tbody id="atendenteTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px">Carregando...</td></tr></tbody></table>
           </div>
         </div>
         <div class="tbl-card" style="margin-bottom:0">
@@ -819,7 +815,7 @@ input[type="text"]::placeholder { color:var(--text3); }
             <span class="badge b-blue" id="at-setor-count">—</span>
           </div>
           <div style="overflow-x:auto;max-height:300px;overflow-y:auto">
-            <table><thead><tr><th>#</th><th>Setor</th><th>Total</th><th style="color:#22c55e">Sem OS</th><th style="color:var(--accent)">Com OS</th><th>% Remoto</th></tr></thead>
+            <table><thead><tr><th>#</th><th>Setor</th><th>Total</th><th style="color:#22c55e">Resolvido</th><th style="color:var(--accent)">O.S Aberta</th><th>% Resol.</th></tr></thead>
             <tbody id="setorTbl"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Carregando...</td></tr></tbody></table>
           </div>
         </div>
@@ -842,7 +838,7 @@ input[type="text"]::placeholder { color:var(--text3); }
           <span class="badge b-amber" id="at-recorr-count">—</span>
         </div>
         <div style="overflow-x:auto;max-height:260px;overflow-y:auto">
-          <table><thead><tr><th>#</th><th>Cliente</th><th>Contatos</th><th style="color:#22c55e">Sem OS</th><th style="color:var(--accent)">Com OS</th></tr></thead>
+          <table><thead><tr><th>#</th><th>Cliente</th><th>Contatos</th><th style="color:#22c55e">Resolvido</th><th style="color:var(--accent)">O.S Aberta</th></tr></thead>
           <tbody id="recorrTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
         </div>
       </div>
@@ -854,61 +850,126 @@ input[type="text"]::placeholder { color:var(--text3); }
           <span class="badge b-blue" id="lc-total-badge">—</span>
         </div>
         <div style="overflow-x:auto;max-height:260px;overflow-y:auto">
-          <table><thead><tr><th>#</th><th>Tipo</th><th>Total</th><th style="color:#22c55e">Sem OS</th><th style="color:var(--accent)">Com OS</th></tr></thead>
-          <tbody id="lcTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
+          <table><thead><tr><th>#</th><th>Cliente</th><th>Total</th></tr></thead>
+          <tbody id="lcTbl"><tr><td colspan="3" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
         </div>
       </div>
     </div>
 
     <!-- ═══ RETENÇÃO ═══ -->
     <div class="page" id="page-retencao">
+
+      <!-- ── Retenção: Pedidos de Cancelamento ── -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+        <div style="display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px">
+          <button class="chip active ret-chip" data-p="mes"           onclick="setRetPeriodo('mes',this)">Mês atual</button>
+          <button class="chip ret-chip"        data-p="mes_anterior"  onclick="setRetPeriodo('mes_anterior',this)">Mês anterior</button>
+          <button class="chip ret-chip"        data-p="7dias"         onclick="setRetPeriodo('7dias',this)">7 dias</button>
+          <button class="chip ret-chip"        data-p="hoje"          onclick="setRetPeriodo('hoje',this)">Hoje</button>
+          <button class="chip ret-chip"        data-p="custom"        onclick="setRetPeriodo('custom',this)">Período</button>
+        </div>
+        <div id="retDateRange" style="display:none;gap:6px;align-items:center">
+          <input type="date" id="retDtDe" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
+          <span style="color:var(--text3);font-size:12px">até</span>
+          <input type="date" id="retDtAte" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
+          <button class="btn btn-primary btn-sm" onclick="loadRetencaoAtend()" style="padding:5px 14px;font-size:12px"><i class="fas fa-search"></i> Buscar</button>
+        </div>
+        <span class="badge b-green" id="ret-atend-sync" style="margin-left:auto">—</span>
+      </div>
+
+      <!-- KPIs de retenção -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px">
+        <div class="kpi-mini">
+          <div class="kpi-mini-bar" style="background:var(--accent)"></div>
+          <div class="kpi-mini-label">Pedidos de cancelamento</div>
+          <div class="kpi-mini-val" id="ret-ped-total" style="color:var(--accent)">—</div>
+        </div>
+        <div class="kpi-mini">
+          <div class="kpi-mini-bar" style="background:var(--green)"></div>
+          <div class="kpi-mini-label">Revertidos</div>
+          <div class="kpi-mini-val" id="ret-ped-revert" style="color:var(--green)">—</div>
+        </div>
+        <div class="kpi-mini">
+          <div class="kpi-mini-bar" style="background:var(--red)"></div>
+          <div class="kpi-mini-label">Cancelados</div>
+          <div class="kpi-mini-val" id="ret-ped-cancel" style="color:var(--red)">—</div>
+        </div>
+        <div class="kpi-mini">
+          <div class="kpi-mini-bar" style="background:var(--amber)"></div>
+          <div class="kpi-mini-label">Taxa de retenção</div>
+          <div class="kpi-mini-val" id="ret-ped-taxa" style="color:var(--amber)">—</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px">dos fechados</div>
+        </div>
+      </div>
+
+      <!-- Por atendente + Por tipo -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <span class="tbl-title">Por Atendente</span>
+            <span class="badge b-blue" id="ret-atend-count">—</span>
+          </div>
+          <div style="overflow-x:auto;max-height:280px;overflow-y:auto">
+            <table><thead><tr><th>#</th><th>Atendente</th><th>Total</th><th style="color:var(--green)">Reverteu</th><th style="color:var(--red)">Cancelou</th><th>Taxa %</th></tr></thead>
+            <tbody id="retAtendTbl"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
+          </div>
+        </div>
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <span class="tbl-title">Por Tipo de Solicitação</span>
+            <span class="badge b-blue" id="ret-tipo-count">—</span>
+          </div>
+          <div style="overflow-x:auto;max-height:280px;overflow-y:auto">
+            <table><thead><tr><th>#</th><th>Tipo</th><th>Total</th><th style="color:var(--green)">Revertidos</th><th style="color:var(--red)">Cancelados</th></tr></thead>
+            <tbody id="retTipoTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Últimos pedidos -->
+      <div class="tbl-card" style="margin-bottom:20px">
+        <div class="tbl-header">
+          <span class="tbl-title">Últimos pedidos de cancelamento</span>
+          <span class="badge b-amber" id="ret-pedidos-badge">—</span>
+        </div>
+        <div style="overflow-x:auto;max-height:260px;overflow-y:auto">
+          <table><thead><tr><th>Cliente</th><th>Tipo</th><th>Atendente</th><th>Desfecho</th><th>Data</th></tr></thead>
+          <tbody id="retPedidosTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
+        </div>
+      </div>
+
+      <!-- ── Contratos — pedidos de cancelamento este mês ── -->
+      <div style="font-weight:600;font-size:13px;color:var(--text2);margin-bottom:12px;padding-top:4px;border-top:1px solid var(--border)">Pedidos de cancelamento — este mês</div>
       <div class="ret-hero">
         <div class="ret-cell">
           <div class="ret-val" id="ret-novos" style="color:var(--green)">—</div>
-          <div class="ret-label">Novos contratos</div>
-          <div class="ret-sub" style="background:var(--green-light);color:var(--green)">este mês</div>
+          <div class="ret-label">Revertidos</div>
+          <div class="ret-sub" style="background:var(--green-light);color:var(--green)">salvos este mês</div>
         </div>
         <div class="ret-divider"></div>
         <div class="ret-cell">
-          <div class="ret-val" id="ret-saldo" style="color:var(--green)">—</div>
-          <div class="ret-label">Saldo líquido</div>
-          <div class="ret-sub" id="ret-saldo-sub" style="background:var(--green-light);color:var(--green)">—</div>
+          <div class="ret-val" id="ret-saldo" style="color:var(--accent)">—</div>
+          <div class="ret-label">Taxa de retenção</div>
+          <div class="ret-sub" id="ret-saldo-sub" style="background:var(--accent-light);color:var(--accent)">este mês</div>
         </div>
         <div class="ret-divider"></div>
         <div class="ret-cell">
           <div class="ret-val" id="ret-cancelados" style="color:var(--red)">—</div>
-          <div class="ret-label">Cancelamentos</div>
+          <div class="ret-label">Cancelados</div>
           <div class="ret-sub" style="background:var(--red-light);color:var(--red)">este mês</div>
         </div>
       </div>
-      <!-- Vendedores + Motivos -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header"><span class="tbl-title">Vendedores — novos contratos</span><span class="badge b-green" id="ret-vend-badge">este mês</span></div>
-          <div style="overflow-x:auto;max-height:240px;overflow-y:auto">
-            <table><thead><tr><th>#</th><th>Vendedor</th><th style="color:#22c55e">Ativados</th><th style="color:var(--red)">Cancelados</th></tr></thead>
-            <tbody id="vendedoresTbl"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
-          </div>
-        </div>
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header"><span class="tbl-title">Motivos de cancelamento</span><span class="badge b-red" id="ret-motivos-badge">—</span></div>
-          <div style="padding:16px 18px" id="motivosCancDiv"></div>
-        </div>
-      </div>
-      <!-- Últimos cadastros + últimos cancelamentos -->
+      <!-- Tipos de pedido + Últimos cancelados -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
         <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header"><span class="tbl-title">Últimos cadastros</span><span class="badge b-green" id="ret-cadastros-badge">—</span></div>
-          <div style="overflow-x:auto;max-height:300px;overflow-y:auto">
-            <table><thead><tr><th>Cliente</th><th>Plano</th><th>Vendedor</th><th>Data</th></tr></thead>
-            <tbody id="cadastrosTbl"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
-          </div>
+          <div class="tbl-header"><span class="tbl-title">Tipos de pedido</span><span class="badge b-amber" id="ret-motivos-badge">—</span></div>
+          <div style="padding:16px 18px" id="motivosCancDiv"></div>
         </div>
         <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header"><span class="tbl-title">Últimos cancelamentos</span><span class="badge b-red" id="ret-canc-badge">—</span></div>
+          <div class="tbl-header"><span class="tbl-title">Últimos cancelados</span><span class="badge b-red" id="ret-canc-badge">—</span></div>
           <div style="overflow-x:auto;max-height:300px;overflow-y:auto">
-            <table><thead><tr><th>Cliente</th><th>Plano</th><th>Motivo</th><th>Data</th></tr></thead>
-            <tbody id="retencaoTbl"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
+            <table><thead><tr><th>Cliente</th><th>Atendente</th><th>Data</th></tr></thead>
+            <tbody id="retencaoTbl"><tr><td colspan="3" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
           </div>
         </div>
       </div>
@@ -1222,6 +1283,26 @@ function goPage(id, el) {
   if(el) el.classList.add('active');
   const titles = {dashboard:'Dashboard',chamados:'Chamados',atendimento:'Atendimento',retencao:'Cadastros & Retenção',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
   document.getElementById('pageTitle').textContent = titles[id]||id;
+  // Restaura dados em memória ao navegar de volta para páginas com dados
+  if (id === 'chamados' && chamadosDB.length > 0) {
+    aplicarDados(chamadosDB);
+  }
+  if (id === 'atendimento') {
+    if (_atendData) {
+      renderAtendimentos(_atendData); // exibe imediatamente
+      loadAtendimentos();             // atualiza em background
+    } else {
+      loadAtendimentos();
+    }
+  }
+  if (id === 'retencao') {
+    if (_retData) {
+      renderRetencao(_retData);
+      loadRetencaoAtend();
+    } else {
+      loadRetencaoAtend();
+    }
+  }
 }
 
 // NOTIF
@@ -1236,6 +1317,8 @@ function toggleNotif() { document.getElementById('notifOverlay').classList.toggl
 // e chame rebuildAll() depois de atualizar o array.
 
 const chamadosDB = []; // populado via API Hubsoft em autoRefresh()
+let _chamadosPeriodo = null; // qual período está carregado em chamadosDB
+let _fetchSeq = 0;            // contador anti-race: só aplica o fetch mais recente
 
 // Dados acumulados do mês (simulado — virá da API Hubsoft com query ?periodo=mes)
 const mesData = {instalacao:47,reparo:38,mudanca:12,suporte:62,retrabalho:18};
@@ -1325,14 +1408,28 @@ function setPeriodo(p, el) {
   const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
   const cacheValido = cached?.dados?.length && cached?.ts && (Date.now() - cached.ts) < CACHE_TTL;
 
-  if (cacheValido) {
-    // Cache recente: mostra na hora e atualiza em segundo plano silenciosamente
-    aplicarDados(cached.dados);
-    buscarPeriodo(); // refresh background sem travar a UI
+  // Sempre mostra dados em memória imediatamente se já estiver carregado para este período
+  if (_chamadosPeriodo === p && chamadosDB.length > 0) {
+    aplicarDados(chamadosDB);
+    if (!cacheValido) buscarPeriodo(); // só rebusca se cache venceu
     return;
   }
 
-  // Cache velho ou inexistente: zera imediatamente e busca
+  // Cache recente: mostra na hora, refresh em background
+  if (cacheValido) {
+    aplicarDados(cached.dados);
+    buscarPeriodo();
+    return;
+  }
+
+  // Cache antigo mas existe: mostra em vez de zeros, rebusca em background
+  if (cached?.dados?.length) {
+    aplicarDados(cached.dados);
+    buscarPeriodo();
+    return;
+  }
+
+  // Sem nenhum dado: mostra vazio e busca
   aplicarDados([]);
   buscarPeriodo();
 }
@@ -1370,24 +1467,28 @@ function getPeriodDates() {
 
 // Busca chamados da API para o período selecionado
 async function buscarPeriodo() {
+  const mySeq = ++_fetchSeq;          // captura este fetch
+  const periodoSnapshot = filtros.periodo;
   const { ini, fim } = getPeriodDates();
   // Use full pagination for non-today queries (semana, mes, custom)
-  const useAll = filtros.periodo !== 'hoje' && filtros.periodo !== 'amanha';
+  const useAll = periodoSnapshot !== 'hoje' && periodoSnapshot !== 'amanha';
   const setBtns = (txt, dis) => {
     ['btnBuscar','btnBuscarDash'].forEach(id => {
       const b = document.getElementById(id);
       if (b) { b.innerHTML = `<i class="fas fa-search"></i> ${txt}`; b.disabled = dis; }
     });
   };
-  setBtns(useAll ? 'Carregando todas as páginas...' : 'Buscando...', true);
+  setBtns(useAll ? 'Carregando...' : 'Buscando...', true);
   const params = { data_inicio: ini, data_fim: fim };
   if (useAll) params.all = 'true';
   const chamados = await buscarChamadosHubsoft(params);
+  // Se um fetch mais recente já completou, descarta este resultado (anti-race)
+  if (mySeq !== _fetchSeq) { setBtns('Buscar', false); return; }
   if (chamados && chamados.length > 0) {
-    // Store the fetched range so applyFilters can use it for non-custom periods
     filtros.rangeIni = new Date(ini);
     filtros.rangeFim = new Date(fim);
-    salvarCache(chamados);
+    salvarCache(chamados, periodoSnapshot);
+    _chamadosPeriodo = periodoSnapshot;
     aplicarDados(chamados);
   }
   setBtns('Buscar', false);
@@ -1543,7 +1644,7 @@ function expandCatCards() {
   const periodoLabel = labelPeriodo();
   const catsReais = [...new Set([...Object.keys(tiposConfig), ...chamadosDB.map(c=>c.cat)])].filter(Boolean);
   const todos = catsReais.map(k=>[k,tiposConfig[k],chamadosFiltrados.filter(c=>c.cat===k).length]).filter(([,v])=>v).sort((a,b)=>b[2]-a[2]);
-  const ocultos = todos.slice(16);
+  const ocultos = todos.slice(15);
   const div = document.createElement('div');
   div.id = 'catExtras';
   div.style.display = 'contents';
@@ -1573,7 +1674,7 @@ function renderCatCards() {
     .sort((a,b) => b[2] - a[2]);
   if(!tipos.length) { el.innerHTML=''; return; }
 
-  const MAX = 16;
+  const MAX = 15;
   const visivel = tipos.slice(0, MAX);
   const ocultos = tipos.slice(MAX);
   const totalOcultos = ocultos.reduce((s,[,,n])=>s+n, 0);
@@ -1625,11 +1726,20 @@ function renderStatusLanes() {
   ];
   const el = document.getElementById('statusLanes');
   if(!el) return;
-  const ativos = chamadosFiltrados.filter(c=>c.st!=='finalizado');
-  document.getElementById('liveCount').textContent = `${ativos.length} pendentes`;
+  // Lanes são uma visão "ao vivo / agora": sempre usa apenas OS de hoje,
+  // independente do período selecionado (semana, mês, etc.)
+  const hojeMs = (() => { const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); })();
+  const laneSource = chamadosDB.filter(c => {
+    if (!c.dataProgramada) return false;
+    const d = new Date(c.dataProgramada); d.setHours(0,0,0,0);
+    return d.getTime() === hojeMs;
+  });
+  const ativos = laneSource.filter(c=>c.st!=='finalizado'&&c.st!=='cancelado');
+  const liveEl = document.getElementById('liveCount');
+  if (liveEl) liveEl.textContent = `${ativos.length} hoje`;
 
   el.innerHTML = lanes.map(lane => {
-    const baseItems = chamadosFiltrados.filter(c=>c.st===lane.st);
+    const baseItems = laneSource.filter(c=>c.st===lane.st);
     // Ordenação por coluna:
     // execucao: mais recente no topo (ordem decrescente de início)
     // finalizado: mais recente no topo (decrescente de fim)
@@ -2647,15 +2757,17 @@ function renderAtendimentosFiltrado() {
   if (filtSetor) porAt = porAt.filter(a => a.setor === filtSetor);
   if (atCount) atCount.textContent = `${porAt.length} atendentes`;
   if (atTbl) {
-    atTbl.innerHTML = porAt.length ? porAt.map((a, i) => `<tr>
+    atTbl.innerHTML = porAt.length ? porAt.map((a, i) => {
+      const pctRes  = a.total > 0 ? Math.round(a.semOS / a.total * 100) : 0;
+      const pctOS   = a.total > 0 ? Math.round(a.comOS / a.total * 100) : 0;
+      return `<tr>
       <td style="color:var(--text3)">${i+1}</td>
       <td style="font-weight:500">${a.atendente}${a.setor ? `<br><span style="font-size:10px;color:var(--text3)">${a.setor}</span>` : ''}</td>
       <td class="mono" style="font-weight:600">${a.total}</td>
-      <td class="mono" style="color:#22c55e">${a.semOS}</td>
-      <td class="mono" style="color:var(--accent)">${a.comOS}</td>
-      <td class="mono" style="color:var(--amber)">${fmtTma(a.tma)}</td>
-    </tr>`).join('')
-    : `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Nenhum atendente no período</td></tr>`;
+      <td class="mono" style="color:#22c55e">${a.semOS}<div style="font-size:10px;color:var(--text3)">${pctRes}%</div></td>
+      <td class="mono" style="color:var(--accent)">${a.comOS}<div style="font-size:10px;color:var(--text3)">${pctOS}%</div></td>
+    </tr>`;}).join('')
+    : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px">Nenhum atendente no período</td></tr>`;
   }
 
   // Recalcula Por Setor com base no setor real de cada atendente
@@ -2688,7 +2800,7 @@ function renderAtendimentosFiltrado() {
         <td class="mono" style="color:var(--accent)">${s.comOS}</td>
         <td><div style="display:flex;align-items:center;gap:6px">
           <div class="prog" style="width:55px"><div class="prog-fill" style="width:${s.pctSemOS}%;background:${cor}"></div></div>
-          <span class="mono" style="font-size:11px;color:${cor}">${s.pctSemOS}%</span>
+          <span class="mono" style="font-size:11px;color:${cor}">${s.pctSemOS}% resol.</span>
         </div></td>
       </tr>`;
     }).join('')
@@ -2708,13 +2820,17 @@ function renderAtendimentosFiltrado() {
   window._recorrTipos = {};
   recorr.forEach(c => { window._recorrTipos[c.clienteId || c.cliente] = c; });
   if (recTbl) {
-    recTbl.innerHTML = recorr.length ? recorr.map((c, i) => `<tr style="cursor:pointer" onclick="verDetalhesCliente(${JSON.stringify(c.clienteId || c.cliente).replace(/"/g,'&quot;')})" title="Ver tipos de atendimento">
+    recTbl.innerHTML = recorr.length ? recorr.map((c, i) => {
+      const tot = (c.semOS || 0) + (c.comOS || 0);
+      const pctRes = tot > 0 ? Math.round(c.semOS / tot * 100) : 0;
+      const pctOS  = tot > 0 ? Math.round(c.comOS / tot * 100) : 0;
+      return `<tr style="cursor:pointer" onclick="verDetalhesCliente(${JSON.stringify(c.clienteId || c.cliente).replace(/"/g,'&quot;')})" title="Ver tipos de atendimento">
       <td style="color:var(--text3)">${i+1}</td>
       <td style="font-weight:500;color:var(--accent);text-decoration:underline dotted">${c.cliente}</td>
       <td><span class="badge ${c.contatos>=5?'b-red':c.contatos>=3?'b-amber':'b-blue'}" style="font-size:11px">${c.contatos}x</span></td>
-      <td class="mono" style="color:#22c55e">${c.semOS}</td>
-      <td class="mono" style="color:var(--accent)">${c.comOS}</td>
-    </tr>`).join('')
+      <td class="mono" style="color:#22c55e">${c.semOS}<div style="font-size:10px;color:var(--text3)">${pctRes}%</div></td>
+      <td class="mono" style="color:var(--accent)">${c.comOS}<div style="font-size:10px;color:var(--text3)">${pctOS}%</div></td>
+    </tr>`;}).join('')
     : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px">Nenhum cliente contatou mais de uma vez no período</td></tr>`;
   }
 
@@ -2731,10 +2847,8 @@ function renderAtendimentosFiltrado() {
       <td style="color:var(--text3)">${i+1}</td>
       <td style="font-weight:500;color:var(--accent);text-decoration:underline dotted">${r.cliente}</td>
       <td><span class="badge ${r.total>=10?'b-red':r.total>=5?'b-amber':'b-blue'}" style="font-size:11px">${r.total}x</span></td>
-      <td class="mono" style="color:#22c55e">${r.semOS}</td>
-      <td class="mono" style="color:var(--accent)">${r.comOS}</td>
     </tr>`).join('')
-    : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px">Nenhum atendimento no período</td></tr>`;
+    : `<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:24px">Nenhum atendimento no período</td></tr>`;
   }
 }
 
@@ -2785,99 +2899,193 @@ function verDetalhesLC(cliente) {
 async function autoRefreshAtendimentos() { await loadAtendimentos(); }
 autoRefreshAtendimentos();
 
-// RETENÇÃO — dados reais do Hubsoft
+// CONTRATOS — usa dados de retenção (atendimentos tipo cancelamento) do mês atual
 async function loadContratos() {
   try {
-    const res  = await fetch(`${PROXY_URL}/api/contratos`);
-    const data = await res.json();
-    renderContratos(data);
+    const agora = new Date();
+    const ini   = new Date(agora.getFullYear(), agora.getMonth(), 1).toISOString();
+    const fim   = agora.toISOString();
+    const qs    = `data_inicio=${encodeURIComponent(ini)}&data_fim=${encodeURIComponent(fim)}&all=true`;
+    const res   = await fetch(`${PROXY_URL}/api/retencao?${qs}`);
+    const data  = await res.json();
+    if (data.ok) renderContratos(data);
   } catch(e) { console.warn('Erro ao buscar contratos:', e.message); }
 }
 
 function renderContratos(data) {
-  const novos     = data.novos     || 0;
-  const cancelados = data.cancelados || 0;
-  const saldo     = data.saldo     ?? (novos - cancelados);
-
   const elVal = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
-  elVal('ret-novos',     `+${novos}`);
-  elVal('ret-cancelados', `-${cancelados}`);
 
-  const saldoEl = document.getElementById('ret-saldo');
-  if (saldoEl) { saldoEl.textContent = saldo >= 0 ? `+${saldo}` : saldo; saldoEl.style.color = saldo >= 0 ? 'var(--green)' : 'var(--red)'; }
+  elVal('ret-novos',     data.revertidos ?? '—');
+  elVal('ret-cancelados', data.cancelados ?? '—');
+
+  const taxa = data.taxa_retencao ?? null;
+  const saldoEl  = document.getElementById('ret-saldo');
   const saldoSub = document.getElementById('ret-saldo-sub');
-  if (saldoSub) { saldoSub.textContent = saldo >= 0 ? '▲ Positivo' : '▼ Negativo'; saldoSub.style.background = saldo >= 0 ? 'var(--green-light)' : 'var(--red-light)'; saldoSub.style.color = saldo >= 0 ? 'var(--green)' : 'var(--red)'; }
+  if (saldoEl)  saldoEl.textContent  = taxa != null ? taxa + '%' : '—';
+  if (saldoSub) saldoSub.textContent = taxa != null ? (taxa >= 50 ? '▲ Boa retenção' : '▼ Baixa retenção') : '—';
 
-  // Motivos de cancelamento agrupados
+  // Tipos de pedido (barra de progresso)
   const motBadge = document.getElementById('ret-motivos-badge');
-  if (motBadge) motBadge.textContent = `${cancelados} pedidos`;
   const md = document.getElementById('motivosCancDiv');
+  const porTipo = data.por_tipo || [];
+  if (motBadge) motBadge.textContent = `${porTipo.length} tipos`;
   if (md) {
-    const cancelamentos = data.cancelamentos || [];
-    if (cancelamentos.length) {
-      const mapaM = {};
-      cancelamentos.forEach(c => { const k = c.motivo || '—'; mapaM[k] = (mapaM[k]||0)+1; });
-      const lista = Object.entries(mapaM).sort((a,b)=>b[1]-a[1]);
-      const maxN  = lista[0]?.[1] || 1;
-      const cores = ['var(--red)','var(--orange)','var(--amber)','var(--accent)','var(--text3)'];
-      md.innerHTML = lista.map(([mot, n], i) => `
-        <div style="margin-bottom:11px">
+    if (porTipo.length) {
+      const maxN  = porTipo[0]?.total || 1;
+      const cores = ['var(--amber)','var(--accent)','var(--text3)'];
+      md.innerHTML = porTipo.map((t, i) => {
+        const cor = cores[i % cores.length];
+        return `<div style="margin-bottom:11px">
           <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
-            <span style="color:var(--text2)">${mot}</span>
-            <b style="color:${cores[i%cores.length]};font-family:'JetBrains Mono',monospace">${n}</b>
+            <span style="color:var(--text2)">${t.tipo || '—'}</span>
+            <b style="color:${cor};font-family:'JetBrains Mono',monospace">${t.total}</b>
           </div>
-          <div class="prog"><div class="prog-fill" style="width:${Math.round(n/maxN*100)}%;background:${cores[i%cores.length]}"></div></div>
-        </div>`).join('');
+          <div class="prog"><div class="prog-fill" style="width:${Math.round(t.total/maxN*100)}%;background:${cor}"></div></div>
+        </div>`;
+      }).join('');
     } else {
-      md.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:8px 0">Sem dados de cancelamentos</div>';
+      md.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:8px 0">Sem dados no período</div>';
     }
   }
 
-  // Vendedores
-  const vendTbl   = document.getElementById('vendedoresTbl');
-  const vendBadge = document.getElementById('ret-vend-badge');
-  const vendedores = data.vendedores || [];
-  if (vendBadge) vendBadge.textContent = `${vendedores.length} vendedores`;
-  if (vendTbl) {
-    vendTbl.innerHTML = vendedores.length ? vendedores.map((v, i) => `<tr>
-      <td style="color:var(--text3)">${i+1}</td>
-      <td style="font-weight:500">${v.nome}</td>
-      <td class="mono" style="color:#22c55e;font-weight:600">${v.ativados}</td>
-      <td class="mono" style="color:var(--red)">${v.cancelados}</td>
-    </tr>`).join('')
-    : `<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Sem dados de vendedores</td></tr>`;
-  }
-
-  // Últimos cadastros
-  const cadTbl   = document.getElementById('cadastrosTbl');
-  const cadBadge = document.getElementById('ret-cadastros-badge');
-  const cadastros = data.cadastros || [];
-  if (cadBadge) cadBadge.textContent = `${cadastros.length} registros`;
-  if (cadTbl) {
-    cadTbl.innerHTML = cadastros.length ? cadastros.map(c => `<tr>
-      <td style="font-weight:500">${c.cliente}</td>
-      <td style="font-size:12px">${c.plano}</td>
-      <td style="font-size:12px">${c.vendedor}</td>
-      <td style="font-size:12px">${c.data ? new Date(c.data).toLocaleDateString('pt-BR') : '—'}</td>
-    </tr>`).join('')
-    : `<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Nenhum cadastro no mês</td></tr>`;
-  }
-
-  // Últimos cancelamentos
-  const retTbl   = document.getElementById('retencaoTbl');
+  // Últimos cancelados
+  const retTbl    = document.getElementById('retencaoTbl');
   const cancBadge = document.getElementById('ret-canc-badge');
-  const cancelamentos = data.cancelamentos || [];
-  if (cancBadge) cancBadge.textContent = `${cancelamentos.length} registros`;
+  const cancelados = (data.ultimos || []).filter(p => p.desfecho === 'cancelado');
+  if (cancBadge) cancBadge.textContent = `${cancelados.length} registros`;
   if (retTbl) {
-    retTbl.innerHTML = cancelamentos.length ? cancelamentos.map(c => `<tr>
-      <td style="font-weight:500">${c.cliente}</td>
-      <td style="font-size:12px">${c.plano}</td>
-      <td><span class="badge b-red" style="font-size:10px">${c.motivo}</span></td>
-      <td style="font-size:12px">${c.data ? new Date(c.data).toLocaleDateString('pt-BR') : '—'}</td>
+    retTbl.innerHTML = cancelados.length ? cancelados.map(c => `<tr>
+      <td style="font-weight:500;max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.cliente}</td>
+      <td style="font-size:12px">${c.atendente}</td>
+      <td style="font-size:12px;color:var(--text3)">${c.data ? new Date(c.data).toLocaleDateString('pt-BR') : '—'}</td>
     </tr>`).join('')
-    : `<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Nenhum cancelamento no mês</td></tr>`;
+    : `<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:20px">Nenhum cancelamento no mês</td></tr>`;
   }
 }
+// ── Retenção — Pedidos de Cancelamento ────────────────────────────
+let retPeriodo = 'mes';
+let _retData   = null;
+
+function getRetDates() {
+  const agora  = new Date();
+  const hoje   = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+  if (retPeriodo === 'hoje') return { ini: hoje.toISOString(), fim: new Date(hoje.getTime() + 86400000).toISOString() };
+  if (retPeriodo === '7dias') return { ini: new Date(agora.getTime() - 7*86400000).toISOString(), fim: agora.toISOString() };
+  if (retPeriodo === 'mes') {
+    return { ini: new Date(agora.getFullYear(), agora.getMonth(), 1).toISOString(), fim: agora.toISOString() };
+  }
+  if (retPeriodo === 'mes_anterior') {
+    const ini = new Date(agora.getFullYear(), agora.getMonth() - 1, 1);
+    const fim = new Date(agora.getFullYear(), agora.getMonth(), 0, 23, 59, 59, 999);
+    return { ini: ini.toISOString(), fim: fim.toISOString() };
+  }
+  if (retPeriodo === 'custom') {
+    const de  = document.getElementById('retDtDe')?.value;
+    const ate = document.getElementById('retDtAte')?.value;
+    if (de && ate) {
+      const [dy,dm,dd] = de.split('-').map(Number);
+      const [ay,am,ad] = ate.split('-').map(Number);
+      return { ini: new Date(dy,dm-1,dd).toISOString(), fim: new Date(ay,am-1,ad,23,59,59,999).toISOString() };
+    }
+  }
+  return { ini: new Date(agora.getFullYear(), agora.getMonth(), 1).toISOString(), fim: agora.toISOString() };
+}
+
+function setRetPeriodo(p, el) {
+  retPeriodo = p;
+  document.querySelectorAll('.ret-chip').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll(`.ret-chip[data-p="${p}"]`).forEach(b => b.classList.add('active'));
+  const dr = document.getElementById('retDateRange');
+  if (dr) dr.style.display = p === 'custom' ? 'flex' : 'none';
+  if (p !== 'custom') loadRetencaoAtend();
+}
+
+async function loadRetencaoAtend() {
+  const badge = document.getElementById('ret-atend-sync');
+  if (badge) { badge.textContent = 'Carregando...'; badge.className = 'badge b-amber'; }
+  try {
+    const { ini, fim } = getRetDates();
+    const useAll = retPeriodo !== 'hoje';
+    const qs = `data_inicio=${encodeURIComponent(ini)}&data_fim=${encodeURIComponent(fim)}${useAll ? '&all=true' : ''}`;
+    const res  = await fetch(`${PROXY_URL}/api/retencao?${qs}`);
+    const data = await res.json();
+    if (data.ok) { _retData = data; renderRetencao(data); }
+    else if (badge) { badge.textContent = 'Erro'; badge.className = 'badge b-red'; }
+  } catch(e) {
+    console.warn('Erro retencao atend:', e.message);
+    if (badge) { badge.textContent = 'Erro'; badge.className = 'badge b-red'; }
+  }
+}
+
+function renderRetencao(data) {
+  const badge = document.getElementById('ret-atend-sync');
+  const hora  = new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+  if (badge) { badge.textContent = `Atualizado ${hora}`; badge.className = 'badge b-green'; }
+
+  const elVal = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
+
+  elVal('ret-ped-total',  data.total  ?? '—');
+  elVal('ret-ped-revert', data.revertidos ?? '—');
+  elVal('ret-ped-cancel', data.cancelados ?? '—');
+  elVal('ret-ped-taxa',   data.taxa_retencao != null ? data.taxa_retencao + '%' : '—');
+
+  // Por atendente
+  const atTbl   = document.getElementById('retAtendTbl');
+  const atCount = document.getElementById('ret-atend-count');
+  const porAt   = data.por_atendente || [];
+  if (atCount) atCount.textContent = `${porAt.length} atendentes`;
+  if (atTbl) {
+    atTbl.innerHTML = porAt.length ? porAt.map((a, i) => `<tr>
+      <td style="color:var(--text3)">${i+1}</td>
+      <td style="font-weight:500">${a.atendente}</td>
+      <td class="mono" style="font-weight:600">${a.total}</td>
+      <td class="mono" style="color:var(--green)">${a.revertidos}</td>
+      <td class="mono" style="color:var(--red)">${a.cancelados}</td>
+      <td class="mono">${a.taxa != null ? `<span style="font-weight:600;color:${a.taxa>=50?'var(--green)':'var(--red)'}">${a.taxa}%</span>` : '—'}</td>
+    </tr>`).join('')
+    : `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Nenhum pedido no período</td></tr>`;
+  }
+
+  // Por tipo
+  const tipoTbl   = document.getElementById('retTipoTbl');
+  const tipoCount = document.getElementById('ret-tipo-count');
+  const porTipo   = data.por_tipo || [];
+  if (tipoCount) tipoCount.textContent = `${porTipo.length} tipos`;
+  if (tipoTbl) {
+    tipoTbl.innerHTML = porTipo.length ? porTipo.map((t, i) => `<tr>
+      <td style="color:var(--text3)">${i+1}</td>
+      <td style="font-weight:500">${t.tipo}</td>
+      <td class="mono" style="font-weight:600">${t.total}</td>
+      <td class="mono" style="color:var(--green)">${t.revertidos}</td>
+      <td class="mono" style="color:var(--red)">${t.cancelados}</td>
+    </tr>`).join('')
+    : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Nenhum tipo encontrado</td></tr>`;
+  }
+
+  // Últimos pedidos
+  const pedTbl   = document.getElementById('retPedidosTbl');
+  const pedBadge = document.getElementById('ret-pedidos-badge');
+  const ultimos  = data.ultimos || [];
+  if (pedBadge) pedBadge.textContent = `${ultimos.length} registros`;
+  const desfechoBadge = (d, motivo) => {
+    const tip = motivo ? ` title="${motivo}"` : '';
+    if (d === 'revertido') return `<span class="badge b-green"${tip}>Reverteu cancelamento</span>`;
+    if (d === 'cancelado') return `<span class="badge b-red"${tip}>Cancelamento</span>`;
+    return `<span class="badge b-amber"${tip}>Pendente</span>`;
+  };
+  if (pedTbl) {
+    pedTbl.innerHTML = ultimos.length ? ultimos.map(p => `<tr>
+      <td style="font-weight:500;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.cliente}</td>
+      <td style="font-size:12px;color:var(--text2)">${p.tipo}</td>
+      <td style="font-size:12px">${p.atendente}</td>
+      <td>${desfechoBadge(p.desfecho, p.motivoFech)}</td>
+      <td style="font-size:12px;color:var(--text3)">${p.data ? new Date(p.data).toLocaleDateString('pt-BR') : '—'}</td>
+    </tr>`).join('')
+    : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Nenhum pedido no período</td></tr>`;
+  }
+}
+
+loadRetencaoAtend();
 loadContratos();
 
 // TASKS
