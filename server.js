@@ -19,8 +19,6 @@ const SETOR_POR_ID = {
   // Call Center
   282:'Call Center', 297:'Call Center', 283:'Call Center', 329:'Call Center',
   278:'Call Center', 321:'Call Center', 328:'Call Center', 299:'Call Center', 316:'Call Center',
-  // NOC
-  99:'NOC', 101:'NOC', 97:'NOC', 100:'NOC',
   // Financeiro
   198:'Financeiro', 95:'Financeiro', 254:'Financeiro',
 };
@@ -33,7 +31,6 @@ const SETOR_POR_NOME = {
   'Clara':'Call Center','Cleiza':'Call Center','Eduarda Reis':'Call Center',
   'Graziela':'Call Center','Kamila':'Call Center','Liane':'Call Center',
   'Maiza':'Call Center','Mirian':'Call Center','Ana Carolina':'Call Center',
-  'Thiago - NOC':'NOC','Eduardo - NOC':'NOC','Mateus - NOC':'NOC','Paulo - NOC':'NOC',
   'Ruth Oliveira':'Financeiro','Rakezia':'Financeiro','Isabel':'Financeiro',
 };
 
@@ -642,10 +639,7 @@ app.get('/api/atendimentos', async (req, res) => {
     }
 
     const useAll = all === 'true';
-    const [lista, lista7] = await Promise.all([
-      fetchAtendPages(ini, fim, useAll),
-      fetchAtendPages(new Date(agora.getTime() - 7*24*60*60*1000), agora, false),
-    ]);
+    const lista = await fetchAtendPages(ini, fim, useAll);
 
     function inferirSetor(tipo) {
       const t = (tipo || '').toUpperCase();
@@ -689,8 +683,8 @@ app.get('/api/atendimentos', async (req, res) => {
       return { tipo, atendente, setor, cliente, clienteId, temOS, tmaMin };
     }
 
-    const parsed  = lista.map(parseA);
-    const parsed7 = lista7.map(parseA);
+    const SETORES_EXCLUIDOS = ['NOC', ''];
+    const parsed = lista.map(parseA).filter(a => !SETORES_EXCLUIDOS.includes(a.setor));
 
     // Agrupa por atendente (inclui setor para filtro no cliente)
     const mapaAt = {};
