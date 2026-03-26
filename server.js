@@ -618,30 +618,35 @@ app.get('/api/atendimentos', async (req, res) => {
       fetchAtendPages(new Date(agora.getTime() - 7*24*60*60*1000), agora, false),
     ]);
 
+    function inferirSetor(tipo) {
+      const t = (tipo || '').toUpperCase();
+      if (t.includes('NOC') || t.includes('INSTABILIDADE') || t.includes('SEM SINAL') || t.includes('LENTIDÃO') || t.includes('LENTIDAO') || t.includes('FIBRA') || t.includes('SUPORTE TEC')) return 'NOC';
+      if (t.includes('FINANCEIRO') || t.includes('PAGAMENTO') || t.includes('2ª VIA') || t.includes('2A VIA') || t.includes('BOLETO') || t.includes('SEGUNDA VIA')) return 'Financeiro';
+      if (t.includes('COBRAN') || t.includes('VENCIMENTO') || t.includes('DISPARO') || t.includes('INADIMPL') || t.includes('SUSPENS') || t.includes('CORTE')) return 'Cobrança';
+      if (t.includes('COMERCIAL') || t.includes('VENDA') || t.includes('CANCEL') || t.includes('CONTRATO') || t.includes('PLANO') || t.includes('UPGRADE') || t.includes('MIGRA')) return 'Comercial';
+      if (t.includes('CALL') || t.includes('RECEP') || t.includes('GERAL') || t.includes('INFORMAÇ') || t.includes('INFORMAC')) return 'Call Center';
+      return tipo;
+    }
+
     function parseA(a) {
       const tipo      = a.tipo_atendimento?.descricao || 'Sem tipo';
       const statusRaw = a.status?.descricao || a.status?.prefixo || '';
       const temOS     = (a.ordem_servico_count || 0) > 0;
 
-      // Atendente — tenta vários caminhos comuns do Hubsoft
-      const atendente = a.operador?.display || a.operador?.nome
-                     || a.atendente?.display || a.atendente?.nome
-                     || a.usuario?.display   || a.usuario?.nome
-                     || a.responsavel?.display || a.responsavel?.nome
+      // Atendente: campo correto é usuarios_responsaveis[0].name
+      const resps = Array.isArray(a.usuarios_responsaveis) ? a.usuarios_responsaveis : [];
+      const atendente = resps.map(u => u.name || u.nome).filter(Boolean).join(', ')
+                     || a.usuario_fechamento?.name || a.usuario_fechamento?.nome
                      || 'Sem atendente';
 
-      // Setor — tenta vários caminhos; fallback usa tipo de atendimento
-      const setor = a.setor?.nome || a.setor?.descricao
-                 || a.departamento?.nome || a.departamento?.descricao
-                 || a.grupo?.nome || a.fila?.nome
-                 || a.origem?.descricao
-                 || tipo;
+      // Setor: não existe campo setor na API — inferir pelo tipo_atendimento
+      const setor = inferirSetor(tipo);
 
-      // Cliente
-      const cliente   = a.cliente?.nome_razaosocial || a.cliente?.display
-                     || a.contato?.nome || a.contato?.display
+      // Cliente: cliente_servico.cliente.nome_razaosocial (não cliente_servico.display que é o plano)
+      const cli    = a.cliente_servico?.cliente;
+      const cliente   = cli?.nome_razaosocial || cli?.display
                      || a.cliente_servico?.display || 'Sem cliente';
-      const clienteId = a.cliente?.id_cliente || a.contato?.id_contato || cliente;
+      const clienteId = cli?.id_cliente || a.id_cliente_servico || cliente;
 
       let tmaMin = null;
       if (a.data_cadastro && a.data_fechamento) {
