@@ -940,30 +940,32 @@ app.get('/api/retencao', async (req, res) => {
     }
 
     // Classify tipo and desfecho
-    // Tipo do atendimento: "SOLICITAÇÃO DE CANCELAMENTO" (Hubsoft)
+    // Tipo do atendimento: "SOLICITAÇÃO DE CANCELAMENTO" (campo tipo_atendimento.descricao)
     const isCancelTipo = t => { const u = (t||'').toUpperCase(); return u.includes('CANCELAMENTO') || u.includes('RESCIS'); };
-    // Motivo fechamento: "Reverteu cancelamento" | "Cancelamento" (campo motivo_fechamento.descricao)
-    const desfechoOf   = s => {
-      const u = (s||'').toUpperCase();
-      if (u.includes('REVERT')) return 'revertido';
-      if (u.includes('CANCEL')) return 'cancelado';
+    // Desfecho via status_fechamento: "cancelamento" | "reverteu_cancelamento" | outro = pendente
+    const desfechoOf = s => {
+      const u = (s||'').toLowerCase().replace(/[_\s]/g,'');
+      if (u.includes('reverteu') || u.includes('revert')) return 'revertido';
+      if (u.includes('cancelamento') || u.includes('cancel')) return 'cancelado';
       return 'pendente';
     };
 
     const pedidos = lista
       .filter(a => isCancelTipo(a.tipo_atendimento?.descricao))
       .map(a => {
-        const tipo         = a.tipo_atendimento?.descricao || 'Sem tipo';
-        const motivoFech   = a.motivo_fechamento?.descricao || a.motivo_fechamento?.nome || '';
-        const desfecho     = desfechoOf(motivoFech);
-        const resps        = Array.isArray(a.usuarios_responsaveis) ? a.usuarios_responsaveis : [];
-        const atendente    = resps.map(u => u.name || u.nome).filter(Boolean).join(', ')
-                          || a.usuario_fechamento?.name || a.usuario_fechamento?.nome
-                          || 'Sem atendente';
-        const cli          = a.cliente_servico?.cliente;
-        const cliente      = cli?.nome_razaosocial || cli?.display || a.cliente_servico?.display || 'Sem cliente';
-        const data         = a.data_fechamento || a.data_cadastro || null;
-        return { tipo, motivoFech, desfecho, atendente, cliente, data };
+        const tipo       = a.tipo_atendimento?.descricao || 'Sem tipo';
+        // status_fechamento: "cancelamento" | "reverteu_cancelamento" | "sem_conclusao" etc
+        const sfech      = a.status_fechamento || a.status?.prefixo || '';
+        const desfecho   = desfechoOf(sfech);
+        const motivoFech = a.descricao_fechamento || a.descricao_abertura || sfech || '';
+        const resps      = Array.isArray(a.usuarios_responsaveis) ? a.usuarios_responsaveis : [];
+        const atendente  = resps.map(u => u.name || u.nome).filter(Boolean).join(', ')
+                        || a.usuario_fechamento?.name || a.usuario_fechamento?.nome
+                        || 'Sem atendente';
+        const cli        = a.cliente_servico?.cliente;
+        const cliente    = cli?.nome_razaosocial || cli?.display || a.cliente_servico?.display || 'Sem cliente';
+        const data       = a.data_fechamento || a.data_cadastro || null;
+        return { tipo, motivoFech: sfech, desfecho, atendente, cliente, data };
       });
 
     const total      = pedidos.length;
@@ -1020,7 +1022,7 @@ app.get('/api/debug-atendimento-raw', async (req, res) => {
     const data  = await hubsoftPost('v1/atendimento/consultar/paginado/3?page=1', {
       data_inicio: ini.toISOString(), data_fim: agora.toISOString(),
     });
-    const lista = Array.isArray(data?.atendimentos?.data) ? data.atendimentos.data : [];
+    const lista = data?.atendimentos?.data || data?.atendimento?.data || data?.data || [];
     res.json({ keys_raiz: lista[0] ? Object.keys(lista[0]) : [], primeiro: lista[0] || null, segundo: lista[1] || null });
   } catch(err) { res.status(500).json({ erro: err.message }); }
 });
@@ -1146,7 +1148,7 @@ app.get('/api/usuarios-setores', async (_req, res) => {
     const data  = await hubsoftPost('v1/atendimento/consultar/paginado/500?page=1', {
       data_inicio: ini7.toISOString(), data_fim: agora.toISOString()
     });
-    const lista = Array.isArray(data?.atendimentos?.data) ? data.atendimentos.data : [];
+    const lista = data?.atendimentos?.data || data?.atendimento?.data || data?.data || [];
     // Coleta IDs únicos
     const idsMap = {};
     lista.forEach(a => {
