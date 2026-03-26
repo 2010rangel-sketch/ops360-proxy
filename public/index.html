@@ -560,31 +560,6 @@ input[type="text"]::placeholder { color:var(--text3); }
 
       <!-- 2x2 inspired by image -->
       <div class="dash-grid">
-        <!-- Status dos chamados (donut dinâmico) -->
-        <div class="dash-card">
-          <div class="dash-card-title">Status dos chamados <button class="more-btn">···</button></div>
-          <div class="dash-card-sub">Tempo real · Hubsoft</div>
-          <div class="donut-section">
-            <svg width="140" height="140" viewBox="0 0 140 140" id="dashDonutSvg">
-              <circle cx="70" cy="70" r="52" fill="none" stroke="var(--bg3)" stroke-width="18"/>
-            </svg>
-            <div class="donut-labels" id="dashDonutLabels"></div>
-          </div>
-        </div>
-
-        <!-- Chamados por hora (bar chart, like "Tasks left by week") -->
-        <div class="dash-card">
-          <div class="dash-card-title">Chamados por hora <button class="more-btn">···</button></div>
-          <div class="dash-card-sub">Hoje · Atualizado agora</div>
-          <div class="bar-legend">
-            <div class="bar-legend-item"><div class="bl-sq" style="background:var(--accent);border-radius:2px"></div>Abertos</div>
-            <div class="bar-legend-item"><div class="bl-sq" style="background:var(--green);border-radius:2px"></div>Fechados</div>
-          </div>
-          <div class="bar-chart" id="barChart" style="height:170px;">
-          </div>
-          <div style="display:flex;justify-content:space-between;padding-top:4px;" id="barLabels"></div>
-        </div>
-
         <!-- Burndown (like "Burndown Chart") -->
         <div class="dash-card">
           <div class="dash-card-title">SLA — Chamados atrasados <button class="more-btn">···</button></div>
@@ -640,35 +615,6 @@ input[type="text"]::placeholder { color:var(--text3); }
         <div class="bar-chart" id="tmMensalChart" style="height:160px;gap:4px;padding-top:4px;overflow:hidden"></div>
       </div>
 
-      <!-- ── PRODUÇÃO POR TÉCNICO + CHAMADOS POR CIDADE ── -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header">
-            <span class="tbl-title">Produção por técnico</span>
-            <span class="badge b-blue" id="tecChartPeriodo"></span>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 220px;gap:16px;padding:8px 4px 4px;align-items:start">
-            <div id="tecBarChart"></div>
-            <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
-              <svg id="tecDonut" width="160" height="160" viewBox="0 0 180 180"></svg>
-              <div id="tecDonutLegend" style="display:flex;flex-direction:column;gap:4px;width:100%"></div>
-            </div>
-          </div>
-        </div>
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header">
-            <span class="tbl-title">Chamados por cidade</span>
-            <span class="badge b-blue" id="cidadeChartPeriodo"></span>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 220px;gap:16px;padding:8px 4px 4px;align-items:start">
-            <div id="cidadeBarChart"></div>
-            <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
-              <svg id="cidadeDonut" width="160" height="160" viewBox="0 0 180 180"></svg>
-              <div id="cidadeDonutLegend" style="display:flex;flex-direction:column;gap:4px;width:100%"></div>
-            </div>
-          </div>
-        </div>
-      </div>
       </div><!-- /#dash-tab-geral -->
 
       <div id="dash-tab-tecnico" style="display:none">
@@ -690,52 +636,32 @@ input[type="text"]::placeholder { color:var(--text3); }
       <!-- ═══ DASH-CHAMADOS ═══ -->
       <div id="dash-tab-chamados" style="display:none">
 
-        <!-- KPI row: status -->
-        <div class="kpi-row" style="margin-bottom:14px">
-          <div class="kpi-mini">
-            <div class="kpi-mini-bar" style="background:var(--accent)"></div>
-            <div class="kpi-mini-label">Abertos</div>
-            <div class="kpi-mini-val" id="dch-aberto" style="color:var(--accent)">—</div>
-          </div>
-          <div class="kpi-mini">
-            <div class="kpi-mini-bar" style="background:var(--cyan)"></div>
-            <div class="kpi-mini-label">Em andamento</div>
-            <div class="kpi-mini-val" id="dch-andamento" style="color:var(--cyan)">—</div>
-          </div>
-          <div class="kpi-mini">
-            <div class="kpi-mini-bar" style="background:var(--green)"></div>
-            <div class="kpi-mini-label">Finalizados</div>
-            <div class="kpi-mini-val" id="dch-fin" style="color:var(--green)">—</div>
-          </div>
-          <div class="kpi-mini">
-            <div class="kpi-mini-bar" style="background:var(--red)"></div>
-            <div class="kpi-mini-label">Atrasados</div>
-            <div class="kpi-mini-val" id="dch-atrasado" style="color:var(--red)">—</div>
-          </div>
-          <div class="kpi-mini">
-            <div class="kpi-mini-bar" style="background:#a78bfa"></div>
-            <div class="kpi-mini-label">TM Geral</div>
-            <div class="kpi-mini-val" id="dch-tm" style="color:#a78bfa">—</div>
-            <div style="font-size:10px;color:var(--text3)" id="dch-tm-base">com dados de execução</div>
-          </div>
-        </div>
-
-        <!-- Chamados por hora -->
-        <div class="tbl-card" style="margin-bottom:14px">
-          <div class="tbl-header">
-            <span class="tbl-title">Chamados por hora</span>
-            <div style="display:flex;gap:10px;align-items:center">
-              <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text3)"><span style="width:10px;height:10px;border-radius:2px;background:#818cf8;display:inline-block"></span>Abertos</span>
-              <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text3)"><span style="width:10px;height:10px;border-radius:2px;background:#22c55e;display:inline-block"></span>Fechados</span>
+        <!-- Status dos chamados + Chamados por hora -->
+        <div class="dash-grid" style="margin-bottom:14px">
+          <div class="dash-card">
+            <div class="dash-card-title">Status dos chamados <button class="more-btn">···</button></div>
+            <div class="dash-card-sub">Tempo real · Hubsoft</div>
+            <div class="donut-section">
+              <svg width="140" height="140" viewBox="0 0 140 140" id="dashDonutSvg">
+                <circle cx="70" cy="70" r="52" fill="none" stroke="var(--bg3)" stroke-width="18"/>
+              </svg>
+              <div class="donut-labels" id="dashDonutLabels"></div>
             </div>
           </div>
-          <div class="bar-chart" id="dch-hora-chart" style="height:180px"></div>
+          <div class="dash-card">
+            <div class="dash-card-title">Chamados por hora <button class="more-btn">···</button></div>
+            <div class="dash-card-sub">Hoje · Atualizado agora</div>
+            <div class="bar-legend">
+              <div class="bar-legend-item"><div class="bl-sq" style="background:#818cf8;border-radius:2px"></div>Abertos</div>
+              <div class="bar-legend-item"><div class="bl-sq" style="background:#22c55e;border-radius:2px"></div>Fechados</div>
+            </div>
+            <div class="bar-chart" id="barChart" style="height:170px;"></div>
+            <div style="display:flex;justify-content:space-between;padding-top:4px;" id="barLabels"></div>
+          </div>
         </div>
 
-        <!-- SLA + Produção por técnico -->
+        <!-- SLA -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-
-          <!-- SLA -->
           <div class="tbl-card" style="margin-bottom:0">
             <div class="tbl-header"><span class="tbl-title">SLA de Chamados</span></div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:8px 4px">
@@ -759,26 +685,6 @@ input[type="text"]::placeholder { color:var(--text3); }
             </div>
           </div>
 
-          <!-- Chamados por cidade -->
-          <div class="tbl-card" style="margin-bottom:0">
-            <div class="tbl-header">
-              <span class="tbl-title">Chamados por cidade</span>
-              <span class="badge b-blue" id="dch-cidade-badge">—</span>
-            </div>
-            <div id="dch-cidade-bars" style="padding:4px 4px 0;max-height:180px;overflow-y:auto"></div>
-          </div>
-        </div>
-
-        <!-- Produção por técnico -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-          <div class="tbl-card" style="margin-bottom:0">
-            <div class="tbl-header">
-              <span class="tbl-title">Produção por técnico</span>
-              <span class="badge b-blue" id="dch-tec-badge">—</span>
-            </div>
-            <div id="dch-tec-bars" style="padding:4px 4px 0;max-height:240px;overflow-y:auto"></div>
-          </div>
-
           <!-- TM por técnico -->
           <div class="tbl-card" style="margin-bottom:0">
             <div class="tbl-header">
@@ -787,16 +693,46 @@ input[type="text"]::placeholder { color:var(--text3); }
                 <option value="">Todos os tipos</option>
               </select>
             </div>
-            <div style="overflow-x:auto;max-height:240px;overflow-y:auto">
+            <div style="overflow-x:auto;max-height:200px;overflow-y:auto">
               <table><thead><tr>
                 <th>#</th><th>Técnico</th><th>OS</th>
                 <th style="color:#a78bfa">TM médio</th>
               </tr></thead>
               <tbody id="dch-tm-tec-tbl"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">—</td></tr></tbody></table>
             </div>
-            <div style="display:flex;justify-content:space-between;padding:8px 16px 6px;font-size:11px;color:var(--text3)">
+            <div style="display:flex;justify-content:space-between;padding:8px 16px 6px;font-size:11px;color:var(--text3);border-top:1px solid var(--border)">
               <span>🏆 Mais rápido: <span id="dch-tm-rapido" style="color:var(--green);font-weight:600">—</span></span>
               <span>🐢 Mais lento: <span id="dch-tm-lento" style="color:var(--red);font-weight:600">—</span></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Produção por técnico + Chamados por cidade (com donut) -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+          <div class="tbl-card" style="margin-bottom:0">
+            <div class="tbl-header">
+              <span class="tbl-title">Produção por técnico</span>
+              <span class="badge b-blue" id="tecChartPeriodo"></span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 220px;gap:16px;padding:8px 4px 4px;align-items:start">
+              <div id="tecBarChart"></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+                <svg id="tecDonut" width="160" height="160" viewBox="0 0 180 180"></svg>
+                <div id="tecDonutLegend" style="display:flex;flex-direction:column;gap:4px;width:100%"></div>
+              </div>
+            </div>
+          </div>
+          <div class="tbl-card" style="margin-bottom:0">
+            <div class="tbl-header">
+              <span class="tbl-title">Chamados por cidade</span>
+              <span class="badge b-blue" id="cidadeChartPeriodo"></span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 220px;gap:16px;padding:8px 4px 4px;align-items:start">
+              <div id="cidadeBarChart"></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+                <svg id="cidadeDonut" width="160" height="160" viewBox="0 0 180 180"></svg>
+                <div id="cidadeDonutLegend" style="display:flex;flex-direction:column;gap:4px;width:100%"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -3287,62 +3223,16 @@ function showDashTab(name) {
     if (btn) btn.classList.toggle('active', t === name);
   });
   if (name === 'tecnico')  renderTMAranking();
-  if (name === 'chamados') renderChamadosDash();
+  if (name === 'chamados') { renderDashboard(); renderTecChart(); renderCidadeChart(); renderChamadosDash(); }
 }
 
 // ── DASHBOARD DE CHAMADOS ─────────────────────────────────────────────────
 function renderChamadosDash() {
   const fonte = chamadosFiltrados;
-
-  // ── 1. Status KPIs ────────────────────────────────────────────────
-  const ev = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
-  ev('dch-aberto',   fonte.filter(c => ['execucao','aguardando'].includes(c.st)).length);
-  ev('dch-andamento',fonte.filter(c => c.st === 'retrabalho').length +
-                     fonte.filter(c => c.st === 'execucao').length);
-  ev('dch-fin',      fonte.filter(c => c.st === 'finalizado').length);
-  ev('dch-atrasado', fonte.filter(c => c.st === 'atrasado').length);
-
-  // ── 2. TM Geral ───────────────────────────────────────────────────
   const fmtTM = m => m == null ? '—' : m < 60 ? `${m}m` : `${Math.floor(m/60)}h${String(m%60).padStart(2,'0')}m`;
-  const comTM = fonte.filter(c => c.tsInicioExec && c.tsFimExec);
-  let tmGeral = null;
-  if (comTM.length) {
-    const totalMin = comTM.reduce((s,c) => {
-      const d = (new Date(c.tsFimExec) - new Date(c.tsInicioExec)) / 60000;
-      return (d > 0 && d < 720) ? s + d : s;
-    }, 0);
-    tmGeral = Math.round(totalMin / comTM.length);
-  }
-  ev('dch-tm', fmtTM(tmGeral));
-  ev('dch-tm-base', comTM.length ? `${comTM.length} OS com dados` : 'sem dados de execução');
+  const ev = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
 
-  // ── 3. Chamados por hora ──────────────────────────────────────────
-  const horaEl = document.getElementById('dch-hora-chart');
-  if (horaEl) {
-    const horaMap = {};
-    fonte.forEach(c => {
-      if (!c.dataProgramada) return;
-      const h = new Date(c.dataProgramada).getHours();
-      if (!horaMap[h]) horaMap[h] = { ab:0, fin:0 };
-      if (c.st === 'finalizado') horaMap[h].fin++; else horaMap[h].ab++;
-    });
-    const hs   = Object.keys(horaMap).map(Number).sort((a,b)=>a-b);
-    const maxV = Math.max(...hs.map(h=>horaMap[h].ab+horaMap[h].fin), 1);
-    horaEl.innerHTML = hs.length ? hs.map(h => {
-      const ab=horaMap[h].ab, fin=horaMap[h].fin, tot=ab+fin;
-      const pAb=Math.round(ab/maxV*100), pFin=Math.round(fin/maxV*100);
-      return `<div class="bar-col" title="${h}h: ${tot} (${ab} abertos, ${fin} fechados)">
-        <div class="bar-col-count">${tot||''}</div>
-        <div class="bar-col-bars">
-          ${fin>0?`<div class="bar-rect" style="height:${pFin}%;background:#22c55e"></div>`:''}
-          ${ab>0 ?`<div class="bar-rect" style="height:${pAb}%;background:#818cf8"></div>`:''}
-        </div>
-        <div class="bar-lbl">${h}h</div>
-      </div>`;
-    }).join('') : '<div style="font-size:11px;color:var(--text3);padding:40px;text-align:center;width:100%">Sem dados</div>';
-  }
-
-  // ── 4. SLA ────────────────────────────────────────────────────────
+  // ── SLA ───────────────────────────────────────────────────────────
   const finalizados = fonte.filter(c => c.st === 'finalizado' && c.tsInicioExec && c.tsFimExec && c.dataProgramada);
   let slaOk=0, slaFora=0, slaTMtot=0;
   const slaLimite = fonte[0]?.slaMin || 240;
@@ -3364,61 +3254,7 @@ function renderChamadosDash() {
   const slaBar = document.getElementById('dch-sla-bar');
   if (slaBar) slaBar.style.width = (slaPctOk || 0) + '%';
 
-  // ── 5. Cidades ────────────────────────────────────────────────────
-  const cidMap = {};
-  fonte.forEach(c => { const k=c.cidade||'Sem cidade'; cidMap[k]=(cidMap[k]||0)+1; });
-  const cidLista = Object.entries(cidMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
-  const cidMax   = cidLista[0]?.[1] || 1;
-  const cidEl    = document.getElementById('dch-cidade-bars');
-  const cidBadge = document.getElementById('dch-cidade-badge');
-  if (cidBadge) cidBadge.textContent = `${cidLista.length} cidades`;
-  if (cidEl) cidEl.innerHTML = cidLista.map(([cid,n]) => `
-    <div style="margin-bottom:8px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:3px">
-        <span style="font-size:11.5px;font-weight:500;color:var(--text)">${cid}</span>
-        <span style="font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--cyan)">${n}</span>
-      </div>
-      <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden">
-        <div style="height:100%;width:${Math.round(n/cidMax*100)}%;background:var(--cyan);border-radius:4px"></div>
-      </div>
-    </div>`).join('');
-
-  // ── 6. Produção por técnico ───────────────────────────────────────
-  const tecMap = {};
-  fonte.forEach(c => {
-    if (!c.tec || c.tec === 'Sem técnico') return;
-    if (!tecMap[c.tec]) tecMap[c.tec] = { total:0, fin:0, at:0 };
-    tecMap[c.tec].total++;
-    if (c.st==='finalizado') tecMap[c.tec].fin++;
-    if (c.st==='atrasado')   tecMap[c.tec].at++;
-  });
-  const tecLista = Object.entries(tecMap).sort((a,b)=>b[1].total-a[1].total);
-  const tecMax   = tecLista[0]?.[1]?.total || 1;
-  const cores    = ['#818cf8','#22c55e','#06b6d4','#a78bfa','#f59e0b','#ef4444','#ec4899','#84cc16'];
-  const tecBadge = document.getElementById('dch-tec-badge');
-  const tecEl    = document.getElementById('dch-tec-bars');
-  if (tecBadge) tecBadge.textContent = `${tecLista.length} técnicos`;
-  if (tecEl) tecEl.innerHTML = tecLista.length ? tecLista.map(([tec,d],i) => {
-    const cor = cores[i%cores.length];
-    const pct = Math.round(d.total/tecMax*100);
-    const taxa= d.total ? Math.round(d.fin/d.total*100) : 0;
-    return `<div style="margin-bottom:9px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-        <span style="font-size:12px;font-weight:600;color:var(--text)">${tec}</span>
-        <div style="display:flex;gap:8px;align-items:center">
-          ${d.at>0?`<span style="font-size:9.5px;color:var(--red)">⚠${d.at}</span>`:''}
-          <span style="font-size:10px;color:var(--green)">${d.fin} fin.</span>
-          <span style="font-size:13px;font-weight:700;font-family:'JetBrains Mono',monospace;color:${cor}">${d.total}</span>
-        </div>
-      </div>
-      <div style="background:var(--border);border-radius:4px;height:7px;overflow:hidden">
-        <div style="height:100%;width:${pct}%;background:${cor};border-radius:4px;transition:.4s"></div>
-      </div>
-      <div style="font-size:9px;color:var(--text3);margin-top:2px">${taxa}% finalizado</div>
-    </div>`;
-  }).join('') : '<div style="font-size:11px;color:var(--text3);padding:8px">Sem técnicos no período</div>';
-
-  // ── 7. TM por técnico ─────────────────────────────────────────────
+  // ── TM por técnico ────────────────────────────────────────────────
   const filtTipo = document.getElementById('dch-filtTipo')?.value || '';
   // Popula select de tipos na 1ª vez
   const sel = document.getElementById('dch-filtTipo');
