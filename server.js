@@ -448,19 +448,15 @@ app.get('/api/chamados', async (req, res) => {
 
       if (totalPages > 1) {
         if (knowsTotal) {
-          // Parallel fetch — we know exactly how many pages
-          const BATCH = 10;
-          for (let start = 2; start <= totalPages; start += BATCH) {
-            const end = Math.min(start + BATCH - 1, totalPages);
-            const pages = Array.from({ length: end - start + 1 }, (_, i) => start + i);
-            const results = await Promise.all(pages.map(async pg => {
-              const body = bodyConsultaOS({ data_inicio, data_fim });
-              const d = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=${pg}`, body);
-              return extrairLista(d);
-            }));
-            for (const r of results) lista.push(...r);
-            console.log(`[chamados] batch ${start}-${end}: total so far ${lista.length}`);
-          }
+          // Todas as páginas restantes em paralelo (máxima velocidade)
+          const pages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+          const results = await Promise.all(pages.map(async pg => {
+            const body = bodyConsultaOS({ data_inicio, data_fim });
+            const d = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=${pg}`, body);
+            return extrairLista(d);
+          }));
+          for (const r of results) lista.push(...r);
+          console.log(`[chamados] parallel ${pages.length} pages: total ${lista.length}`);
         } else {
           // Sequential fallback — stop as soon as a page returns < PAGE_SIZE
           let pg = 2;
@@ -623,18 +619,15 @@ app.get('/api/atendimentos', async (req, res) => {
       totalPages = Math.min(totalPages, MAX_PAGES);
       console.log(`[atendimentos] page 1: ${list1.length} | totalPages=${totalPages} | total=${total}`);
       if (totalPages <= 1) return list1;
-      const BATCH = 10;
-      let all_list = [...list1];
-      for (let start = 2; start <= totalPages; start += BATCH) {
-        const end = Math.min(start + BATCH - 1, totalPages);
-        const pages = Array.from({ length: end - start + 1 }, (_, i) => start + i);
-        const results = await Promise.all(pages.map(async pg => {
-          const d = await hubsoftPost(`v1/atendimento/consultar/paginado/${PAGE_SIZE}?page=${pg}`, body1);
-          return Array.isArray(d?.atendimentos?.data) ? d.atendimentos.data : [];
-        }));
-        for (const r of results) all_list.push(...r);
-        console.log(`[atendimentos] batch ${start}-${end}: total so far ${all_list.length}`);
-      }
+      // Todas as páginas restantes em paralelo
+      const pages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+      const results = await Promise.all(pages.map(async pg => {
+        const d = await hubsoftPost(`v1/atendimento/consultar/paginado/${PAGE_SIZE}?page=${pg}`, body1);
+        return Array.isArray(d?.atendimentos?.data) ? d.atendimentos.data : [];
+      }));
+      const all_list = [...list1];
+      for (const r of results) all_list.push(...r);
+      console.log(`[atendimentos] parallel ${pages.length} pages: total ${all_list.length}`);
       return all_list;
     }
 

@@ -446,7 +446,7 @@ input[type="text"]::placeholder { color:var(--text3); }
           <button class="chip active per-chip" data-p="hoje"   onclick="setPeriodo('hoje',this)">Hoje</button>
           <button class="chip per-chip" data-p="amanha"        onclick="setPeriodo('amanha',this)">Amanhã</button>
           <button class="chip per-chip" data-p="semana"        onclick="setPeriodo('semana',this)">Semana</button>
-          <button class="chip per-chip" data-p="mes"           onclick="setPeriodo('mes',this)">Mês</button>
+          <button class="chip per-chip" data-p="mes"           onclick="setPeriodo('mes',this)">Mês atual</button>
           <button class="chip per-chip" data-p="mes_anterior"  onclick="setPeriodo('mes_anterior',this)">Mês anterior</button>
           <button class="chip per-chip" data-p="custom"        onclick="setPeriodo('custom',this)">Período</button>
         </div>
@@ -633,7 +633,7 @@ input[type="text"]::placeholder { color:var(--text3); }
           <button class="chip active per-chip" id="perHoje"   data-p="hoje"   onclick="setPeriodo('hoje',this)">Hoje</button>
           <button class="chip per-chip"        id="perAmanha"     data-p="amanha"       onclick="setPeriodo('amanha',this)">Amanhã</button>
           <button class="chip per-chip"        id="perSemana"     data-p="semana"       onclick="setPeriodo('semana',this)">Semana</button>
-          <button class="chip per-chip"        id="perMes"        data-p="mes"          onclick="setPeriodo('mes',this)">Mês</button>
+          <button class="chip per-chip"        id="perMes"        data-p="mes"          onclick="setPeriodo('mes',this)">Mês atual</button>
           <button class="chip per-chip"        id="perMesAnterior" data-p="mes_anterior" onclick="setPeriodo('mes_anterior',this)">Mês anterior</button>
           <button class="chip per-chip"        id="perCustom"     data-p="custom"       onclick="setPeriodo('custom',this)">Período</button>
         </div>
@@ -1326,7 +1326,8 @@ function setPeriodo(p, el) {
     aplicarDados(cached.dados);
     return;
   }
-  // Sem cache: busca os dados corretos do período na API
+  // Sem cache: zera display imediatamente (mostra 0 enquanto carrega) e busca
+  aplicarDados([]);
   buscarPeriodo();
 }
 
@@ -1486,7 +1487,7 @@ function calcTMI() { return calcTM(); }
 
 // Label do período para os cards
 function labelPeriodo() {
-  const map = {hoje:'Hoje', amanha:'Amanhã', semana:'Semana', mes:'Mês', mes_anterior:'Mês anterior', custom:'Período'};
+  const map = {hoje:'Hoje', amanha:'Amanhã', semana:'Semana', mes:'Mês atual', mes_anterior:'Mês anterior', custom:'Período'};
   return map[filtros.periodo] || 'Período';
 }
 
