@@ -162,10 +162,12 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
 .dl-count { font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:500; color:var(--text); }
 
 /* Bar chart */
-.bar-chart { display:flex; align-items:flex-end; gap:6px; height:170px; padding-top:8px; }
-.bar-col { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; }
-.bar-rect { width:100%; border-radius:4px 4px 0 0; }
-.bar-lbl { font-size:10px; color:var(--text3); font-family:'JetBrains Mono',monospace; }
+.bar-chart { display:flex; align-items:stretch; gap:4px; height:180px; }
+.bar-col { flex:1; display:flex; flex-direction:column; align-items:center; min-width:0; }
+.bar-col-count { font-size:9px; color:var(--text2); font-family:'JetBrains Mono',monospace; height:14px; line-height:14px; }
+.bar-col-bars { flex:1; width:100%; display:flex; flex-direction:column; justify-content:flex-end; gap:1px; min-height:0; }
+.bar-rect { width:88%; border-radius:3px 3px 0 0; min-height:2px; }
+.bar-lbl { font-size:10px; color:var(--text3); font-family:'JetBrains Mono',monospace; height:16px; line-height:16px; }
 .bar-val { font-size:10px; color:var(--text2); }
 .bar-axis { height:1px; background:var(--border2); margin:4px 0; }
 .bar-legend { display:flex; gap:12px; margin-bottom:8px; }
@@ -2336,14 +2338,14 @@ function renderDashboard() {
       const maxV = Math.max(...hs.map(h=>horasMap[h].ab+horasMap[h].fin), 1);
       barEl.innerHTML = hs.map(h => {
           const ab  = horasMap[h].ab, fn = horasMap[h].fin, tot = ab+fn;
-          const hAb = Math.round(ab/maxV*140), hFn = Math.round(fn/maxV*140);
+          const pAb = Math.round(ab/maxV*100), pFn = Math.round(fn/maxV*100);
           return `<div class="bar-col" title="${h}h: ${tot} chamados (${ab} abertos, ${fn} fechados)">
-            ${tot > 0 ? `<div style="font-size:9px;color:var(--text2);font-family:'JetBrains Mono',monospace;text-align:center;margin-bottom:2px">${tot}</div>` : '<div style="height:13px"></div>'}
-            <div style="display:flex;flex-direction:column;justify-content:flex-end;gap:1px;height:140px">
-              <div class="bar-rect" style="height:${hFn}px;background:#22c55e;opacity:0.9"></div>
-              <div class="bar-rect" style="height:${hAb}px;background:#818cf8;opacity:0.9"></div>
+            <div class="bar-col-count">${tot > 0 ? tot : ''}</div>
+            <div class="bar-col-bars">
+              ${fn > 0 ? `<div class="bar-rect" style="height:${pFn}%;background:#22c55e"></div>` : ''}
+              ${ab > 0 ? `<div class="bar-rect" style="height:${pAb}%;background:#818cf8"></div>` : ''}
             </div>
-            <div style="font-size:10px;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-top:3px">${h}h</div>
+            <div class="bar-lbl">${h}h</div>
           </div>`;
         }).join('');
       if(labEl) labEl.innerHTML = '';
