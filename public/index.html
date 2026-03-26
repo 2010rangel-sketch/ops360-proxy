@@ -850,7 +850,7 @@ input[type="text"]::placeholder { color:var(--text3); }
       <!-- LC Virtual Net — Expansão / Correção / Construção de Rede -->
       <div class="tbl-card" style="margin-bottom:0">
         <div class="tbl-header">
-          <span class="tbl-title">LC Virtual Net — Expansão, Correção e Construção de Rede</span>
+          <span class="tbl-title">Expansão, Correção e Construção de Rede</span>
           <span class="badge b-blue" id="lc-total-badge">—</span>
         </div>
         <div style="overflow-x:auto;max-height:260px;overflow-y:auto">
@@ -2717,18 +2717,18 @@ function renderAtendimentosFiltrado() {
   const lcTotal = lcData.reduce((s, r) => s + r.total, 0);
   const lcBadge = document.getElementById('lc-total-badge');
   if (lcBadge) lcBadge.textContent = `${lcTotal} atendimentos`;
-  window._lcTipos = {};
-  lcData.forEach(r => { window._lcTipos[r.tipo] = r; });
+  window._lcClientes = {};
+  lcData.forEach(r => { window._lcClientes[r.cliente] = r; });
   const lcTbl = document.getElementById('lcTbl');
   if (lcTbl) {
-    lcTbl.innerHTML = lcData.length ? lcData.map((r, i) => `<tr style="cursor:pointer" onclick="verDetalhesLC('${r.tipo.replace(/'/g,"\\'")}')" title="Ver sub-tipos">
+    lcTbl.innerHTML = lcData.length ? lcData.map((r, i) => `<tr style="cursor:pointer" onclick="verDetalhesLC('${r.cliente.replace(/'/g,"\\'")}')" title="Ver tipos de serviço">
       <td style="color:var(--text3)">${i+1}</td>
-      <td style="font-weight:500;color:var(--accent);text-decoration:underline dotted">${r.tipo}</td>
+      <td style="font-weight:500;color:var(--accent);text-decoration:underline dotted">${r.cliente}</td>
       <td><span class="badge ${r.total>=10?'b-red':r.total>=5?'b-amber':'b-blue'}" style="font-size:11px">${r.total}x</span></td>
       <td class="mono" style="color:#22c55e">${r.semOS}</td>
       <td class="mono" style="color:var(--accent)">${r.comOS}</td>
     </tr>`).join('')
-    : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px">Nenhum atendimento LC Virtual no período</td></tr>`;
+    : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px">Nenhum atendimento no período</td></tr>`;
   }
 }
 
@@ -2754,16 +2754,16 @@ function verDetalhesCliente(key) {
   modal.style.display = 'flex';
 }
 
-function verDetalhesLC(tipo) {
-  const r = window._lcTipos && window._lcTipos[tipo];
+function verDetalhesLC(cliente) {
+  const r = window._lcClientes && window._lcClientes[cliente];
   if (!r) return;
   const modal = document.getElementById('modalClienteDetalhe');
   const nome  = document.getElementById('modalClienteNome');
   const tipos = document.getElementById('modalClienteTipos');
   if (!modal) return;
-  if (nome) nome.textContent = `LC Virtual Net — ${r.tipo}`;
+  if (nome) nome.textContent = r.cliente;
   if (tipos) {
-    const arr = Array.isArray(r.subtipos) ? r.subtipos : [];
+    const arr = Array.isArray(r.tipos) ? r.tipos : [];
     tipos.innerHTML = arr.length
       ? `<table style="width:100%;border-collapse:collapse">${arr.map(t=>`
           <tr style="border-bottom:1px solid var(--border)">

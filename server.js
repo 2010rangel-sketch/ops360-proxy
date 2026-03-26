@@ -740,23 +740,19 @@ app.get('/api/atendimentos', async (req, res) => {
       .sort((a,b) => b.contatos - a.contatos)
       .slice(0, 50);
 
-    // LC Virtual Net — agrupa por Expansão / Correção / Construção de Rede
-    // com sub-tipos para o modal (igual a clientes recorrentes)
+    // Expansão / Correção / Construção de Rede — clientes LC Virtual Net agrupados por nome
     const mapaLC = {};
     parsedAll.filter(a => isLC(a.cliente)).forEach(a => {
       const t = (a.tipo || '').toUpperCase();
-      let grupo = null;
-      if (t.includes('EXPANS'))  grupo = 'Expansão de Rede';
-      else if (t.includes('CORRE'))   grupo = 'Correção de Rede';
-      else if (t.includes('CONSTRU')) grupo = 'Construção de Rede';
-      if (!grupo) return;
-      if (!mapaLC[grupo]) mapaLC[grupo] = { tipo: grupo, total: 0, comOS: 0, semOS: 0, subtipos: {} };
-      mapaLC[grupo].total++;
-      if (a.temOS) mapaLC[grupo].comOS++; else mapaLC[grupo].semOS++;
-      mapaLC[grupo].subtipos[a.tipo] = (mapaLC[grupo].subtipos[a.tipo] || 0) + 1;
+      if (!t.includes('EXPANS') && !t.includes('CORRE') && !t.includes('CONSTRU')) return;
+      const k = a.cliente;
+      if (!mapaLC[k]) mapaLC[k] = { cliente: k, clienteId: a.clienteId, total: 0, comOS: 0, semOS: 0, tipos: {} };
+      mapaLC[k].total++;
+      if (a.temOS) mapaLC[k].comOS++; else mapaLC[k].semOS++;
+      mapaLC[k].tipos[a.tipo] = (mapaLC[k].tipos[a.tipo] || 0) + 1;
     });
     const lc_virtual = Object.values(mapaLC)
-      .map(g => ({ ...g, subtipos: Object.entries(g.subtipos).sort((a,b)=>b[1]-a[1]).map(([tipo,n])=>({tipo,n})) }))
+      .map(g => ({ ...g, tipos: Object.entries(g.tipos).sort((a,b)=>b[1]-a[1]).map(([tipo,n])=>({tipo,n})) }))
       .sort((a, b) => b.total - a.total);
 
     const periodo = req.query.periodo || 'custom';
