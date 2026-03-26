@@ -654,7 +654,7 @@ app.get('/api/atendimentos', async (req, res) => {
       if (t.includes('COBRAN') || t.includes('VENCIMENTO') || t.includes('DISPARO') || t.includes('INADIMPL') || t.includes('SUSPENS') || t.includes('CORTE')) return 'Cobrança';
       if (t.includes('COMERCIAL') || t.includes('VENDA') || t.includes('CANCEL') || t.includes('CONTRATO') || t.includes('PLANO') || t.includes('UPGRADE') || t.includes('MIGRA')) return 'Comercial';
       if (t.includes('CALL') || t.includes('RECEP') || t.includes('GERAL') || t.includes('INFORMAÇ') || t.includes('INFORMAC')) return 'Call Center';
-      return tipo;
+      return '';
     }
 
     function parseA(a) {
