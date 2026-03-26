@@ -740,11 +740,9 @@ app.get('/api/atendimentos', async (req, res) => {
       .sort((a,b) => b.contatos - a.contatos)
       .slice(0, 50);
 
-    // Expansão / Correção / Construção de Rede — clientes LC Virtual Net agrupados por nome
+    // Expansão, Correção e Construção de Rede — todos atendimentos cujo cliente é LC Virtual Net
     const mapaLC = {};
     parsedAll.filter(a => isLC(a.cliente)).forEach(a => {
-      const t = (a.tipo || '').toUpperCase();
-      if (!t.includes('EXPANS') && !t.includes('CORRE') && !t.includes('CONSTRU')) return;
       const k = a.cliente;
       if (!mapaLC[k]) mapaLC[k] = { cliente: k, clienteId: a.clienteId, total: 0, comOS: 0, semOS: 0, tipos: {} };
       mapaLC[k].total++;
