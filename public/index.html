@@ -842,33 +842,20 @@ input[type="text"]::placeholder { color:var(--text3); }
           <span class="badge b-amber" id="at-recorr-count">—</span>
         </div>
         <div style="overflow-x:auto;max-height:260px;overflow-y:auto">
-          <table><thead><tr><th>#</th><th>Cliente</th><th>Contatos</th><th style="color:#22c55e">Sem OS</th><th style="color:var(--accent)">Com OS</th><th>Setor</th></tr></thead>
-          <tbody id="recorrTbl"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
+          <table><thead><tr><th>#</th><th>Cliente</th><th>Contatos</th><th style="color:#22c55e">Sem OS</th><th style="color:var(--accent)">Com OS</th></tr></thead>
+          <tbody id="recorrTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
         </div>
       </div>
 
-      <!-- LC Virtual Net — Reparo / Expansão / Correção de Rede -->
+      <!-- LC Virtual Net — Expansão / Correção / Construção de Rede -->
       <div class="tbl-card" style="margin-bottom:0">
         <div class="tbl-header">
-          <span class="tbl-title">LC Virtual Net</span>
+          <span class="tbl-title">LC Virtual Net — Expansão, Correção e Construção de Rede</span>
           <span class="badge b-blue" id="lc-total-badge">—</span>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;padding:12px 0 4px">
-          <div id="lcCardReparo"   style="background:var(--surface);border:1px solid var(--border);border-top:3px solid var(--cyan);border-radius:var(--r-lg);padding:14px 16px">
-            <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:8px">Reparo</div>
-            <div style="font-size:28px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--cyan)" id="lcReparo">—</div>
-            <div style="font-size:10px;color:var(--text3);margin-top:4px"><span style="color:#22c55e" id="lcReparoSemOS">—</span> sem OS · <span style="color:var(--accent)" id="lcReparoComOS">—</span> com OS</div>
-          </div>
-          <div id="lcCardExpansao" style="background:var(--surface);border:1px solid var(--border);border-top:3px solid var(--purple);border-radius:var(--r-lg);padding:14px 16px">
-            <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:8px">Expansão</div>
-            <div style="font-size:28px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--purple)" id="lcExpansao">—</div>
-            <div style="font-size:10px;color:var(--text3);margin-top:4px"><span style="color:#22c55e" id="lcExpansaoSemOS">—</span> sem OS · <span style="color:var(--accent)" id="lcExpansaoComOS">—</span> com OS</div>
-          </div>
-          <div id="lcCardCorrecao" style="background:var(--surface);border:1px solid var(--border);border-top:3px solid var(--amber);border-radius:var(--r-lg);padding:14px 16px">
-            <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:8px">Correção de Rede</div>
-            <div style="font-size:28px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--amber)" id="lcCorrecao">—</div>
-            <div style="font-size:10px;color:var(--text3);margin-top:4px"><span style="color:#22c55e" id="lcCorrecaoSemOS">—</span> sem OS · <span style="color:var(--accent)" id="lcCorrecaoComOS">—</span> com OS</div>
-          </div>
+        <div style="overflow-x:auto;max-height:260px;overflow-y:auto">
+          <table><thead><tr><th>#</th><th>Tipo</th><th>Total</th><th style="color:#22c55e">Sem OS</th><th style="color:var(--accent)">Com OS</th></tr></thead>
+          <tbody id="lcTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
         </div>
       </div>
     </div>
@@ -2693,7 +2680,6 @@ function renderAtendimentosFiltrado() {
     const pLabel = { hoje:'hoje', semana:'esta semana', mes:'este mês', mes_anterior:'mês anterior', custom:'período' };
     recTitulo.textContent = `Clientes recorrentes — ${pLabel[data.periodo] || 'período'}`;
   }
-  // Armazena os tipos no DOM para o modal
   window._recorrTipos = {};
   recorr.forEach(c => { window._recorrTipos[c.clienteId || c.cliente] = c; });
   if (recTbl) {
@@ -2703,23 +2689,28 @@ function renderAtendimentosFiltrado() {
       <td><span class="badge ${c.contatos>=5?'b-red':c.contatos>=3?'b-amber':'b-blue'}" style="font-size:11px">${c.contatos}x</span></td>
       <td class="mono" style="color:#22c55e">${c.semOS}</td>
       <td class="mono" style="color:var(--accent)">${c.comOS}</td>
-      <td style="font-size:12px;color:var(--text2)">${c.setor||'—'}</td>
     </tr>`).join('')
-    : `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Nenhum cliente contatou mais de uma vez no período</td></tr>`;
+    : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px">Nenhum cliente contatou mais de uma vez no período</td></tr>`;
   }
 
-  // LC Virtual Net cards
-  const lcData = data.lc_virtual || [];
-  const find = (kw) => lcData.find(t => t.tipo.toUpperCase().includes(kw)) || { total:0, comOS:0, semOS:0 };
-  const reparo   = find('REPARO');
-  const expansao = find('EXPANS');
-  const correcao = find('CORRE');
-  const lcTotal  = reparo.total + expansao.total + correcao.total;
-  const setEl = (id, val) => { const e = document.getElementById(id); if(e) e.textContent = val; };
-  setEl('lc-total-badge', `${lcTotal} atendimentos`);
-  setEl('lcReparo',       reparo.total);   setEl('lcReparoSemOS',   reparo.semOS);   setEl('lcReparoComOS',   reparo.comOS);
-  setEl('lcExpansao',     expansao.total); setEl('lcExpansaoSemOS', expansao.semOS); setEl('lcExpansaoComOS', expansao.comOS);
-  setEl('lcCorrecao',     correcao.total); setEl('lcCorrecaoSemOS', correcao.semOS); setEl('lcCorrecaoComOS', correcao.comOS);
+  // LC Virtual Net — tabela igual a clientes recorrentes
+  const lcData  = data.lc_virtual || [];
+  const lcTotal = lcData.reduce((s, r) => s + r.total, 0);
+  const lcBadge = document.getElementById('lc-total-badge');
+  if (lcBadge) lcBadge.textContent = `${lcTotal} atendimentos`;
+  window._lcTipos = {};
+  lcData.forEach(r => { window._lcTipos[r.tipo] = r; });
+  const lcTbl = document.getElementById('lcTbl');
+  if (lcTbl) {
+    lcTbl.innerHTML = lcData.length ? lcData.map((r, i) => `<tr style="cursor:pointer" onclick="verDetalhesLC('${r.tipo.replace(/'/g,"\\'")}')" title="Ver sub-tipos">
+      <td style="color:var(--text3)">${i+1}</td>
+      <td style="font-weight:500;color:var(--accent);text-decoration:underline dotted">${r.tipo}</td>
+      <td><span class="badge ${r.total>=10?'b-red':r.total>=5?'b-amber':'b-blue'}" style="font-size:11px">${r.total}x</span></td>
+      <td class="mono" style="color:#22c55e">${r.semOS}</td>
+      <td class="mono" style="color:var(--accent)">${r.comOS}</td>
+    </tr>`).join('')
+    : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px">Nenhum atendimento LC Virtual no período</td></tr>`;
+  }
 }
 
 function verDetalhesCliente(key) {
@@ -2740,6 +2731,28 @@ function verDetalhesCliente(key) {
           </tr>`).join('')}
         </table>`
       : `<p style="color:var(--text3);font-size:13px">Sem dados de tipo disponíveis</p>`;
+  }
+  modal.style.display = 'flex';
+}
+
+function verDetalhesLC(tipo) {
+  const r = window._lcTipos && window._lcTipos[tipo];
+  if (!r) return;
+  const modal = document.getElementById('modalClienteDetalhe');
+  const nome  = document.getElementById('modalClienteNome');
+  const tipos = document.getElementById('modalClienteTipos');
+  if (!modal) return;
+  if (nome) nome.textContent = `LC Virtual Net — ${r.tipo}`;
+  if (tipos) {
+    const arr = Array.isArray(r.subtipos) ? r.subtipos : [];
+    tipos.innerHTML = arr.length
+      ? `<table style="width:100%;border-collapse:collapse">${arr.map(t=>`
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:7px 4px;font-size:13px">${t.tipo||'Sem tipo'}</td>
+            <td style="padding:7px 4px;text-align:right"><span class="badge b-blue" style="font-size:11px">${t.n}x</span></td>
+          </tr>`).join('')}
+        </table>`
+      : `<p style="color:var(--text3);font-size:13px">Sem detalhes disponíveis</p>`;
   }
   modal.style.display = 'flex';
 }
