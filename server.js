@@ -776,11 +776,11 @@ app.get('/api/debug-retencao-raw', async (_req, res) => {
       data_inicio: ini.toISOString(), data_fim: agora.toISOString(),
     });
     const lista = data?.atendimentos?.data || data?.atendimento?.data || data?.data || [];
-    const isCancelTipo = t => { const u=(t||'').toUpperCase(); return u.includes('CANCELAMENTO')||u.includes('RESCIS'); };
-    const pedidos = lista.filter(a => isCancelTipo(a.tipo_atendimento?.descricao));
-    const amostra = pedidos.slice(0, 3).map(a => ({
+    // Sem filtro — mostra os tipos reais dos primeiros 10
+    const amostra = lista.slice(0, 5).map(a => ({
       keys: Object.keys(a),
       tipo_atendimento: a.tipo_atendimento,
+      tipo: a.tipo,
       status_fechamento: a.status_fechamento,
       status: a.status,
       motivo_fechamento: a.motivo_fechamento,
@@ -789,9 +789,10 @@ app.get('/api/debug-retencao-raw', async (_req, res) => {
       situacao: a.situacao,
       desfecho: a.desfecho,
       resultado: a.resultado,
-      raw: a,
     }));
-    res.json({ total_cancelamento: pedidos.length, total_lista: lista.length, amostra });
+    // Lista todos os tipos únicos encontrados
+    const tipos_unicos = [...new Set(lista.map(a => a.tipo_atendimento?.descricao || a.tipo?.descricao || a.tipo || 'SEM_TIPO'))];
+    res.json({ total_lista: lista.length, tipos_unicos, amostra });
   } catch(err) { res.status(500).json({ erro: err.message }); }
 });
 
