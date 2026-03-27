@@ -901,11 +901,19 @@ app.get('/api/comercial', async (req, res) => {
     };
 
     // Tenta múltiplos endpoints do Hubsoft para serviços/contratos
+    // Ref: docs.hubsoft.com.br — módulo Clientes > Serviços do Cliente
+    const habBody = { data_inicio: ini.toISOString(), data_fim: fim.toISOString(),
+                      tipo_data: 'data_habilitacao', order_by: 'data_habilitacao', order_by_key: 'DESC' };
     const tentativas = [
-      { ep: 'v1/cliente_servico/consultar/paginado/500?page=1', body: { ...baseBody } },
-      { ep: 'v1/contrato/consultar/paginado/500?page=1',        body: { ...baseBody } },
-      { ep: 'v1/plano_servico/consultar/paginado/500?page=1',   body: { ...baseBody } },
-      { ep: 'v1/cliente/consultar/paginado/500?page=1',         body: { ...baseBody, tipo_data: 'data_venda' } },
+      { ep: 'v1/cliente_servico/consultar/paginado/500?page=1',  body: { ...baseBody } },
+      { ep: 'v1/cliente_servico/consultar/paginado/500?page=1',  body: { ...habBody } },
+      { ep: 'v1/servico_cliente/consultar/paginado/500?page=1',  body: { ...baseBody } },
+      { ep: 'v1/contrato/consultar/paginado/500?page=1',         body: { ...baseBody } },
+      { ep: 'v1/contrato/consultar/paginado/500?page=1',         body: { ...habBody } },
+      { ep: 'v1/plano_servico/consultar/paginado/500?page=1',    body: { ...baseBody } },
+      { ep: 'v1/cliente/servico/consultar/paginado/500?page=1',  body: { ...baseBody } },
+      { ep: 'v1/cliente/consultar/paginado/500?page=1',          body: { ...baseBody, tipo_data: 'data_venda' } },
+      { ep: 'v1/cliente/consultar/paginado/500?page=1',          body: { ...habBody } },
     ];
 
     let raw = null;
@@ -1000,12 +1008,35 @@ app.get('/api/comercial', async (req, res) => {
   }
 });
 
+// ── CONEXÕES: Debug — descobre endpoint de assinantes online/offline ──
+app.get('/api/conexoes/debug', async (req, res) => {
+  const token = await getToken();
+  const headers = { Authorization: `Bearer ${token}` };
+  const getEps = [
+    'v1/assinante/online','v1/assinante/listar','v1/assinante/consultar',
+    'v1/cliente/assinante','v1/radius/sessao','v1/radius/assinante',
+    'v1/conexao/assinante','v1/cliente/online','v1/conexao/consultar',
+  ];
+  const resultados = {};
+  for (const ep of getEps) {
+    try {
+      const r = await axios.get(`${HUBSOFT_HOST}/api/${ep}`, { headers, params: { limit: 1 }, timeout: 6000 });
+      resultados[ep] = { ok: true, status: r.status, keys: Object.keys(r.data || {}), amostra: JSON.stringify(r.data).slice(0,200) };
+    } catch(e) {
+      resultados[ep] = { ok: false, status: e.response?.status, msg: e.message };
+    }
+  }
+  res.json({ host: HUBSOFT_HOST, resultados });
+});
+
 // ── COMERCIAL: Debug — descobre endpoint correto ──────────────────
 app.get('/api/comercial/debug', async (req, res) => {
   const eps = [
     'v1/cliente_servico/consultar/paginado/5?page=1',
+    'v1/servico_cliente/consultar/paginado/5?page=1',
     'v1/contrato/consultar/paginado/5?page=1',
     'v1/plano_servico/consultar/paginado/5?page=1',
+    'v1/cliente/servico/consultar/paginado/5?page=1',
     'v1/cliente/consultar/paginado/5?page=1',
     'v1/cliente_servico', 'v1/contrato', 'v1/plano_servico',
   ];
@@ -1122,7 +1153,7 @@ function normalizarStatus(status) {
   if (!status) return 'aguardando';
   const s = status.toLowerCase();
   if (s.includes('execu') || s.includes('andamento') || s.includes('iniciado')) return 'execucao';
-  if (s.includes('conclu') || s.includes('finaliz') || s.includes('fechado')) return 'finalizado';
+  if (s.includes('conclu') || s.includes('finaliz') || s.includes('fechado') || s.includes('remov')) return 'finalizado';
   if (s.includes('atraso') || s.includes('vencido') || s.includes('prazo')) return 'atrasado';
   if (s.includes('reagend') || s.includes('remarca') || s.includes('agendamento')) return 'reagendado';
   if (s.includes('retrabalho')) return 'retrabalho';
@@ -1469,13 +1500,20 @@ async function fetchConexoesHubsoft() {
   const token = await getToken();
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
 
-  // Tenta endpoint de clientes com status de conexão
+  // Tenta endpoint de "Assinantes Online/Offline" do Hubsoft
+  // Ref: wiki.hubsoft.com.br/modulos/cliente/status_conexao_assinantes
   const tentativas = [
-    () => axios.get(`${HUBSOFT_HOST}/api/v1/cliente/online`,            { headers, timeout: 10000 }),
-    () => axios.get(`${HUBSOFT_HOST}/api/v1/conexao/consultar`,         { headers, timeout: 10000 }),
-    () => axios.get(`${HUBSOFT_HOST}/api/v1/onu/listar`,                { headers, timeout: 10000 }),
+    () => axios.get(`${HUBSOFT_HOST}/api/v1/assinante/online`,                         { headers, timeout: 10000 }),
+    () => axios.get(`${HUBSOFT_HOST}/api/v1/assinante/listar`,                         { headers, timeout: 10000 }),
+    () => axios.get(`${HUBSOFT_HOST}/api/v1/assinante/consultar`,                      { headers, timeout: 10000 }),
+    () => axios.get(`${HUBSOFT_HOST}/api/v1/cliente/assinante`,                        { headers, timeout: 10000 }),
+    () => axios.get(`${HUBSOFT_HOST}/api/v1/radius/sessao`,                            { headers, timeout: 10000 }),
+    () => axios.get(`${HUBSOFT_HOST}/api/v1/radius/assinante`,                         { headers, timeout: 10000 }),
+    () => axios.get(`${HUBSOFT_HOST}/api/v1/conexao/assinante`,                        { headers, timeout: 10000 }),
+    () => axios.get(`${HUBSOFT_HOST}/api/v1/cliente/online`,                           { headers, timeout: 10000 }),
+    () => axios.get(`${HUBSOFT_HOST}/api/v1/conexao/consultar`,                        { headers, timeout: 10000 }),
     () => axios.post(`${HUBSOFT_HOST}/api/v1/cliente/consultar/paginado/10?page=1`,
-                     { status: ['ativo','inativo'] }, { headers, timeout: 10000 }),
+                     { status: ['ativo','inativo'] },                                  { headers, timeout: 10000 }),
   ];
 
   for (const fn of tentativas) {
