@@ -704,26 +704,45 @@ input[type="text"]::placeholder { color:var(--text3); }
       <!-- ═══ DASH-RETENCAO ═══ -->
       <div id="dash-tab-retencao" style="display:none">
 
-        <!-- KPI row -->
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px">
-          <div class="dash-card" style="text-align:center;padding:20px 16px">
-            <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Total pedidos</div>
-            <div style="font-size:42px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--text);line-height:1" id="dr-total">—</div>
+        <!-- KPI row 1 -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:10px">
+          <div class="dash-card" style="text-align:center;padding:18px 16px">
+            <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Pedidos de cancelamento</div>
+            <div style="font-size:38px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--text);line-height:1" id="dr-total">—</div>
           </div>
-          <div class="dash-card" style="text-align:center;padding:20px 16px;border-top:3px solid var(--green)">
-            <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Taxa de retenção</div>
-            <div style="font-size:42px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--green);line-height:1" id="dr-taxa">—</div>
-            <div style="font-size:10.5px;color:var(--text3);margin-top:6px">revertidos / total fechados</div>
+          <div class="dash-card" style="text-align:center;padding:18px 16px;border-top:3px solid var(--green)">
+            <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Revertidos</div>
+            <div style="font-size:38px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--green);line-height:1" id="dr-revert">—</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:4px">cliente mantido</div>
           </div>
-          <div class="dash-card" style="text-align:center;padding:20px 16px;border-top:3px solid var(--green)">
-            <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Revertidos</div>
-            <div style="font-size:42px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--green);line-height:1" id="dr-revert">—</div>
-            <div style="font-size:10.5px;color:var(--text3);margin-top:6px">cliente mantido</div>
+          <div class="dash-card" style="text-align:center;padding:18px 16px;border-top:3px solid var(--red)">
+            <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Cancelados</div>
+            <div style="font-size:38px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--red);line-height:1" id="dr-cancel">—</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:4px">cliente perdido</div>
           </div>
-          <div class="dash-card" style="text-align:center;padding:20px 16px;border-top:3px solid var(--red)">
-            <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Cancelados</div>
-            <div style="font-size:42px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--red);line-height:1" id="dr-cancel">—</div>
-            <div style="font-size:10.5px;color:var(--text3);margin-top:6px">cliente perdido</div>
+          <div class="dash-card" style="text-align:center;padding:18px 16px;border-top:3px solid var(--amber)">
+            <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Pendentes</div>
+            <div style="font-size:38px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--amber);line-height:1" id="dr-pend">—</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:4px">em aberto</div>
+          </div>
+        </div>
+
+        <!-- KPI row 2 -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px">
+          <div class="dash-card" style="text-align:center;padding:18px 16px;border-top:3px solid var(--green)">
+            <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Taxa de retenção</div>
+            <div style="font-size:38px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--green);line-height:1" id="dr-taxa">—</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:4px">revertidos / fechados</div>
+          </div>
+          <div class="dash-card" style="text-align:center;padding:18px 16px;border-top:3px solid var(--red)">
+            <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Cancelamento geral</div>
+            <div style="font-size:38px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--red);line-height:1" id="dr-canc-geral">—</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:4px">qualquer tipo fechado como cancelado</div>
+          </div>
+          <div class="dash-card" style="text-align:center;padding:18px 16px;border-top:3px solid #22c55e">
+            <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Taxa de recuperação</div>
+            <div style="font-size:38px;font-weight:800;font-family:'JetBrains Mono',monospace;color:#22c55e;line-height:1" id="dr-taxa-recup">—</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:4px">revertidos / cancelamento geral</div>
           </div>
         </div>
 
@@ -750,12 +769,26 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
 
         <!-- Ranking atendentes retenção -->
-        <div class="tbl-card">
+        <div class="tbl-card" style="margin-bottom:14px">
           <div class="tbl-header">
             <span class="tbl-title">Taxa de retenção por atendente</span>
             <span class="badge b-blue" id="dr-atend-badge"></span>
           </div>
           <div id="dr-atend-bars" style="padding:8px 16px 4px;columns:2;gap:32px"></div>
+        </div>
+
+        <!-- Últimos pedidos -->
+        <div class="tbl-card">
+          <div class="tbl-header">
+            <span class="tbl-title">Últimos pedidos de cancelamento</span>
+            <span class="badge b-blue" id="dr-ultimos-badge"></span>
+          </div>
+          <table class="data-table" style="font-size:12px">
+            <thead><tr>
+              <th>Cliente</th><th>Tipo</th><th>Atendente</th><th>Desfecho</th><th>Data</th>
+            </tr></thead>
+            <tbody id="dr-ultimos-body"></tbody>
+          </table>
         </div>
 
       </div><!-- /#dash-tab-retencao -->
@@ -3780,10 +3813,15 @@ function renderDashRetencao() {
   const ev = (id,v) => { const e=document.getElementById(id); if(e) e.textContent=v; };
   if (!d) { ev('dr-total','—'); return; }
 
-  ev('dr-total',  d.total ?? '—');
-  ev('dr-taxa',   d.taxa_retencao != null ? d.taxa_retencao+'%' : '—');
-  ev('dr-revert', d.revertidos ?? '—');
-  ev('dr-cancel', d.cancelados ?? '—');
+  ev('dr-total',      d.total ?? '—');
+  ev('dr-revert',     d.revertidos ?? '—');
+  ev('dr-cancel',     d.cancelados ?? '—');
+  ev('dr-pend',       d.pendentes ?? '—');
+  ev('dr-taxa',       d.taxa_retencao != null ? d.taxa_retencao+'%' : '—');
+  ev('dr-canc-geral', d.cancelamento_geral ?? '—');
+  const taxaRecupDash = d.cancelamento_geral > 0
+    ? Math.round((d.revertidos||0) / d.cancelamento_geral * 100) + '%' : '—';
+  ev('dr-taxa-recup', taxaRecupDash);
 
   // Donut desfecho
   const total  = d.total || 0;
@@ -3863,6 +3901,27 @@ function renderDashRetencao() {
       <div style="font-size:9.5px;color:var(--text3);margin-top:2px">Total: ${a.total} pedidos</div>
     </div>`;
   }).join('');
+
+  // Últimos pedidos
+  const ultBody  = document.getElementById('dr-ultimos-body');
+  const ultBadge = document.getElementById('dr-ultimos-badge');
+  const ultimos  = d.ultimos || [];
+  if (ultBadge) ultBadge.textContent = `${ultimos.length} registros`;
+  if (ultBody) {
+    const corDesfecho = df => df === 'revertido' ? '#22c55e' : df === 'cancelado' ? '#f43f5e' : 'var(--amber)';
+    ultBody.innerHTML = ultimos.length ? ultimos.map(u => {
+      const data = u.data ? new Date(u.data).toLocaleDateString('pt-BR') : '—';
+      const df   = u.desfecho || 'pendente';
+      return `<tr>
+        <td style="font-weight:500;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.cliente||'—'}</td>
+        <td style="font-size:11px;color:var(--text2)">${u.tipo||'—'}</td>
+        <td style="font-size:11px">${u.atendente||'—'}</td>
+        <td><span style="font-size:11px;font-weight:600;color:${corDesfecho(df)}">${df}</span></td>
+        <td style="font-size:11px;color:var(--text3)">${data}</td>
+      </tr>`;
+    }).join('')
+    : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Nenhum registro</td></tr>`;
+  }
 }
 
 function renderTMAranking() {
