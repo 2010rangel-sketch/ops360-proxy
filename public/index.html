@@ -487,7 +487,6 @@ input[type="text"]::placeholder { color:var(--text3); }
           <div style="display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px">
             <button class="chip active per-chip" data-p="hoje"         onclick="setPeriodo('hoje',this)">Hoje</button>
             <button class="chip per-chip"        data-p="ontem"        onclick="setPeriodo('ontem',this)">Ontem</button>
-            <button class="chip per-chip"        data-p="hoje_ontem"   onclick="setPeriodo('hoje_ontem',this)">Hoje+Ontem</button>
             <button class="chip per-chip"        data-p="custom"       onclick="setPeriodo('custom',this)">Período</button>
           </div>
           <div id="dashDateRange" style="display:none;gap:6px;align-items:center">
@@ -638,43 +637,6 @@ input[type="text"]::placeholder { color:var(--text3); }
       <div id="dash-tab-chamados" style="display:none">
 
         <!-- Retrabalho analytics card -->
-        <div class="tbl-card" style="margin-bottom:14px" id="dch-rtb-card">
-          <div class="tbl-header">
-            <span class="tbl-title"><i class="fas fa-redo-alt" style="color:var(--orange);margin-right:6px"></i>Análise de Retrabalhos</span>
-            <span class="badge" id="dch-rtb-periodo" style="background:rgba(249,115,22,.15);color:var(--orange)"></span>
-          </div>
-          <div style="display:grid;grid-template-columns:auto 1fr auto;gap:0;align-items:stretch" id="dch-rtb-inner">
-            <!-- métricas à esquerda -->
-            <div style="padding:12px 24px 12px 16px;display:flex;flex-direction:column;gap:14px;border-right:1px solid var(--border);min-width:180px">
-              <div>
-                <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Total retrabalhos</div>
-                <div style="font-size:36px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--orange);line-height:1" id="dch-rtb-total">—</div>
-              </div>
-              <div>
-                <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Taxa</div>
-                <div style="font-size:28px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--red);line-height:1" id="dch-rtb-taxa">—</div>
-                <div style="font-size:10.5px;color:var(--text3);margin-top:3px">do total de OS</div>
-              </div>
-              <div>
-                <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Volume vs normais</div>
-                <div style="background:var(--border);border-radius:6px;height:8px;overflow:hidden">
-                  <div id="dch-rtb-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--orange),var(--red));border-radius:6px;transition:.6s"></div>
-                </div>
-              </div>
-            </div>
-            <!-- barras por técnico -->
-            <div style="padding:12px 16px;flex:1" id="dch-rtb-tec-wrap">
-              <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Por técnico</div>
-              <div id="dch-rtb-tec-bars"></div>
-            </div>
-            <!-- barras por tipo -->
-            <div style="padding:12px 16px;border-left:1px solid var(--border);min-width:220px" id="dch-rtb-tipo-wrap">
-              <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Por tipo de chamado</div>
-              <div id="dch-rtb-tipo-bars"></div>
-            </div>
-          </div>
-        </div>
-
         <!-- Status dos chamados + Chamados por hora -->
         <div class="dash-grid" style="margin-bottom:14px">
           <div class="dash-card">
@@ -809,7 +771,6 @@ input[type="text"]::placeholder { color:var(--text3); }
         <div style="display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px">
           <button class="chip active per-chip" id="perHoje"      data-p="hoje"       onclick="setPeriodo('hoje',this)">Hoje</button>
           <button class="chip per-chip"        id="perOntem"     data-p="ontem"      onclick="setPeriodo('ontem',this)">Ontem</button>
-          <button class="chip per-chip"        id="perHojeOntem" data-p="hoje_ontem" onclick="setPeriodo('hoje_ontem',this)">Hoje+Ontem</button>
           <button class="chip per-chip"        id="perCustom"    data-p="custom"     onclick="setPeriodo('custom',this)">Período</button>
         </div>
         <div id="dateRange" style="display:none;gap:6px;align-items:center">
