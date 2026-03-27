@@ -1686,25 +1686,25 @@ async function fetchConexoesHubsoft() {
   }
 
   // Formata como lista normalizada
+  // Estrutura do Hubsoft: GET /v1/cliente/{id}/assinante
+  // → servicos[].ultima_conexao.conectado  (bool)
+  // → alerta (bool) + alerta_mensagens (string[])
   return resultados.map(c => {
-    const raw = c.raw;
-    // Tenta detectar online por múltiplos campos possíveis
-    const online = raw !== null && (
-      raw?.status === 'online' ||
-      raw?.online === true ||
-      raw?.conectado === true ||
-      raw?.status_conexao === 'online' ||
-      raw?.status_conexao_radius === 'online' ||
-      raw?.sessao_ativa === true ||
-      (typeof raw?.ip === 'string' && raw.ip.length > 0)
-    );
+    const raw      = c.raw;
+    const servicos = raw?.servicos || [];
+    // Conectado = qualquer serviço ativo com ultima_conexao.conectado = true
+    const online   = servicos.some(s => s?.ultima_conexao?.conectado === true);
+    const alerta   = raw?.alerta === true;
+    const alertaMsgs = raw?.alerta_mensagens || [];
     return {
-      id:     c.id,
-      nome:   c.nome,
-      cidade: c.cidade,
-      lat:    c.lat,
-      lng:    c.lng,
+      id:       c.id,
+      nome:     c.nome,
+      cidade:   c.cidade,
+      lat:      c.lat,
+      lng:      c.lng,
       online,
+      alerta,
+      alertaMsgs,
       sem_dados: raw === null,
     };
   });
@@ -1750,10 +1750,18 @@ cron.schedule('*/3 * * * *', async () => {
       const prev     = _prevCidadeStats[cidade] || { online: 0, offline: 0 };
       const deltaOff = stats.offline - prev.offline;
       if (deltaOff >= OFFLINE_THRESHOLD) {
-        const key = `${cidade}-${Math.floor(Date.now() / 600000)}`; // 10 min window
+        const key = `${cidade}-${Math.floor(Date.now() / 600000)}`; // janela 10 min
         if (!offlineAlertSent.has(key)) {
           offlineAlertSent.add(key);
-          const msg = `⚠️ OPS360 — ALERTA DE QUEDA\n${deltaOff} clientes ficaram offline em *${cidade}*\nOnline: ${stats.online} | Offline: ${stats.offline}\n${new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})}`;
+          // Coleta alertas do Hubsoft para clientes dessa cidade
+          const alertas = clientes
+            .filter(c => c.cidade === cidade && c.alertaMsgs?.length)
+            .flatMap(c => c.alertaMsgs)
+            .filter((v, i, a) => a.indexOf(v) === i) // únicos
+            .slice(0, 3);
+          const alertaTxt = alertas.length ? `\n\n📋 *Hubsoft:*\n${alertas.join('\n')}` : '';
+          const hora = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+          const msg = `⚠️ OPS360 — ALERTA DE QUEDA\n*${deltaOff} clientes* ficaram offline em *${cidade}*\nOnline: ${stats.online} | Offline: ${stats.offline}\n🕐 ${hora}${alertaTxt}`;
           sendWhatsApp(msg).catch(console.error);
           console.log(`[ALERTA] Queda em ${cidade}: +${deltaOff} offline`);
         }
