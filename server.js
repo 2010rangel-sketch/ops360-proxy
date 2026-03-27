@@ -1571,6 +1571,54 @@ cron.schedule('* * * * *', async () => {
   if (notifSent.size > 500) notifSent.clear();
 });
 
+// ── DEBUG: estrutura de endereço/geo de uma OS real ──────────────
+app.get('/api/geo/debug', async (req, res) => {
+  try {
+    const agora = new Date();
+    const ini7  = new Date(agora.getTime() - 7 * 86400000);
+    const body  = {
+      data_inicio: ini7.toISOString(), data_fim: agora.toISOString(),
+      status_ordem_servico: ['finalizado','em_execucao','em_andamento'],
+      order_by: 'data_inicio_programado', order_by_key: 'DESC',
+      agendas:[], bairros:null, cidades:[], condominios:null, grupos_clientes:[],
+      grupos_clientes_servicos:[], motivo_fechamento:[], participantes:[],
+      periodos:[], pop:[], prioridade:[], reservada:null, servico:[], servico_status:[], tecnicos:[],
+    };
+    const r = await hubsoftPost('v1/ordem_servico/consultar/paginado/3?page=1', body);
+    const lista = extrairLista(r);
+    if (!lista.length) return res.json({ ok: false, msg: 'Nenhuma OS encontrada' });
+
+    // Pega a primeira OS e expõe campos de endereço e assinante
+    const os  = lista[0];
+    const cs  = os.atendimento?.cliente_servico;
+    const end = cs?.endereco_instalacao || {};
+    const token = await getToken();
+    const cliId = cs?.cliente?.id || cs?.cliente_id;
+    let assinante = null;
+    if (cliId) {
+      try {
+        const ra = await axios.get(`${HUBSOFT_HOST}/api/v1/cliente/${cliId}/assinante`,
+          { headers: { Authorization: `Bearer ${token}` }, timeout: 5000 });
+        assinante = ra.data;
+      } catch(e) { assinante = { erro: e.message }; }
+    }
+
+    res.json({
+      ok: true,
+      cliente_id: cliId,
+      endereco_instalacao_keys: Object.keys(end),
+      endereco_instalacao: end,
+      atendimento_endereco: os.atendimento?.endereco || null,
+      cliente_raw: cs?.cliente || null,
+      assinante_raw: assinante,
+      // campos de topo da OS pra ver se tem lat/lng direto
+      os_keys: Object.keys(os),
+    });
+  } catch(e) {
+    res.json({ ok: false, erro: e.message });
+  }
+});
+
 // ── CONEXÕES — Status online/offline de clientes ──────────────────
 let _prevCidadeStats = {}; // snapshot anterior para detectar quedas
 const offlineAlertSent = new Set(); // evita alertas duplicados
