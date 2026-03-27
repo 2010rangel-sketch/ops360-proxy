@@ -1179,15 +1179,14 @@ input[type="text"]::placeholder { color:var(--text3); }
 
       </div>
 
-      <!-- Aviso quando API não tem o endpoint -->
+      <!-- Aviso quando API não tem o endpoint ou sem permissão -->
       <div id="com-no-endpoint" style="display:none">
         <div class="tbl-card" style="padding:20px;background:rgba(245,158,11,.06);border-color:var(--amber)">
           <div style="display:flex;gap:12px;align-items:flex-start">
-            <i class="fas fa-plug" style="color:var(--amber);margin-top:2px;font-size:16px"></i>
+            <i class="fas fa-lock" style="color:var(--amber);margin-top:2px;font-size:16px"></i>
             <div>
-              <div style="font-weight:600;color:var(--amber);margin-bottom:4px">Integração de cadastros pendente</div>
-              <div style="font-size:12px;color:var(--text3);line-height:1.6">Nenhum dos endpoints de contratos/serviços do Hubsoft retornou dados. Use <code style="background:var(--surface);padding:1px 5px;border-radius:3px">/api/comercial/debug</code> para identificar o endpoint correto e informe para configurarmos.</div>
-              <div id="com-endpoint-error" style="font-size:11px;color:var(--text3);margin-top:6px;font-family:monospace"></div>
+              <div style="font-weight:600;color:var(--amber);margin-bottom:6px" id="com-endpoint-title">Integração de cadastros pendente</div>
+              <div style="font-size:12px;color:var(--text2);line-height:1.7" id="com-endpoint-error">—</div>
             </div>
           </div>
         </div>
@@ -4405,8 +4404,12 @@ async function loadComercial() {
 
     if (!data.ok) {
       if (noEp)  noEp.style.display  = '';
-      if (errEl) errEl.textContent   = data.motivo || '';
-      if (badge) { badge.textContent = 'Sem dados'; badge.className = 'badge b-red'; }
+      if (errEl) errEl.textContent   = data.info || data.motivo || '';
+      const titleEl = document.getElementById('com-endpoint-title');
+      if (titleEl) titleEl.textContent = data.motivo === 'sem_permissao_403'
+        ? '⚠️ Permissão insuficiente na API Hubsoft (HTTP 403)'
+        : 'Integração de cadastros pendente';
+      if (badge) { badge.textContent = 'Sem acesso'; badge.className = 'badge b-red'; }
       return;
     }
     if (noEp) noEp.style.display = 'none';

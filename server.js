@@ -918,6 +918,7 @@ app.get('/api/comercial', async (req, res) => {
 
     let raw = null;
     let fonte = null;
+    let got403 = false;
 
     for (const t of tentativas) {
       try {
@@ -929,11 +930,20 @@ app.get('/api/comercial', async (req, res) => {
           fonte = t.ep;
           break;
         }
-      } catch(_) { /* tenta próximo */ }
+      } catch(e) {
+        if (e.response?.status === 403) got403 = true;
+      }
     }
 
     if (raw === null) {
-      return res.json({ ok: false, motivo: 'endpoint_nao_encontrado', vendas: [], cidades: [], vendedores: [], planos: [] });
+      return res.json({
+        ok: false,
+        motivo: got403 ? 'sem_permissao_403' : 'endpoint_nao_encontrado',
+        info: got403
+          ? 'As credenciais da API têm permissão insuficiente para o módulo Serviços do Cliente (HTTP 403). No painel Hubsoft acesse: Configurações → Integrações → API → edite o usuário da API e marque a permissão "Serviços do Cliente" ou "Cliente Serviço".'
+          : 'Nenhum endpoint de serviços/contratos respondeu com dados.',
+        vendas: [], cidades: [], vendedores: [], planos: [],
+      });
     }
 
     // Normaliza cada registro
@@ -1496,57 +1506,82 @@ cron.schedule('* * * * *', async () => {
 let _prevCidadeStats = {}; // snapshot anterior para detectar quedas
 const offlineAlertSent = new Set(); // evita alertas duplicados
 
-async function fetchConexoesHubsoft() {
-  const token = await getToken();
-  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-
-  // Tenta endpoint de "Assinantes Online/Offline" do Hubsoft
-  // Ref: wiki.hubsoft.com.br/modulos/cliente/status_conexao_assinantes
-  const tentativas = [
-    () => axios.get(`${HUBSOFT_HOST}/api/v1/assinante/online`,                         { headers, timeout: 10000 }),
-    () => axios.get(`${HUBSOFT_HOST}/api/v1/assinante/listar`,                         { headers, timeout: 10000 }),
-    () => axios.get(`${HUBSOFT_HOST}/api/v1/assinante/consultar`,                      { headers, timeout: 10000 }),
-    () => axios.get(`${HUBSOFT_HOST}/api/v1/cliente/assinante`,                        { headers, timeout: 10000 }),
-    () => axios.get(`${HUBSOFT_HOST}/api/v1/radius/sessao`,                            { headers, timeout: 10000 }),
-    () => axios.get(`${HUBSOFT_HOST}/api/v1/radius/assinante`,                         { headers, timeout: 10000 }),
-    () => axios.get(`${HUBSOFT_HOST}/api/v1/conexao/assinante`,                        { headers, timeout: 10000 }),
-    () => axios.get(`${HUBSOFT_HOST}/api/v1/cliente/online`,                           { headers, timeout: 10000 }),
-    () => axios.get(`${HUBSOFT_HOST}/api/v1/conexao/consultar`,                        { headers, timeout: 10000 }),
-    () => axios.post(`${HUBSOFT_HOST}/api/v1/cliente/consultar/paginado/10?page=1`,
-                     { status: ['ativo','inativo'] },                                  { headers, timeout: 10000 }),
-  ];
-
-  for (const fn of tentativas) {
-    try {
-      const r = await fn();
-      if (r.data && (r.data.data || r.data.clientes || Array.isArray(r.data))) {
-        return r.data;
-      }
-    } catch (_) { /* tenta próximo */ }
-  }
-  return null;
+// Busca status de assinante por ID individual: GET /api/v1/cliente/{id}/assinante
+async function getClienteAssinante(token, clienteId) {
+  try {
+    const r = await axios.get(`${HUBSOFT_HOST}/api/v1/cliente/${clienteId}/assinante`, {
+      headers: { Authorization: `Bearer ${token}` }, timeout: 5000,
+    });
+    return r.data; // { status:'online'|'offline', ... }
+  } catch { return null; }
 }
 
-function normalizarConexoes(raw) {
-  // Normaliza diferentes formatos de resposta do Hubsoft
-  const lista = raw?.data || raw?.clientes || (Array.isArray(raw) ? raw : []);
-  return lista.map(c => ({
-    id:      c.id || c.codigo,
-    nome:    c.nome || c.razao_social || c.nome_fantasia || 'Cliente',
-    cidade:  c.cidade?.nome || c.cidade || c.municipio || 'Desconhecida',
-    lat:     parseFloat(c.latitude  || c.lat || 0) || null,
-    lng:     parseFloat(c.longitude || c.lng || 0) || null,
-    online:  c.online === true || c.status_conexao === 'online' || c.status === 'online' || c.conectado === true,
+// Busca lista de clientes com IDs via OS recentes, depois consulta status de cada um
+async function fetchConexoesHubsoft() {
+  const token = await getToken();
+
+  // Passo 1: busca OS recentes (30 dias) para extrair IDs de clientes únicos
+  const agora = new Date();
+  const ini30 = new Date(agora.getTime() - 30 * 86400000);
+  let osLista = [];
+  try {
+    const body = {
+      data_inicio: ini30.toISOString(), data_fim: agora.toISOString(),
+      status_ordem_servico: ['finalizado','em_execucao','em_andamento','pendente','aguardando_agendamento'],
+      order_by: 'data_inicio_programado', order_by_key: 'DESC',
+      agendas:[], bairros:null, cidades:[], condominios:null, grupos_clientes:[],
+      grupos_clientes_servicos:[], motivo_fechamento:[], participantes:[],
+      periodos:[], pop:[], prioridade:[], reservada:null, servico:[], servico_status:[], tecnicos:[],
+    };
+    const r = await hubsoftPost('v1/ordem_servico/consultar/paginado/500?page=1', body);
+    osLista = extrairLista(r);
+  } catch { return null; }
+
+  // Passo 2: extrai clienteId + cidade únicos
+  const clientesMap = {}; // { clienteId: { cidade, nome } }
+  for (const os of osLista) {
+    const cs     = os.atendimento?.cliente_servico;
+    const cliId  = cs?.cliente?.id || cs?.cliente_id;
+    const cidade = cs?.endereco_instalacao?.endereco_numero?.cidade?.nome
+                || cs?.endereco_instalacao?.cidade?.nome
+                || os.atendimento?.endereco?.cidade?.nome || 'Desconhecida';
+    const nome   = cs?.cliente?.nome || cs?.cliente?.razao_social || 'Cliente';
+    if (cliId && !clientesMap[cliId]) clientesMap[cliId] = { cidade, nome };
+  }
+
+  const ids = Object.keys(clientesMap).slice(0, 150); // max 150 clientes para não sobrecarregar
+  if (!ids.length) return null;
+
+  // Passo 3: consulta status de assinante em paralelo (lotes de 20)
+  const BATCH = 20;
+  const resultados = [];
+  for (let i = 0; i < ids.length; i += BATCH) {
+    const lote = ids.slice(i, i + BATCH);
+    const resps = await Promise.all(lote.map(id => getClienteAssinante(token, id)));
+    lote.forEach((id, j) => {
+      if (resps[j]) resultados.push({ id, ...clientesMap[id], raw: resps[j] });
+    });
+  }
+
+  // Formata como lista normalizada
+  return resultados.map(c => ({
+    id:     c.id,
+    nome:   c.nome,
+    cidade: c.cidade,
+    lat:    null,
+    lng:    null,
+    online: c.raw?.status === 'online' || c.raw?.online === true || c.raw?.conectado === true
+            || c.raw?.status_conexao === 'online',
   }));
 }
 
 app.get('/api/conexoes', async (req, res) => {
   try {
-    const raw    = await fetchConexoesHubsoft();
-    if (!raw) {
-      return res.json({ ok: false, motivo: 'endpoint_nao_encontrado', clientes: [], cidades: [] });
+    const clientes = await fetchConexoesHubsoft();
+    if (!clientes) {
+      return res.json({ ok: false, motivo: 'sem_clientes_na_base', clientes: [], cidades: [],
+        info: 'Nenhum cliente encontrado nos chamados recentes para consultar status. Certifique-se que existem OS abertas nos últimos 30 dias.' });
     }
-    const clientes = normalizarConexoes(raw);
     // Agrupa por cidade
     const cidadeMap = {};
     for (const c of clientes) {
@@ -1566,9 +1601,8 @@ app.get('/api/conexoes', async (req, res) => {
 const OFFLINE_THRESHOLD = parseInt(process.env.OFFLINE_THRESHOLD || '5');
 cron.schedule('*/3 * * * *', async () => {
   try {
-    const raw = await fetchConexoesHubsoft();
-    if (!raw) return;
-    const clientes = normalizarConexoes(raw);
+    const clientes = await fetchConexoesHubsoft();
+    if (!clientes) return;
 
     const atual = {};
     for (const c of clientes) {
