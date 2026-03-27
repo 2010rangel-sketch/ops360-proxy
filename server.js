@@ -898,103 +898,66 @@ app.get('/api/retencao', async (req, res) => {
 
 
 
-// ── COMERCIAL — Vendas / Cadastros / Reativações (batch por cliente) ─
-// Busca serviço de um cliente por ID: GET /api/v1/cliente/{id}/servico
-async function getClienteServico(token, clienteId) {
-  try {
-    const r = await axios.get(`${HUBSOFT_HOST}/api/v1/cliente/${clienteId}/servico`, {
-      headers: { Authorization: `Bearer ${token}` }, timeout: 5000,
+// ── COMERCIAL — GET /api/v1/integracao/cliente/todos ─────────────
+// Helper: busca todas as páginas do endpoint de integração
+async function fetchIntegracaoClientes(token, params = {}) {
+  const headers = { Authorization: `Bearer ${token}` };
+  const todos = [];
+  let pagina = 0;
+  while (true) {
+    const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/cliente/todos`, {
+      headers, params: { itens_por_pagina: 500, ...params, pagina }, timeout: 15000,
     });
-    return r.data;
-  } catch { return null; }
+    const clientes    = r.data?.clientes || [];
+    const ultimaPag   = r.data?.paginacao?.ultima_pagina ?? 0;
+    todos.push(...clientes);
+    if (pagina >= ultimaPag || clientes.length === 0) break;
+    pagina++;
+    if (pagina > 20) break; // segurança: max 10.000 registros
+  }
+  return todos;
 }
 
 app.get('/api/comercial', async (req, res) => {
   try {
     const agora = new Date();
     const primeiroDiaMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
-    const ultimoDiaMes   = new Date(agora.getFullYear(), agora.getMonth() + 1, 0, 23, 59, 59);
+    const ultimoDiaMes   = new Date(agora.getFullYear(), agora.getMonth() + 1, 0);
 
-    const ini = req.query.data_inicio ? new Date(req.query.data_inicio) : primeiroDiaMes;
-    const fim = req.query.data_fim    ? new Date(req.query.data_fim)    : ultimoDiaMes;
+    const fmtDate = d => d.toISOString().slice(0, 10); // YYYY-MM-DD
+    const iniStr  = req.query.data_inicio || fmtDate(primeiroDiaMes);
+    const fimStr  = req.query.data_fim    || fmtDate(ultimoDiaMes);
 
-    const token = await getToken();
+    const token    = await getToken();
+    const clientes = await fetchIntegracaoClientes(token, {
+      data_inicio: iniStr,
+      data_fim:    fimStr,
+      cancelado:   'nao',
+    });
 
-    // Passo 1: busca OS nos últimos 90 dias para extrair IDs de clientes únicos
-    const ini90 = new Date(agora.getTime() - 90 * 86400000);
-    let osLista = [];
-    try {
-      const osBody = {
-        data_inicio: ini90.toISOString(), data_fim: agora.toISOString(),
-        status_ordem_servico: ['finalizado','em_execucao','em_andamento','pendente','aguardando_agendamento'],
-        order_by: 'data_inicio_programado', order_by_key: 'DESC',
-        agendas:[], bairros:null, cidades:[], condominios:null, grupos_clientes:[],
-        grupos_clientes_servicos:[], motivo_fechamento:[], participantes:[],
-        periodos:[], pop:[], prioridade:[], reservada:null, servico:[], servico_status:[], tecnicos:[],
-      };
-      const r = await hubsoftPost('v1/ordem_servico/consultar/paginado/500?page=1', osBody);
-      osLista = extrairLista(r);
-    } catch(e) {
-      return res.json({ ok: false, motivo: 'erro_os', info: e.message,
-        vendas: [], cidades: [], vendedores: [], planos: [] });
+    if (!clientes.length) {
+      return res.json({ ok: true, fonte: 'integracao_cliente_todos',
+        total: 0, novas: 0, reativacoes: 0, cidades: [], vendedores: [], planos: [], ultimas: [],
+        periodo: { ini: iniStr, fim: fimStr } });
     }
 
-    // Passo 2: extrai clienteId + info únicos dos chamados
-    const clientesMap = {};
-    for (const os of osLista) {
-      const cs    = os.atendimento?.cliente_servico;
-      const cliId = cs?.cliente?.id || cs?.cliente_id;
-      const cidade = cs?.endereco_instalacao?.endereco_numero?.cidade?.nome
-                  || cs?.endereco_instalacao?.cidade?.nome
-                  || os.atendimento?.endereco?.cidade?.nome || 'Desconhecida';
-      const nome  = cs?.cliente?.nome || cs?.cliente?.razao_social || 'Cliente';
-      if (cliId && !clientesMap[cliId]) clientesMap[cliId] = { cidade, nome };
-    }
+    // Normaliza cada cliente/serviço
+    const vendas = [];
+    for (const cli of clientes) {
+      const nome     = cli.nome_razaosocial || cli.nome_fantasia || '—';
+      const dataCad  = cli.data_cadastro;
+      const servicos = cli.servicos || [];
 
-    const ids = Object.keys(clientesMap).slice(0, 300);
-    if (!ids.length) {
-      return res.json({ ok: false, motivo: 'sem_clientes',
-        info: 'Nenhum cliente encontrado nos chamados dos últimos 90 dias.',
-        vendas: [], cidades: [], vendedores: [], planos: [] });
-    }
+      for (const s of servicos) {
+        const cidade   = s.endereco_instalacao?.cidade || 'Desconhecida';
+        const plano    = s.nome || '—';
+        const status   = s.status_prefixo || '';
+        // Reativação: cliente cadastrado há mais de 60 dias mas com serviço ativo
+        const diasCad  = dataCad ? (agora - new Date(dataCad)) / 86400000 : 0;
+        const reativacao = diasCad > 60 && status === 'servico_habilitado';
 
-    // Passo 3: consulta serviços de cada cliente em paralelo (lotes de 20)
-    const BATCH    = 20;
-    const REAT_DIAS = 30;
-    const vendas   = [];
-
-    for (let i = 0; i < ids.length; i += BATCH) {
-      const lote  = ids.slice(i, i + BATCH);
-      const resps = await Promise.all(lote.map(id => getClienteServico(token, id)));
-      lote.forEach((id, j) => {
-        if (!resps[j]) return;
-        const data = resps[j];
-        const servicos = Array.isArray(data) ? data
-                       : (data?.data || data?.servicos || data?.cliente_servicos || []);
-        for (const s of servicos) {
-          const dataHab = s.data_habilitacao;
-          if (!dataHab) continue;
-          const hab = new Date(dataHab);
-          if (hab < ini || hab > fim) continue; // fora do período solicitado
-
-          const cli      = clientesMap[id];
-          const cidade   = cli?.cidade || 'Desconhecida';
-          const vendedor = s.vendedor?.nome || s.usuario_venda?.nome || s.usuario?.nome || '—';
-          const plano    = s.plano?.nome || s.servico?.nome || s.tipo_servico?.descricao
-                        || s.tipo_servico?.nome || '—';
-          const dataVenda = s.data_venda || s.data_cadastro;
-
-          // Reativação: habilitado muito depois da data de venda
-          let reativacao = false;
-          if (dataVenda && dataHab) {
-            const diffDias = (new Date(dataHab) - new Date(dataVenda)) / (1000 * 86400);
-            reativacao = diffDias > REAT_DIAS;
-          }
-
-          vendas.push({ clienteId: id, cliente: cli?.nome || '—',
-            cidade, vendedor, plano, dataVenda, dataHab, reativacao });
-        }
-      });
+        vendas.push({ cliente: nome, cidade, plano, status, dataCad, reativacao });
+      }
     }
 
     // Agrega por cidade
@@ -1005,15 +968,6 @@ app.get('/api/comercial', async (req, res) => {
       if (v.reativacao) cidadeMap[v.cidade].reat++; else cidadeMap[v.cidade].novas++;
     }
     const cidades = Object.values(cidadeMap).sort((a,b) => b.total - a.total).slice(0, 15);
-
-    // Agrega por vendedor
-    const vendMap = {};
-    for (const v of vendas) {
-      if (!vendMap[v.vendedor]) vendMap[v.vendedor] = { nome: v.vendedor, total: 0, novas: 0, reat: 0 };
-      vendMap[v.vendedor].total++;
-      if (v.reativacao) vendMap[v.vendedor].reat++; else vendMap[v.vendedor].novas++;
-    }
-    const vendedores = Object.values(vendMap).sort((a,b) => b.total - a.total).slice(0, 20);
 
     // Agrega por plano
     const planoMap = {};
@@ -1028,13 +982,13 @@ app.get('/api/comercial', async (req, res) => {
 
     res.json({
       ok: true,
-      fonte: 'batch_cliente_servico',
+      fonte: 'integracao_cliente_todos',
       total: vendas.length,
       novas,
       reativacoes,
-      periodo: { ini: ini.toISOString(), fim: fim.toISOString() },
+      periodo: { ini: iniStr, fim: fimStr },
       cidades,
-      vendedores,
+      vendedores: [], // endpoint não retorna vendedor
       planos,
       ultimas: vendas.slice(0, 50),
     });
@@ -1633,81 +1587,43 @@ async function getClienteAssinante(token, clienteId) {
   } catch { return null; }
 }
 
-// Busca lista de clientes com IDs via OS recentes, depois consulta status de cada um
+// Busca clientes com status de conexão via endpoint de integração
 async function fetchConexoesHubsoft() {
-  const token = await getToken();
-
-  // Passo 1: busca OS recentes (30 dias) para extrair IDs de clientes únicos
-  const agora = new Date();
-  const ini30 = new Date(agora.getTime() - 30 * 86400000);
-  let osLista = [];
   try {
-    const body = {
-      data_inicio: ini30.toISOString(), data_fim: agora.toISOString(),
-      status_ordem_servico: ['finalizado','em_execucao','em_andamento','pendente','aguardando_agendamento'],
-      order_by: 'data_inicio_programado', order_by_key: 'DESC',
-      agendas:[], bairros:null, cidades:[], condominios:null, grupos_clientes:[],
-      grupos_clientes_servicos:[], motivo_fechamento:[], participantes:[],
-      periodos:[], pop:[], prioridade:[], reservada:null, servico:[], servico_status:[], tecnicos:[],
-    };
-    const r = await hubsoftPost('v1/ordem_servico/consultar/paginado/500?page=1', body);
-    osLista = extrairLista(r);
-  } catch { return null; }
-
-  // Passo 2: extrai clienteId + cidade + coordenadas únicos
-  const clientesMap = {}; // { clienteId: { cidade, nome, lat, lng } }
-  for (const os of osLista) {
-    const cs     = os.atendimento?.cliente_servico;
-    const cliId  = cs?.cliente?.id || cs?.cliente_id;
-    const endNum = cs?.endereco_instalacao?.endereco_numero;
-    const coords = endNum?.coordenadas?.coordinates; // GeoJSON [lng, lat]
-    const lat    = coords ? coords[1] : null;
-    const lng    = coords ? coords[0] : null;
-    const cidade = endNum?.cidade?.nome
-                || cs?.endereco_instalacao?.cidade?.nome
-                || os.atendimento?.endereco?.cidade?.nome || 'Desconhecida';
-    const nome   = cs?.cliente?.nome || cs?.cliente?.razao_social || 'Cliente';
-    if (cliId && !clientesMap[cliId]) clientesMap[cliId] = { cidade, nome, lat, lng };
-  }
-
-  const ids = Object.keys(clientesMap).slice(0, 150); // max 150 clientes para não sobrecarregar
-  if (!ids.length) return null;
-
-  // Passo 3: consulta status de assinante em paralelo (lotes de 20)
-  const BATCH = 20;
-  const resultados = [];
-  for (let i = 0; i < ids.length; i += BATCH) {
-    const lote = ids.slice(i, i + BATCH);
-    const resps = await Promise.all(lote.map(id => getClienteAssinante(token, id)));
-    // Inclui TODOS os clientes, mesmo sem resposta do assinante
-    lote.forEach((id, j) => {
-      resultados.push({ id, ...clientesMap[id], raw: resps[j] || null });
+    const token    = await getToken();
+    // Usa o endpoint de integração com relacao status_conexao + endereco_instalacao
+    const clientes = await fetchIntegracaoClientes(token, {
+      cancelado: 'nao',
+      relacoes:  'status_conexao,endereco_instalacao',
     });
-  }
+    if (!clientes.length) return null;
 
-  // Formata como lista normalizada
-  // Estrutura do Hubsoft: GET /v1/cliente/{id}/assinante
-  // → servicos[].ultima_conexao.conectado  (bool)
-  // → alerta (bool) + alerta_mensagens (string[])
-  return resultados.map(c => {
-    const raw      = c.raw;
-    const servicos = raw?.servicos || [];
-    // Conectado = qualquer serviço ativo com ultima_conexao.conectado = true
-    const online   = servicos.some(s => s?.ultima_conexao?.conectado === true);
-    const alerta   = raw?.alerta === true;
-    const alertaMsgs = raw?.alerta_mensagens || [];
-    return {
-      id:       c.id,
-      nome:     c.nome,
-      cidade:   c.cidade,
-      lat:      c.lat,
-      lng:      c.lng,
-      online,
-      alerta,
-      alertaMsgs,
-      sem_dados: raw === null,
-    };
-  });
+    const resultado = [];
+    for (const cli of clientes) {
+      const nome     = cli.nome_razaosocial || '—';
+      const servicos = cli.servicos || [];
+      for (const s of servicos) {
+        // Coordenadas individuais da instalação
+        const endInst = s.endereco_instalacao || {};
+        const lat     = endInst.coordenadas?.latitude  || null;
+        const lng     = endInst.coordenadas?.longitude || null;
+        const cidade  = endInst.cidade || 'Desconhecida';
+
+        // Status de conexão via relacao status_conexao ou ultima_conexao
+        const sc      = s.status_conexao || s.ultima_conexao || {};
+        const online  = sc.conectado === true;
+        const alerta  = cli.alerta === true;
+        const alertaMsgs = cli.alerta_mensagens || [];
+
+        resultado.push({
+          id: cli.id_cliente, nome, cidade, lat, lng,
+          online, alerta, alertaMsgs, sem_dados: false,
+        });
+        break; // um registro por cliente (primeiro serviço)
+      }
+    }
+    return resultado.length ? resultado : null;
+  } catch { return null; }
 }
 
 app.get('/api/conexoes', async (req, res) => {
