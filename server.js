@@ -929,11 +929,8 @@ app.get('/api/comercial', async (req, res) => {
     const fimStr  = req.query.data_fim    || fmtDate(ultimoDiaMes);
 
     const token    = await getToken();
-    const clientes = await fetchIntegracaoClientes(token, {
-      data_inicio: iniStr,
-      data_fim:    fimStr,
-      cancelado:   'nao',
-    });
+    // Busca todos os clientes ativos (sem filtro de data — filtramos abaixo por data_cadastro)
+    const clientes = await fetchIntegracaoClientes(token, { cancelado: 'nao' });
 
     if (!clientes.length) {
       return res.json({ ok: true, fonte: 'integracao_cliente_todos',
@@ -941,20 +938,30 @@ app.get('/api/comercial', async (req, res) => {
         periodo: { ini: iniStr, fim: fimStr } });
     }
 
-    // Normaliza cada cliente/serviço
+    const iniMs = new Date(iniStr).getTime();
+    const fimMs = new Date(fimStr + 'T23:59:59').getTime();
+
+    // Normaliza cada cliente/serviço, filtrando pela data_cadastro no período
     const vendas = [];
     for (const cli of clientes) {
       const nome     = cli.nome_razaosocial || cli.nome_fantasia || '—';
       const dataCad  = cli.data_cadastro;
-      const servicos = cli.servicos || [];
+      const cadMs    = dataCad ? new Date(dataCad).getTime() : 0;
+      // Só inclui clientes cadastrados no período selecionado
+      if (!cadMs || cadMs < iniMs || cadMs > fimMs) continue;
 
+      const servicos = cli.servicos || [];
+      if (!servicos.length) {
+        vendas.push({ cliente: nome, cidade: 'Desconhecida', plano: '—', status: '', dataCad, reativacao: false });
+        continue;
+      }
       for (const s of servicos) {
-        const cidade   = s.endereco_instalacao?.cidade || 'Desconhecida';
+        const cidade   = s.endereco_instalacao?.cidade || cli.cidade || 'Desconhecida';
         const plano    = s.nome || '—';
         const status   = s.status_prefixo || '';
-        // Reativação: cliente cadastrado há mais de 60 dias mas com serviço ativo
-        const diasCad  = dataCad ? (agora - new Date(dataCad)) / 86400000 : 0;
-        const reativacao = diasCad > 60 && status === 'servico_habilitado';
+        // Reativação: cliente cadastrado há mais de 60 dias com serviço ativo agora
+        const diasCad  = cadMs ? (agora - new Date(dataCad)) / 86400000 : 0;
+        const reativacao = diasCad > 60 && (status === 'servico_habilitado' || status === 'ativo');
 
         vendas.push({ cliente: nome, cidade, plano, status, dataCad, reativacao });
       }
@@ -1587,31 +1594,75 @@ async function getClienteAssinante(token, clienteId) {
   } catch { return null; }
 }
 
+// Debug: amostra bruta do endpoint integracao para diagnosticar campos
+app.get('/api/integracao/raw', async (req, res) => {
+  try {
+    const token   = await getToken();
+    const headers = { Authorization: `Bearer ${token}` };
+    const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/cliente/todos`, {
+      headers,
+      params: { itens_por_pagina: 3, pagina: 0, cancelado: 'nao',
+                relacoes: 'status_conexao,ultima_conexao,assinante,endereco_instalacao' },
+      timeout: 15000,
+    });
+    const clientes = r.data?.clientes || [];
+    // Retorna estrutura completa dos primeiros 3 clientes para diagnóstico
+    const amostra = clientes.slice(0, 3).map(c => ({
+      id: c.id_cliente, nome: c.nome_razaosocial,
+      keys_cli: Object.keys(c),
+      servicos: (c.servicos || []).slice(0, 1).map(s => ({
+        keys_svc: Object.keys(s),
+        status_conexao: s.status_conexao,
+        ultima_conexao: s.ultima_conexao,
+        assinante: s.assinante,
+        ipv4: s.ipv4,
+        endereco_instalacao: s.endereco_instalacao,
+      })),
+    }));
+    res.json({ ok: true, paginacao: r.data?.paginacao, amostra, raw_first: clientes[0] });
+  } catch(e) {
+    res.json({ ok: false, motivo: e.message, status: e.response?.status });
+  }
+});
+
 // Busca TODOS os clientes ativos com status de conexão
 async function fetchConexoesHubsoft() {
   const token    = await getToken();
   const clientes = await fetchIntegracaoClientes(token, {
     cancelado: 'nao',
-    relacoes:  'status_conexao,endereco_instalacao',
+    relacoes:  'status_conexao,ultima_conexao,endereco_instalacao',
   });
   if (!clientes.length) return null;
 
   const resultado = [];
   for (const cli of clientes) {
-    const nome     = cli.nome_razaosocial || '—';
-    const alerta   = cli.alerta === true;
+    const nome       = cli.nome_razaosocial || '—';
+    const alerta     = cli.alerta === true;
     const alertaMsgs = cli.alerta_mensagens || [];
-    const servicos = cli.servicos || [];
+    const servicos   = cli.servicos || [];
     for (const s of servicos) {
       const endInst = s.endereco_instalacao || {};
       const lat     = endInst.coordenadas?.latitude  || null;
       const lng     = endInst.coordenadas?.longitude || null;
-      const cidade  = endInst.cidade || 'Desconhecida';
-      // status_conexao vem da relação solicitada; ultima_conexao como fallback
-      const sc      = s.status_conexao || s.ultima_conexao || {};
-      const online  = sc.conectado === true;
+      const cidade  = endInst.cidade || cli.cidade || 'Desconhecida';
+
+      // Tenta todos os caminhos possíveis para o status online/offline
+      const sc = s.status_conexao || s.ultima_conexao || {};
+      const online =
+        sc.conectado === true ||
+        sc.online    === true ||
+        sc.status    === 'online' ||
+        sc.status    === 'conectado' ||
+        (s.ipv4 != null && s.ipv4 !== '' && s.ipv4 !== '0.0.0.0') ||
+        false;
+
       resultado.push({ id: cli.id_cliente, nome, cidade, lat, lng, online, alerta, alertaMsgs });
       break; // um por cliente
+    }
+    // Cliente sem serviços: ainda inclui para contar offline
+    if (!servicos.length) {
+      resultado.push({ id: cli.id_cliente, nome, cidade: cli.cidade || 'Desconhecida',
+        lat: null, lng: null, online: false, alerta, alertaMsgs });
     }
   }
   return resultado.length ? resultado : null;
