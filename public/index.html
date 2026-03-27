@@ -446,7 +446,6 @@ input[type="text"]::placeholder { color:var(--text3); }
 
   <div class="sidebar-section">Spaces</div>
   <div class="space-item" onclick="goPage('tarefas',this)"><div class="space-dot" style="background:#5b6af0">T</div> Tarefas</div>
-  <div class="space-item" onclick="goPage('agenda',this)"><div class="space-dot" style="background:#22c55e">A</div> Agenda</div>
   <div class="space-item" onclick="goPage('integracoes',this)"><div class="space-dot" style="background:#f59e0b">I</div> Integrações</div>
 
   <div class="sidebar-bottom">
@@ -500,120 +499,12 @@ input[type="text"]::placeholder { color:var(--text3); }
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
           <span style="font-size:11px;color:var(--text3);font-weight:500;letter-spacing:.04em;text-transform:uppercase">Visão</span>
           <div style="display:flex;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:3px" id="dashTabBar">
-            <button id="dash-tab-btn-geral"   class="dash-view-btn active" onclick="showDashTab('geral')"><i class="fas fa-th-large"></i> Geral</button>
-            <button id="dash-tab-btn-chamados" class="dash-view-btn"        onclick="showDashTab('chamados')"><i class="fas fa-ticket-alt"></i> Chamados</button>
+            <button id="dash-tab-btn-chamados" class="dash-view-btn active" onclick="showDashTab('chamados')"><i class="fas fa-ticket-alt"></i> Chamados</button>
             <button                           class="dash-view-btn"        onclick="goPage('atendimento')"><i class="fas fa-headset"></i> Atend.</button>
             <button                           class="dash-view-btn"        onclick="goPage('retencao')"><i class="fas fa-users"></i> Retenção</button>
           </div>
         </div>
       </div>
-      <div id="dash-tab-geral">
-      <!-- KPI Row (6 minis) -->
-      <div class="kpi-row">
-        <div class="kpi-mini">
-          <div class="kpi-mini-bar" style="background:var(--accent)"></div>
-          <div class="kpi-mini-label">Em execução</div>
-          <div class="kpi-mini-val" style="color:var(--accent)" id="kv-exec">48</div>
-          <div class="kpi-mini-sub">+6 vs ontem</div>
-        </div>
-        <div class="kpi-mini">
-          <div class="kpi-mini-bar" style="background:var(--red)"></div>
-          <div class="kpi-mini-label">Atrasados</div>
-          <div class="kpi-mini-val" style="color:var(--red)" id="kv-atr">7</div>
-          <div class="kpi-mini-sub">SLA crítico</div>
-        </div>
-        <div class="kpi-mini">
-          <div class="kpi-mini-bar" style="background:var(--green)"></div>
-          <div class="kpi-mini-label">Finalizados hoje</div>
-          <div class="kpi-mini-val" style="color:var(--green)" id="kv-fin">134</div>
-          <div style="display:flex;gap:6px;margin-top:5px" id="kv-fin-sub">
-            <span style="font-size:10.5px;color:var(--text3)">—</span>
-          </div>
-        </div>
-        <div class="kpi-mini">
-          <div class="kpi-mini-bar" style="background:var(--orange)"></div>
-          <div class="kpi-mini-label">Retrabalhos</div>
-          <div class="kpi-mini-val" style="color:var(--orange)" id="kv-rtb">0</div>
-          <div class="kpi-mini-sub" id="kv-rtb-sub">—</div>
-        </div>
-        <div class="kpi-mini" style="grid-column:span 1">
-          <div class="kpi-mini-bar" style="background:var(--purple)"></div>
-          <div class="kpi-mini-label">Reagendados</div>
-          <div class="kpi-mini-val" style="color:var(--purple)" id="kv-reag">0</div>
-          <div class="kpi-mini-sub">hoje</div>
-        </div>
-        <div class="kpi-mini">
-          <div class="kpi-mini-bar" style="background:var(--cyan)"></div>
-          <div class="kpi-mini-label">Atendimentos</div>
-          <div class="kpi-mini-val" style="color:var(--cyan)" id="kv-at">312</div>
-          <div class="kpi-mini-sub">TMA 4m32s</div>
-        </div>
-        <div class="kpi-mini">
-          <div class="kpi-mini-bar" style="background:var(--purple)"></div>
-          <div class="kpi-mini-label">Saldo clientes</div>
-          <div class="kpi-mini-val" style="color:var(--purple)">+23</div>
-          <div class="kpi-mini-sub">87% retenção</div>
-        </div>
-      </div>
-
-      <!-- 2x2 inspired by image -->
-      <div class="dash-grid">
-        <!-- Burndown (like "Burndown Chart") -->
-        <div class="dash-card">
-          <div class="dash-card-title">SLA — Chamados atrasados <button class="more-btn">···</button></div>
-          <div class="dash-card-sub">Progressão do dia</div>
-          <div class="burndown">
-            <svg class="burn-svg" viewBox="0 0 380 180" id="burnSvg">
-              <!-- grid lines -->
-              <line x1="40" y1="20" x2="370" y2="20" stroke="var(--border)" stroke-width="0.5"/>
-              <line x1="40" y1="60" x2="370" y2="60" stroke="var(--border)" stroke-width="0.5"/>
-              <line x1="40" y1="100" x2="370" y2="100" stroke="var(--border)" stroke-width="0.5"/>
-              <line x1="40" y1="140" x2="370" y2="140" stroke="var(--border)" stroke-width="0.5"/>
-              <!-- Y labels -->
-              <text x="34" y="23" text-anchor="end" fill="var(--text3)" font-family="JetBrains Mono" font-size="9">20</text>
-              <text x="34" y="63" text-anchor="end" fill="var(--text3)" font-family="JetBrains Mono" font-size="9">15</text>
-              <text x="34" y="103" text-anchor="end" fill="var(--text3)" font-family="JetBrains Mono" font-size="9">10</text>
-              <text x="34" y="143" text-anchor="end" fill="var(--text3)" font-family="JetBrains Mono" font-size="9">5</text>
-              <!-- ideal line (dashed) -->
-              <line x1="40" y1="20" x2="370" y2="160" stroke="var(--border2)" stroke-width="1" stroke-dasharray="4 3"/>
-              <!-- actual line -->
-              <polyline points="40,20 85,28 130,55 175,62 220,88 265,105 310,128 355,148" fill="none" stroke="var(--red)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <!-- dots -->
-              <circle cx="40" cy="20" r="3.5" fill="var(--red)"/>
-              <circle cx="130" cy="55" r="3.5" fill="var(--red)"/>
-              <circle cx="220" cy="88" r="3.5" fill="var(--red)"/>
-              <circle cx="310" cy="128" r="3.5" fill="var(--red)"/>
-              <circle cx="355" cy="148" r="3.5" fill="var(--red)" stroke="var(--bg2)" stroke-width="2"/>
-              <!-- current dot pulse -->
-              <circle cx="355" cy="148" r="6" fill="none" stroke="var(--red)" stroke-width="1" opacity="0.4"/>
-              <!-- X labels -->
-              <text x="40" y="168" text-anchor="middle" fill="var(--text3)" font-family="JetBrains Mono" font-size="9">07h</text>
-              <text x="130" y="168" text-anchor="middle" fill="var(--text3)" font-family="JetBrains Mono" font-size="9">10h</text>
-              <text x="220" y="168" text-anchor="middle" fill="var(--text3)" font-family="JetBrains Mono" font-size="9">13h</text>
-              <text x="310" y="168" text-anchor="middle" fill="var(--text3)" font-family="JetBrains Mono" font-size="9">16h</text>
-              <text x="355" y="168" text-anchor="middle" fill="var(--red)" font-family="JetBrains Mono" font-size="9">agora</text>
-            </svg>
-          </div>
-        </div>
-
-        <!-- Priorities (like "This week priorities") -->
-        <div class="dash-card">
-          <div class="dash-card-title">Prioridades da semana <button class="more-btn">···</button></div>
-          <div class="dash-card-sub">Suas tarefas críticas</div>
-          <div class="priority-list" id="dashPriorities"></div>
-        </div>
-      </div>
-
-      <!-- ── TM ACUMULADO DO MÊS ── -->
-      <div class="tbl-card" style="margin-top:14px">
-        <div class="tbl-header">
-          <span class="tbl-title">TM acumulado do mês</span>
-          <span class="badge b-blue" id="tmMensalBadge"></span>
-        </div>
-        <div class="bar-chart" id="tmMensalChart" style="height:160px;gap:4px;padding-top:4px;overflow:hidden"></div>
-      </div>
-
-      </div><!-- /#dash-tab-geral -->
 
 
       <!-- ═══ DASH-CHAMADOS ═══ -->
@@ -1228,71 +1119,6 @@ input[type="text"]::placeholder { color:var(--text3); }
 
     </div>
 
-    <!-- ═══ AGENDA ═══ -->
-    <div class="page" id="page-agenda">
-      <!-- Modal novo evento -->
-      <div id="agendaModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center">
-        <div style="background:var(--bg2);border-radius:14px;width:420px;max-width:96vw;padding:24px;box-shadow:0 8px 40px rgba(0,0,0,.4)">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-            <div style="font-size:14px;font-weight:700;color:var(--text)"><i class="fas fa-calendar-plus" style="color:var(--accent);margin-right:6px"></i> Novo Evento</div>
-            <button class="btn btn-sm" onclick="fecharFormEvento()">✕</button>
-          </div>
-          <div class="form-group" style="margin-bottom:10px">
-            <label>Título <span style="color:var(--red)">*</span></label>
-            <input type="text" id="evTitulo" placeholder="Reunião, tarefa...">
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-            <div class="form-group">
-              <label>Início <span style="color:var(--red)">*</span></label>
-              <input type="datetime-local" id="evInicio">
-            </div>
-            <div class="form-group">
-              <label>Fim</label>
-              <input type="datetime-local" id="evFim">
-            </div>
-          </div>
-          <div class="form-group" style="margin-bottom:10px">
-            <label>Local</label>
-            <input type="text" id="evLocal" placeholder="Sala, endereço...">
-          </div>
-          <div class="form-group" style="margin-bottom:16px">
-            <label>Descrição</label>
-            <textarea id="evDesc" rows="2" style="resize:vertical;width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:8px;color:var(--text);font-size:12px" placeholder="Detalhes..."></textarea>
-          </div>
-          <div style="display:flex;gap:8px;justify-content:flex-end">
-            <button class="btn btn-sm" onclick="fecharFormEvento()">Cancelar</button>
-            <button class="btn btn-primary btn-sm" id="btnSalvarEv" onclick="salvarEvento()"><i class="fas fa-cloud-upload-alt"></i> Salvar no iCloud</button>
-          </div>
-          <div id="evModalStatus" style="font-size:11px;color:var(--text3);margin-top:8px;text-align:center"></div>
-        </div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:280px 1fr;gap:16px">
-        <div>
-          <div class="tbl-card" style="margin-bottom:16px">
-            <div class="tbl-header">
-              <span class="tbl-title" id="calTitle">Março 2026</span>
-              <div style="display:flex;gap:4px">
-                <button class="btn btn-sm" onclick="prevMonth()">‹</button>
-                <button class="btn btn-sm" onclick="nextMonth()">›</button>
-              </div>
-            </div>
-            <div style="padding:12px 14px">
-              <div class="cal-grid" id="calGrid"></div>
-            </div>
-          </div>
-          <button class="btn btn-primary btn-sm" style="width:100%" onclick="abrirFormEvento()"><i class="fas fa-plus"></i> Novo evento</button>
-          <div id="agendaStatus" style="font-size:11px;color:var(--text3);margin-top:8px;text-align:center"></div>
-        </div>
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header">
-            <span class="tbl-title" id="dayTitle">Selecione um dia</span>
-            <span class="badge b-blue" id="evCount">0 eventos</span>
-          </div>
-          <div style="padding:0 18px" id="evList"><div style="color:var(--text3);font-size:12px;padding:16px 0">Clique em um dia para ver os eventos</div></div>
-        </div>
-      </div>
-    </div>
 
     <!-- ═══ INTEGRAÇÕES ═══ -->
     <div class="page" id="page-integracoes">
@@ -1500,7 +1326,7 @@ function goPage(id, el) {
   document.getElementById('pageTitle').textContent = titles[id]||id;
   // Restaura dados em memória ao navegar de volta para páginas com dados
   if (id === 'dashboard') {
-    showDashTab('geral');
+    showDashTab('chamados');
   }
   if (id === 'chamados') {
     // DOM já está atualizado pelo autoRefresh — só força rebuild se ainda sem dados
@@ -3311,13 +3137,11 @@ function renderRetencao(data) {
 }
 
 function showDashTab(name) {
-  ['geral','chamados'].forEach(t => {
-    const el  = document.getElementById(`dash-tab-${t}`);
-    const btn = document.getElementById(`dash-tab-btn-${t}`);
-    if (el)  el.style.display = t === name ? '' : 'none';
-    if (btn) btn.classList.toggle('active', t === name);
-  });
-  if (name === 'chamados') { renderDashboard(); renderTecChart(); renderCidadeChart(); renderChamadosDash(); }
+  const el  = document.getElementById('dash-tab-chamados');
+  const btn = document.getElementById('dash-tab-btn-chamados');
+  if (el)  el.style.display = '';
+  if (btn) btn.classList.add('active');
+  renderDashboard(); renderTecChart(); renderCidadeChart(); renderChamadosDash();
 }
 
 // ── DASHBOARD DE CHAMADOS ─────────────────────────────────────────────────
