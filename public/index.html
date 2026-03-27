@@ -2593,6 +2593,7 @@ function rebuildAll() {
   renderCidadeChart();
   renderTmMensalChart();
   renderRtbInsight();
+  renderChamadosDash();
   const el = document.getElementById('lastSync');
   if(el) el.textContent = new Date().toLocaleTimeString('pt-BR');
   // Atualiza contadores da nav lateral
@@ -2897,6 +2898,8 @@ async function loadAtendimentos() {
 
 function renderAtendimentos(data) {
   _atendData = data;
+  const atendTab = document.getElementById('dash-tab-atendimento');
+  if (atendTab && atendTab.style.display !== 'none') renderDashAtendimento();
   const badge = document.getElementById('atend-sync-badge');
   const hora  = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
   if (badge) { badge.textContent = `Atualizado ${hora}`; badge.className = 'badge b-green'; }
@@ -3188,7 +3191,12 @@ async function loadRetencaoAtend() {
     const qs = `data_inicio=${encodeURIComponent(ini)}&data_fim=${encodeURIComponent(fim)}${useAll ? '&all=true' : ''}`;
     const res  = await fetch(`${PROXY_URL}/api/retencao?${qs}`);
     const data = await res.json();
-    if (data.ok) { _retData = data; renderRetencao(data); }
+    if (data.ok) {
+      _retData = data;
+      renderRetencao(data);
+      const retTab = document.getElementById('dash-tab-retencao');
+      if (retTab && retTab.style.display !== 'none') renderDashRetencao();
+    }
     else if (badge) { badge.textContent = 'Erro'; badge.className = 'badge b-red'; }
   } catch(e) {
     console.warn('Erro retencao atend:', e.message);
@@ -4019,6 +4027,8 @@ if(il) il.innerHTML=ints.map(i=>`
 
 // AUTO-INIT: 1) cache imediato  2) sync em background  3) status badge
 (function() {
+  // Garante que o tab inicial do dash esteja visível antes de qualquer render
+  showDashTab('chamados');
   // Passo 1 — exibe cache instantaneamente
   const cache = carregarCache();
   if (cache) {
