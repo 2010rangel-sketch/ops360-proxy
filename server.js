@@ -1587,43 +1587,34 @@ async function getClienteAssinante(token, clienteId) {
   } catch { return null; }
 }
 
-// Busca clientes com status de conexão via endpoint de integração
+// Busca TODOS os clientes ativos com status de conexão
 async function fetchConexoesHubsoft() {
-  try {
-    const token    = await getToken();
-    // Usa o endpoint de integração com relacao status_conexao + endereco_instalacao
-    const clientes = await fetchIntegracaoClientes(token, {
-      cancelado: 'nao',
-      relacoes:  'status_conexao,endereco_instalacao',
-    });
-    if (!clientes.length) return null;
+  const token    = await getToken();
+  const clientes = await fetchIntegracaoClientes(token, {
+    cancelado: 'nao',
+    relacoes:  'status_conexao,endereco_instalacao',
+  });
+  if (!clientes.length) return null;
 
-    const resultado = [];
-    for (const cli of clientes) {
-      const nome     = cli.nome_razaosocial || '—';
-      const servicos = cli.servicos || [];
-      for (const s of servicos) {
-        // Coordenadas individuais da instalação
-        const endInst = s.endereco_instalacao || {};
-        const lat     = endInst.coordenadas?.latitude  || null;
-        const lng     = endInst.coordenadas?.longitude || null;
-        const cidade  = endInst.cidade || 'Desconhecida';
-
-        // Status de conexão via relacao status_conexao ou ultima_conexao
-        const sc      = s.status_conexao || s.ultima_conexao || {};
-        const online  = sc.conectado === true;
-        const alerta  = cli.alerta === true;
-        const alertaMsgs = cli.alerta_mensagens || [];
-
-        resultado.push({
-          id: cli.id_cliente, nome, cidade, lat, lng,
-          online, alerta, alertaMsgs, sem_dados: false,
-        });
-        break; // um registro por cliente (primeiro serviço)
-      }
+  const resultado = [];
+  for (const cli of clientes) {
+    const nome     = cli.nome_razaosocial || '—';
+    const alerta   = cli.alerta === true;
+    const alertaMsgs = cli.alerta_mensagens || [];
+    const servicos = cli.servicos || [];
+    for (const s of servicos) {
+      const endInst = s.endereco_instalacao || {};
+      const lat     = endInst.coordenadas?.latitude  || null;
+      const lng     = endInst.coordenadas?.longitude || null;
+      const cidade  = endInst.cidade || 'Desconhecida';
+      // status_conexao vem da relação solicitada; ultima_conexao como fallback
+      const sc      = s.status_conexao || s.ultima_conexao || {};
+      const online  = sc.conectado === true;
+      resultado.push({ id: cli.id_cliente, nome, cidade, lat, lng, online, alerta, alertaMsgs });
+      break; // um por cliente
     }
-    return resultado.length ? resultado : null;
-  } catch { return null; }
+  }
+  return resultado.length ? resultado : null;
 }
 
 app.get('/api/conexoes', async (req, res) => {
@@ -1631,7 +1622,7 @@ app.get('/api/conexoes', async (req, res) => {
     const clientes = await fetchConexoesHubsoft();
     if (!clientes) {
       return res.json({ ok: false, motivo: 'sem_clientes_na_base', clientes: [], cidades: [],
-        info: 'Nenhum cliente encontrado nos chamados recentes para consultar status. Certifique-se que existem OS abertas nos últimos 30 dias.' });
+        info: 'Nenhum cliente ativo encontrado na base via GET /api/v1/integracao/cliente/todos.' });
     }
     // Agrupa por cidade
     const cidadeMap = {};
@@ -1644,6 +1635,7 @@ app.get('/api/conexoes', async (req, res) => {
     const cidades = Object.values(cidadeMap).sort((a,b) => (b.offline - a.offline));
     res.json({ ok: true, clientes: clientes.length, cidades, ts: new Date().toISOString() });
   } catch(e) {
+    console.error('[/api/conexoes]', e.message);
     res.json({ ok: false, motivo: e.message, clientes: [], cidades: [] });
   }
 });
