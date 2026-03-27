@@ -648,6 +648,7 @@ app.get('/api/atendimentos', async (req, res) => {
       const tipo      = a.tipo_atendimento?.descricao || 'Sem tipo';
       const statusRaw = a.status?.descricao || a.status?.prefixo || '';
       const temOS     = (a.ordem_servico_count || 0) > 0;
+      const isFechado = !!a.data_fechamento;
 
       // Atendente: campo correto é usuarios_responsaveis[0].name
       const resps = Array.isArray(a.usuarios_responsaveis) ? a.usuarios_responsaveis : [];
@@ -673,7 +674,7 @@ app.get('/api/atendimentos', async (req, res) => {
         if (dur > 0 && dur < 600) tmaMin = Math.round(dur);
       }
 
-      return { tipo, atendente, setor, cliente, clienteId, temOS, tmaMin };
+      return { tipo, atendente, setor, cliente, clienteId, temOS, isFechado, tmaMin };
     }
 
     const SETORES_EXCLUIDOS = ['NOC', ''];
@@ -688,7 +689,7 @@ app.get('/api/atendimentos', async (req, res) => {
       const k = a.atendente;
       if (!mapaAt[k]) mapaAt[k] = { atendente:k, setor:a.setor, total:0, comOS:0, semOS:0, tmaTot:0, tmaCount:0 };
       mapaAt[k].total++;
-      if (a.temOS) mapaAt[k].comOS++; else mapaAt[k].semOS++;
+      if (a.temOS) mapaAt[k].comOS++; else if (a.isFechado) mapaAt[k].semOS++;
       if (a.tmaMin !== null) { mapaAt[k].tmaTot += a.tmaMin; mapaAt[k].tmaCount++; }
     });
     const por_atendente = Object.values(mapaAt)
@@ -703,7 +704,7 @@ app.get('/api/atendimentos', async (req, res) => {
       const k = a.setor;
       if (!mapaSet[k]) mapaSet[k] = { setor:k, total:0, comOS:0, semOS:0 };
       mapaSet[k].total++;
-      if (a.temOS) mapaSet[k].comOS++; else mapaSet[k].semOS++;
+      if (a.temOS) mapaSet[k].comOS++; else if (a.isFechado) mapaSet[k].semOS++;
     });
     const por_setor = Object.values(mapaSet)
       .map(s => ({ ...s, pctSemOS: s.total ? Math.round(s.semOS/s.total*100) : 0 }))
@@ -715,7 +716,7 @@ app.get('/api/atendimentos', async (req, res) => {
       const k = a.tipo;
       if (!mapaTipo[k]) mapaTipo[k] = { tipo:k, total:0, comOS:0, semOS:0, tmaTot:0, tmaCount:0 };
       mapaTipo[k].total++;
-      if (a.temOS) mapaTipo[k].comOS++; else mapaTipo[k].semOS++;
+      if (a.temOS) mapaTipo[k].comOS++; else if (a.isFechado) mapaTipo[k].semOS++;
       if (a.tmaMin !== null) { mapaTipo[k].tmaTot += a.tmaMin; mapaTipo[k].tmaCount++; }
     });
     const por_tipo = Object.values(mapaTipo)
@@ -731,7 +732,7 @@ app.get('/api/atendimentos', async (req, res) => {
       const k = a.clienteId;
       if (!mapaClientes[k]) mapaClientes[k] = { cliente:a.cliente, contatos:0, semOS:0, comOS:0, setor:a.setor, tipos:{} };
       mapaClientes[k].contatos++;
-      if (a.temOS) mapaClientes[k].comOS++; else mapaClientes[k].semOS++;
+      if (a.temOS) mapaClientes[k].comOS++; else if (a.isFechado) mapaClientes[k].semOS++;
       mapaClientes[k].tipos[a.tipo] = (mapaClientes[k].tipos[a.tipo] || 0) + 1;
     });
     const clientes_recorrentes = Object.entries(mapaClientes)
@@ -746,7 +747,7 @@ app.get('/api/atendimentos', async (req, res) => {
       const k = a.cliente;
       if (!mapaLC[k]) mapaLC[k] = { cliente: k, clienteId: a.clienteId, total: 0, comOS: 0, semOS: 0, tipos: {} };
       mapaLC[k].total++;
-      if (a.temOS) mapaLC[k].comOS++; else mapaLC[k].semOS++;
+      if (a.temOS) mapaLC[k].comOS++; else if (a.isFechado) mapaLC[k].semOS++;
       mapaLC[k].tipos[a.tipo] = (mapaLC[k].tipos[a.tipo] || 0) + 1;
     });
     const lc_virtual = Object.values(mapaLC)
