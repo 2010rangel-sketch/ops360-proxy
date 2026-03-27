@@ -795,34 +795,44 @@ app.get('/api/retencao', async (req, res) => {
       results.forEach(r => lista.push(...r));
     }
 
-    // Classify tipo and desfecho
-    const isCancelTipo = t => { const u = (t||'').toUpperCase(); return u.includes('CANCELAMENTO') || u.includes('RESCIS'); };
     // Desfecho via status.prefixo + id_motivo_fechamento_atendimento:
-    // - status.prefixo "pendente" ou status_fechamento null → pendente (em aberto)
-    // - status_fechamento "concluido" + id_motivo 89 → cancelado (cancelamento realizado)
-    // - status_fechamento "concluido" + id_motivo 90 → revertido (cliente retido)
-    // - status_fechamento "concluido" + id_motivo desconhecido → revertido (default: retido)
-    const MOTIVO_CANCELADO  = new Set([89]);   // IDs que indicam cancelamento efetivado
-    const MOTIVO_REVERTIDO  = new Set([90]);   // IDs que indicam retenção
+    const MOTIVO_CANCELADO = new Set([89]);
+    const MOTIVO_REVERTIDO = new Set([90]);
     const desfechoOf = (a) => {
       const sp = (a.status?.prefixo || '').toLowerCase();
       const sf = (a.status_fechamento || '').toLowerCase();
       if (!sf || sf === 'pendente' || sp === 'pendente' || sp === 'aguardando_analise') return 'pendente';
-      // Fechado — usa id_motivo para classificar
       const idMotivo = a.id_motivo_fechamento_atendimento;
       if (idMotivo && MOTIVO_CANCELADO.has(idMotivo)) return 'cancelado';
       if (idMotivo && MOTIVO_REVERTIDO.has(idMotivo)) return 'revertido';
-      // Fallback: verifica descricao_fechamento por keywords
       const df = (a.descricao_fechamento || '').toLowerCase();
       if (df.includes('cancel') && !df.includes('não') && !df.includes('nao') && !df.includes('não irá')) return 'cancelado';
-      return 'revertido'; // padrão: se fechou sem motivo específico, considera retido
+      return 'revertido';
+    };
+
+    // Regras de classificação de tipo:
+    // - SOLICITAÇÃO DE CANCELAMENTO → sempre é pedido de cancelamento
+    // - CANCELAMENTO COBRANÇA → NÃO é pedido de cancelamento
+    // - INFORMAÇÃO SOBRE CANCELAMENTO → só conta se desfecho = "cancelado"
+    // - Outros com CANCELAMENTO/RESCISÃO → conta (pedido genérico)
+    const norm = s => (s || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const isPedidoCancelamento = (tipo, desfecho) => {
+      const u = norm(tipo);
+      if (u.includes('SOLICIT') && u.includes('CANCELAMENTO'))  return true;   // SOLICITAÇÃO DE CANCELAMENTO
+      if (u.includes('CANCELAMENTO') && u.includes('COBRAN'))   return false;  // CANCELAMENTO COBRANÇA
+      if (u.includes('INFORMA') && u.includes('CANCELAMENTO'))  return desfecho === 'cancelado'; // INFORMAÇÃO SOBRE CANCELAMENTO — só se cancelado
+      if (u.includes('CANCELAMENTO') || u.includes('RESCIS'))   return true;   // outros tipos de cancelamento
+      return false;
     };
 
     const pedidos = lista
-      .filter(a => isCancelTipo(a.tipo_atendimento?.descricao))
       .map(a => {
         const tipo      = a.tipo_atendimento?.descricao || 'Sem tipo';
         const desfecho  = desfechoOf(a);
+        return { _raw: a, tipo, desfecho };
+      })
+      .filter(({ tipo, desfecho }) => isPedidoCancelamento(tipo, desfecho))
+      .map(({ _raw: a, tipo, desfecho }) => {
         const resps     = Array.isArray(a.usuarios_responsaveis) ? a.usuarios_responsaveis : [];
         const atendente = resps.map(u => u.name || u.nome).filter(Boolean).join(', ')
                        || a.usuario_fechamento?.name || a.usuario_fechamento?.nome
