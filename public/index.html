@@ -6,6 +6,7 @@
 <title>OPS360</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
 :root {
   --bg: #111318;
@@ -444,6 +445,7 @@ input[type="text"]::placeholder { color:var(--text3); }
   <div class="nav-item" onclick="goPage('atendimento',this)"><i class="fas fa-headset"></i> Atendimento<span class="nav-count nc-blue">18</span></div>
   <div class="nav-item" onclick="goPage('comercial',this)"><i class="fas fa-briefcase"></i> Comercial</div>
   <div class="nav-item" onclick="goPage('retencao',this)"><i class="fas fa-user-shield"></i> Cancelamento / Retenção</div>
+  <div class="nav-item" onclick="goPage('conexoes',this)"><i class="fas fa-wifi"></i> Conexões</div>
 
   <div class="sidebar-section">Spaces</div>
   <div class="space-item" onclick="goPage('tarefas',this)"><div class="space-dot" style="background:#5b6af0">T</div> Tarefas</div>
@@ -998,6 +1000,77 @@ input[type="text"]::placeholder { color:var(--text3); }
       </div>
     </div>
 
+    <!-- ═══ CONEXÕES ═══ -->
+    <div class="page" id="page-conexoes">
+      <!-- Header row -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div>
+            <div style="font-size:16px;font-weight:700;color:var(--text)">Mapa de Conexões</div>
+            <div style="font-size:11px;color:var(--text3)">Status online/offline dos clientes por cidade</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <span class="badge b-blue" id="cx-sync-badge">—</span>
+          <button class="btn btn-primary btn-sm" onclick="loadConexoes()"><i class="fas fa-sync-alt"></i> Atualizar</button>
+          <div style="display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:5px 10px;font-size:12px">
+            <i class="fas fa-bell" style="color:var(--amber)"></i>
+            <span style="color:var(--text3)">Alertar se</span>
+            <input type="number" id="cx-threshold" value="5" min="1" max="100" style="width:46px;background:transparent;border:none;color:var(--text);font-size:12px;text-align:center;outline:none">
+            <span style="color:var(--text3)">clientes offline</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI row -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px">
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:#22c55e"></div><div class="kpi-mini-label">Online</div><div class="kpi-mini-val" id="cx-online" style="color:#22c55e">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Offline</div><div class="kpi-mini-val" id="cx-offline" style="color:var(--red)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">Cidades afetadas</div><div class="kpi-mini-val" id="cx-cidades-af" style="color:var(--amber)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Taxa online</div><div class="kpi-mini-val" id="cx-taxa" style="color:var(--accent)">—</div></div>
+      </div>
+
+      <!-- Map + Table side by side -->
+      <div style="display:grid;grid-template-columns:1fr 340px;gap:14px;align-items:start">
+        <!-- Map -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden">
+          <div id="cx-map" style="height:480px;width:100%"></div>
+          <!-- Legend -->
+          <div style="display:flex;gap:16px;padding:10px 14px;border-top:1px solid var(--border);flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text3)"><span style="width:10px;height:10px;border-radius:50%;background:#22c55e;display:inline-block"></span>Todos online</div>
+            <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text3)"><span style="width:10px;height:10px;border-radius:50%;background:#f59e0b;display:inline-block"></span>&lt;30% offline</div>
+            <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text3)"><span style="width:10px;height:10px;border-radius:50%;background:#f97316;display:inline-block"></span>&lt;60% offline</div>
+            <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text3)"><span style="width:10px;height:10px;border-radius:50%;background:#ef4444;display:inline-block"></span>Queda crítica</div>
+          </div>
+        </div>
+
+        <!-- City table -->
+        <div class="tbl-card" style="margin-bottom:0;max-height:540px;overflow-y:auto">
+          <div class="tbl-header" style="position:sticky;top:0;background:var(--surface);z-index:1">
+            <span class="tbl-title">Por Cidade</span>
+            <span class="badge b-blue" id="cx-city-count">—</span>
+          </div>
+          <div id="cx-city-list" style="padding:0">
+            <div style="text-align:center;padding:40px;color:var(--text3);font-size:12px"><i class="fas fa-satellite-dish" style="font-size:24px;display:block;margin-bottom:8px"></i>Carregando...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Endpoint info (shown only when API not found) -->
+      <div id="cx-no-endpoint" style="display:none;margin-top:14px">
+        <div class="tbl-card" style="padding:20px;background:rgba(245,158,11,.06);border-color:var(--amber)">
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <i class="fas fa-plug" style="color:var(--amber);margin-top:2px;font-size:16px"></i>
+            <div>
+              <div style="font-weight:600;color:var(--amber);margin-bottom:4px">Integração com status de conexão pendente</div>
+              <div style="font-size:12px;color:var(--text3);line-height:1.6">O Hubsoft retornou erro ao buscar status online/offline dos clientes. Verifique com o suporte Hubsoft qual endpoint expõe o status de conexão (online/offline) dos clientes e informe para que possamos configurar.</div>
+              <div id="cx-endpoint-error" style="font-size:11px;color:var(--text3);margin-top:6px;font-family:monospace"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ═══ COMERCIAL ═══ -->
     <div class="page" id="page-comercial">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
@@ -1445,6 +1518,7 @@ input[type="text"]::placeholder { color:var(--text3); }
   </div>
 </div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 // CLOCK
 function tick() { document.getElementById('clock').textContent = new Date().toLocaleTimeString('pt-BR'); }
@@ -1472,7 +1546,7 @@ function goPage(id, el) {
   document.querySelectorAll('.nav-item, .space-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   if(el) el.classList.add('active');
-  const titles = {dashboard:'Dashboard',chamados:'Chamados',atendimento:'Atendimento',comercial:'Comercial',retencao:'Cancelamento / Retenção',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
+  const titles = {dashboard:'Dashboard',chamados:'Chamados',atendimento:'Atendimento',comercial:'Comercial',retencao:'Cancelamento / Retenção',conexoes:'Conexões',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
   document.getElementById('pageTitle').textContent = titles[id]||id;
   // Restaura dados em memória ao navegar de volta para páginas com dados
   if (id === 'dashboard') {
@@ -1497,6 +1571,10 @@ function goPage(id, el) {
     } else {
       loadRetencaoAtend();
     }
+  }
+  if (id === 'conexoes') {
+    initConexoesMap();
+    loadConexoes();
   }
 }
 
@@ -4046,6 +4124,198 @@ if(il) il.innerHTML=ints.map(i=>`
     <label class="switch"><input type="checkbox" ${i.on?'checked':''}><div class="switch-track"></div><div class="switch-thumb"></div></label>
   </div>
 `).join('');
+
+// ══════════════════════════════════════════════════════════════════
+//  PAINEL DE CONEXÕES
+// ══════════════════════════════════════════════════════════════════
+
+const CITY_COORDS = {
+  'São Paulo':[-23.5505,-46.6333],'Rio de Janeiro':[-22.9068,-43.1729],'Belo Horizonte':[-19.9167,-43.9345],
+  'Salvador':[-12.9714,-38.5014],'Fortaleza':[-3.7172,-38.5433],'Curitiba':[-25.4284,-49.2733],
+  'Manaus':[-3.1019,-60.0250],'Recife':[-8.0476,-34.8770],'Porto Alegre':[-30.0346,-51.2177],
+  'Belém':[-1.4558,-48.5044],'Goiânia':[-16.6869,-49.2648],'Guarulhos':[-23.4628,-46.5333],
+  'Campinas':[-22.9099,-47.0626],'São Luís':[-2.5297,-44.3028],'Maceió':[-9.6658,-35.7353],
+  'Natal':[-5.7945,-35.2110],'Teresina':[-5.0892,-42.8019],'Campo Grande':[-20.4428,-54.6461],
+  'João Pessoa':[-7.1195,-34.8450],'Aracaju':[-10.9472,-37.0731],'Cuiabá':[-15.6014,-56.0979],
+  'Macapá':[0.0349,-51.0694],'Porto Velho':[-8.7612,-63.9004],'Rio Branco':[-9.9754,-67.8249],
+  'Boa Vista':[2.8235,-60.6758],'Palmas':[-10.2491,-48.3243],'Florianópolis':[-27.5954,-48.5480],
+  'Vitória':[-20.3222,-40.3381],'Londrina':[-23.3045,-51.1696],'Maringá':[-23.4210,-51.9331],
+  'Joinville':[-26.3036,-48.8459],'Uberlândia':[-18.9186,-48.2772],'Sorocaba':[-23.5015,-47.4526],
+  'Juiz de Fora':[-21.7642,-43.3503],'Ribeirão Preto':[-21.1699,-47.8100],'Santos':[-23.9618,-46.3322],
+  'São José dos Campos':[-23.2237,-45.9009],'Feira de Santana':[-12.2664,-38.9663],
+  'Campina Grande':[-7.2308,-35.8808],'Montes Claros':[-16.7287,-43.8618],
+  'Juazeiro do Norte':[-7.2136,-39.3153],'Mossoró':[-5.1875,-37.3443],'Caruaru':[-8.2760,-35.9756],
+  'Imperatriz':[-5.5252,-47.4916],'Caucaia':[-3.7311,-38.6528],'Petrolina':[-9.3975,-40.5013],
+  'Parnaíba':[-2.9049,-41.7764],'Macaé':[-22.3707,-41.7869],'Contagem':[-19.9317,-44.0536],
+  'São José do Rio Preto':[-20.8197,-49.3797],'Arapiraca':[-9.7522,-36.6616],
+  'Caxias do Sul':[-29.1685,-51.1796],'Pelotas':[-31.7654,-52.3376],
+  'Santa Maria':[-29.6914,-53.8008],'Passo Fundo':[-28.2630,-52.4064],
+  'Blumenau':[-26.9194,-49.0661],'Chapecó':[-27.1014,-52.6150],
+  'Foz do Iguaçu':[-25.5478,-54.5882],'Cascavel':[-24.9578,-53.4595],
+  'Mogi das Cruzes':[-23.5227,-46.1881],'Osasco':[-23.5328,-46.7919],
+  'Santo André':[-23.6639,-46.5383],'São Bernardo do Campo':[-23.6940,-46.5650],
+  'Diadema':[-23.6862,-46.6220],'Bauru':[-22.3246,-49.0697],'Piracicaba':[-22.7253,-47.6492],
+  'São Carlos':[-21.9799,-47.8825],'Franca':[-20.5395,-47.4012],'Araraquara':[-21.7948,-48.1756],
+};
+
+let _cxMap = null;
+let _cxMarkers = [];
+
+function getCidadeCoords(nome) {
+  if (CITY_COORDS[nome]) return CITY_COORDS[nome];
+  // busca parcial
+  const key = Object.keys(CITY_COORDS).find(k => k.toLowerCase().includes(nome.toLowerCase()) || nome.toLowerCase().includes(k.toLowerCase()));
+  return key ? CITY_COORDS[key] : null;
+}
+
+function initConexoesMap() {
+  if (_cxMap) { setTimeout(() => _cxMap.invalidateSize(), 100); return; }
+  _cxMap = L.map('cx-map', { zoomControl: true }).setView([-15.7801, -47.9292], 4);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap',
+    maxZoom: 18,
+  }).addTo(_cxMap);
+  setTimeout(() => _cxMap.invalidateSize(), 200);
+}
+
+function cidadeColor(online, offline) {
+  const total = online + offline;
+  if (total === 0) return '#6366f1';
+  const ratio = offline / total;
+  if (ratio === 0)    return '#22c55e';
+  if (ratio < 0.10)   return '#84cc16';
+  if (ratio < 0.30)   return '#f59e0b';
+  if (ratio < 0.60)   return '#f97316';
+  return '#ef4444';
+}
+
+function renderConexoesMap(cidades) {
+  if (!_cxMap) return;
+  // Remove markers antigos
+  _cxMarkers.forEach(m => m.remove());
+  _cxMarkers = [];
+
+  const bounds = [];
+  for (const c of cidades) {
+    let coords = (c.lat && c.lng) ? [c.lat, c.lng] : getCidadeCoords(c.nome);
+    if (!coords) continue;
+
+    const total   = c.online + c.offline;
+    const color   = cidadeColor(c.online, c.offline);
+    const radius  = Math.max(8, Math.min(30, 8 + Math.sqrt(total) * 1.5));
+    const pct     = total > 0 ? Math.round(c.offline / total * 100) : 0;
+
+    const circle = L.circleMarker(coords, {
+      radius, color, fillColor: color, fillOpacity: 0.75,
+      weight: 2, opacity: 1,
+    }).addTo(_cxMap);
+
+    circle.bindPopup(`
+      <div style="font-family:Inter,sans-serif;min-width:160px">
+        <div style="font-weight:700;font-size:13px;margin-bottom:6px">${c.nome}</div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px">
+          <span style="color:#22c55e">● Online</span><b>${c.online}</b>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
+          <span style="color:#ef4444">● Offline</span><b>${c.offline}</b>
+        </div>
+        <div style="background:#e5e7eb;border-radius:4px;height:6px;overflow:hidden">
+          <div style="width:${100-pct}%;height:100%;background:#22c55e;border-radius:4px"></div>
+        </div>
+        <div style="font-size:10px;color:#6b7280;margin-top:4px;text-align:right">${pct}% offline</div>
+      </div>
+    `);
+
+    // Pulsa se crítico (>60% offline e mais de 3 clientes)
+    if (c.offline / Math.max(total,1) >= 0.6 && c.offline >= 3) {
+      const pulse = L.circleMarker(coords, {
+        radius: radius + 6, color: '#ef4444', fillColor: 'transparent',
+        weight: 2, opacity: 0.4,
+      }).addTo(_cxMap);
+      _cxMarkers.push(pulse);
+    }
+
+    _cxMarkers.push(circle);
+    bounds.push(coords);
+  }
+
+  if (bounds.length > 0) {
+    try { _cxMap.fitBounds(bounds, { padding: [30, 30], maxZoom: 10 }); } catch(_) {}
+  }
+}
+
+function renderConexoesCityList(cidades) {
+  const el = document.getElementById('cx-city-list');
+  if (!el) return;
+  if (!cidades.length) {
+    el.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text3);font-size:12px">Nenhuma cidade encontrada</div>';
+    return;
+  }
+  el.innerHTML = cidades.map(c => {
+    const total = c.online + c.offline;
+    const pct   = total > 0 ? Math.round(c.offline / total * 100) : 0;
+    const color = cidadeColor(c.online, c.offline);
+    return `<div style="display:flex;flex-direction:column;gap:4px;padding:10px 14px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;font-weight:500;color:var(--text)">${c.nome}</span>
+        <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:${color}22;color:${color};font-weight:600">${pct}% off</span>
+      </div>
+      <div style="background:var(--border);border-radius:3px;height:4px;overflow:hidden">
+        <div style="width:${100-pct}%;height:100%;background:#22c55e;border-radius:3px"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3)">
+        <span>🟢 ${c.online} online</span><span>🔴 ${c.offline} offline</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function loadConexoes() {
+  const badge = document.getElementById('cx-sync-badge');
+  if (badge) { badge.textContent = 'Atualizando...'; badge.className = 'badge b-amber'; }
+  try {
+    const r    = await fetch('/api/conexoes');
+    const data = await r.json();
+
+    const noEp = document.getElementById('cx-no-endpoint');
+    if (!data.ok) {
+      if (noEp) noEp.style.display = '';
+      const errEl = document.getElementById('cx-endpoint-error');
+      if (errEl) errEl.textContent = data.motivo || '';
+      if (badge) { badge.textContent = 'Sem dados'; badge.className = 'badge b-red'; }
+      return;
+    }
+    if (noEp) noEp.style.display = 'none';
+
+    const cidades = data.cidades || [];
+    const totalOn  = cidades.reduce((s,c) => s + c.online, 0);
+    const totalOff = cidades.reduce((s,c) => s + c.offline, 0);
+    const total    = totalOn + totalOff;
+    const afetadas = cidades.filter(c => c.offline > 0).length;
+    const taxa     = total > 0 ? Math.round(totalOn / total * 100) : 0;
+
+    const ev = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
+    ev('cx-online',      totalOn.toLocaleString('pt-BR'));
+    ev('cx-offline',     totalOff.toLocaleString('pt-BR'));
+    ev('cx-cidades-af',  afetadas);
+    ev('cx-taxa',        taxa + '%');
+    ev('cx-city-count',  cidades.length);
+
+    renderConexoesMap(cidades);
+    renderConexoesCityList(cidades);
+
+    const hora = new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+    if (badge) { badge.textContent = `Atualizado ${hora}`; badge.className = 'badge b-green'; }
+  } catch(e) {
+    if (badge) { badge.textContent = 'Erro'; badge.className = 'badge b-red'; }
+  }
+}
+
+// Auto-refresh Conexões a cada 2 min quando a página estiver visível
+setInterval(() => {
+  const pg = document.getElementById('page-conexoes');
+  if (pg && pg.classList.contains('active')) loadConexoes();
+}, 120000);
 
 // AUTO-INIT: 1) cache imediato  2) sync em background  3) status badge
 (function() {

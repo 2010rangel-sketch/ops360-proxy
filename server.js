@@ -1318,6 +1318,105 @@ cron.schedule('* * * * *', async () => {
   if (notifSent.size > 500) notifSent.clear();
 });
 
+// ── CONEXÕES — Status online/offline de clientes ──────────────────
+let _prevCidadeStats = {}; // snapshot anterior para detectar quedas
+const offlineAlertSent = new Set(); // evita alertas duplicados
+
+async function fetchConexoesHubsoft() {
+  const token = await getToken();
+  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+
+  // Tenta endpoint de clientes com status de conexão
+  const tentativas = [
+    () => axios.get(`${HUBSOFT_HOST}/api/v1/cliente/online`,            { headers, timeout: 10000 }),
+    () => axios.get(`${HUBSOFT_HOST}/api/v1/conexao/consultar`,         { headers, timeout: 10000 }),
+    () => axios.get(`${HUBSOFT_HOST}/api/v1/onu/listar`,                { headers, timeout: 10000 }),
+    () => axios.post(`${HUBSOFT_HOST}/api/v1/cliente/consultar/paginado/10?page=1`,
+                     { status: ['ativo','inativo'] }, { headers, timeout: 10000 }),
+  ];
+
+  for (const fn of tentativas) {
+    try {
+      const r = await fn();
+      if (r.data && (r.data.data || r.data.clientes || Array.isArray(r.data))) {
+        return r.data;
+      }
+    } catch (_) { /* tenta próximo */ }
+  }
+  return null;
+}
+
+function normalizarConexoes(raw) {
+  // Normaliza diferentes formatos de resposta do Hubsoft
+  const lista = raw?.data || raw?.clientes || (Array.isArray(raw) ? raw : []);
+  return lista.map(c => ({
+    id:      c.id || c.codigo,
+    nome:    c.nome || c.razao_social || c.nome_fantasia || 'Cliente',
+    cidade:  c.cidade?.nome || c.cidade || c.municipio || 'Desconhecida',
+    lat:     parseFloat(c.latitude  || c.lat || 0) || null,
+    lng:     parseFloat(c.longitude || c.lng || 0) || null,
+    online:  c.online === true || c.status_conexao === 'online' || c.status === 'online' || c.conectado === true,
+  }));
+}
+
+app.get('/api/conexoes', async (req, res) => {
+  try {
+    const raw    = await fetchConexoesHubsoft();
+    if (!raw) {
+      return res.json({ ok: false, motivo: 'endpoint_nao_encontrado', clientes: [], cidades: [] });
+    }
+    const clientes = normalizarConexoes(raw);
+    // Agrupa por cidade
+    const cidadeMap = {};
+    for (const c of clientes) {
+      if (!cidadeMap[c.cidade]) cidadeMap[c.cidade] = { nome: c.cidade, online: 0, offline: 0, lat: null, lng: null };
+      if (c.online) cidadeMap[c.cidade].online++;
+      else           cidadeMap[c.cidade].offline++;
+      if (c.lat && !cidadeMap[c.cidade].lat) { cidadeMap[c.cidade].lat = c.lat; cidadeMap[c.cidade].lng = c.lng; }
+    }
+    const cidades = Object.values(cidadeMap).sort((a,b) => (b.offline - a.offline));
+    res.json({ ok: true, clientes: clientes.length, cidades, ts: new Date().toISOString() });
+  } catch(e) {
+    res.json({ ok: false, motivo: e.message, clientes: [], cidades: [] });
+  }
+});
+
+// Cron: detecta queda massiva de clientes (a cada 3 minutos)
+const OFFLINE_THRESHOLD = parseInt(process.env.OFFLINE_THRESHOLD || '5');
+cron.schedule('*/3 * * * *', async () => {
+  try {
+    const raw = await fetchConexoesHubsoft();
+    if (!raw) return;
+    const clientes = normalizarConexoes(raw);
+
+    const atual = {};
+    for (const c of clientes) {
+      if (!atual[c.cidade]) atual[c.cidade] = { online: 0, offline: 0 };
+      if (c.online) atual[c.cidade].online++;
+      else           atual[c.cidade].offline++;
+    }
+
+    for (const [cidade, stats] of Object.entries(atual)) {
+      const prev     = _prevCidadeStats[cidade] || { online: 0, offline: 0 };
+      const deltaOff = stats.offline - prev.offline;
+      if (deltaOff >= OFFLINE_THRESHOLD) {
+        const key = `${cidade}-${Math.floor(Date.now() / 600000)}`; // 10 min window
+        if (!offlineAlertSent.has(key)) {
+          offlineAlertSent.add(key);
+          const msg = `⚠️ OPS360 — ALERTA DE QUEDA\n${deltaOff} clientes ficaram offline em *${cidade}*\nOnline: ${stats.online} | Offline: ${stats.offline}\n${new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})}`;
+          sendWhatsApp(msg).catch(console.error);
+          console.log(`[ALERTA] Queda em ${cidade}: +${deltaOff} offline`);
+        }
+      }
+    }
+
+    _prevCidadeStats = atual;
+    if (offlineAlertSent.size > 200) offlineAlertSent.clear();
+  } catch(e) {
+    console.warn('[cron-conexoes]', e.message);
+  }
+});
+
 // ── Inicializa ────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`\n🚀 OPS360 Proxy rodando na porta ${PORT}`);
