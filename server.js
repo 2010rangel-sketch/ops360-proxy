@@ -1654,16 +1654,20 @@ async function fetchConexoesHubsoft() {
     osLista = extrairLista(r);
   } catch { return null; }
 
-  // Passo 2: extrai clienteId + cidade únicos
-  const clientesMap = {}; // { clienteId: { cidade, nome } }
+  // Passo 2: extrai clienteId + cidade + coordenadas únicos
+  const clientesMap = {}; // { clienteId: { cidade, nome, lat, lng } }
   for (const os of osLista) {
     const cs     = os.atendimento?.cliente_servico;
     const cliId  = cs?.cliente?.id || cs?.cliente_id;
-    const cidade = cs?.endereco_instalacao?.endereco_numero?.cidade?.nome
+    const endNum = cs?.endereco_instalacao?.endereco_numero;
+    const coords = endNum?.coordenadas?.coordinates; // GeoJSON [lng, lat]
+    const lat    = coords ? coords[1] : null;
+    const lng    = coords ? coords[0] : null;
+    const cidade = endNum?.cidade?.nome
                 || cs?.endereco_instalacao?.cidade?.nome
                 || os.atendimento?.endereco?.cidade?.nome || 'Desconhecida';
     const nome   = cs?.cliente?.nome || cs?.cliente?.razao_social || 'Cliente';
-    if (cliId && !clientesMap[cliId]) clientesMap[cliId] = { cidade, nome };
+    if (cliId && !clientesMap[cliId]) clientesMap[cliId] = { cidade, nome, lat, lng };
   }
 
   const ids = Object.keys(clientesMap).slice(0, 150); // max 150 clientes para não sobrecarregar
@@ -1685,8 +1689,8 @@ async function fetchConexoesHubsoft() {
     id:     c.id,
     nome:   c.nome,
     cidade: c.cidade,
-    lat:    null,
-    lng:    null,
+    lat:    c.lat,
+    lng:    c.lng,
     online: c.raw?.status === 'online' || c.raw?.online === true || c.raw?.conectado === true
             || c.raw?.status_conexao === 'online',
   }));
