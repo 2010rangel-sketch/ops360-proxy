@@ -893,7 +893,17 @@ app.get('/api/retencao', async (req, res) => {
 
 
 
-// ── COMERCIAL — Vendas / Cadastros / Reativações ─────────────────
+// ── COMERCIAL — Vendas / Cadastros / Reativações (batch por cliente) ─
+// Busca serviço de um cliente por ID: GET /api/v1/cliente/{id}/servico
+async function getClienteServico(token, clienteId) {
+  try {
+    const r = await axios.get(`${HUBSOFT_HOST}/api/v1/cliente/${clienteId}/servico`, {
+      headers: { Authorization: `Bearer ${token}` }, timeout: 5000,
+    });
+    return r.data;
+  } catch { return null; }
+}
+
 app.get('/api/comercial', async (req, res) => {
   try {
     const agora = new Date();
@@ -903,90 +913,91 @@ app.get('/api/comercial', async (req, res) => {
     const ini = req.query.data_inicio ? new Date(req.query.data_inicio) : primeiroDiaMes;
     const fim = req.query.data_fim    ? new Date(req.query.data_fim)    : ultimoDiaMes;
 
-    const baseBody = {
-      data_inicio: ini.toISOString(),
-      data_fim:    fim.toISOString(),
-      order_by:     'data_venda',
-      order_by_key: 'DESC',
-    };
+    const token = await getToken();
 
-    // Tenta múltiplos endpoints do Hubsoft para serviços/contratos
-    // Ref: docs.hubsoft.com.br — módulo Clientes > Serviços do Cliente
-    const habBody = { data_inicio: ini.toISOString(), data_fim: fim.toISOString(),
-                      tipo_data: 'data_habilitacao', order_by: 'data_habilitacao', order_by_key: 'DESC' };
-    const tentativas = [
-      { ep: 'v1/cliente_servico/consultar/paginado/500?page=1',  body: { ...baseBody } },
-      { ep: 'v1/cliente_servico/consultar/paginado/500?page=1',  body: { ...habBody } },
-      { ep: 'v1/servico_cliente/consultar/paginado/500?page=1',  body: { ...baseBody } },
-      { ep: 'v1/contrato/consultar/paginado/500?page=1',         body: { ...baseBody } },
-      { ep: 'v1/contrato/consultar/paginado/500?page=1',         body: { ...habBody } },
-      { ep: 'v1/plano_servico/consultar/paginado/500?page=1',    body: { ...baseBody } },
-      { ep: 'v1/cliente/servico/consultar/paginado/500?page=1',  body: { ...baseBody } },
-      { ep: 'v1/cliente/consultar/paginado/500?page=1',          body: { ...baseBody, tipo_data: 'data_venda' } },
-      { ep: 'v1/cliente/consultar/paginado/500?page=1',          body: { ...habBody } },
-    ];
-
-    let raw = null;
-    let fonte = null;
-    let got403 = false;
-
-    for (const t of tentativas) {
-      try {
-        const r = await hubsoftPost(t.ep, t.body);
-        const lista = r?.data || r?.cliente_servicos?.data || r?.contratos?.data
-                   || r?.clientes?.data || r?.servicos?.data || [];
-        if (Array.isArray(lista) && lista.length >= 0) {
-          raw   = lista;
-          fonte = t.ep;
-          break;
-        }
-      } catch(e) {
-        if (e.response?.status === 403) got403 = true;
-      }
+    // Passo 1: busca OS nos últimos 90 dias para extrair IDs de clientes únicos
+    const ini90 = new Date(agora.getTime() - 90 * 86400000);
+    let osLista = [];
+    try {
+      const osBody = {
+        data_inicio: ini90.toISOString(), data_fim: agora.toISOString(),
+        status_ordem_servico: ['finalizado','em_execucao','em_andamento','pendente','aguardando_agendamento'],
+        order_by: 'data_inicio_programado', order_by_key: 'DESC',
+        agendas:[], bairros:null, cidades:[], condominios:null, grupos_clientes:[],
+        grupos_clientes_servicos:[], motivo_fechamento:[], participantes:[],
+        periodos:[], pop:[], prioridade:[], reservada:null, servico:[], servico_status:[], tecnicos:[],
+      };
+      const r = await hubsoftPost('v1/ordem_servico/consultar/paginado/500?page=1', osBody);
+      osLista = extrairLista(r);
+    } catch(e) {
+      return res.json({ ok: false, motivo: 'erro_os', info: e.message,
+        vendas: [], cidades: [], vendedores: [], planos: [] });
     }
 
-    if (raw === null) {
-      return res.json({
-        ok: false,
-        motivo: got403 ? 'sem_permissao_403' : 'endpoint_nao_encontrado',
-        info: got403
-          ? 'As credenciais da API têm permissão insuficiente para o módulo Serviços do Cliente (HTTP 403). No painel Hubsoft acesse: Configurações → Integrações → API → edite o usuário da API e marque a permissão "Serviços do Cliente" ou "Cliente Serviço".'
-          : 'Nenhum endpoint de serviços/contratos respondeu com dados.',
-        vendas: [], cidades: [], vendedores: [], planos: [],
+    // Passo 2: extrai clienteId + info únicos dos chamados
+    const clientesMap = {};
+    for (const os of osLista) {
+      const cs    = os.atendimento?.cliente_servico;
+      const cliId = cs?.cliente?.id || cs?.cliente_id;
+      const cidade = cs?.endereco_instalacao?.endereco_numero?.cidade?.nome
+                  || cs?.endereco_instalacao?.cidade?.nome
+                  || os.atendimento?.endereco?.cidade?.nome || 'Desconhecida';
+      const nome  = cs?.cliente?.nome || cs?.cliente?.razao_social || 'Cliente';
+      if (cliId && !clientesMap[cliId]) clientesMap[cliId] = { cidade, nome };
+    }
+
+    const ids = Object.keys(clientesMap).slice(0, 300);
+    if (!ids.length) {
+      return res.json({ ok: false, motivo: 'sem_clientes',
+        info: 'Nenhum cliente encontrado nos chamados dos últimos 90 dias.',
+        vendas: [], cidades: [], vendedores: [], planos: [] });
+    }
+
+    // Passo 3: consulta serviços de cada cliente em paralelo (lotes de 20)
+    const BATCH    = 20;
+    const REAT_DIAS = 30;
+    const vendas   = [];
+
+    for (let i = 0; i < ids.length; i += BATCH) {
+      const lote  = ids.slice(i, i + BATCH);
+      const resps = await Promise.all(lote.map(id => getClienteServico(token, id)));
+      lote.forEach((id, j) => {
+        if (!resps[j]) return;
+        const data = resps[j];
+        const servicos = Array.isArray(data) ? data
+                       : (data?.data || data?.servicos || data?.cliente_servicos || []);
+        for (const s of servicos) {
+          const dataHab = s.data_habilitacao;
+          if (!dataHab) continue;
+          const hab = new Date(dataHab);
+          if (hab < ini || hab > fim) continue; // fora do período solicitado
+
+          const cli      = clientesMap[id];
+          const cidade   = cli?.cidade || 'Desconhecida';
+          const vendedor = s.vendedor?.nome || s.usuario_venda?.nome || s.usuario?.nome || '—';
+          const plano    = s.plano?.nome || s.servico?.nome || s.tipo_servico?.descricao
+                        || s.tipo_servico?.nome || '—';
+          const dataVenda = s.data_venda || s.data_cadastro;
+
+          // Reativação: habilitado muito depois da data de venda
+          let reativacao = false;
+          if (dataVenda && dataHab) {
+            const diffDias = (new Date(dataHab) - new Date(dataVenda)) / (1000 * 86400);
+            reativacao = diffDias > REAT_DIAS;
+          }
+
+          vendas.push({ clienteId: id, cliente: cli?.nome || '—',
+            cidade, vendedor, plano, dataVenda, dataHab, reativacao });
+        }
       });
     }
-
-    // Normaliza cada registro
-    const REAT_DIAS = 30; // dias mínimos entre data_venda e data_habilitacao para ser reativação
-    const vendas = raw.map(item => {
-      const cs       = item.cliente_servico || item;
-      const cliente  = item.cliente   || cs.cliente  || {};
-      const end      = cs.endereco_instalacao || cs.endereco || cliente.endereco || {};
-      const cidade   = end?.cidade?.nome || end?.municipio?.nome || item.cidade?.nome || cs.cidade?.nome || 'Desconhecida';
-      const vendedor = item.vendedor?.nome || item.usuario_venda?.nome || cs.vendedor?.nome
-                    || item.usuario?.nome  || '—';
-      const plano    = cs.plano?.nome || cs.servico?.nome || cs.tipo_servico?.nome
-                    || item.plano?.nome || item.servico?.nome || '—';
-      const nomeCliente = cliente.nome || cliente.razao_social || item.nome || cs.nome || '—';
-      const dataVenda   = item.data_venda   || cs.data_venda   || item.data_cadastro;
-      const dataHab     = item.data_habilitacao || cs.data_habilitacao;
-
-      let reativacao = false;
-      if (dataVenda && dataHab) {
-        const diffDias = (new Date(dataVenda) - new Date(dataHab)) / (1000 * 86400);
-        reativacao = diffDias < -REAT_DIAS; // habilitacao muito anterior à venda
-      }
-
-      return { cliente: nomeCliente, cidade, vendedor, plano, dataVenda, dataHab, reativacao };
-    }).filter(v => v.dataVenda);
 
     // Agrega por cidade
     const cidadeMap = {};
     for (const v of vendas) {
       if (!cidadeMap[v.cidade]) cidadeMap[v.cidade] = { nome: v.cidade, total: 0, novas: 0, reat: 0 };
       cidadeMap[v.cidade].total++;
-      if (v.reativacao) cidadeMap[v.cidade].reat++;
-      else              cidadeMap[v.cidade].novas++;
+      if (v.reativacao) cidadeMap[v.cidade].reat++; else cidadeMap[v.cidade].novas++;
     }
     const cidades = Object.values(cidadeMap).sort((a,b) => b.total - a.total).slice(0, 15);
 
@@ -995,8 +1006,7 @@ app.get('/api/comercial', async (req, res) => {
     for (const v of vendas) {
       if (!vendMap[v.vendedor]) vendMap[v.vendedor] = { nome: v.vendedor, total: 0, novas: 0, reat: 0 };
       vendMap[v.vendedor].total++;
-      if (v.reativacao) vendMap[v.vendedor].reat++;
-      else              vendMap[v.vendedor].novas++;
+      if (v.reativacao) vendMap[v.vendedor].reat++; else vendMap[v.vendedor].novas++;
     }
     const vendedores = Object.values(vendMap).sort((a,b) => b.total - a.total).slice(0, 20);
 
@@ -1013,7 +1023,7 @@ app.get('/api/comercial', async (req, res) => {
 
     res.json({
       ok: true,
-      fonte,
+      fonte: 'batch_cliente_servico',
       total: vendas.length,
       novas,
       reativacoes,
