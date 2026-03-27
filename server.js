@@ -1679,21 +1679,35 @@ async function fetchConexoesHubsoft() {
   for (let i = 0; i < ids.length; i += BATCH) {
     const lote = ids.slice(i, i + BATCH);
     const resps = await Promise.all(lote.map(id => getClienteAssinante(token, id)));
+    // Inclui TODOS os clientes, mesmo sem resposta do assinante
     lote.forEach((id, j) => {
-      if (resps[j]) resultados.push({ id, ...clientesMap[id], raw: resps[j] });
+      resultados.push({ id, ...clientesMap[id], raw: resps[j] || null });
     });
   }
 
   // Formata como lista normalizada
-  return resultados.map(c => ({
-    id:     c.id,
-    nome:   c.nome,
-    cidade: c.cidade,
-    lat:    c.lat,
-    lng:    c.lng,
-    online: c.raw?.status === 'online' || c.raw?.online === true || c.raw?.conectado === true
-            || c.raw?.status_conexao === 'online',
-  }));
+  return resultados.map(c => {
+    const raw = c.raw;
+    // Tenta detectar online por múltiplos campos possíveis
+    const online = raw !== null && (
+      raw?.status === 'online' ||
+      raw?.online === true ||
+      raw?.conectado === true ||
+      raw?.status_conexao === 'online' ||
+      raw?.status_conexao_radius === 'online' ||
+      raw?.sessao_ativa === true ||
+      (typeof raw?.ip === 'string' && raw.ip.length > 0)
+    );
+    return {
+      id:     c.id,
+      nome:   c.nome,
+      cidade: c.cidade,
+      lat:    c.lat,
+      lng:    c.lng,
+      online,
+      sem_dados: raw === null,
+    };
+  });
 }
 
 app.get('/api/conexoes', async (req, res) => {
