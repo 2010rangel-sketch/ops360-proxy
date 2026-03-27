@@ -883,6 +883,149 @@ app.get('/api/retencao', async (req, res) => {
 
 
 
+// ── COMERCIAL — Vendas / Cadastros / Reativações ─────────────────
+app.get('/api/comercial', async (req, res) => {
+  try {
+    const agora = new Date();
+    const primeiroDiaMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
+    const ultimoDiaMes   = new Date(agora.getFullYear(), agora.getMonth() + 1, 0, 23, 59, 59);
+
+    const ini = req.query.data_inicio ? new Date(req.query.data_inicio) : primeiroDiaMes;
+    const fim = req.query.data_fim    ? new Date(req.query.data_fim)    : ultimoDiaMes;
+
+    const baseBody = {
+      data_inicio: ini.toISOString(),
+      data_fim:    fim.toISOString(),
+      order_by:     'data_venda',
+      order_by_key: 'DESC',
+    };
+
+    // Tenta múltiplos endpoints do Hubsoft para serviços/contratos
+    const tentativas = [
+      { ep: 'v1/cliente_servico/consultar/paginado/500?page=1', body: { ...baseBody } },
+      { ep: 'v1/contrato/consultar/paginado/500?page=1',        body: { ...baseBody } },
+      { ep: 'v1/plano_servico/consultar/paginado/500?page=1',   body: { ...baseBody } },
+      { ep: 'v1/cliente/consultar/paginado/500?page=1',         body: { ...baseBody, tipo_data: 'data_venda' } },
+    ];
+
+    let raw = null;
+    let fonte = null;
+
+    for (const t of tentativas) {
+      try {
+        const r = await hubsoftPost(t.ep, t.body);
+        const lista = r?.data || r?.cliente_servicos?.data || r?.contratos?.data
+                   || r?.clientes?.data || r?.servicos?.data || [];
+        if (Array.isArray(lista) && lista.length >= 0) {
+          raw   = lista;
+          fonte = t.ep;
+          break;
+        }
+      } catch(_) { /* tenta próximo */ }
+    }
+
+    if (raw === null) {
+      return res.json({ ok: false, motivo: 'endpoint_nao_encontrado', vendas: [], cidades: [], vendedores: [], planos: [] });
+    }
+
+    // Normaliza cada registro
+    const REAT_DIAS = 30; // dias mínimos entre data_venda e data_habilitacao para ser reativação
+    const vendas = raw.map(item => {
+      const cs       = item.cliente_servico || item;
+      const cliente  = item.cliente   || cs.cliente  || {};
+      const end      = cs.endereco_instalacao || cs.endereco || cliente.endereco || {};
+      const cidade   = end?.cidade?.nome || end?.municipio?.nome || item.cidade?.nome || cs.cidade?.nome || 'Desconhecida';
+      const vendedor = item.vendedor?.nome || item.usuario_venda?.nome || cs.vendedor?.nome
+                    || item.usuario?.nome  || '—';
+      const plano    = cs.plano?.nome || cs.servico?.nome || cs.tipo_servico?.nome
+                    || item.plano?.nome || item.servico?.nome || '—';
+      const nomeCliente = cliente.nome || cliente.razao_social || item.nome || cs.nome || '—';
+      const dataVenda   = item.data_venda   || cs.data_venda   || item.data_cadastro;
+      const dataHab     = item.data_habilitacao || cs.data_habilitacao;
+
+      let reativacao = false;
+      if (dataVenda && dataHab) {
+        const diffDias = (new Date(dataVenda) - new Date(dataHab)) / (1000 * 86400);
+        reativacao = diffDias < -REAT_DIAS; // habilitacao muito anterior à venda
+      }
+
+      return { cliente: nomeCliente, cidade, vendedor, plano, dataVenda, dataHab, reativacao };
+    }).filter(v => v.dataVenda);
+
+    // Agrega por cidade
+    const cidadeMap = {};
+    for (const v of vendas) {
+      if (!cidadeMap[v.cidade]) cidadeMap[v.cidade] = { nome: v.cidade, total: 0, novas: 0, reat: 0 };
+      cidadeMap[v.cidade].total++;
+      if (v.reativacao) cidadeMap[v.cidade].reat++;
+      else              cidadeMap[v.cidade].novas++;
+    }
+    const cidades = Object.values(cidadeMap).sort((a,b) => b.total - a.total).slice(0, 15);
+
+    // Agrega por vendedor
+    const vendMap = {};
+    for (const v of vendas) {
+      if (!vendMap[v.vendedor]) vendMap[v.vendedor] = { nome: v.vendedor, total: 0, novas: 0, reat: 0 };
+      vendMap[v.vendedor].total++;
+      if (v.reativacao) vendMap[v.vendedor].reat++;
+      else              vendMap[v.vendedor].novas++;
+    }
+    const vendedores = Object.values(vendMap).sort((a,b) => b.total - a.total).slice(0, 20);
+
+    // Agrega por plano
+    const planoMap = {};
+    for (const v of vendas) {
+      if (!planoMap[v.plano]) planoMap[v.plano] = { nome: v.plano, total: 0 };
+      planoMap[v.plano].total++;
+    }
+    const planos = Object.values(planoMap).sort((a,b) => b.total - a.total);
+
+    const novas       = vendas.filter(v => !v.reativacao).length;
+    const reativacoes = vendas.filter(v =>  v.reativacao).length;
+
+    res.json({
+      ok: true,
+      fonte,
+      total: vendas.length,
+      novas,
+      reativacoes,
+      periodo: { ini: ini.toISOString(), fim: fim.toISOString() },
+      cidades,
+      vendedores,
+      planos,
+      ultimas: vendas.slice(0, 50),
+    });
+  } catch(e) {
+    res.json({ ok: false, motivo: e.message, vendas: [], cidades: [], vendedores: [], planos: [] });
+  }
+});
+
+// ── COMERCIAL: Debug — descobre endpoint correto ──────────────────
+app.get('/api/comercial/debug', async (req, res) => {
+  const eps = [
+    'v1/cliente_servico/consultar/paginado/5?page=1',
+    'v1/contrato/consultar/paginado/5?page=1',
+    'v1/plano_servico/consultar/paginado/5?page=1',
+    'v1/cliente/consultar/paginado/5?page=1',
+    'v1/cliente_servico', 'v1/contrato', 'v1/plano_servico',
+  ];
+  const agora = new Date();
+  const ini   = new Date(agora.getFullYear(), agora.getMonth(), 1);
+  const body  = { data_inicio: ini.toISOString(), data_fim: agora.toISOString() };
+  const resultados = {};
+  for (const ep of eps) {
+    try {
+      const r = ep.includes('paginado')
+        ? await hubsoftPost(ep, body)
+        : await hubsoftGet(ep);
+      resultados[ep] = { ok: true, keys: Object.keys(r || {}), amostra: JSON.stringify(r).slice(0, 300) };
+    } catch(e) {
+      resultados[ep] = { ok: false, status: e.response?.status, msg: e.message };
+    }
+  }
+  res.json(resultados);
+});
+
 // ── Debug: estrutura de usuários/setores ─────────────────────────
 // ── Endpoint: busca usuários com grupo_permissao e popula mapa setor
 app.get('/api/usuarios-setores', async (_req, res) => {

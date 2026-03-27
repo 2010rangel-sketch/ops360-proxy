@@ -1073,23 +1073,126 @@ input[type="text"]::placeholder { color:var(--text3); }
 
     <!-- ═══ COMERCIAL ═══ -->
     <div class="page" id="page-comercial">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+
+      <!-- Header + filtros -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap">
         <div>
-          <div style="font-size:18px;font-weight:700;color:var(--text)">Comercial</div>
-          <div style="font-size:12px;color:var(--text3);margin-top:2px">Gestão de contratos, cadastros e base de clientes</div>
+          <div style="font-size:16px;font-weight:700;color:var(--text)">Comercial</div>
+          <div style="font-size:11px;color:var(--text3)">Vendas, reativações e base de clientes</div>
         </div>
-        <span class="badge b-blue">Em construção</span>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <div style="display:flex;gap:3px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:3px">
+            <button class="chip active com-chip" data-p="mes"          onclick="setComPeriodo('mes',this)">Mês atual</button>
+            <button class="chip com-chip"         data-p="mes_anterior" onclick="setComPeriodo('mes_anterior',this)">Mês anterior</button>
+            <button class="chip com-chip"         data-p="7dias"        onclick="setComPeriodo('7dias',this)">7 dias</button>
+            <button class="chip com-chip"         data-p="hoje"         onclick="setComPeriodo('hoje',this)">Hoje</button>
+            <button class="chip com-chip"         data-p="custom"       onclick="setComPeriodo('custom',this)">Período</button>
+          </div>
+          <div id="comDateRange" style="display:none;gap:6px;align-items:center">
+            <input type="date" id="comDtDe"  style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px">
+            <span style="color:var(--text3);font-size:12px">até</span>
+            <input type="date" id="comDtAte" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px">
+            <button class="btn btn-primary btn-sm" onclick="loadComercial()"><i class="fas fa-search"></i></button>
+          </div>
+          <span class="badge b-green" id="com-sync-badge">—</span>
+        </div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px">
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">Contratos ativos</div><div class="kpi-mini-val" style="color:var(--green)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Novos este mês</div><div class="kpi-mini-val" style="color:var(--accent)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">Inadimplentes</div><div class="kpi-mini-val" style="color:var(--amber)">—</div></div>
+
+      <!-- KPI cards -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px">
+        <div class="kpi-mini">
+          <div class="kpi-mini-bar" style="background:var(--accent)"></div>
+          <div class="kpi-mini-label">Total de vendas</div>
+          <div class="kpi-mini-val" id="com-total" style="color:var(--accent)">—</div>
+        </div>
+        <div class="kpi-mini">
+          <div class="kpi-mini-bar" style="background:#22c55e"></div>
+          <div class="kpi-mini-label">Novas vendas</div>
+          <div class="kpi-mini-val" id="com-novas" style="color:#22c55e">—</div>
+        </div>
+        <div class="kpi-mini">
+          <div class="kpi-mini-bar" style="background:var(--cyan)"></div>
+          <div class="kpi-mini-label">Reativações</div>
+          <div class="kpi-mini-val" id="com-reat" style="color:var(--cyan)">—</div>
+        </div>
+        <div class="kpi-mini">
+          <div class="kpi-mini-bar" style="background:var(--amber)"></div>
+          <div class="kpi-mini-label">% Reativação</div>
+          <div class="kpi-mini-val" id="com-pct-reat" style="color:var(--amber)">—</div>
+        </div>
       </div>
-      <div class="tbl-card" style="padding:48px;text-align:center">
-        <i class="fas fa-briefcase" style="font-size:40px;color:var(--border2);margin-bottom:16px;display:block"></i>
-        <div style="font-size:14px;font-weight:600;color:var(--text2);margin-bottom:6px">Módulo Comercial</div>
-        <div style="font-size:12px;color:var(--text3);max-width:320px;margin:0 auto">Integração com dados de contratos e cadastros do Hubsoft em desenvolvimento. Em breve disponível aqui.</div>
+
+      <!-- Row 1: Vendas por cidade + Por vendedor -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+
+        <!-- Vendas por cidade -->
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <span class="tbl-title"><i class="fas fa-map-marker-alt" style="color:var(--accent);margin-right:5px"></i>Vendas por Cidade</span>
+            <span class="badge b-blue" id="com-cid-count">—</span>
+          </div>
+          <div id="com-cidades-bars" style="padding:12px 16px"></div>
+        </div>
+
+        <!-- Por vendedor -->
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <span class="tbl-title"><i class="fas fa-user-tie" style="color:var(--green);margin-right:5px"></i>Por Vendedor</span>
+            <span class="badge b-green" id="com-vend-count">—</span>
+          </div>
+          <div id="com-vendedor-bars" style="padding:12px 16px"></div>
+        </div>
+
       </div>
+
+      <!-- Row 2: Por plano (donut) + Últimas vendas -->
+      <div style="display:grid;grid-template-columns:300px 1fr;gap:14px;margin-bottom:14px">
+
+        <!-- Por plano -->
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <span class="tbl-title"><i class="fas fa-layer-group" style="color:var(--amber);margin-right:5px"></i>Por Plano</span>
+          </div>
+          <div style="padding:12px 16px">
+            <svg id="com-plano-donut" viewBox="0 0 200 200" style="width:100%;max-width:180px;display:block;margin:0 auto"></svg>
+            <div id="com-plano-legend" style="margin-top:10px"></div>
+          </div>
+        </div>
+
+        <!-- Últimas vendas -->
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <span class="tbl-title"><i class="fas fa-list" style="color:var(--text3);margin-right:5px"></i>Últimas Vendas</span>
+            <span class="badge b-amber" id="com-ult-count">—</span>
+          </div>
+          <div style="overflow-x:auto;max-height:320px;overflow-y:auto">
+            <table>
+              <thead><tr>
+                <th>Cliente</th><th>Cidade</th><th>Vendedor</th><th>Plano</th><th>Data</th><th>Tipo</th>
+              </tr></thead>
+              <tbody id="com-ult-tbl">
+                <tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Aviso quando API não tem o endpoint -->
+      <div id="com-no-endpoint" style="display:none">
+        <div class="tbl-card" style="padding:20px;background:rgba(245,158,11,.06);border-color:var(--amber)">
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <i class="fas fa-plug" style="color:var(--amber);margin-top:2px;font-size:16px"></i>
+            <div>
+              <div style="font-weight:600;color:var(--amber);margin-bottom:4px">Integração de cadastros pendente</div>
+              <div style="font-size:12px;color:var(--text3);line-height:1.6">Nenhum dos endpoints de contratos/serviços do Hubsoft retornou dados. Use <code style="background:var(--surface);padding:1px 5px;border-radius:3px">/api/comercial/debug</code> para identificar o endpoint correto e informe para configurarmos.</div>
+              <div id="com-endpoint-error" style="font-size:11px;color:var(--text3);margin-top:6px;font-family:monospace"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <!-- ═══ RETENÇÃO ═══ -->
@@ -1571,6 +1674,9 @@ function goPage(id, el) {
     } else {
       loadRetencaoAtend();
     }
+  }
+  if (id === 'comercial') {
+    loadComercial();
   }
   if (id === 'conexoes') {
     initConexoesMap();
@@ -4124,6 +4230,176 @@ if(il) il.innerHTML=ints.map(i=>`
     <label class="switch"><input type="checkbox" ${i.on?'checked':''}><div class="switch-track"></div><div class="switch-thumb"></div></label>
   </div>
 `).join('');
+
+// ══════════════════════════════════════════════════════════════════
+//  COMERCIAL — Vendas / Cadastros / Reativações
+// ══════════════════════════════════════════════════════════════════
+
+let comPeriodo = 'mes';
+let _comData   = null;
+
+function getComDates() {
+  const agora = new Date();
+  if (comPeriodo === 'mes') {
+    return {
+      ini: new Date(agora.getFullYear(), agora.getMonth(), 1).toISOString(),
+      fim: new Date(agora.getFullYear(), agora.getMonth()+1, 0, 23, 59, 59).toISOString(),
+    };
+  }
+  if (comPeriodo === 'mes_anterior') {
+    return {
+      ini: new Date(agora.getFullYear(), agora.getMonth()-1, 1).toISOString(),
+      fim: new Date(agora.getFullYear(), agora.getMonth(), 0, 23, 59, 59).toISOString(),
+    };
+  }
+  if (comPeriodo === '7dias') {
+    return { ini: new Date(agora.getTime()-7*86400000).toISOString(), fim: agora.toISOString() };
+  }
+  if (comPeriodo === 'hoje') {
+    const hoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+    return { ini: hoje.toISOString(), fim: agora.toISOString() };
+  }
+  if (comPeriodo === 'custom') {
+    const de  = document.getElementById('comDtDe')?.value;
+    const ate = document.getElementById('comDtAte')?.value;
+    if (de && ate) return { ini: new Date(de).toISOString(), fim: new Date(ate+'T23:59:59').toISOString() };
+  }
+  return { ini: new Date(agora.getFullYear(), agora.getMonth(), 1).toISOString(), fim: agora.toISOString() };
+}
+
+function setComPeriodo(p, el) {
+  comPeriodo = p;
+  document.querySelectorAll('.com-chip').forEach(c => c.classList.remove('active'));
+  if (el) el.classList.add('active');
+  const dr = document.getElementById('comDateRange');
+  if (dr) dr.style.display = p === 'custom' ? 'flex' : 'none';
+  if (p !== 'custom') loadComercial();
+}
+
+function renderComBarras(containerId, items, maxVal, colorNew, colorReat) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  if (!items.length) { el.innerHTML = '<div style="color:var(--text3);font-size:12px;text-align:center;padding:20px">Sem dados</div>'; return; }
+  el.innerHTML = items.map(item => {
+    const pctTotal = maxVal > 0 ? Math.round(item.total / maxVal * 100) : 0;
+    const pctReat  = item.total > 0 ? Math.round((item.reat||0) / item.total * 100) : 0;
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
+        <span style="color:var(--text);font-weight:500;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${item.nome}">${item.nome}</span>
+        <span style="color:var(--text3)">${item.total}${item.reat ? ` <span style="color:var(--cyan)">(${item.reat} reat.)</span>` : ''}</span>
+      </div>
+      <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden">
+        <div style="display:flex;height:100%;border-radius:4px;overflow:hidden">
+          <div style="width:${pctTotal - (pctReat*pctTotal/100)}%;background:${colorNew};transition:width .4s"></div>
+          <div style="width:${pctReat*pctTotal/100}%;background:${colorReat};transition:width .4s"></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderComPlanoDonut(planos) {
+  const svgEl = document.getElementById('com-plano-donut');
+  const legEl = document.getElementById('com-plano-legend');
+  if (!svgEl || !planos.length) return;
+
+  const COLORS = ['#6366f1','#22c55e','#f59e0b','#ef4444','#06b6d4','#a78bfa','#f97316','#84cc16','#ec4899','#14b8a6'];
+  const total = planos.reduce((s,p) => s + p.total, 0);
+  const cx = 100, cy = 100, r = 75, ri = 45;
+  let startAngle = -Math.PI / 2;
+
+  let paths = '';
+  planos.slice(0,10).forEach((p, i) => {
+    const angle = (p.total / total) * 2 * Math.PI;
+    const endAngle = startAngle + angle;
+    const x1 = cx + r * Math.cos(startAngle), y1 = cy + r * Math.sin(startAngle);
+    const x2 = cx + r * Math.cos(endAngle),   y2 = cy + r * Math.sin(endAngle);
+    const xi1 = cx + ri * Math.cos(startAngle), yi1 = cy + ri * Math.sin(startAngle);
+    const xi2 = cx + ri * Math.cos(endAngle),   yi2 = cy + ri * Math.sin(endAngle);
+    const large = angle > Math.PI ? 1 : 0;
+    const color = COLORS[i % COLORS.length];
+    paths += `<path d="M ${xi1} ${yi1} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} L ${xi2} ${yi2} A ${ri} ${ri} 0 ${large} 0 ${xi1} ${yi1} Z" fill="${color}" title="${p.nome}: ${p.total}"><title>${p.nome}: ${p.total}</title></path>`;
+    startAngle = endAngle;
+  });
+
+  svgEl.innerHTML = `${paths}<text x="100" y="95" text-anchor="middle" font-size="18" font-weight="700" fill="var(--text)">${total}</text><text x="100" y="112" text-anchor="middle" font-size="10" fill="var(--text3)">vendas</text>`;
+
+  if (legEl) {
+    legEl.innerHTML = planos.slice(0,10).map((p,i) => `
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:4px">
+        <div style="display:flex;align-items:center;gap:5px">
+          <span style="width:8px;height:8px;border-radius:2px;background:${COLORS[i%COLORS.length]};display:inline-block;flex-shrink:0"></span>
+          <span style="color:var(--text2);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.nome}">${p.nome}</span>
+        </div>
+        <span style="color:var(--text3);font-weight:600">${p.total} <span style="color:var(--text3);font-weight:400">(${Math.round(p.total/total*100)}%)</span></span>
+      </div>
+    `).join('');
+  }
+}
+
+function renderComUltimas(ultimas) {
+  const tb = document.getElementById('com-ult-tbl');
+  if (!tb) return;
+  if (!ultimas.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Sem dados</td></tr>'; return; }
+  const fmtData = d => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
+  tb.innerHTML = ultimas.map(v => `<tr>
+    <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${v.cliente}">${v.cliente}</td>
+    <td>${v.cidade}</td>
+    <td style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.vendedor}</td>
+    <td><span style="background:var(--accent-light);color:var(--accent);font-size:10px;padding:2px 6px;border-radius:4px;white-space:nowrap">${v.plano}</span></td>
+    <td style="white-space:nowrap">${fmtData(v.dataVenda)}</td>
+    <td>${v.reativacao
+      ? '<span style="background:rgba(6,182,212,.12);color:var(--cyan);font-size:10px;padding:2px 6px;border-radius:4px">Reativação</span>'
+      : '<span style="background:rgba(34,197,94,.12);color:#22c55e;font-size:10px;padding:2px 6px;border-radius:4px">Nova</span>'
+    }</td>
+  </tr>`).join('');
+}
+
+async function loadComercial() {
+  const badge = document.getElementById('com-sync-badge');
+  if (badge) { badge.textContent = 'Buscando...'; badge.className = 'badge b-amber'; }
+  try {
+    const { ini, fim } = getComDates();
+    const r    = await fetch(`/api/comercial?data_inicio=${encodeURIComponent(ini)}&data_fim=${encodeURIComponent(fim)}`);
+    const data = await r.json();
+
+    const noEp  = document.getElementById('com-no-endpoint');
+    const errEl = document.getElementById('com-endpoint-error');
+
+    if (!data.ok) {
+      if (noEp)  noEp.style.display  = '';
+      if (errEl) errEl.textContent   = data.motivo || '';
+      if (badge) { badge.textContent = 'Sem dados'; badge.className = 'badge b-red'; }
+      return;
+    }
+    if (noEp) noEp.style.display = 'none';
+
+    _comData = data;
+
+    const ev = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
+    ev('com-total',    data.total);
+    ev('com-novas',    data.novas);
+    ev('com-reat',     data.reativacoes);
+    ev('com-pct-reat', data.total > 0 ? Math.round(data.reativacoes / data.total * 100) + '%' : '0%');
+    ev('com-cid-count',  data.cidades.length);
+    ev('com-vend-count', data.vendedores.length);
+    ev('com-ult-count',  data.ultimas?.length || 0);
+
+    const maxCid  = data.cidades[0]?.total  || 1;
+    const maxVend = data.vendedores[0]?.total || 1;
+
+    renderComBarras('com-cidades-bars',  data.cidades,   maxCid,  '#6366f1', '#06b6d4');
+    renderComBarras('com-vendedor-bars', data.vendedores, maxVend, '#22c55e', '#06b6d4');
+    renderComPlanoDonut(data.planos);
+    renderComUltimas(data.ultimas || []);
+
+    const hora = new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+    if (badge) { badge.textContent = `Atualizado ${hora}`; badge.className = 'badge b-green'; }
+  } catch(e) {
+    if (badge) { badge.textContent = 'Erro'; badge.className = 'badge b-red'; }
+    console.warn('Comercial:', e.message);
+  }
+}
 
 // ══════════════════════════════════════════════════════════════════
 //  PAINEL DE CONEXÕES
