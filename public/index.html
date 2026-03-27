@@ -1320,7 +1320,7 @@ input[type="text"]::placeholder { color:var(--text3); }
 
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px">
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">Equipamentos removidos</div><div class="kpi-mini-val" id="remoc-total" style="color:var(--amber)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Pedidos de cancelamento</div><div class="kpi-mini-val" id="remoc-canc" style="color:var(--red)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Cancelamento geral</div><div class="kpi-mini-val" id="remoc-canc" style="color:var(--red)">—</div></div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:#22c55e"></div><div class="kpi-mini-label">Taxa de recuperação</div><div class="kpi-mini-val" id="remoc-cobr" style="color:#22c55e">—</div></div>
       </div>
 
@@ -4458,16 +4458,16 @@ function renderRemocoes() {
   const canc  = remocoes.filter(c => c.cat && (c.cat.toLowerCase().includes('cancelam') || c.cat.toLowerCase().includes('cancel'))).length;
   const cobr  = remocoes.filter(c => c.cat && c.cat.toLowerCase().includes('cobran')).length;
 
-  // Card 2: pedidos de cancelamento e Card 3: taxa de recuperação — vêm do _retData
-  const pedidosCancelamento = _retData ? (_retData.total || 0) : 0;
-  const revertidos          = _retData ? (_retData.revertidos || 0) : 0;
-  const taxaRecup = pedidosCancelamento > 0
-    ? Math.round(revertidos / pedidosCancelamento * 100) + '%'
+  // Card 2: cancelamento geral (qualquer tipo fechado como cancelado) — Card 3: taxa de recuperação
+  const cancelGeral = _retData ? (_retData.cancelamento_geral || 0) : 0;
+  const revertidos  = _retData ? (_retData.revertidos || 0) : 0;
+  const taxaRecup   = cancelGeral > 0
+    ? Math.round(revertidos / cancelGeral * 100) + '%'
     : '—';
 
   const ev = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
   ev('remoc-total',       total);
-  ev('remoc-canc',        pedidosCancelamento);
+  ev('remoc-canc',        cancelGeral);
   ev('remoc-cobr',        taxaRecup);
   ev('remoc-total-badge', total);
 
