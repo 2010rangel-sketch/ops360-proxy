@@ -1043,6 +1043,50 @@ app.get('/api/comercial', async (req, res) => {
   }
 });
 
+// ── NOC/OLT/CTO Debug — descobre endpoints de rede ───────────────────
+app.get('/api/noc/debug', async (req, res) => {
+  const token = await getToken();
+  const headers = { Authorization: `Bearer ${token}` };
+
+  // GET simples
+  const getEps = [
+    'v1/olt', 'v1/olts', 'v1/olt/listar',
+    'v1/cto', 'v1/ctos', 'v1/cto/listar',
+    'v1/noc', 'v1/noc/listar', 'v1/noc/rede',
+    'v1/pop', 'v1/pops', 'v1/pop/listar',
+    'v1/equipamento_rede', 'v1/dispositivo', 'v1/dispositivos',
+    'v1/infraestrutura', 'v1/rede', 'v1/redes',
+    'v1/olt/consultar', 'v1/cto/consultar',
+  ];
+  // POST paginado
+  const postEps = [
+    'v1/olt/consultar/paginado/5?page=1',
+    'v1/cto/consultar/paginado/5?page=1',
+    'v1/noc/consultar/paginado/5?page=1',
+    'v1/pop/consultar/paginado/5?page=1',
+    'v1/equipamento_rede/consultar/paginado/5?page=1',
+  ];
+
+  const resultados = {};
+  for (const ep of getEps) {
+    try {
+      const r = await axios.get(`${HUBSOFT_HOST}/api/${ep}`, { headers, params: { limit: 5 }, timeout: 6000 });
+      resultados[ep] = { method:'GET', ok: true, status: r.status, keys: Object.keys(r.data||{}), amostra: JSON.stringify(r.data).slice(0,300) };
+    } catch(e) {
+      resultados[ep] = { method:'GET', ok: false, status: e.response?.status };
+    }
+  }
+  for (const ep of postEps) {
+    try {
+      const r = await axios.post(`${HUBSOFT_HOST}/api/${ep}`, {}, { headers, timeout: 6000 });
+      resultados[ep] = { method:'POST', ok: true, status: r.status, keys: Object.keys(r.data||{}), amostra: JSON.stringify(r.data).slice(0,300) };
+    } catch(e) {
+      resultados[ep] = { method:'POST', ok: false, status: e.response?.status };
+    }
+  }
+  res.json({ host: HUBSOFT_HOST, resultados });
+});
+
 // ── CONEXÕES: Debug — descobre endpoint de assinantes online/offline ──
 app.get('/api/conexoes/debug', async (req, res) => {
   const token = await getToken();
