@@ -442,7 +442,8 @@ input[type="text"]::placeholder { color:var(--text3); }
 
   <div class="sidebar-section">Atendimento</div>
   <div class="nav-item" onclick="goPage('atendimento',this)"><i class="fas fa-headset"></i> Atendimento<span class="nav-count nc-blue">18</span></div>
-  <div class="nav-item" onclick="goPage('retencao',this)"><i class="fas fa-users"></i> Cadastros & Retenção</div>
+  <div class="nav-item" onclick="goPage('comercial',this)"><i class="fas fa-briefcase"></i> Comercial</div>
+  <div class="nav-item" onclick="goPage('retencao',this)"><i class="fas fa-user-shield"></i> Cancelamento / Retenção</div>
 
   <div class="sidebar-section">Spaces</div>
   <div class="space-item" onclick="goPage('tarefas',this)"><div class="space-dot" style="background:#5b6af0">T</div> Tarefas</div>
@@ -501,7 +502,7 @@ input[type="text"]::placeholder { color:var(--text3); }
           <div style="display:flex;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:3px" id="dashTabBar">
             <button id="dash-tab-btn-chamados" class="dash-view-btn active" onclick="showDashTab('chamados')"><i class="fas fa-ticket-alt"></i> Chamados</button>
             <button id="dash-tab-btn-atendimento" class="dash-view-btn" onclick="showDashTab('atendimento')"><i class="fas fa-headset"></i> Atend.</button>
-            <button id="dash-tab-btn-retencao"   class="dash-view-btn" onclick="showDashTab('retencao')"><i class="fas fa-users"></i> Retenção</button>
+            <button id="dash-tab-btn-retencao"   class="dash-view-btn" onclick="showDashTab('retencao')"><i class="fas fa-user-shield"></i> Canc./Ret.</button>
           </div>
         </div>
       </div>
@@ -997,6 +998,27 @@ input[type="text"]::placeholder { color:var(--text3); }
       </div>
     </div>
 
+    <!-- ═══ COMERCIAL ═══ -->
+    <div class="page" id="page-comercial">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+        <div>
+          <div style="font-size:18px;font-weight:700;color:var(--text)">Comercial</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px">Gestão de contratos, cadastros e base de clientes</div>
+        </div>
+        <span class="badge b-blue">Em construção</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px">
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">Contratos ativos</div><div class="kpi-mini-val" style="color:var(--green)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Novos este mês</div><div class="kpi-mini-val" style="color:var(--accent)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">Inadimplentes</div><div class="kpi-mini-val" style="color:var(--amber)">—</div></div>
+      </div>
+      <div class="tbl-card" style="padding:48px;text-align:center">
+        <i class="fas fa-briefcase" style="font-size:40px;color:var(--border2);margin-bottom:16px;display:block"></i>
+        <div style="font-size:14px;font-weight:600;color:var(--text2);margin-bottom:6px">Módulo Comercial</div>
+        <div style="font-size:12px;color:var(--text3);max-width:320px;margin:0 auto">Integração com dados de contratos e cadastros do Hubsoft em desenvolvimento. Em breve disponível aqui.</div>
+      </div>
+    </div>
+
     <!-- ═══ RETENÇÃO ═══ -->
     <div class="page" id="page-retencao">
 
@@ -1450,7 +1472,7 @@ function goPage(id, el) {
   document.querySelectorAll('.nav-item, .space-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   if(el) el.classList.add('active');
-  const titles = {dashboard:'Dashboard',chamados:'Chamados',atendimento:'Atendimento',retencao:'Cadastros & Retenção',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
+  const titles = {dashboard:'Dashboard',chamados:'Chamados',atendimento:'Atendimento',comercial:'Comercial',retencao:'Cancelamento / Retenção',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
   document.getElementById('pageTitle').textContent = titles[id]||id;
   // Restaura dados em memória ao navegar de volta para páginas com dados
   if (id === 'dashboard') {
