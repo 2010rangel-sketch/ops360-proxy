@@ -1322,6 +1322,7 @@ input[type="text"]::placeholder { color:var(--text3); }
         <div class="tbl-card" style="margin-bottom:0">
           <div class="tbl-header">
             <span class="tbl-title"><i class="fas fa-list" style="color:var(--text3);margin-right:5px"></i>Últimas Vendas</span>
+            <span id="com-filtro-badge" style="display:none;font-size:11px;padding:3px 8px;border-radius:4px;cursor:pointer;background:var(--accent-light);color:var(--accent);border:1px solid rgba(91,106,240,.4)">—</span>
             <span class="badge b-amber" id="com-ult-count">—</span>
           </div>
           <div style="overflow-x:auto;max-height:320px;overflow-y:auto">
@@ -1427,6 +1428,7 @@ input[type="text"]::placeholder { color:var(--text3); }
       <div class="tbl-card" style="margin-bottom:20px">
         <div class="tbl-header">
           <span class="tbl-title">Últimos pedidos de cancelamento</span>
+          <span id="ret-filtro-badge" style="display:none;font-size:11px;padding:3px 8px;border-radius:4px;cursor:pointer;background:var(--accent-light);color:var(--accent);border:1px solid rgba(91,106,240,.4)">—</span>
           <span class="badge b-amber" id="ret-pedidos-badge">—</span>
         </div>
         <div style="overflow-x:auto;max-height:260px;overflow-y:auto">
@@ -2558,6 +2560,16 @@ function renderFeed() {
   }).join('');
 }
 
+function irParaChamadosFiltrado(tipo, val) {
+  const nav = document.querySelector('.nav-item[onclick*="\'chamados\'"]');
+  goPage('chamados', nav);
+  requestAnimationFrame(() => {
+    const sel = document.getElementById(tipo === 'tec' ? 'filtTec' : 'filtCidade');
+    if (sel) sel.value = val;
+    applyFilters();
+  });
+}
+
 // ── RENDER: GRÁFICO POR TÉCNICO ───────────────────────────────────────────
 function renderTecChart() {
   const barEl    = document.getElementById('tecBarChart');
@@ -2589,7 +2601,7 @@ function renderTecChart() {
     const pct  = Math.round(d.total / maxT * 100);
     const taxa = d.total ? Math.round(d.ok / d.total * 100) : 0;
     return `
-    <div style="margin-bottom:10px">
+    <div onclick="irParaChamadosFiltrado('tec','${tec.replace(/'/g,"&#39;")}')" style="margin-bottom:10px;cursor:pointer;padding:4px 5px;border-radius:6px;transition:background .15s" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
         <span style="font-size:11.5px;font-weight:600;color:var(--text)">${tec}</span>
         <div style="display:flex;gap:8px;align-items:center">
@@ -2691,7 +2703,7 @@ function renderCidadeChart() {
     const pct  = Math.round(d.total / maxT * 100);
     const taxa = d.total ? Math.round(d.ok / d.total * 100) : 0;
     return `
-    <div style="margin-bottom:10px">
+    <div onclick="irParaChamadosFiltrado('cidade','${cidade.replace(/'/g,"&#39;")}')" style="margin-bottom:10px;cursor:pointer;padding:4px 5px;border-radius:6px;transition:background .15s" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
         <span style="font-size:11.5px;font-weight:600;color:var(--text)">${cidade}</span>
         <div style="display:flex;gap:8px;align-items:center">
@@ -3623,14 +3635,17 @@ function renderRetencao(data) {
   const porAt   = data.por_atendente || [];
   if (atCount) atCount.textContent = `${porAt.length} atendentes`;
   if (atTbl) {
-    atTbl.innerHTML = porAt.length ? porAt.map((a, i) => `<tr>
-      <td style="color:var(--text3)">${i+1}</td>
-      <td style="font-weight:500">${a.atendente}</td>
-      <td class="mono" style="font-weight:600">${a.total}</td>
-      <td class="mono" style="color:var(--green)">${a.revertidos}</td>
-      <td class="mono" style="color:var(--red)">${a.cancelados}</td>
-      <td class="mono">${a.taxa != null ? `<span style="font-weight:600;color:${a.taxa>=50?'var(--green)':'var(--red)'}">${a.taxa}%</span>` : '—'}</td>
-    </tr>`).join('')
+    atTbl.innerHTML = porAt.length ? porAt.map((a, i) => {
+      const isActive = _retFiltroAt === a.atendente;
+      return `<tr onclick="setRetFiltro('atendente','${a.atendente.replace(/'/g,"&#39;")}')" style="cursor:pointer;${isActive ? 'background:rgba(91,106,240,.08);outline:1px solid var(--accent);' : ''}">
+        <td style="color:var(--text3)">${i+1}</td>
+        <td style="font-weight:500;color:${isActive ? 'var(--accent)' : 'var(--text)'}">${a.atendente}${isActive ? ' <span style="font-size:10px">✕</span>' : ''}</td>
+        <td class="mono" style="font-weight:600">${a.total}</td>
+        <td class="mono" style="color:var(--green)">${a.revertidos}</td>
+        <td class="mono" style="color:var(--red)">${a.cancelados}</td>
+        <td class="mono">${a.taxa != null ? `<span style="font-weight:600;color:${a.taxa>=50?'var(--green)':'var(--red)'}">${a.taxa}%</span>` : '—'}</td>
+      </tr>`;
+    }).join('')
     : `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Nenhum pedido no período</td></tr>`;
   }
 
@@ -3640,20 +3655,37 @@ function renderRetencao(data) {
   const porTipo   = data.por_tipo || [];
   if (tipoCount) tipoCount.textContent = `${porTipo.length} tipos`;
   if (tipoTbl) {
-    tipoTbl.innerHTML = porTipo.length ? porTipo.map((t, i) => `<tr>
-      <td style="color:var(--text3)">${i+1}</td>
-      <td style="font-weight:500">${t.tipo}</td>
-      <td class="mono" style="font-weight:600">${t.total}</td>
-      <td class="mono" style="color:var(--green)">${t.revertidos}</td>
-      <td class="mono" style="color:var(--red)">${t.cancelados}</td>
-    </tr>`).join('')
+    tipoTbl.innerHTML = porTipo.length ? porTipo.map((t, i) => {
+      const isActive = _retFiltroTip === t.tipo;
+      return `<tr onclick="setRetFiltro('tipo','${t.tipo.replace(/'/g,"&#39;")}')" style="cursor:pointer;${isActive ? 'background:rgba(91,106,240,.08);outline:1px solid var(--accent);' : ''}">
+        <td style="color:var(--text3)">${i+1}</td>
+        <td style="font-weight:500;color:${isActive ? 'var(--accent)' : 'var(--text)'}">${t.tipo}${isActive ? ' <span style="font-size:10px">✕</span>' : ''}</td>
+        <td class="mono" style="font-weight:600">${t.total}</td>
+        <td class="mono" style="color:var(--green)">${t.revertidos}</td>
+        <td class="mono" style="color:var(--red)">${t.cancelados}</td>
+      </tr>`;
+    }).join('')
     : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Nenhum tipo encontrado</td></tr>`;
   }
 
   // Últimos pedidos
-  const pedTbl   = document.getElementById('retPedidosTbl');
-  const pedBadge = document.getElementById('ret-pedidos-badge');
-  const ultimos  = data.ultimos || [];
+  const pedTbl      = document.getElementById('retPedidosTbl');
+  const pedBadge    = document.getElementById('ret-pedidos-badge');
+  const filtroBadge = document.getElementById('ret-filtro-badge');
+  let ultimos = data.ultimos || [];
+  // Aplica filtro de atendente ou tipo
+  if (_retFiltroAt)  ultimos = ultimos.filter(p => p.atendente === _retFiltroAt);
+  if (_retFiltroTip) ultimos = ultimos.filter(p => p.tipo      === _retFiltroTip);
+  const filtroAtivo = _retFiltroAt || _retFiltroTip;
+  if (filtroBadge) {
+    if (filtroAtivo) {
+      filtroBadge.textContent = `Filtro: ${filtroAtivo} ✕`;
+      filtroBadge.style.display = '';
+      filtroBadge.onclick = () => { _retFiltroAt = ''; _retFiltroTip = ''; if (_retData) renderRetencao(_retData); };
+    } else {
+      filtroBadge.style.display = 'none';
+    }
+  }
   if (pedBadge) pedBadge.textContent = `${ultimos.length} registros`;
   const desfechoBadge = (d, motivo) => {
     const tip = motivo ? ` title="${motivo}"` : '';
@@ -3718,7 +3750,7 @@ function renderChamadosDash() {
     const pct = Math.round(n/rtbTecMax*100);
     const total_tec = fonte.filter(c=>(c.tec||'Sem técnico')===tec).length;
     const taxaTec = total_tec ? Math.round(n/total_tec*100) : 0;
-    return `<div style="margin-bottom:7px">
+    return `<div onclick="irParaChamadosFiltrado('tec','${tec.replace(/'/g,"&#39;")}')" style="margin-bottom:7px;cursor:pointer;padding:3px 5px;border-radius:5px;transition:background .15s" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
       <div style="display:flex;justify-content:space-between;margin-bottom:3px;align-items:center">
         <span style="font-size:11.5px;font-weight:500;color:var(--text)">${tec}</span>
         <div style="display:flex;gap:8px;align-items:center">
@@ -3895,7 +3927,7 @@ function renderDashAtendimento() {
   if (tipoEl) tipoEl.innerHTML = porTipo.map(t=>{
     const pctSem = t.total ? Math.round(t.semOS/t.total*100) : 0;
     const fmtT   = m => m==null?'':` · TMA ${fmtTma(m)}`;
-    return `<div style="margin-bottom:9px">
+    return `<div onclick="goPage('atendimento',document.querySelector('.nav-item[onclick*=\\'atendimento\\']'))" style="margin-bottom:9px;cursor:pointer;padding:3px 5px;border-radius:5px;transition:background .15s" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
       <div style="display:flex;justify-content:space-between;margin-bottom:3px;align-items:center">
         <span style="font-size:11.5px;font-weight:500;color:var(--text);max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.tipo}</span>
         <div style="display:flex;gap:10px;align-items:center">
@@ -3918,7 +3950,7 @@ function renderDashAtendimento() {
   if (atBadge) atBadge.textContent = `${porAt.length} atendentes`;
   if (atEl) atEl.innerHTML = porAt.map(a=>{
     const pctSem = a.total ? Math.round(a.semOS/a.total*100) : 0;
-    return `<div style="margin-bottom:9px;break-inside:avoid">
+    return `<div onclick="goPage('atendimento',document.querySelector('.nav-item[onclick*=\\'atendimento\\']'))" style="margin-bottom:9px;break-inside:avoid;cursor:pointer;padding:3px 5px;border-radius:5px;transition:background .15s" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
       <div style="display:flex;justify-content:space-between;margin-bottom:3px;align-items:center">
         <span style="font-size:11.5px;font-weight:500;color:var(--text)">${a.atendente}${a.setor?`<span style="font-size:9.5px;color:var(--text3);margin-left:5px">${a.setor}</span>`:''}</span>
         <div style="display:flex;gap:8px;align-items:center">
@@ -3990,7 +4022,7 @@ function renderDashRetencao() {
   if (tipoBadge) tipoBadge.textContent = `${porTipo.length} tipos`;
   if (tipoEl) tipoEl.innerHTML = porTipo.map(t=>{
     const pctRev = t.total ? Math.round(t.revertidos/t.total*100) : 0;
-    return `<div style="margin-bottom:9px">
+    return `<div onclick="goPage('retencao',document.querySelector('.nav-item[onclick*=\\'retencao\\']'))" style="margin-bottom:9px;cursor:pointer;padding:3px 5px;border-radius:5px;transition:background .15s" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
       <div style="display:flex;justify-content:space-between;margin-bottom:3px;align-items:center">
         <span style="font-size:11.5px;font-weight:500;color:var(--text);max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.tipo}</span>
         <div style="display:flex;gap:10px;align-items:center">
@@ -4014,7 +4046,7 @@ function renderDashRetencao() {
   if (atEl) atEl.innerHTML = porAt.map(a=>{
     const taxa = a.taxa ?? 0;
     const cor  = taxa >= 70 ? '#22c55e' : taxa >= 50 ? 'var(--amber)' : '#f43f5e';
-    return `<div style="margin-bottom:9px;break-inside:avoid">
+    return `<div onclick="goPage('retencao',document.querySelector('.nav-item[onclick*=\\'retencao\\']'))" style="margin-bottom:9px;break-inside:avoid;cursor:pointer;padding:3px 5px;border-radius:5px;transition:background .15s" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
       <div style="display:flex;justify-content:space-between;margin-bottom:3px;align-items:center">
         <span style="font-size:11.5px;font-weight:500;color:var(--text)">${a.atendente}</span>
         <div style="display:flex;gap:8px;align-items:center">
@@ -4118,7 +4150,7 @@ function renderDashComercial() {
   if (cidEl) cidEl.innerHTML = cidades.length ? cidades.map(c => {
     const pct     = Math.round(c.total / maxCid * 100);
     const pctReat = c.total > 0 ? Math.round((c.reat||0) / c.total * 100) : 0;
-    return `<div style="margin-bottom:8px">
+    return `<div onclick="setComFiltro('cidade','${c.nome.replace(/'/g,"&#39;")}');goPage('comercial',document.querySelector('.nav-item[onclick*=\\'comercial\\']'))" style="margin-bottom:8px;cursor:pointer;padding:3px 5px;border-radius:5px;transition:background .15s" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
       <div style="display:flex;justify-content:space-between;margin-bottom:3px">
         <span style="font-size:11.5px;font-weight:500;color:var(--text);max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.nome}</span>
         <span style="font-size:12px;font-weight:700;color:var(--text2)">${c.total}${pctReat>0?` <span style="color:var(--cyan);font-size:10px">${pctReat}% reat.</span>`:''}</span>
@@ -4134,7 +4166,7 @@ function renderDashComercial() {
   const maxVend = vendeds[0]?.total || 1;
   if (vendEl) vendEl.innerHTML = vendeds.length ? vendeds.map(v => {
     const pct = Math.round(v.total / maxVend * 100);
-    return `<div style="margin-bottom:8px">
+    return `<div onclick="setComFiltro('vendedor','${v.nome.replace(/'/g,"&#39;")}');goPage('comercial',document.querySelector('.nav-item[onclick*=\\'comercial\\']'))" style="margin-bottom:8px;cursor:pointer;padding:3px 5px;border-radius:5px;transition:background .15s" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
       <div style="display:flex;justify-content:space-between;margin-bottom:3px">
         <span style="font-size:11.5px;font-weight:500;color:var(--text);max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.nome}</span>
         <span style="font-size:12px;font-weight:700;color:#22c55e">${v.total}</span>
@@ -4252,7 +4284,8 @@ function renderDashConexoes() {
     const tot    = c.online + c.offline;
     const pctOff = tot > 0 ? Math.round(c.offline/tot*100) : 0;
     const pctOn  = 100 - pctOff;
-    return `<div style="margin-bottom:9px">
+    const hasCoords = c.lat && c.lng;
+    return `<div onclick="goPage('conexoes',document.querySelector('.nav-item[onclick*=\\'conexoes\\']'));${hasCoords ? `setTimeout(()=>cxZoomCidade(${c.lat},${c.lng}),400)` : ''}" style="margin-bottom:9px;cursor:pointer;padding:3px 5px;border-radius:5px;transition:background .15s" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
       <div style="display:flex;justify-content:space-between;margin-bottom:3px;align-items:center">
         <span style="font-size:12px;font-weight:500;color:var(--text);max-width:50%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.nome}</span>
         <div style="display:flex;gap:10px;font-size:11px">
@@ -4678,16 +4711,64 @@ function setComPeriodo(p, el) {
   if (p !== 'custom') loadComercial();
 }
 
+// ── Estado de filtros ativos ──────────────────────────────────────
+let _comFiltro      = { type: '', val: '' }; // filtro ativo no comercial
+let _retFiltroAt    = '';                     // filtro atendente retenção
+let _retFiltroTip   = '';                     // filtro tipo retenção
+
+function setRetFiltro(tipo, val) {
+  if (tipo === 'atendente') {
+    _retFiltroAt  = _retFiltroAt === val ? '' : val;
+    _retFiltroTip = '';
+  } else {
+    _retFiltroTip = _retFiltroTip === val ? '' : val;
+    _retFiltroAt  = '';
+  }
+  if (_retData) renderRetencao(_retData);
+}
+
+function setComFiltro(type, val) {
+  if (_comFiltro.type === type && _comFiltro.val === val) {
+    _comFiltro = { type: '', val: '' }; // toggle off
+  } else {
+    _comFiltro = { type, val };
+  }
+  if (_comData) {
+    renderComercialFiltrado(_comData);
+    // Atualiza visual ativo nas barras
+    renderComBarras('com-cidades-bars',  _comData.cidades,   _comData.cidades[0]?.total||1,  '#6366f1','#06b6d4');
+    renderComBarras('com-vendedor-bars', _comData.vendedores,_comData.vendedores[0]?.total||1,'#22c55e','#06b6d4');
+    renderComPlanoDonut(_comData.planos);
+  }
+}
+
+function renderComercialFiltrado(data) {
+  let ultimas = data.ultimas || [];
+  const badge = document.getElementById('com-filtro-badge');
+  if (_comFiltro.val) {
+    if (_comFiltro.type === 'cidade')   ultimas = ultimas.filter(v => v.cidade   === _comFiltro.val);
+    if (_comFiltro.type === 'vendedor') ultimas = ultimas.filter(v => v.vendedor === _comFiltro.val);
+    if (_comFiltro.type === 'plano')    ultimas = ultimas.filter(v => v.plano    === _comFiltro.val);
+    if (badge) { badge.textContent = `Filtro: ${_comFiltro.val} ✕`; badge.style.display=''; badge.onclick=()=>setComFiltro('',''); }
+  } else {
+    if (badge) badge.style.display = 'none';
+  }
+  renderComUltimas(ultimas);
+}
+
 function renderComBarras(containerId, items, maxVal, colorNew, colorReat) {
   const el = document.getElementById(containerId);
   if (!el) return;
   if (!items.length) { el.innerHTML = '<div style="color:var(--text3);font-size:12px;text-align:center;padding:20px">Sem dados</div>'; return; }
+  const filterType = containerId.includes('cidade') ? 'cidade' : 'vendedor';
   el.innerHTML = items.map(item => {
     const pctTotal = maxVal > 0 ? Math.round(item.total / maxVal * 100) : 0;
     const pctReat  = item.total > 0 ? Math.round((item.reat||0) / item.total * 100) : 0;
-    return `<div style="margin-bottom:10px">
+    const isActive = _comFiltro.type === filterType && _comFiltro.val === item.nome;
+    return `<div onclick="setComFiltro('${filterType}','${item.nome.replace(/'/g,"&#39;")}')"
+      style="margin-bottom:10px;cursor:pointer;padding:4px 6px;border-radius:6px;border:1.5px solid ${isActive?'var(--accent)':'transparent'};background:${isActive?'var(--accent-light)':'transparent'};transition:.15s">
       <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
-        <span style="color:var(--text);font-weight:500;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${item.nome}">${item.nome}</span>
+        <span style="color:${isActive?'var(--accent)':'var(--text)'};font-weight:${isActive?'700':'500'};max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${item.nome}">${item.nome}</span>
         <span style="color:var(--text3)">${item.total}${item.reat ? ` <span style="color:var(--cyan)">(${item.reat} reat.)</span>` : ''}</span>
       </div>
       <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden">
@@ -4720,32 +4801,43 @@ function renderComPlanoDonut(planos) {
     const xi2 = cx + ri * Math.cos(endAngle),   yi2 = cy + ri * Math.sin(endAngle);
     const large = angle > Math.PI ? 1 : 0;
     const color = COLORS[i % COLORS.length];
-    paths += `<path d="M ${xi1} ${yi1} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} L ${xi2} ${yi2} A ${ri} ${ri} 0 ${large} 0 ${xi1} ${yi1} Z" fill="${color}" title="${p.nome}: ${p.total}"><title>${p.nome}: ${p.total}</title></path>`;
+    const isActivePlan = _comFiltro.type === 'plano' && _comFiltro.val === p.nome;
+    const dimmed = _comFiltro.type === 'plano' && !isActivePlan;
+    paths += `<path onclick="setComFiltro('plano','${p.nome.replace(/'/g,"&#39;")}')"
+      d="M ${xi1} ${yi1} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} L ${xi2} ${yi2} A ${ri} ${ri} 0 ${large} 0 ${xi1} ${yi1} Z"
+      fill="${color}" stroke="${isActivePlan ? '#fff' : 'var(--bg)'}" stroke-width="${isActivePlan ? '3' : '1.5'}"
+      style="cursor:pointer;opacity:${dimmed ? '0.4' : '1'};transition:opacity .15s">
+      <title>${p.nome}: ${p.total}</title></path>`;
     startAngle = endAngle;
   });
 
   svgEl.innerHTML = `${paths}<text x="100" y="95" text-anchor="middle" font-size="18" font-weight="700" fill="var(--text)">${total}</text><text x="100" y="112" text-anchor="middle" font-size="10" fill="var(--text3)">vendas</text>`;
 
   if (legEl) {
-    legEl.innerHTML = planos.slice(0,10).map((p,i) => `
-      <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:4px">
+    legEl.innerHTML = planos.slice(0,10).map((p,i) => {
+      const isActivePlan = _comFiltro.type === 'plano' && _comFiltro.val === p.nome;
+      return `
+      <div onclick="setComFiltro('plano','${p.nome.replace(/'/g,"&#39;")}')" style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:4px;cursor:pointer;padding:3px 5px;border-radius:4px;border:1.5px solid ${isActivePlan ? 'var(--accent)' : 'transparent'};background:${isActivePlan ? 'var(--accent-light)' : 'transparent'}">
         <div style="display:flex;align-items:center;gap:5px">
           <span style="width:8px;height:8px;border-radius:2px;background:${COLORS[i%COLORS.length]};display:inline-block;flex-shrink:0"></span>
-          <span style="color:var(--text2);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.nome}">${p.nome}</span>
+          <span style="color:${isActivePlan ? 'var(--accent)' : 'var(--text2)'};max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.nome}">${p.nome}</span>
         </div>
         <span style="color:var(--text3);font-weight:600">${p.total} <span style="color:var(--text3);font-weight:400">(${Math.round(p.total/total*100)}%)</span></span>
       </div>
-    `).join('');
+    `}).join('');
   }
 }
 
+let _comUltimasList = [];
+
 function renderComUltimas(ultimas) {
+  _comUltimasList = ultimas;
   const tb = document.getElementById('com-ult-tbl');
   if (!tb) return;
   if (!ultimas.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Sem dados</td></tr>'; return; }
   const fmtData = d => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
-  tb.innerHTML = ultimas.map(v => `<tr>
-    <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${v.cliente}">${v.cliente}</td>
+  tb.innerHTML = ultimas.map((v, i) => `<tr onclick="verDetalhesVenda(${i})" style="cursor:pointer" title="Ver detalhes">
+    <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--accent);text-decoration:underline dotted" title="${v.cliente}">${v.cliente}</td>
     <td>${v.cidade || '—'}</td>
     <td style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.vendedor || '—'}</td>
     <td><span style="background:var(--accent-light);color:var(--accent);font-size:10px;padding:2px 6px;border-radius:4px;white-space:nowrap">${v.plano}</span></td>
@@ -4755,6 +4847,29 @@ function renderComUltimas(ultimas) {
       : '<span style="background:rgba(34,197,94,.12);color:#22c55e;font-size:10px;padding:2px 6px;border-radius:4px">Nova</span>'
     }</td>
   </tr>`).join('');
+}
+
+function verDetalhesVenda(idx) {
+  const v = _comUltimasList[idx];
+  if (!v) return;
+  const modal = document.getElementById('modalClienteDetalhe');
+  const nome  = document.getElementById('modalClienteNome');
+  const tipos = document.getElementById('modalClienteTipos');
+  if (!modal) return;
+  if (nome) nome.textContent = v.cliente;
+  if (tipos) {
+    const fmtData = d => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
+    tipos.innerHTML = `<table style="width:100%;border-collapse:collapse">
+      <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 4px;color:var(--text3);font-size:12px;width:80px">Cidade</td><td style="padding:8px 4px">${v.cidade || '—'}</td></tr>
+      <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 4px;color:var(--text3);font-size:12px">Vendedor</td><td style="padding:8px 4px">${v.vendedor || '—'}</td></tr>
+      <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 4px;color:var(--text3);font-size:12px">Plano</td><td style="padding:8px 4px"><span style="background:var(--accent-light);color:var(--accent);font-size:11px;padding:2px 6px;border-radius:4px">${v.plano}</span></td></tr>
+      <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 4px;color:var(--text3);font-size:12px">Data</td><td style="padding:8px 4px">${fmtData(v.dataCad || v.dataVenda)}</td></tr>
+      <tr><td style="padding:8px 4px;color:var(--text3);font-size:12px">Tipo</td><td style="padding:8px 4px">${v.reativacao
+        ? '<span style="background:rgba(6,182,212,.12);color:var(--cyan);font-size:11px;padding:2px 6px;border-radius:4px">Reativação</span>'
+        : '<span style="background:rgba(34,197,94,.12);color:#22c55e;font-size:11px;padding:2px 6px;border-radius:4px">Venda Nova</span>'}</td></tr>
+    </table>`;
+  }
+  modal.style.display = 'flex';
 }
 
 async function loadComercial() {
@@ -5010,6 +5125,13 @@ function renderConexoesMap(cidades) {
   }
 }
 
+function cxZoomCidade(lat, lng) {
+  if (!lat || !lng || !window._cxMap) return;
+  window._cxMap.setView([lat, lng], 12);
+  const mapEl = document.querySelector('#page-conexoes .leaflet-container');
+  if (mapEl) mapEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
 function renderConexoesCityList(cidades) {
   const el = document.getElementById('cx-city-list');
   if (!el) return;
@@ -5021,9 +5143,12 @@ function renderConexoesCityList(cidades) {
     const total = c.online + c.offline;
     const pct   = total > 0 ? Math.round(c.offline / total * 100) : 0;
     const color = cidadeColor(c.online, c.offline);
-    return `<div style="display:flex;flex-direction:column;gap:4px;padding:10px 14px;border-bottom:1px solid var(--border)">
+    const hasCoords = c.lat && c.lng;
+    return `<div onclick="${hasCoords ? `cxZoomCidade(${c.lat},${c.lng})` : ''}"
+      style="display:flex;flex-direction:column;gap:4px;padding:10px 14px;border-bottom:1px solid var(--border);${hasCoords ? 'cursor:pointer;' : ''}transition:background .15s"
+      ${hasCoords ? 'onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'"' : ''}>
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:12px;font-weight:500;color:var(--text)">${c.nome}</span>
+        <span style="font-size:12px;font-weight:500;color:var(--text)">${c.nome}${hasCoords ? ' <i class="fas fa-crosshairs" style="font-size:9px;color:var(--text3);margin-left:4px"></i>' : ''}</span>
         <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:${color}22;color:${color};font-weight:600">${pct}% off</span>
       </div>
       <div style="background:var(--border);border-radius:3px;height:4px;overflow:hidden">
