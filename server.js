@@ -1689,9 +1689,12 @@ app.get('/api/integracao/raw', async (req, res) => {
 let _cxCache      = null;  // { clientes, cidades, ts }
 let _cxFetching   = false; // lock para evitar fetch paralelo
 
+const CIDADES_EXCLUIDAS = ['SANTO ANTÔNIO DO MONTE'];
+
 function buildCidadeMap(clientes) {
   const cidadeMap = {};
   for (const c of clientes) {
+    if (CIDADES_EXCLUIDAS.includes((c.cidade || '').toUpperCase())) continue;
     if (!cidadeMap[c.cidade]) cidadeMap[c.cidade] = { nome: c.cidade, online: 0, offline: 0, lat: null, lng: null };
     if (c.online) cidadeMap[c.cidade].online++;
     else          cidadeMap[c.cidade].offline++;
