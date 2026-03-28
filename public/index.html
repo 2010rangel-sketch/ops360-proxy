@@ -420,6 +420,13 @@ input[type="text"]::placeholder { color:var(--text3); }
   #dashTabBar { overflow-x:auto; flex-wrap:nowrap!important; max-width:100%; }
   .dash-view-btn { padding:4px 8px!important; font-size:10px!important; }
   .dash-view-btn i { display:none; }
+
+  /* Conexões — mapa + lista empilhados no mobile */
+  .cx-layout-grid {
+    grid-template-columns:1fr!important;
+  }
+  #cx-map { height:300px!important; }
+  #page-conexoes .tbl-card { max-height:320px!important; }
 }
 </style>
 </head>
@@ -1206,11 +1213,11 @@ input[type="text"]::placeholder { color:var(--text3); }
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Taxa online</div><div class="kpi-mini-val" id="cx-taxa" style="color:var(--accent)">—</div></div>
       </div>
 
-      <!-- Map + Table side by side -->
-      <div style="display:grid;grid-template-columns:1fr 340px;gap:14px;align-items:start">
+      <!-- Map + Table side by side (mobile: empilhado) -->
+      <div style="display:grid;grid-template-columns:1fr 340px;gap:14px;align-items:start" class="cx-layout-grid">
         <!-- Map -->
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden">
-          <div id="cx-map" style="height:480px;width:100%"></div>
+          <div id="cx-map" style="height:480px;width:100%;min-height:260px"></div>
           <!-- Legend -->
           <div style="display:flex;gap:16px;padding:10px 14px;border-top:1px solid var(--border);flex-wrap:wrap">
             <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text3)"><span style="width:10px;height:10px;border-radius:50%;background:#22c55e;display:inline-block"></span>Todos online</div>
@@ -1894,6 +1901,8 @@ function goPage(id, el) {
   if (id === 'conexoes') {
     initConexoesMap();
     loadConexoes();
+    // Garante que o Leaflet recalcula tamanho após layout mobile ser aplicado
+    if (_cxMap) setTimeout(() => _cxMap.invalidateSize(), 300);
   }
 }
 
