@@ -37,7 +37,7 @@ setInterval(() => warmupComercial(), 1800000)   // refresh a cada 30min
 |---|---|
 | `GET /api/conexoes` | Retorna `{ ok, cidades, ts }` do `_cxCache` |
 | `GET /api/comercial` | Retorna `{ ok, total, novas, reativacoes, cidades[], vendedores[], planos[], ultimas[] }` |
-| `GET /api/atendimentos` | Busca atendimentos Hubsoft com paginação |
+| `GET /api/atendimentos` | Busca atendimentos; retorna `{ total, por_atendente, por_setor, por_tipo, clientes_recorrentes, lc_virtual, noc, periodo }` |
 | `GET /api/retencao` | Pedidos de cancelamento filtrados |
 | `GET /api/chamados` | OS do sistema de chamados |
 | `GET /api/integracao/raw` | Debug — primeiros 3 clientes com todos os campos |
@@ -47,6 +47,15 @@ setInterval(() => warmupComercial(), 1800000)   // refresh a cada 30min
 - **IMPORTANTE**: `status_conexao` e `ultima_conexao` NÃO são relações válidas
 - Online = `ipv4 !== '' && ipv4 !== '0.0.0.0'` (campo nativo no objeto de serviço)
 - Cidade vem de `endereco_instalacao.nome_cidade` (requer `relacoes=endereco_instalacao`)
+
+### Atendimentos — NOC separado
+- `SETORES_EXCLUIDOS = ['NOC']` — NOC não entra nos totais de atendimento
+- Campo `noc` na resposta: `{ total, comOS, semOS, por_tipo[] }` — rede/infra separado
+- Setor `''` (sem setor) agora é contado normalmente (era excluído por bug)
+
+### Conexões — multi-serviço
+- Cliente com múltiplos serviços: online se **qualquer** serviço tem IP válido
+- Bug corrigido: antes só o 1º serviço era checado (`break` removido)
 
 ### buildComResult() / buildVendasFromClientes()
 - Reativação = `s.data_cancelamento` presente + status ativo
