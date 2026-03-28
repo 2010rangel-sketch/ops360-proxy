@@ -900,7 +900,8 @@ app.get('/api/retencao', async (req, res) => {
 
 // ── COMERCIAL — GET /api/v1/integracao/cliente/todos ─────────────
 // Helper: busca todas as páginas do endpoint de integração
-async function fetchIntegracaoClientes(token, params = {}) {
+// maxPag: limite de páginas (default 30 = 15.000 clientes); use menor para respostas rápidas
+async function fetchIntegracaoClientes(token, params = {}, maxPag = 30) {
   const headers = { Authorization: `Bearer ${token}` };
   const todos = [];
   let pagina = 0;
@@ -908,97 +909,97 @@ async function fetchIntegracaoClientes(token, params = {}) {
     const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/cliente/todos`, {
       headers, params: { itens_por_pagina: 500, ...params, pagina }, timeout: 15000,
     });
-    const clientes    = r.data?.clientes || [];
-    const ultimaPag   = r.data?.paginacao?.ultima_pagina ?? 0;
+    const clientes  = r.data?.clientes || [];
+    const ultimaPag = r.data?.paginacao?.ultima_pagina ?? 0;
     todos.push(...clientes);
     if (pagina >= ultimaPag || clientes.length === 0) break;
     pagina++;
-    if (pagina > 20) break; // segurança: max 10.000 registros
+    if (pagina > maxPag) break;
   }
   return todos;
+}
+
+// Cache do comercial (por período)
+const _comCache = new Map(); // key=ini_fim → { data, ts }
+
+async function fetchComercialData(iniStr, fimStr) {
+  const cacheKey = `${iniStr}_${fimStr}`;
+  const cached   = _comCache.get(cacheKey);
+  // Cache válido por 10 minutos
+  if (cached && (Date.now() - cached.ts) < 600000) return cached.data;
+
+  const agora  = new Date();
+  const token  = await getToken();
+  // Busca em ordem decrescente de cadastro para pegar os mais recentes primeiro
+  // Limita a 30 páginas (15.000 clientes) para evitar timeout
+  const clientes = await fetchIntegracaoClientes(token, { cancelado: 'nao' }, 30);
+
+  const iniMs = new Date(iniStr).getTime();
+  const fimMs = new Date(fimStr + 'T23:59:59').getTime();
+
+  const vendas = [];
+  for (const cli of clientes) {
+    const nome    = cli.nome_razaosocial || cli.nome_fantasia || '—';
+    const dataCad = cli.data_cadastro;
+    const cadMs   = dataCad ? new Date(dataCad).getTime() : 0;
+    if (!cadMs || cadMs < iniMs || cadMs > fimMs) continue;
+
+    const servicos = cli.servicos || [];
+    if (!servicos.length) {
+      vendas.push({ cliente: nome, cidade: 'Desconhecida', plano: '—', status: '', dataCad, reativacao: false });
+      continue;
+    }
+    for (const s of servicos) {
+      const cidade  = s.endereco_instalacao?.cidade || cli.cidade || 'Desconhecida';
+      const plano   = s.nome || '—';
+      const status  = s.status_prefixo || '';
+      const diasCad = cadMs ? (agora - new Date(dataCad)) / 86400000 : 0;
+      const reativacao = diasCad > 60 && (status === 'servico_habilitado' || status === 'ativo');
+      vendas.push({ cliente: nome, cidade, plano, status, dataCad, reativacao });
+    }
+  }
+
+  const cidadeMap = {};
+  for (const v of vendas) {
+    if (!cidadeMap[v.cidade]) cidadeMap[v.cidade] = { nome: v.cidade, total: 0, novas: 0, reat: 0 };
+    cidadeMap[v.cidade].total++;
+    if (v.reativacao) cidadeMap[v.cidade].reat++; else cidadeMap[v.cidade].novas++;
+  }
+  const planoMap = {};
+  for (const v of vendas) {
+    if (!planoMap[v.plano]) planoMap[v.plano] = { nome: v.plano, total: 0 };
+    planoMap[v.plano].total++;
+  }
+
+  const result = {
+    ok: true, fonte: 'integracao_cliente_todos',
+    total: vendas.length,
+    novas: vendas.filter(v => !v.reativacao).length,
+    reativacoes: vendas.filter(v => v.reativacao).length,
+    periodo: { ini: iniStr, fim: fimStr },
+    cidades:   Object.values(cidadeMap).sort((a,b) => b.total - a.total).slice(0, 15),
+    vendedores: [],
+    planos:    Object.values(planoMap).sort((a,b) => b.total - a.total),
+    ultimas:   vendas.slice(0, 50),
+  };
+  _comCache.set(cacheKey, { data: result, ts: Date.now() });
+  if (_comCache.size > 20) { // limpa cache velho
+    const oldest = [..._comCache.keys()][0];
+    _comCache.delete(oldest);
+  }
+  return result;
 }
 
 app.get('/api/comercial', async (req, res) => {
   try {
     const agora = new Date();
+    const fmtDate = d => d.toISOString().slice(0, 10);
     const primeiroDiaMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
     const ultimoDiaMes   = new Date(agora.getFullYear(), agora.getMonth() + 1, 0);
-
-    const fmtDate = d => d.toISOString().slice(0, 10); // YYYY-MM-DD
-    const iniStr  = req.query.data_inicio || fmtDate(primeiroDiaMes);
-    const fimStr  = req.query.data_fim    || fmtDate(ultimoDiaMes);
-
-    const token    = await getToken();
-    // Busca todos os clientes ativos (sem filtro de data — filtramos abaixo por data_cadastro)
-    const clientes = await fetchIntegracaoClientes(token, { cancelado: 'nao' });
-
-    if (!clientes.length) {
-      return res.json({ ok: true, fonte: 'integracao_cliente_todos',
-        total: 0, novas: 0, reativacoes: 0, cidades: [], vendedores: [], planos: [], ultimas: [],
-        periodo: { ini: iniStr, fim: fimStr } });
-    }
-
-    const iniMs = new Date(iniStr).getTime();
-    const fimMs = new Date(fimStr + 'T23:59:59').getTime();
-
-    // Normaliza cada cliente/serviço, filtrando pela data_cadastro no período
-    const vendas = [];
-    for (const cli of clientes) {
-      const nome     = cli.nome_razaosocial || cli.nome_fantasia || '—';
-      const dataCad  = cli.data_cadastro;
-      const cadMs    = dataCad ? new Date(dataCad).getTime() : 0;
-      // Só inclui clientes cadastrados no período selecionado
-      if (!cadMs || cadMs < iniMs || cadMs > fimMs) continue;
-
-      const servicos = cli.servicos || [];
-      if (!servicos.length) {
-        vendas.push({ cliente: nome, cidade: 'Desconhecida', plano: '—', status: '', dataCad, reativacao: false });
-        continue;
-      }
-      for (const s of servicos) {
-        const cidade   = s.endereco_instalacao?.cidade || cli.cidade || 'Desconhecida';
-        const plano    = s.nome || '—';
-        const status   = s.status_prefixo || '';
-        // Reativação: cliente cadastrado há mais de 60 dias com serviço ativo agora
-        const diasCad  = cadMs ? (agora - new Date(dataCad)) / 86400000 : 0;
-        const reativacao = diasCad > 60 && (status === 'servico_habilitado' || status === 'ativo');
-
-        vendas.push({ cliente: nome, cidade, plano, status, dataCad, reativacao });
-      }
-    }
-
-    // Agrega por cidade
-    const cidadeMap = {};
-    for (const v of vendas) {
-      if (!cidadeMap[v.cidade]) cidadeMap[v.cidade] = { nome: v.cidade, total: 0, novas: 0, reat: 0 };
-      cidadeMap[v.cidade].total++;
-      if (v.reativacao) cidadeMap[v.cidade].reat++; else cidadeMap[v.cidade].novas++;
-    }
-    const cidades = Object.values(cidadeMap).sort((a,b) => b.total - a.total).slice(0, 15);
-
-    // Agrega por plano
-    const planoMap = {};
-    for (const v of vendas) {
-      if (!planoMap[v.plano]) planoMap[v.plano] = { nome: v.plano, total: 0 };
-      planoMap[v.plano].total++;
-    }
-    const planos = Object.values(planoMap).sort((a,b) => b.total - a.total);
-
-    const novas       = vendas.filter(v => !v.reativacao).length;
-    const reativacoes = vendas.filter(v =>  v.reativacao).length;
-
-    res.json({
-      ok: true,
-      fonte: 'integracao_cliente_todos',
-      total: vendas.length,
-      novas,
-      reativacoes,
-      periodo: { ini: iniStr, fim: fimStr },
-      cidades,
-      vendedores: [], // endpoint não retorna vendedor
-      planos,
-      ultimas: vendas.slice(0, 50),
-    });
+    const iniStr = req.query.data_inicio || fmtDate(primeiroDiaMes);
+    const fimStr = req.query.data_fim    || fmtDate(ultimoDiaMes);
+    const data   = await fetchComercialData(iniStr, fimStr);
+    res.json(data);
   } catch(e) {
     res.json({ ok: false, motivo: e.message, vendas: [], cidades: [], vendedores: [], planos: [] });
   }
@@ -1581,7 +1582,6 @@ app.get('/api/geo/debug', async (req, res) => {
 });
 
 // ── CONEXÕES — Status online/offline de clientes ──────────────────
-let _prevCidadeStats = {}; // snapshot anterior para detectar quedas
 const offlineAlertSent = new Set(); // evita alertas duplicados
 
 // Busca status de assinante por ID individual: GET /api/v1/cliente/{id}/assinante
@@ -1625,95 +1625,126 @@ app.get('/api/integracao/raw', async (req, res) => {
   }
 });
 
-// Busca TODOS os clientes ativos com status de conexão
-async function fetchConexoesHubsoft() {
-  const token    = await getToken();
-  // endereco_instalacao como relação traz coordenadas; ipv4 já vem por padrão no serviço
-  const clientes = await fetchIntegracaoClientes(token, {
-    cancelado: 'nao',
-    relacoes:  'endereco_instalacao',
-  });
-  if (!clientes.length) return null;
+// ── Cache de conexões (evita timeout: endpoint devolve cache instantâneo) ──
+let _cxCache      = null;  // { clientes, cidades, ts }
+let _cxFetching   = false; // lock para evitar fetch paralelo
 
-  const resultado = [];
-  for (const cli of clientes) {
-    const nome       = cli.nome_razaosocial || '—';
-    const alerta     = cli.alerta === true;
-    const alertaMsgs = cli.alerta_mensagens || [];
-    const servicos   = cli.servicos || [];
-
-    if (!servicos.length) {
-      resultado.push({ id: cli.id_cliente, nome, cidade: cli.cidade || 'Desconhecida',
-        lat: null, lng: null, online: false, alerta, alertaMsgs });
-      continue;
-    }
-
-    for (const s of servicos) {
-      const endInst = s.endereco_instalacao || {};
-      const lat     = endInst.coordenadas?.latitude  != null ? parseFloat(endInst.coordenadas.latitude)  : null;
-      const lng     = endInst.coordenadas?.longitude != null ? parseFloat(endInst.coordenadas.longitude) : null;
-      const cidade  = endInst.cidade || cli.cidade || 'Desconhecida';
-
-      // ipv4 atribuído = cliente online (campo nativo do serviço, sem relação extra)
-      const ip     = s.ipv4 || '';
-      const online = ip !== '' && ip !== null && ip !== '0.0.0.0';
-
-      resultado.push({ id: cli.id_cliente, nome, cidade, lat, lng, online, alerta, alertaMsgs });
-      break; // um registro por cliente
-    }
+function buildCidadeMap(clientes) {
+  const cidadeMap = {};
+  for (const c of clientes) {
+    if (!cidadeMap[c.cidade]) cidadeMap[c.cidade] = { nome: c.cidade, online: 0, offline: 0, lat: null, lng: null };
+    if (c.online) cidadeMap[c.cidade].online++;
+    else          cidadeMap[c.cidade].offline++;
+    if (c.lat && !cidadeMap[c.cidade].lat) { cidadeMap[c.cidade].lat = c.lat; cidadeMap[c.cidade].lng = c.lng; }
   }
-  return resultado.length ? resultado : null;
+  return Object.values(cidadeMap).sort((a, b) => b.offline - a.offline);
+}
+
+// Busca TODOS os clientes ativos e popula o cache
+async function fetchConexoesHubsoft() {
+  if (_cxFetching) return _cxCache?.clientes || null;
+  _cxFetching = true;
+  try {
+    const token    = await getToken();
+    // endereco_instalacao como relação traz coordenadas; ipv4 já vem por padrão no serviço
+    const clientes = await fetchIntegracaoClientes(token, {
+      cancelado: 'nao',
+      relacoes:  'endereco_instalacao',
+    });
+    if (!clientes.length) { _cxFetching = false; return null; }
+
+    const resultado = [];
+    for (const cli of clientes) {
+      const nome       = cli.nome_razaosocial || '—';
+      const alerta     = cli.alerta === true;
+      const alertaMsgs = cli.alerta_mensagens || [];
+      const servicos   = cli.servicos || [];
+
+      if (!servicos.length) {
+        resultado.push({ id: cli.id_cliente, nome, cidade: cli.cidade || 'Desconhecida',
+          lat: null, lng: null, online: false, alerta, alertaMsgs });
+        continue;
+      }
+      for (const s of servicos) {
+        const endInst = s.endereco_instalacao || {};
+        const lat     = endInst.coordenadas?.latitude  != null ? parseFloat(endInst.coordenadas.latitude)  : null;
+        const lng     = endInst.coordenadas?.longitude != null ? parseFloat(endInst.coordenadas.longitude) : null;
+        const cidade  = endInst.cidade || cli.cidade || 'Desconhecida';
+        // ipv4 atribuído = cliente online
+        const ip      = s.ipv4 || '';
+        const online  = ip !== '' && ip !== '0.0.0.0';
+        resultado.push({ id: cli.id_cliente, nome, cidade, lat, lng, online, alerta, alertaMsgs });
+        break; // um registro por cliente
+      }
+    }
+
+    const cidades = buildCidadeMap(resultado);
+    _cxCache = { clientes: resultado, cidades, ts: new Date().toISOString() };
+    console.log(`[conexoes] Cache atualizado: ${resultado.length} clientes, ${cidades.length} cidades`);
+    _cxFetching = false;
+    return resultado;
+  } catch(e) {
+    _cxFetching = false;
+    throw e;
+  }
 }
 
 app.get('/api/conexoes', async (req, res) => {
   try {
+    // Serve o cache se disponível (resposta < 100ms)
+    if (_cxCache) {
+      return res.json({ ok: true, clientes: _cxCache.clientes.length,
+        cidades: _cxCache.cidades, ts: _cxCache.ts, cache: true });
+    }
+    // Primeira chamada: busca agora (pode demorar)
     const clientes = await fetchConexoesHubsoft();
     if (!clientes) {
       return res.json({ ok: false, motivo: 'sem_clientes_na_base', clientes: [], cidades: [],
-        info: 'Nenhum cliente ativo encontrado na base via GET /api/v1/integracao/cliente/todos.' });
+        info: 'Nenhum cliente ativo encontrado.' });
     }
-    // Agrupa por cidade
-    const cidadeMap = {};
-    for (const c of clientes) {
-      if (!cidadeMap[c.cidade]) cidadeMap[c.cidade] = { nome: c.cidade, online: 0, offline: 0, lat: null, lng: null };
-      if (c.online) cidadeMap[c.cidade].online++;
-      else           cidadeMap[c.cidade].offline++;
-      if (c.lat && !cidadeMap[c.cidade].lat) { cidadeMap[c.cidade].lat = c.lat; cidadeMap[c.cidade].lng = c.lng; }
-    }
-    const cidades = Object.values(cidadeMap).sort((a,b) => (b.offline - a.offline));
-    res.json({ ok: true, clientes: clientes.length, cidades, ts: new Date().toISOString() });
+    res.json({ ok: true, clientes: clientes.length, cidades: _cxCache.cidades, ts: _cxCache.ts });
   } catch(e) {
     console.error('[/api/conexoes]', e.message);
+    // Se há cache antigo, usa mesmo assim
+    if (_cxCache) {
+      return res.json({ ok: true, clientes: _cxCache.clientes.length,
+        cidades: _cxCache.cidades, ts: _cxCache.ts, cache: true, aviso: 'cache_antigo' });
+    }
     res.json({ ok: false, motivo: e.message, clientes: [], cidades: [] });
   }
 });
 
-// Cron: detecta queda massiva de clientes (a cada 3 minutos)
+// Cron: atualiza cache e detecta quedas (a cada 3 minutos)
 const OFFLINE_THRESHOLD = parseInt(process.env.OFFLINE_THRESHOLD || '5');
 cron.schedule('*/3 * * * *', async () => {
   try {
-    const clientes = await fetchConexoesHubsoft();
+    const prevClientes = _cxCache?.clientes || [];
+    const clientes = await fetchConexoesHubsoft(); // atualiza _cxCache
     if (!clientes) return;
 
+    // Detecta quedas comparando com estado anterior
+    const prev  = {};
+    for (const c of prevClientes) {
+      if (!prev[c.cidade]) prev[c.cidade] = { online: 0, offline: 0 };
+      if (c.online) prev[c.cidade].online++; else prev[c.cidade].offline++;
+    }
     const atual = {};
     for (const c of clientes) {
       if (!atual[c.cidade]) atual[c.cidade] = { online: 0, offline: 0 };
-      if (c.online) atual[c.cidade].online++;
-      else           atual[c.cidade].offline++;
+      if (c.online) atual[c.cidade].online++; else atual[c.cidade].offline++;
     }
 
     for (const [cidade, stats] of Object.entries(atual)) {
-      const prev     = _prevCidadeStats[cidade] || { online: 0, offline: 0 };
-      const deltaOff = stats.offline - prev.offline;
+      const prevStats = prev[cidade] || { online: 0, offline: 0 };
+      const deltaOff  = stats.offline - prevStats.offline;
       if (deltaOff >= OFFLINE_THRESHOLD) {
-        const key = `${cidade}-${Math.floor(Date.now() / 600000)}`; // janela 10 min
+        const key = `${cidade}-${Math.floor(Date.now() / 600000)}`;
         if (!offlineAlertSent.has(key)) {
           offlineAlertSent.add(key);
-          // Coleta alertas do Hubsoft para clientes dessa cidade
           const alertas = clientes
             .filter(c => c.cidade === cidade && c.alertaMsgs?.length)
             .flatMap(c => c.alertaMsgs)
-            .filter((v, i, a) => a.indexOf(v) === i) // únicos
+            .filter((v, i, a) => a.indexOf(v) === i)
             .slice(0, 3);
           const alertaTxt = alertas.length ? `\n\n📋 *Hubsoft:*\n${alertas.join('\n')}` : '';
           const hora = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
@@ -1723,8 +1754,6 @@ cron.schedule('*/3 * * * *', async () => {
         }
       }
     }
-
-    _prevCidadeStats = atual;
     if (offlineAlertSent.size > 200) offlineAlertSent.clear();
   } catch(e) {
     console.warn('[cron-conexoes]', e.message);
