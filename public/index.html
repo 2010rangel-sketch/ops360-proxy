@@ -1070,6 +1070,7 @@ input[type="text"]::placeholder { color:var(--text3); }
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">Resolvido remoto</div><div class="kpi-mini-val" id="at-semOS" style="color:var(--green)">—</div></div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">O.S Aberta</div><div class="kpi-mini-val" id="at-comOS" style="color:var(--accent)">—</div></div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">TMA médio</div><div class="kpi-mini-val" id="at-tma" style="color:var(--amber);font-size:18px">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--purple)"></div><div class="kpi-mini-label">NOC / Rede</div><div class="kpi-mini-val" id="at-noc-total" style="color:var(--purple)">—</div></div>
       </div>
       <!-- Filtro por setor + botão configurar -->
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
@@ -1123,6 +1124,22 @@ input[type="text"]::placeholder { color:var(--text3); }
           </div>
         </div>
       </div>
+      <!-- NOC / Rede — separado do atendimento comercial -->
+      <div class="tbl-card" id="nocSection" style="display:none;margin-bottom:14px">
+        <div class="tbl-header">
+          <span class="tbl-title">NOC / Rede</span>
+          <span class="badge" id="noc-badge" style="background:var(--purple);color:#fff">—</span>
+        </div>
+        <div style="display:flex;gap:24px;padding:10px 0 4px;flex-wrap:wrap">
+          <div style="font-size:12px;color:var(--text3)">Com OS: <span id="noc-comOS" style="color:var(--accent);font-weight:600">—</span></div>
+          <div style="font-size:12px;color:var(--text3)">Resolvido remoto: <span id="noc-semOS" style="color:var(--green);font-weight:600">—</span></div>
+        </div>
+        <div style="overflow-x:auto;max-height:200px;overflow-y:auto;margin-top:6px">
+          <table><thead><tr><th>#</th><th>Tipo</th><th>Qtd</th></tr></thead>
+          <tbody id="nocTiposTbl"></tbody></table>
+        </div>
+      </div>
+
       <!-- Modal detalhe cliente -->
       <div id="modalClienteDetalhe" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
         <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:24px;width:420px;max-width:95vw;max-height:70vh;overflow-y:auto">
@@ -3329,6 +3346,24 @@ function renderAtendimentos(data) {
   const tmaVals = (data.por_atendente||[]).filter(a => a.tma !== null).map(a => a.tma);
   const tmaMed  = tmaVals.length ? Math.round(tmaVals.reduce((s,v) => s+v, 0) / tmaVals.length) : null;
   elVal('at-tma', fmtTma(tmaMed));
+
+  // NOC stats (separado — rede/infra)
+  const noc = data.noc || null;
+  elVal('at-noc-total', noc ? noc.total : '—');
+  const nocSec = document.getElementById('nocSection');
+  if (nocSec) nocSec.style.display = noc && noc.total > 0 ? '' : 'none';
+  if (noc && noc.total > 0) {
+    const nocBadge = document.getElementById('noc-badge');
+    if (nocBadge) nocBadge.textContent = `${noc.total} atendimentos`;
+    elVal('noc-comOS', noc.comOS);
+    elVal('noc-semOS', noc.semOS);
+    const tbl = document.getElementById('nocTiposTbl');
+    if (tbl) {
+      tbl.innerHTML = (noc.por_tipo||[]).map((t, i) =>
+        `<tr><td style="color:var(--text3)">${i+1}</td><td>${t.tipo||'(sem tipo)'}</td><td class="mono" style="color:var(--purple);font-weight:600">${t.n}</td></tr>`
+      ).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--text3)">Sem dados</td></tr>';
+    }
+  }
 
   renderAtendimentosFiltrado();
 }
