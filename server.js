@@ -926,7 +926,6 @@ let _comFetching     = false;  // lock
 let _comFetchedAt    = 0;      // timestamp da última busca completa
 
 function buildVendasFromClientes(clientes, iniStr, fimStr) {
-  const agora = new Date();
   const iniMs = new Date(iniStr).getTime();
   const fimMs = new Date(fimStr + 'T23:59:59').getTime();
   const vendas = [];
@@ -934,33 +933,54 @@ function buildVendasFromClientes(clientes, iniStr, fimStr) {
     const nome    = cli.nome_razaosocial || cli.nome_fantasia || '—';
     const dataCad = cli.data_cadastro;
     const cadMs   = dataCad ? new Date(dataCad).getTime() : 0;
+    // Inclui se data_cadastro do cliente está no período
     if (!cadMs || cadMs < iniMs || cadMs > fimMs) continue;
+
     const servicos = cli.servicos || [];
     if (!servicos.length) {
-      vendas.push({ cliente: nome, cidade: 'Desconhecida', plano: '—', status: '', dataCad, reativacao: false });
+      vendas.push({ cliente: nome, cidade: 'Desconhecida', plano: '—',
+        vendedor: '—', status: '', dataCad, reativacao: false });
       continue;
     }
     for (const s of servicos) {
-      const cidade  = s.endereco_instalacao?.cidade || cli.cidade || 'Desconhecida';
+      // endereco_instalacao pode ser objeto (com relacao) ou só ID sem relacao
+      const endInst = typeof s.endereco_instalacao === 'object' && s.endereco_instalacao
+        ? s.endereco_instalacao : {};
+      const cidade  = endInst.cidade || 'Desconhecida';
       const plano   = s.nome || '—';
       const status  = s.status_prefixo || '';
-      const diasCad = cadMs ? (agora - new Date(dataCad)) / 86400000 : 0;
-      const reativacao = diasCad > 60 && (status === 'servico_habilitado' || status === 'ativo');
-      vendas.push({ cliente: nome, cidade, plano, status, dataCad, reativacao });
+
+      // Vendedor: campo do serviço (string ou objeto {nome})
+      const vend = s.vendedor;
+      const vendedor = typeof vend === 'string' ? vend
+        : (vend?.nome || vend?.name || '—');
+
+      // Reativação: tinha cancelamento anterior (data_cancelamento preenchido)
+      // mas o serviço está ativo agora no período selecionado
+      const reativacao = !!(s.data_cancelamento &&
+        (status === 'servico_habilitado' || status === 'ativo'));
+
+      vendas.push({ cliente: nome, cidade, plano, vendedor, status, dataCad, reativacao });
     }
   }
   return vendas;
 }
 
 function buildComResult(vendas, iniStr, fimStr) {
-  const cidadeMap = {};
-  const planoMap  = {};
+  const cidadeMap   = {};
+  const planoMap    = {};
+  const vendedorMap = {};
   for (const v of vendas) {
     if (!cidadeMap[v.cidade]) cidadeMap[v.cidade] = { nome: v.cidade, total: 0, novas: 0, reat: 0 };
     cidadeMap[v.cidade].total++;
     if (v.reativacao) cidadeMap[v.cidade].reat++; else cidadeMap[v.cidade].novas++;
     if (!planoMap[v.plano]) planoMap[v.plano] = { nome: v.plano, total: 0 };
     planoMap[v.plano].total++;
+    if (v.vendedor && v.vendedor !== '—') {
+      if (!vendedorMap[v.vendedor]) vendedorMap[v.vendedor] = { nome: v.vendedor, total: 0, novas: 0, reat: 0 };
+      vendedorMap[v.vendedor].total++;
+      if (v.reativacao) vendedorMap[v.vendedor].reat++; else vendedorMap[v.vendedor].novas++;
+    }
   }
   return {
     ok: true, fonte: 'integracao_cliente_todos',
@@ -969,7 +989,7 @@ function buildComResult(vendas, iniStr, fimStr) {
     reativacoes: vendas.filter(v => v.reativacao).length,
     periodo: { ini: iniStr, fim: fimStr },
     cidades:    Object.values(cidadeMap).sort((a,b) => b.total - a.total).slice(0, 15),
-    vendedores: [],
+    vendedores: Object.values(vendedorMap).sort((a,b) => b.total - a.total),
     planos:     Object.values(planoMap).sort((a,b) => b.total - a.total),
     ultimas:    vendas.slice(0, 50),
   };
@@ -984,7 +1004,9 @@ async function warmupComercial() {
   try {
     console.log('[comercial] Iniciando warm-up em background...');
     const token    = await getToken();
-    const clientes = await fetchIntegracaoClientes(token, { cancelado: 'nao' }, 30);
+    // relacoes=endereco_instalacao traz cidade; vendedor já vem no serviço por padrão
+    const clientes = await fetchIntegracaoClientes(token,
+      { cancelado: 'nao', relacoes: 'endereco_instalacao' }, 30);
     _comAllClientes = clientes;
     _comFetchedAt   = Date.now();
     console.log(`[comercial] Cache populado: ${clientes.length} clientes`);
