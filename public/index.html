@@ -4461,6 +4461,16 @@ async function loadComercial() {
     const errEl = document.getElementById('com-endpoint-error');
 
     if (!data.ok) {
+      if (data.warming) {
+        // Cache sendo carregado — auto-retry em 30s
+        if (noEp) noEp.style.display = '';
+        const titleEl = document.getElementById('com-endpoint-title');
+        if (titleEl) titleEl.textContent = '⏳ Carregando base de clientes...';
+        if (errEl)  errEl.textContent = 'O servidor está carregando os dados do Hubsoft. Tentando novamente em 30 segundos...';
+        if (badge) { badge.textContent = 'Carregando...'; badge.className = 'badge b-amber'; }
+        setTimeout(() => loadComercial(), 30000);
+        return;
+      }
       if (noEp)  noEp.style.display  = '';
       if (errEl) errEl.textContent   = data.info || data.motivo || '';
       const titleEl = document.getElementById('com-endpoint-title');

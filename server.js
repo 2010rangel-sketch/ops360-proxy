@@ -919,31 +919,22 @@ async function fetchIntegracaoClientes(token, params = {}, maxPag = 30) {
   return todos;
 }
 
-// Cache do comercial (por período)
-const _comCache = new Map(); // key=ini_fim → { data, ts }
+// ── Cache do comercial ────────────────────────────────────────────
+// _comAllClientes: todos os clientes ativos (15k+), atualizado em background
+let _comAllClientes  = null;   // array de clientes normalizados
+let _comFetching     = false;  // lock
+let _comFetchedAt    = 0;      // timestamp da última busca completa
 
-async function fetchComercialData(iniStr, fimStr) {
-  const cacheKey = `${iniStr}_${fimStr}`;
-  const cached   = _comCache.get(cacheKey);
-  // Cache válido por 10 minutos
-  if (cached && (Date.now() - cached.ts) < 600000) return cached.data;
-
-  const agora  = new Date();
-  const token  = await getToken();
-  // Busca em ordem decrescente de cadastro para pegar os mais recentes primeiro
-  // Limita a 30 páginas (15.000 clientes) para evitar timeout
-  const clientes = await fetchIntegracaoClientes(token, { cancelado: 'nao' }, 30);
-
+function buildVendasFromClientes(clientes, iniStr, fimStr) {
+  const agora = new Date();
   const iniMs = new Date(iniStr).getTime();
   const fimMs = new Date(fimStr + 'T23:59:59').getTime();
-
   const vendas = [];
   for (const cli of clientes) {
     const nome    = cli.nome_razaosocial || cli.nome_fantasia || '—';
     const dataCad = cli.data_cadastro;
     const cadMs   = dataCad ? new Date(dataCad).getTime() : 0;
     if (!cadMs || cadMs < iniMs || cadMs > fimMs) continue;
-
     const servicos = cli.servicos || [];
     if (!servicos.length) {
       vendas.push({ cliente: nome, cidade: 'Desconhecida', plano: '—', status: '', dataCad, reativacao: false });
@@ -958,37 +949,55 @@ async function fetchComercialData(iniStr, fimStr) {
       vendas.push({ cliente: nome, cidade, plano, status, dataCad, reativacao });
     }
   }
+  return vendas;
+}
 
+function buildComResult(vendas, iniStr, fimStr) {
   const cidadeMap = {};
+  const planoMap  = {};
   for (const v of vendas) {
     if (!cidadeMap[v.cidade]) cidadeMap[v.cidade] = { nome: v.cidade, total: 0, novas: 0, reat: 0 };
     cidadeMap[v.cidade].total++;
     if (v.reativacao) cidadeMap[v.cidade].reat++; else cidadeMap[v.cidade].novas++;
-  }
-  const planoMap = {};
-  for (const v of vendas) {
     if (!planoMap[v.plano]) planoMap[v.plano] = { nome: v.plano, total: 0 };
     planoMap[v.plano].total++;
   }
-
-  const result = {
+  return {
     ok: true, fonte: 'integracao_cliente_todos',
     total: vendas.length,
     novas: vendas.filter(v => !v.reativacao).length,
     reativacoes: vendas.filter(v => v.reativacao).length,
     periodo: { ini: iniStr, fim: fimStr },
-    cidades:   Object.values(cidadeMap).sort((a,b) => b.total - a.total).slice(0, 15),
+    cidades:    Object.values(cidadeMap).sort((a,b) => b.total - a.total).slice(0, 15),
     vendedores: [],
-    planos:    Object.values(planoMap).sort((a,b) => b.total - a.total),
-    ultimas:   vendas.slice(0, 50),
+    planos:     Object.values(planoMap).sort((a,b) => b.total - a.total),
+    ultimas:    vendas.slice(0, 50),
   };
-  _comCache.set(cacheKey, { data: result, ts: Date.now() });
-  if (_comCache.size > 20) { // limpa cache velho
-    const oldest = [..._comCache.keys()][0];
-    _comCache.delete(oldest);
-  }
-  return result;
 }
+
+// Dispara busca completa em background (sem bloquear requests HTTP)
+async function warmupComercial() {
+  if (_comFetching) return;
+  // Só rebusca se cache > 30 minutos
+  if (_comAllClientes && (Date.now() - _comFetchedAt) < 1800000) return;
+  _comFetching = true;
+  try {
+    console.log('[comercial] Iniciando warm-up em background...');
+    const token    = await getToken();
+    const clientes = await fetchIntegracaoClientes(token, { cancelado: 'nao' }, 30);
+    _comAllClientes = clientes;
+    _comFetchedAt   = Date.now();
+    console.log(`[comercial] Cache populado: ${clientes.length} clientes`);
+  } catch(e) {
+    console.warn('[comercial] Warm-up falhou:', e.message);
+  }
+  _comFetching = false;
+}
+
+// Inicia warm-up assim que o servidor sobe (sem await — não bloqueia)
+setTimeout(() => warmupComercial().catch(console.warn), 5000);
+// Renova a cada 30 minutos
+setInterval(() => warmupComercial().catch(console.warn), 1800000);
 
 app.get('/api/comercial', async (req, res) => {
   try {
@@ -998,8 +1007,21 @@ app.get('/api/comercial', async (req, res) => {
     const ultimoDiaMes   = new Date(agora.getFullYear(), agora.getMonth() + 1, 0);
     const iniStr = req.query.data_inicio || fmtDate(primeiroDiaMes);
     const fimStr = req.query.data_fim    || fmtDate(ultimoDiaMes);
-    const data   = await fetchComercialData(iniStr, fimStr);
-    res.json(data);
+
+    // Cache disponível → responde instantaneamente
+    if (_comAllClientes) {
+      const vendas = buildVendasFromClientes(_comAllClientes, iniStr, fimStr);
+      return res.json(buildComResult(vendas, iniStr, fimStr));
+    }
+
+    // Cache vazio → dispara warm-up e avisa o frontend
+    warmupComercial().catch(console.warn);
+    return res.json({
+      ok: false,
+      motivo: 'cache_warmup',
+      warming: true,
+      info: 'Base de clientes sendo carregada. Tente novamente em 60 segundos.',
+    });
   } catch(e) {
     res.json({ ok: false, motivo: e.message, vendas: [], cidades: [], vendedores: [], planos: [] });
   }
