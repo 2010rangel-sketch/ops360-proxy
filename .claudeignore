@@ -1,0 +1,8 @@
+# Nunca precisa ser lido — só gerenciado pelo npm automaticamente
+package-lock.json
+
+# Arquivo de preview antigo, não é o projeto real
+public/preview-dash-chamados.html
+
+# Dados de tarefas — JSON puro, não é código
+data/tasks.json
