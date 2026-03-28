@@ -40,9 +40,9 @@ const PORT = process.env.PORT || 3000;
 // ── Credenciais via variáveis de ambiente (configure no Railway) ──
 const HUBSOFT_HOST          = process.env.HUBSOFT_HOST          || 'https://api.lcvirtual.hubsoft.com.br';
 const HUBSOFT_CLIENT_ID     = process.env.HUBSOFT_CLIENT_ID     || '71';
-const HUBSOFT_CLIENT_SECRET = process.env.HUBSOFT_CLIENT_SECRET || 'OOZnYHxKg5R8FHKSJpSys6N1mmb2AR1eNA0ogpbb';
+const HUBSOFT_CLIENT_SECRET = process.env.HUBSOFT_CLIENT_SECRET || '';
 const HUBSOFT_USERNAME      = process.env.HUBSOFT_USERNAME      || '2026rangel@gmail.com';
-const HUBSOFT_PASSWORD      = process.env.HUBSOFT_PASSWORD      || 'Rangel26@';
+const HUBSOFT_PASSWORD      = process.env.HUBSOFT_PASSWORD      || '';
 const grant_type           = process.env.grant_type             || 'password';
 
 // ── Apple iCloud CalDAV ───────────────────────────────────────────
@@ -677,9 +677,11 @@ app.get('/api/atendimentos', async (req, res) => {
       return { tipo, atendente, setor, cliente, clienteId, temOS, isFechado, tmaMin };
     }
 
-    const SETORES_EXCLUIDOS = ['NOC', ''];
+    // NOC fica separado (rede/infra) mas sem setor ('') agora é contado normalmente
+    const SETORES_EXCLUIDOS = ['NOC'];
     const parsedAll = lista.map(parseA);
-    const parsed = parsedAll.filter(a => !SETORES_EXCLUIDOS.includes(a.setor));
+    const nocAll    = parsedAll.filter(a => a.setor === 'NOC');
+    const parsed    = parsedAll.filter(a => !SETORES_EXCLUIDOS.includes(a.setor));
 
     const isLC = (nome) => (nome || '').toUpperCase().includes('LC VIRTUAL') || (nome || '').toUpperCase().includes('LCVIRTUAL');
 
@@ -754,11 +756,23 @@ app.get('/api/atendimentos', async (req, res) => {
       .map(g => ({ ...g, tipos: Object.entries(g.tipos).sort((a,b)=>b[1]-a[1]).map(([tipo,n])=>({tipo,n})) }))
       .sort((a, b) => b.total - a.total);
 
+    // Estatísticas NOC separadas
+    const nocPorTipo = {};
+    nocAll.forEach(a => {
+      nocPorTipo[a.tipo] = (nocPorTipo[a.tipo] || 0) + 1;
+    });
+    const noc = {
+      total: nocAll.length,
+      comOS: nocAll.filter(a => a.temOS).length,
+      semOS: nocAll.filter(a => !a.temOS && a.isFechado).length,
+      por_tipo: Object.entries(nocPorTipo).sort((a,b)=>b[1]-a[1]).map(([tipo,n])=>({tipo,n})),
+    };
+
     const periodo = req.query.periodo || 'custom';
     res.json({
       ok: true,
       total: parsed.length,
-      por_atendente, por_setor, por_tipo, clientes_recorrentes, lc_virtual, periodo,
+      por_atendente, por_setor, por_tipo, clientes_recorrentes, lc_virtual, noc, periodo,
       sincronizado_em: new Date().toISOString(),
     });
   } catch (err) {
@@ -1711,17 +1725,23 @@ async function fetchConexoesHubsoft() {
           lat: null, lng: null, online: false, alerta, alertaMsgs });
         continue;
       }
+      // Verifica TODOS os serviços: se qualquer um tem IP válido, cliente está online
+      let cidade = cli.cidade || 'Desconhecida';
+      let lat = null, lng = null;
+      let online = false;
       for (const s of servicos) {
         const endInst = s.endereco_instalacao || {};
-        const lat     = endInst.coordenadas?.latitude  != null ? parseFloat(endInst.coordenadas.latitude)  : null;
-        const lng     = endInst.coordenadas?.longitude != null ? parseFloat(endInst.coordenadas.longitude) : null;
-        const cidade  = endInst.cidade || cli.cidade || 'Desconhecida';
-        // ipv4 atribuído = cliente online
-        const ip      = s.ipv4 || '';
-        const online  = ip !== '' && ip !== '0.0.0.0';
-        resultado.push({ id: cli.id_cliente, nome, cidade, lat, lng, online, alerta, alertaMsgs });
-        break; // um registro por cliente
+        // Usa coordenadas e cidade do primeiro serviço que tiver
+        if (lat === null && endInst.coordenadas?.latitude != null) {
+          lat = parseFloat(endInst.coordenadas.latitude);
+          lng = parseFloat(endInst.coordenadas.longitude);
+        }
+        if (endInst.cidade) cidade = endInst.cidade;
+        // Online se qualquer serviço ativo tem IP válido
+        const ip = s.ipv4 || '';
+        if (ip !== '' && ip !== '0.0.0.0') online = true;
       }
+      resultado.push({ id: cli.id_cliente, nome, cidade, lat, lng, online, alerta, alertaMsgs });
     }
 
     const cidades = buildCidadeMap(resultado);
