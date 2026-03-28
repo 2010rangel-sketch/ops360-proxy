@@ -1628,9 +1628,10 @@ app.get('/api/integracao/raw', async (req, res) => {
 // Busca TODOS os clientes ativos com status de conexão
 async function fetchConexoesHubsoft() {
   const token    = await getToken();
+  // endereco_instalacao como relação traz coordenadas; ipv4 já vem por padrão no serviço
   const clientes = await fetchIntegracaoClientes(token, {
     cancelado: 'nao',
-    relacoes:  'status_conexao,ultima_conexao,endereco_instalacao',
+    relacoes:  'endereco_instalacao',
   });
   if (!clientes.length) return null;
 
@@ -1640,29 +1641,25 @@ async function fetchConexoesHubsoft() {
     const alerta     = cli.alerta === true;
     const alertaMsgs = cli.alerta_mensagens || [];
     const servicos   = cli.servicos || [];
-    for (const s of servicos) {
-      const endInst = s.endereco_instalacao || {};
-      const lat     = endInst.coordenadas?.latitude  || null;
-      const lng     = endInst.coordenadas?.longitude || null;
-      const cidade  = endInst.cidade || cli.cidade || 'Desconhecida';
 
-      // Tenta todos os caminhos possíveis para o status online/offline
-      const sc = s.status_conexao || s.ultima_conexao || {};
-      const online =
-        sc.conectado === true ||
-        sc.online    === true ||
-        sc.status    === 'online' ||
-        sc.status    === 'conectado' ||
-        (s.ipv4 != null && s.ipv4 !== '' && s.ipv4 !== '0.0.0.0') ||
-        false;
-
-      resultado.push({ id: cli.id_cliente, nome, cidade, lat, lng, online, alerta, alertaMsgs });
-      break; // um por cliente
-    }
-    // Cliente sem serviços: ainda inclui para contar offline
     if (!servicos.length) {
       resultado.push({ id: cli.id_cliente, nome, cidade: cli.cidade || 'Desconhecida',
         lat: null, lng: null, online: false, alerta, alertaMsgs });
+      continue;
+    }
+
+    for (const s of servicos) {
+      const endInst = s.endereco_instalacao || {};
+      const lat     = endInst.coordenadas?.latitude  != null ? parseFloat(endInst.coordenadas.latitude)  : null;
+      const lng     = endInst.coordenadas?.longitude != null ? parseFloat(endInst.coordenadas.longitude) : null;
+      const cidade  = endInst.cidade || cli.cidade || 'Desconhecida';
+
+      // ipv4 atribuído = cliente online (campo nativo do serviço, sem relação extra)
+      const ip     = s.ipv4 || '';
+      const online = ip !== '' && ip !== null && ip !== '0.0.0.0';
+
+      resultado.push({ id: cli.id_cliente, nome, cidade, lat, lng, online, alerta, alertaMsgs });
+      break; // um registro por cliente
     }
   }
   return resultado.length ? resultado : null;
