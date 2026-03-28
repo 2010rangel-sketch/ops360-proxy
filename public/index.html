@@ -4277,7 +4277,7 @@ function renderDashConexoes() {
   const totalOnline  = cidades.reduce((s,c)=>s+c.online,0);
   const totalOffline = cidades.reduce((s,c)=>s+c.offline,0);
   const total        = totalOnline + totalOffline;
-  const afetadas     = cidades.filter(c=>c.offline>0).length;
+  const afetadas     = cidades.filter(c=>c.offline>=50).length;
   const taxa         = total > 0 ? Math.round(totalOnline/total*100) : 0;
 
   ev('dcx-online',  totalOnline  || '—');
@@ -5233,7 +5233,7 @@ async function loadConexoes() {
     const totalOn  = cidades.reduce((s,c) => s + c.online, 0);
     const totalOff = cidades.reduce((s,c) => s + c.offline, 0);
     const total    = totalOn + totalOff;
-    const afetadas = cidades.filter(c => c.offline > 0).length;
+    const afetadas = cidades.filter(c => c.offline >= 50).length;
     const taxa     = total > 0 ? Math.round(totalOn / total * 100) : 0;
 
     const ev = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
