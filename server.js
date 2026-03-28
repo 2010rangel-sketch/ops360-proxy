@@ -1018,6 +1018,8 @@ async function warmupComercial() {
 
 // Inicia warm-up assim que o servidor sobe (sem await — não bloqueia)
 setTimeout(() => warmupComercial().catch(console.warn), 5000);
+// Warm-up de conexões logo após o comercial (10s delay para não sobrecarregar)
+setTimeout(() => fetchConexoesHubsoft().catch(console.warn), 10000);
 // Renova a cada 30 minutos
 setInterval(() => warmupComercial().catch(console.warn), 1800000);
 

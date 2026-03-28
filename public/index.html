@@ -5047,6 +5047,13 @@ async function loadConexoes() {
     if (!data.ok) {
       if (noEp) noEp.style.display = '';
       const errEl = document.getElementById('cx-endpoint-error');
+      // Se servidor ainda está carregando o cache, auto-retry em 30s
+      if (data.motivo === 'sem_clientes_na_base' || (data.motivo && data.motivo.includes('timeout'))) {
+        if (errEl) errEl.textContent = 'Carregando base de clientes... Tentando novamente em 30s.';
+        if (badge) { badge.textContent = 'Carregando...'; badge.className = 'badge b-amber'; }
+        setTimeout(() => loadConexoes(), 30000);
+        return;
+      }
       if (errEl) errEl.textContent = data.motivo || '';
       if (badge) { badge.textContent = 'Sem dados'; badge.className = 'badge b-red'; }
       return;
