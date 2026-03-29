@@ -1783,6 +1783,251 @@ app.get('/api/conexoes', async (req, res) => {
   }
 });
 
+// ── FINANCEIRO ───────────────────────────────────────────────────
+let _finCache    = null;
+let _finFetching = false;
+let _finFetchedAt = 0;
+const FIN_CACHE_TTL = 30 * 60 * 1000; // 30 min
+
+function parseDate(s) {
+  if (!s) return null;
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+function mesesEntre(d1, d2) {
+  if (!d1 || !d2) return 0;
+  return Math.max(0, (d2 - d1) / (1000 * 60 * 60 * 24 * 30.44));
+}
+function fmtTempoFin(meses) {
+  if (meses < 1) return `${Math.round(meses * 30)} dias`;
+  if (meses < 12) return `${Math.round(meses)} meses`;
+  const anos = Math.floor(meses / 12);
+  const m    = Math.round(meses % 12);
+  return m > 0 ? `${anos}a ${m}m` : `${anos} ano${anos > 1 ? 's' : ''}`;
+}
+function getVendedorFin(s) {
+  const v = s.vendedor;
+  return typeof v === 'string' ? v : (v?.nome || v?.name || '—');
+}
+function getCidadeFin(s) {
+  const end = typeof s.endereco_instalacao === 'object' && s.endereco_instalacao ? s.endereco_instalacao : {};
+  return end.cidade || '—';
+}
+
+async function buildFinanceiro() {
+  // Reutiliza cache comercial de clientes ativos (15k+)
+  let ativos = _comAllClientes;
+  if (!ativos) {
+    const token = await getToken();
+    ativos = await fetchIntegracaoClientes(token, { cancelado: 'nao', relacoes: 'endereco_instalacao' });
+    _comAllClientes = ativos;
+  }
+
+  // Busca cancelados recentes (max 10 páginas = 5000)
+  const token2     = await getToken();
+  const canceladosRaw = await fetchIntegracaoClientes(token2, { cancelado: 'sim' }, 10);
+
+  const agora          = new Date();
+  const mesAtualIni    = new Date(agora.getFullYear(), agora.getMonth(), 1);
+  const mesAnteriorIni = new Date(agora.getFullYear(), agora.getMonth() - 1, 1);
+  const mesAnteriorFim = new Date(agora.getFullYear(), agora.getMonth(), 0, 23, 59, 59);
+  const h60            = new Date(agora.getTime() - 60 * 24 * 60 * 60 * 1000);
+
+  // ── Análise: clientes ativos ──────────────────────────────────
+  const suspensos     = [];
+  const novosSusp     = [];   // primeira mensalidade não paga
+  const novos60d      = [];   // todos os novos (denominador)
+  const ltvCandidates = [];
+  const mrr           = { total: 0, suspenso: 0 };
+  const vendMapAtivo  = {};
+
+  for (const cli of ativos) {
+    const nome     = cli.nome_razaosocial || cli.nome_fantasia || '—';
+    const dataCadCli = parseDate(cli.data_cadastro);
+
+    for (const s of (cli.servicos || [])) {
+      const status   = s.status_prefixo || '';
+      const valor    = parseFloat(s.valor) || 0;
+      const vendedor = getVendedorFin(s);
+      const cidade   = getCidadeFin(s);
+      const plano    = s.nome || '—';
+      const dataHab  = parseDate(s.data_habilitacao);
+      const isOn     = status === 'servico_habilitado';
+      const isCan    = !!s.data_cancelamento;
+
+      if (isOn && valor > 0)  mrr.total   += valor;
+      if (!isOn && !isCan && valor > 0) mrr.suspenso += valor;
+
+      if (!isOn && !isCan) {
+        suspensos.push({ nome, plano, valor, cidade, vendedor, status, dataHab: s.data_habilitacao });
+      }
+
+      if (isOn && dataCadCli) {
+        const m = mesesEntre(dataCadCli, agora);
+        ltvCandidates.push({
+          nome, cidade, plano, valor,
+          dataCad:    cli.data_cadastro,
+          mesesAtivo: Math.round(m * 10) / 10,
+          ltvDinheiro: Math.round(m * valor),
+          tempoFmt:    fmtTempoFin(m),
+        });
+      }
+
+      if (dataHab && dataHab >= h60) {
+        const obj = { nome, plano, valor, cidade, vendedor, dataHab: s.data_habilitacao, status };
+        novos60d.push(obj);
+        if (!isOn) novosSusp.push(obj);
+      }
+
+      // vendedor health
+      if (!vendMapAtivo[vendedor]) vendMapAtivo[vendedor] = { vendedor, ativos: 0, suspensos: 0, mrr: 0 };
+      if (isOn)          { vendMapAtivo[vendedor].ativos++; vendMapAtivo[vendedor].mrr += valor; }
+      else if (!isCan)     vendMapAtivo[vendedor].suspensos++;
+    }
+  }
+
+  ltvCandidates.sort((a, b) => new Date(a.dataCad) - new Date(b.dataCad));
+
+  // Primeira mensalidade por vendedor
+  const primMap = {};
+  for (const c of novos60d) {
+    const v = c.vendedor || '—';
+    if (!primMap[v]) primMap[v] = { vendedor: v, novos: 0, nao_pagou: 0, lista: [] };
+    primMap[v].novos++;
+    if (c.status !== 'servico_habilitado') {
+      primMap[v].nao_pagou++;
+      primMap[v].lista.push(c);
+    }
+  }
+
+  // ── Análise: cancelados ───────────────────────────────────────
+  const cancelMesAtual    = [];
+  const cancelMesAnterior = [];
+
+  for (const cli of canceladosRaw) {
+    const nome = cli.nome_razaosocial || cli.nome_fantasia || '—';
+    for (const s of (cli.servicos || [])) {
+      const dc = parseDate(s.data_cancelamento);
+      if (!dc) continue;
+      const dh    = parseDate(s.data_habilitacao);
+      const valor = parseFloat(s.valor) || 0;
+      const m     = mesesEntre(dh, dc);
+      const obj   = {
+        nome,
+        motivo:          s.motivo_cancelamento || '—',
+        vendedor:        getVendedorFin(s),
+        cidade:          getCidadeFin(s),
+        plano:           s.nome || '—',
+        valor,
+        dataHab:         s.data_habilitacao,
+        dataCancelamento: s.data_cancelamento,
+        mesesVida:       Math.round(m * 10) / 10,
+        ltvDinheiro:     Math.round(m * valor),
+        tempoFmt:        fmtTempoFin(m),
+      };
+      if (dc >= mesAtualIni)                           cancelMesAtual.push(obj);
+      else if (dc >= mesAnteriorIni && dc <= mesAnteriorFim) cancelMesAnterior.push(obj);
+    }
+  }
+
+  function buildCancelStats(lista) {
+    const porMotivo   = {};
+    const porVendedor = {};
+    lista.forEach(c => {
+      porMotivo[c.motivo] = (porMotivo[c.motivo] || 0) + 1;
+      if (!porVendedor[c.vendedor]) porVendedor[c.vendedor] = { vendedor: c.vendedor, n: 0, ltv: 0 };
+      porVendedor[c.vendedor].n++;
+      porVendedor[c.vendedor].ltv += c.ltvDinheiro;
+    });
+    const ltv_medio_meses = lista.length
+      ? lista.reduce((s, c) => s + c.mesesVida, 0) / lista.length : 0;
+    return {
+      total:            lista.length,
+      ltv_total:        lista.reduce((s, c) => s + c.ltvDinheiro, 0),
+      ltv_medio_dinheiro: lista.length ? Math.round(lista.reduce((s,c)=>s+c.ltvDinheiro,0)/lista.length) : 0,
+      ltv_medio_meses:  Math.round(ltv_medio_meses * 10) / 10,
+      ltv_medio_tempo:  fmtTempoFin(ltv_medio_meses),
+      valor_mensal_perdido: Math.round(lista.reduce((s, c) => s + c.valor, 0) * 100) / 100,
+      por_motivo:  Object.entries(porMotivo).sort((a, b) => b[1] - a[1]).map(([motivo, n]) => ({ motivo, n })),
+      por_vendedor: Object.values(porVendedor).sort((a, b) => b.n - a.n),
+      lista:       lista.slice(0, 100),
+    };
+  }
+
+  // Saúde por vendedor (add cancelamentos)
+  [...cancelMesAtual, ...cancelMesAnterior].forEach(c => {
+    if (!vendMapAtivo[c.vendedor]) vendMapAtivo[c.vendedor] = { vendedor: c.vendedor, ativos: 0, suspensos: 0, mrr: 0 };
+    vendMapAtivo[c.vendedor].cancelados60d = (vendMapAtivo[c.vendedor].cancelados60d || 0) + 1;
+  });
+  const porVendedor = Object.values(vendMapAtivo)
+    .filter(v => v.vendedor && v.vendedor !== '—')
+    .map(v => ({
+      ...v,
+      cancelados60d: v.cancelados60d || 0,
+      mrr:           Math.round(v.mrr * 100) / 100,
+      pct_saude:     (v.ativos + v.suspensos) > 0
+        ? Math.round(v.ativos / (v.ativos + v.suspensos) * 100) : 0,
+    }))
+    .sort((a, b) => b.ativos - a.ativos);
+
+  return {
+    ok: true,
+    resumo: {
+      mrr_total:           Math.round(mrr.total * 100) / 100,
+      mrr_suspenso:        Math.round(mrr.suspenso * 100) / 100,
+      total_ativos:        ativos.length,
+      total_suspensos:     suspensos.length,
+      pct_suspensos:       ativos.length > 0 ? Math.round(suspensos.length / ativos.length * 1000) / 10 : 0,
+      churn_mes_atual:     cancelMesAtual.length,
+      churn_mes_anterior:  cancelMesAnterior.length,
+      novos_60d:           novos60d.length,
+      primeira_mens_risco: novosSusp.length,
+      pct_primeira_mens:   novos60d.length > 0 ? Math.round(novosSusp.length / novos60d.length * 100) : 0,
+    },
+    suspensos:           suspensos.slice(0, 300).sort((a, b) => new Date(b.dataHab || 0) - new Date(a.dataHab || 0)),
+    ltv_top100:          ltvCandidates.slice(0, 100),
+    cancelamentos: {
+      mes_atual:    buildCancelStats(cancelMesAtual),
+      mes_anterior: buildCancelStats(cancelMesAnterior),
+    },
+    primeira_mensalidade: {
+      total_novos:  novos60d.length,
+      total_nao_pagou: novosSusp.length,
+      pct:          novos60d.length > 0 ? Math.round(novosSusp.length / novos60d.length * 100) : 0,
+      por_vendedor: Object.values(primMap)
+        .map(v => ({ ...v, pct: v.novos > 0 ? Math.round(v.nao_pagou / v.novos * 100) : 0, lista: v.lista.slice(0, 20) }))
+        .sort((a, b) => b.nao_pagou - a.nao_pagou),
+      lista: novosSusp.slice(0, 100),
+    },
+    por_vendedor:        porVendedor,
+    sincronizado_em:     new Date().toISOString(),
+  };
+}
+
+app.get('/api/financeiro', async (req, res) => {
+  try {
+    const agora = Date.now();
+    if (_finCache && (agora - _finFetchedAt) < FIN_CACHE_TTL) {
+      return res.json(_finCache);
+    }
+    if (_finFetching) {
+      if (_finCache) return res.json({ ..._finCache, cache: true });
+      return res.json({ ok: false, motivo: 'carregando', info: 'Análise financeira em andamento. Aguarde ~30s.' });
+    }
+    _finFetching = true;
+    const result      = await buildFinanceiro();
+    _finCache         = result;
+    _finFetchedAt     = agora;
+    _finFetching      = false;
+    res.json(result);
+  } catch (e) {
+    _finFetching = false;
+    console.error('[/api/financeiro]', e.message);
+    if (_finCache) return res.json({ ..._finCache, cache: true, aviso: e.message });
+    res.json({ ok: false, motivo: e.message });
+  }
+});
+
 // Cron: atualiza cache e detecta quedas (a cada 3 minutos)
 const OFFLINE_THRESHOLD = parseInt(process.env.OFFLINE_THRESHOLD || '5');
 cron.schedule('*/3 * * * *', async () => {

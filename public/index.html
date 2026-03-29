@@ -427,6 +427,10 @@ input[type="text"]::placeholder { color:var(--text3); }
   }
   #cx-map { height:300px!important; }
   #page-conexoes .tbl-card { max-height:320px!important; }
+  /* Financeiro — grids empilhados no mobile */
+  #fin-kpi-row    { grid-template-columns:repeat(2,1fr)!important; }
+  #fin-cancel-grid{ grid-template-columns:1fr!important; }
+  #fin-mid-grid   { grid-template-columns:1fr!important; }
 }
 </style>
 </head>
@@ -453,6 +457,7 @@ input[type="text"]::placeholder { color:var(--text3); }
   <div class="nav-item" onclick="goPage('comercial',this)"><i class="fas fa-briefcase"></i> Comercial</div>
   <div class="nav-item" onclick="goPage('retencao',this)"><i class="fas fa-user-shield"></i> Cancelamento / Retenção</div>
   <div class="nav-item" onclick="goPage('conexoes',this)"><i class="fas fa-wifi"></i> Conexões</div>
+  <div class="nav-item" onclick="goPage('financeiro',this)"><i class="fas fa-dollar-sign"></i> Financeiro</div>
 
   <div class="sidebar-section">Spaces</div>
   <div class="space-item" onclick="goPage('tarefas',this)"><div class="space-dot" style="background:#5b6af0">T</div> Tarefas</div>
@@ -1533,6 +1538,128 @@ input[type="text"]::placeholder { color:var(--text3); }
       </div>
     </div>
 
+    <!-- ═══ FINANCEIRO ═══ -->
+    <div class="page" id="page-financeiro">
+      <!-- Header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:16px;font-weight:700;color:var(--text)">Financeiro</div>
+          <div style="font-size:11px;color:var(--text3)">Saúde da carteira · inadimplência · churn · LTV</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <span class="badge b-blue" id="fin-sync-badge">—</span>
+          <button class="btn btn-primary btn-sm" onclick="loadFinanceiro(true)"><i class="fas fa-sync-alt"></i> Atualizar</button>
+        </div>
+      </div>
+
+      <!-- KPI row -->
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px" id="fin-kpi-row">
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">MRR Ativo</div><div class="kpi-mini-val" id="fin-mrr" style="color:var(--accent)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Suspensos</div><div class="kpi-mini-val" id="fin-susp" style="color:var(--red)">—</div><div style="font-size:10px;color:var(--text3);text-align:center" id="fin-susp-val">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">Churn Mês Atual</div><div class="kpi-mini-val" id="fin-churn-atual" style="color:var(--amber)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--text3)"></div><div class="kpi-mini-label">Churn Mês Anterior</div><div class="kpi-mini-val" id="fin-churn-ant" style="color:var(--text3)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:#ef4444"></div><div class="kpi-mini-label">1ª Mensalidade Risco</div><div class="kpi-mini-val" id="fin-prim" style="color:#ef4444">—</div><div style="font-size:10px;color:var(--text3);text-align:center" id="fin-prim-pct">—</div></div>
+      </div>
+
+      <!-- Cancelamentos: mês atual + anterior -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px" id="fin-cancel-grid">
+        <!-- Mês atual -->
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header"><span class="tbl-title">Cancelamentos — Mês Atual</span><span class="badge b-red" id="fin-ca-total">0</span></div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px 14px;border-bottom:1px solid var(--border)">
+            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">LTV Total</div><div style="font-size:14px;font-weight:700;color:var(--text)" id="fin-ca-ltv">—</div></div>
+            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">LTV Médio</div><div style="font-size:14px;font-weight:700;color:var(--text)" id="fin-ca-ltv-med">—</div></div>
+            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">Tempo Médio de Vida</div><div style="font-size:14px;font-weight:700;color:var(--amber)" id="fin-ca-tempo">—</div></div>
+          </div>
+          <div style="padding:10px 14px;border-bottom:1px solid var(--border)">
+            <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Por Motivo</div>
+            <div id="fin-ca-motivo" style="display:flex;flex-wrap:wrap;gap:5px"></div>
+          </div>
+          <div style="max-height:220px;overflow-y:auto">
+            <table class="tbl"><thead><tr><th>Cliente</th><th>Plano</th><th>Tempo</th><th>LTV</th><th>Motivo</th></tr></thead>
+            <tbody id="fin-ca-lista"></tbody></table>
+          </div>
+        </div>
+        <!-- Mês anterior -->
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header"><span class="tbl-title">Cancelamentos — Mês Anterior</span><span class="badge b-blue" id="fin-cb-total">0</span></div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px 14px;border-bottom:1px solid var(--border)">
+            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">LTV Total</div><div style="font-size:14px;font-weight:700;color:var(--text)" id="fin-cb-ltv">—</div></div>
+            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">LTV Médio</div><div style="font-size:14px;font-weight:700;color:var(--text)" id="fin-cb-ltv-med">—</div></div>
+            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">Tempo Médio de Vida</div><div style="font-size:14px;font-weight:700;color:var(--amber)" id="fin-cb-tempo">—</div></div>
+          </div>
+          <div style="padding:10px 14px;border-bottom:1px solid var(--border)">
+            <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Por Motivo</div>
+            <div id="fin-cb-motivo" style="display:flex;flex-wrap:wrap;gap:5px"></div>
+          </div>
+          <div style="max-height:220px;overflow-y:auto">
+            <table class="tbl"><thead><tr><th>Cliente</th><th>Plano</th><th>Tempo</th><th>LTV</th><th>Motivo</th></tr></thead>
+            <tbody id="fin-cb-lista"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Suspensos + 1ª Mensalidade -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px" id="fin-mid-grid">
+        <!-- Suspensos (inadimplência proxy) -->
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <span class="tbl-title">Suspensos / Inadimplentes</span>
+            <span class="badge b-red" id="fin-susp-count">—</span>
+          </div>
+          <div style="padding:8px 14px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border)">
+            Clientes com serviço suspenso = proxy de inadimplência (API não expõe histórico de pagamentos)
+          </div>
+          <div style="max-height:320px;overflow-y:auto">
+            <table class="tbl"><thead><tr><th>Cliente</th><th>Plano</th><th>R$</th><th>Cidade</th><th>Vendedor</th></tr></thead>
+            <tbody id="fin-susp-lista"></tbody></table>
+          </div>
+        </div>
+
+        <!-- 1ª Mensalidade em Risco -->
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <span class="tbl-title">1ª Mensalidade em Risco</span>
+            <span class="badge b-red" id="fin-prim-count">—</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border)">
+            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">Novos (60d)</div><div style="font-size:16px;font-weight:700;color:var(--text)" id="fin-prim-novos">—</div></div>
+            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">Não pagou</div><div style="font-size:16px;font-weight:700;color:#ef4444" id="fin-prim-np">—</div></div>
+            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">% de risco</div><div style="font-size:16px;font-weight:700;color:var(--amber)" id="fin-prim-pct2">—</div></div>
+          </div>
+          <div style="padding:8px 14px;border-bottom:1px solid var(--border)">
+            <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Por Vendedor</div>
+            <table class="tbl" style="font-size:11px"><thead><tr><th>Vendedor</th><th>Novos</th><th>Risco</th><th>%</th></tr></thead>
+            <tbody id="fin-prim-vend"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top 100 LTV -->
+      <div class="tbl-card" style="margin-bottom:14px">
+        <div class="tbl-header">
+          <span class="tbl-title">Top 100 Clientes — Maior LTV Estimado</span>
+          <span class="badge b-blue">Mais antigos × valor mensal</span>
+        </div>
+        <div style="max-height:340px;overflow-y:auto">
+          <table class="tbl"><thead><tr><th>#</th><th>Cliente</th><th>Cidade</th><th>Plano</th><th>Mensalidade</th><th>Cliente desde</th><th>Tempo ativo</th><th>LTV Est.</th></tr></thead>
+          <tbody id="fin-ltv-lista"></tbody></table>
+        </div>
+      </div>
+
+      <!-- Saúde por Vendedor -->
+      <div class="tbl-card" style="margin-bottom:0">
+        <div class="tbl-header">
+          <span class="tbl-title">Saúde da Carteira por Vendedor</span>
+          <span class="badge b-blue" id="fin-vend-count">—</span>
+        </div>
+        <div style="max-height:340px;overflow-y:auto">
+          <table class="tbl"><thead><tr><th>Vendedor</th><th>Ativos</th><th>Suspensos</th><th>Cancelados (60d)</th><th>MRR</th><th>Saúde</th></tr></thead>
+          <tbody id="fin-vend-lista"></tbody></table>
+        </div>
+      </div>
+    </div>
+
     <!-- ═══ TAREFAS ═══ -->
     <div class="page" id="page-tarefas">
 
@@ -1868,7 +1995,7 @@ function goPage(id, el) {
   document.querySelectorAll('.nav-item, .space-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   if(el) el.classList.add('active');
-  const titles = {dashboard:'Dashboard',chamados:'Chamados',atendimento:'Atendimento',comercial:'Comercial',retencao:'Cancelamento / Retenção',conexoes:'Conexões',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
+  const titles = {dashboard:'Dashboard',chamados:'Chamados',atendimento:'Atendimento',comercial:'Comercial',retencao:'Cancelamento / Retenção',conexoes:'Conexões',financeiro:'Financeiro',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
   document.getElementById('pageTitle').textContent = titles[id]||id;
   // Restaura dados em memória ao navegar de volta para páginas com dados
   if (id === 'dashboard') {
@@ -1903,6 +2030,10 @@ function goPage(id, el) {
     loadConexoes();
     // Garante que o Leaflet recalcula tamanho após layout mobile ser aplicado
     if (_cxMap) setTimeout(() => _cxMap.invalidateSize(), 300);
+  }
+  if (id === 'financeiro') {
+    if (_finData) renderFinanceiro(_finData);
+    loadFinanceiro();
   }
 }
 
@@ -5262,6 +5393,150 @@ setInterval(() => {
   const pg = document.getElementById('page-conexoes');
   if (pg && pg.classList.contains('active')) loadConexoes();
 }, 120000);
+
+// ── FINANCEIRO ────────────────────────────────────────────────────────────────
+let _finData = null;
+
+const fmtBRL = v => v == null ? '—' : 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+const fmtBRLk = v => v == null ? '—' : v >= 1000 ? 'R$ ' + (v/1000).toLocaleString('pt-BR',{maximumFractionDigits:1}) + 'k' : fmtBRL(v);
+const fev = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
+
+async function loadFinanceiro(force = false) {
+  const badge = document.getElementById('fin-sync-badge');
+  if (badge) { badge.textContent = 'Carregando...'; badge.className = 'badge b-blue'; }
+  try {
+    const url = `${PROXY_URL}/api/financeiro${force ? '?force=1' : ''}`;
+    const r   = await fetch(url);
+    const d   = await r.json();
+    if (!d.ok) {
+      if (badge) { badge.textContent = d.info || d.motivo || 'Erro'; badge.className = 'badge b-red'; }
+      return;
+    }
+    _finData = d;
+    renderFinanceiro(d);
+    if (badge) {
+      const hora = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+      badge.textContent = `Atualizado ${hora}`;
+      badge.className   = 'badge b-green';
+    }
+  } catch(e) {
+    if (badge) { badge.textContent = 'Erro de conexão'; badge.className = 'badge b-red'; }
+  }
+}
+
+function renderFinanceiro(d) {
+  const r = d.resumo || {};
+
+  // KPIs
+  fev('fin-mrr',        fmtBRLk(r.mrr_total));
+  fev('fin-susp',       (r.total_suspensos || 0) + ` (${r.pct_suspensos || 0}%)`);
+  fev('fin-susp-val',   fmtBRLk(r.mrr_suspenso) + ' em risco');
+  fev('fin-churn-atual', r.churn_mes_atual || 0);
+  fev('fin-churn-ant',   r.churn_mes_anterior || 0);
+  fev('fin-prim',        (r.primeira_mens_risco || 0));
+  fev('fin-prim-pct',    `${r.pct_primeira_mens || 0}% dos novos`);
+
+  // Cancelamentos
+  renderCancelStats('ca', d.cancelamentos?.mes_atual);
+  renderCancelStats('cb', d.cancelamentos?.mes_anterior);
+
+  // Suspensos
+  const susp = d.suspensos || [];
+  fev('fin-susp-count', susp.length);
+  const suspTbl = document.getElementById('fin-susp-lista');
+  if (suspTbl) {
+    suspTbl.innerHTML = susp.length ? susp.map(s => `<tr>
+      <td style="font-weight:500;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.nome}</td>
+      <td style="font-size:11px;color:var(--text3)">${s.plano}</td>
+      <td class="mono" style="color:var(--amber)">${fmtBRL(s.valor)}</td>
+      <td style="font-size:11px">${s.cidade}</td>
+      <td style="font-size:11px;color:var(--text3)">${s.vendedor || '—'}</td>
+    </tr>`).join('') : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Nenhum suspenso</td></tr>`;
+  }
+
+  // 1ª Mensalidade
+  const pm = d.primeira_mensalidade || {};
+  fev('fin-prim-count',  pm.total_nao_pagou || 0);
+  fev('fin-prim-novos',  pm.total_novos || 0);
+  fev('fin-prim-np',     pm.total_nao_pagou || 0);
+  fev('fin-prim-pct2',   `${pm.pct || 0}%`);
+  const primVend = document.getElementById('fin-prim-vend');
+  if (primVend) {
+    const pv = pm.por_vendedor || [];
+    primVend.innerHTML = pv.length ? pv.map(v => {
+      const cor = v.pct >= 30 ? '#ef4444' : v.pct >= 15 ? 'var(--amber)' : '#22c55e';
+      return `<tr>
+        <td style="font-weight:500">${v.vendedor}</td>
+        <td class="mono">${v.novos}</td>
+        <td class="mono" style="color:#ef4444">${v.nao_pagou}</td>
+        <td class="mono" style="color:${cor}">${v.pct}%</td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:12px">Sem dados</td></tr>`;
+  }
+
+  // LTV Top 100
+  const ltvTbl = document.getElementById('fin-ltv-lista');
+  if (ltvTbl) {
+    const lista = d.ltv_top100 || [];
+    ltvTbl.innerHTML = lista.length ? lista.map((c, i) => `<tr>
+      <td class="mono" style="color:var(--text3)">${i+1}</td>
+      <td style="font-weight:500;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.nome}</td>
+      <td style="font-size:11px">${c.cidade}</td>
+      <td style="font-size:11px;color:var(--text3)">${c.plano}</td>
+      <td class="mono">${fmtBRL(c.valor)}</td>
+      <td style="font-size:11px;color:var(--text3)">${c.dataCad ? c.dataCad.substring(0,10) : '—'}</td>
+      <td style="font-size:11px;color:var(--accent)">${c.tempoFmt}</td>
+      <td class="mono" style="font-weight:700;color:#22c55e">${fmtBRLk(c.ltvDinheiro)}</td>
+    </tr>`).join('') : `<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px">Sem dados</td></tr>`;
+  }
+
+  // Saúde por vendedor
+  const vendTbl = document.getElementById('fin-vend-lista');
+  const vendedores = d.por_vendedor || [];
+  fev('fin-vend-count', vendedores.length + ' vendedores');
+  if (vendTbl) {
+    vendTbl.innerHTML = vendedores.length ? vendedores.map(v => {
+      const cor = v.pct_saude >= 80 ? '#22c55e' : v.pct_saude >= 60 ? 'var(--amber)' : '#ef4444';
+      const bar = `<div style="display:inline-block;width:${v.pct_saude}%;height:6px;background:${cor};border-radius:3px;min-width:2px"></div>`;
+      return `<tr>
+        <td style="font-weight:500">${v.vendedor}</td>
+        <td class="mono" style="color:#22c55e">${v.ativos}</td>
+        <td class="mono" style="color:var(--red)">${v.suspensos}</td>
+        <td class="mono" style="color:var(--amber)">${v.cancelados60d}</td>
+        <td class="mono">${fmtBRLk(v.mrr)}</td>
+        <td style="min-width:80px">${bar}<span style="font-size:10px;color:${cor};margin-left:4px">${v.pct_saude}%</span></td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Sem dados</td></tr>`;
+  }
+}
+
+function renderCancelStats(pfx, stats) {
+  if (!stats) return;
+  const totalEl = document.getElementById(`fin-${pfx}-total`);
+  if (totalEl) totalEl.textContent = stats.total;
+  fev(`fin-${pfx}-ltv`,     fmtBRLk(stats.ltv_total));
+  fev(`fin-${pfx}-ltv-med`, fmtBRLk(stats.ltv_medio_dinheiro));
+  fev(`fin-${pfx}-tempo`,   stats.ltv_medio_tempo || '—');
+
+  const motivoEl = document.getElementById(`fin-${pfx}-motivo`);
+  if (motivoEl) {
+    motivoEl.innerHTML = (stats.por_motivo || []).slice(0, 8).map(m =>
+      `<span class="badge b-red" style="font-size:10px">${m.motivo} <b>${m.n}</b></span>`
+    ).join('');
+  }
+
+  const listaEl = document.getElementById(`fin-${pfx}-lista`);
+  if (listaEl) {
+    const lista = stats.lista || [];
+    listaEl.innerHTML = lista.length ? lista.map(c => `<tr>
+      <td style="font-weight:500;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.nome}">${c.nome}</td>
+      <td style="font-size:11px;color:var(--text3)">${c.plano}</td>
+      <td style="font-size:11px;color:var(--accent)">${c.tempoFmt}</td>
+      <td class="mono" style="color:#22c55e;font-size:11px">${fmtBRLk(c.ltvDinheiro)}</td>
+      <td style="font-size:10px;color:var(--text3);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.motivo}</td>
+    </tr>`).join('') : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Nenhum cancelamento</td></tr>`;
+  }
+}
 
 // AUTO-INIT: 1) cache imediato  2) sync em background  3) status badge
 (function() {
