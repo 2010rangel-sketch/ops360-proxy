@@ -1118,17 +1118,18 @@ async function warmupComercial() {
   try {
     console.log('[comercial] Iniciando warm-up em background...');
     const token    = await getToken();
-    // relacoes=endereco_instalacao traz cidade; vendedor já vem no serviço por padrão
+    // Busca TODOS os clientes ativos sem limite de páginas (API para na ultima_pagina)
     const clientes = await fetchIntegracaoClientes(token,
-      { cancelado: 'nao', relacoes: 'endereco_instalacao' }, 30);
+      { cancelado: 'nao', relacoes: 'endereco_instalacao' }, 999);
     _comAllClientes = clientes;
-    // Busca cancelados recentes (5 páginas ≈ 2500) para capturar clientes cancelados no mesmo mês
+    // Busca TODOS os cancelados — necessário pois a API ordena por data_cadastro ASC
+    // e cancelados recentes ficam nas últimas páginas
     const token2 = await getToken();
     const cancelados = await fetchIntegracaoClientes(token2,
-      { cancelado: 'sim', relacoes: 'endereco_instalacao' }, 5);
+      { cancelado: 'sim', relacoes: 'endereco_instalacao' }, 999);
     _comCancelados  = cancelados;
     _comFetchedAt   = Date.now();
-    console.log(`[comercial] Cache populado: ${clientes.length} ativos + ${cancelados.length} cancelados recentes`);
+    console.log(`[comercial] Cache populado: ${clientes.length} ativos + ${cancelados.length} cancelados`);
   } catch(e) {
     console.warn('[comercial] Warm-up falhou:', e.message);
   }
