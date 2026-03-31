@@ -1105,7 +1105,7 @@ function buildComResult(vendas, iniStr, fimStr) {
     cidades:    Object.values(cidadeMap).sort((a,b) => b.total - a.total),
     vendedores: Object.values(vendedorMap).sort((a,b) => b.total - a.total),
     planos:     Object.values(planoMap).sort((a,b) => b.total - a.total),
-    ultimas:    vendas, // sem limite — frontend pagina/scrolla
+    ultimas:    vendas.slice().sort((a, b) => b.dataVenda > a.dataVenda ? -1 : b.dataVenda < a.dataVenda ? 1 : 0).reverse(),
   };
 }
 
@@ -1118,17 +1118,19 @@ async function warmupComercial() {
   try {
     console.log('[comercial] Iniciando warm-up em background...');
     const token    = await getToken();
-    // relacoes=endereco_instalacao traz cidade; vendedor já vem no serviço por padrão
     const clientes = await fetchIntegracaoClientes(token,
-      { cancelado: 'nao', relacoes: 'endereco_instalacao' }, 30);
+      { cancelado: 'nao', relacoes: 'endereco_instalacao' }, 999);
     _comAllClientes = clientes;
-    // Busca cancelados recentes (5 páginas ≈ 2500) para capturar clientes cancelados no mesmo mês
-    const token2 = await getToken();
-    const cancelados = await fetchIntegracaoClientes(token2,
-      { cancelado: 'sim', relacoes: 'endereco_instalacao' }, 5);
-    _comCancelados  = cancelados;
+    // Cancelados sem limite — API ordena por data_cadastro ASC, cancelados do mês ficam nas últimas páginas
+    const token2   = await getToken();
+    const todosCanc = await fetchIntegracaoClientes(token2,
+      { cancelado: 'sim', relacoes: 'endereco_instalacao' }, 999);
+    // Deduplicar: só inclui cancelados que NÃO estão nos ativos (clientes com serviços mistos)
+    const idAtivo = c => c.id_cliente || c.id;
+    const idsAtivos = new Set(clientes.map(idAtivo));
+    _comCancelados  = todosCanc.filter(c => !idsAtivos.has(idAtivo(c)));
     _comFetchedAt   = Date.now();
-    console.log(`[comercial] Cache populado: ${clientes.length} ativos + ${cancelados.length} cancelados recentes`);
+    console.log(`[comercial] Cache: ${clientes.length} ativos + ${_comCancelados.length} cancelados únicos`);
   } catch(e) {
     console.warn('[comercial] Warm-up falhou:', e.message);
   }
@@ -1153,7 +1155,11 @@ app.get('/api/comercial', async (req, res) => {
 
     // Cache disponível → responde instantaneamente
     if (_comAllClientes) {
-      const todos  = [..._comAllClientes, ...(_comCancelados || [])];
+      // Deduplicar na query também (segurança extra)
+      const idC = c => c.id_cliente || c.id;
+      const idsAti = new Set(_comAllClientes.map(idC));
+      const soCanc = (_comCancelados || []).filter(c => !idsAti.has(idC(c)));
+      const todos  = [..._comAllClientes, ...soCanc];
       const vendas = buildVendasFromClientes(todos, iniStr, fimStr);
       return res.json(buildComResult(vendas, iniStr, fimStr));
     }
