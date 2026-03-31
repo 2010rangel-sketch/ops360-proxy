@@ -1105,7 +1105,7 @@ function buildComResult(vendas, iniStr, fimStr) {
     cidades:    Object.values(cidadeMap).sort((a,b) => b.total - a.total),
     vendedores: Object.values(vendedorMap).sort((a,b) => b.total - a.total),
     planos:     Object.values(planoMap).sort((a,b) => b.total - a.total),
-    ultimas:    vendas, // sem limite — frontend pagina/scrolla
+    ultimas:    vendas.slice().sort((a, b) => (b.dataVenda || '') > (a.dataVenda || '') ? 1 : -1), // mais recente primeiro
   };
 }
 
