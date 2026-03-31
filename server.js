@@ -1038,6 +1038,7 @@ function buildVendasFromClientes(clientes, iniStr, fimStr) {
   const iniMs = new Date(iniStr).getTime();
   const fimMs = new Date(fimStr + 'T23:59:59').getTime();
   const vendas = [];
+  const seen   = new Set(); // dedup por chave composta — evita dupla contagem quando cliente aparece nos dois caches
   for (const cli of clientes) {
     const nome    = cli.nome_razaosocial || cli.nome_fantasia || '—';
     const servicos = cli.servicos || [];
@@ -1049,6 +1050,11 @@ function buildVendasFromClientes(clientes, iniStr, fimStr) {
       const vendaDate = rawVenda ? parseDate(rawVenda) : null;
       const vendaMs   = vendaDate ? vendaDate.getTime() : 0;
       if (!vendaMs || vendaMs < iniMs || vendaMs > fimMs) continue;
+
+      // Dedup por chave composta: mesmo cliente + mesmo plano + mesma data_venda
+      const chave = `${nome}|${s.nome || ''}|${s.data_venda || ''}`;
+      if (seen.has(chave)) continue;
+      seen.add(chave);
 
       const endInst = typeof s.endereco_instalacao === 'object' && s.endereco_instalacao
         ? s.endereco_instalacao : {};
@@ -1122,15 +1128,11 @@ async function warmupComercial() {
       { cancelado: 'nao', relacoes: 'endereco_instalacao' }, 999);
     _comAllClientes = clientes;
     // Cancelados sem limite — API ordena por data_cadastro ASC, cancelados do mês ficam nas últimas páginas
-    const token2   = await getToken();
-    const todosCanc = await fetchIntegracaoClientes(token2,
+    const token2    = await getToken();
+    _comCancelados  = await fetchIntegracaoClientes(token2,
       { cancelado: 'sim', relacoes: 'endereco_instalacao' }, 999);
-    // Deduplicar: só inclui cancelados que NÃO estão nos ativos (clientes com serviços mistos)
-    const idAtivo = c => c.id_cliente || c.id;
-    const idsAtivos = new Set(clientes.map(idAtivo));
-    _comCancelados  = todosCanc.filter(c => !idsAtivos.has(idAtivo(c)));
     _comFetchedAt   = Date.now();
-    console.log(`[comercial] Cache: ${clientes.length} ativos + ${_comCancelados.length} cancelados únicos`);
+    console.log(`[comercial] Cache: ${clientes.length} ativos + ${_comCancelados.length} cancelados (dedup no buildVendas)`);
   } catch(e) {
     console.warn('[comercial] Warm-up falhou:', e.message);
   }
@@ -1155,11 +1157,8 @@ app.get('/api/comercial', async (req, res) => {
 
     // Cache disponível → responde instantaneamente
     if (_comAllClientes) {
-      // Deduplicar na query também (segurança extra)
-      const idC = c => c.id_cliente || c.id;
-      const idsAti = new Set(_comAllClientes.map(idC));
-      const soCanc = (_comCancelados || []).filter(c => !idsAti.has(idC(c)));
-      const todos  = [..._comAllClientes, ...soCanc];
+      // Mescla ativos + cancelados — dedup por chave composta dentro de buildVendasFromClientes
+      const todos  = [..._comAllClientes, ...(_comCancelados || [])];
       const vendas = buildVendasFromClientes(todos, iniStr, fimStr);
       return res.json(buildComResult(vendas, iniStr, fimStr));
     }
