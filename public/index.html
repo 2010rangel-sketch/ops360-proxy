@@ -1297,15 +1297,15 @@ input[type="text"]::placeholder { color:var(--text3); }
       </div>
 
       <!-- KPI cards -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px">
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px">
         <div class="kpi-mini">
           <div class="kpi-mini-bar" style="background:var(--accent)"></div>
-          <div class="kpi-mini-label">Total de vendas</div>
+          <div class="kpi-mini-label">Total vendas</div>
           <div class="kpi-mini-val" id="com-total" style="color:var(--accent)">—</div>
         </div>
         <div class="kpi-mini">
           <div class="kpi-mini-bar" style="background:#22c55e"></div>
-          <div class="kpi-mini-label">Novas vendas</div>
+          <div class="kpi-mini-label">Novas</div>
           <div class="kpi-mini-val" id="com-novas" style="color:#22c55e">—</div>
         </div>
         <div class="kpi-mini">
@@ -1315,35 +1315,46 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
         <div class="kpi-mini">
           <div class="kpi-mini-bar" style="background:var(--amber)"></div>
-          <div class="kpi-mini-label">% Reativação</div>
+          <div class="kpi-mini-label">% Recuperação</div>
           <div class="kpi-mini-val" id="com-pct-reat" style="color:var(--amber)">—</div>
+        </div>
+        <div class="kpi-mini">
+          <div class="kpi-mini-bar" style="background:var(--green)"></div>
+          <div class="kpi-mini-label">Ativos</div>
+          <div class="kpi-mini-val" id="com-ativos" style="color:var(--green)">—</div>
+        </div>
+        <div class="kpi-mini">
+          <div class="kpi-mini-bar" style="background:var(--red)"></div>
+          <div class="kpi-mini-label">Cancelados</div>
+          <div class="kpi-mini-val" id="com-cancelados" style="color:var(--red)">—</div>
         </div>
       </div>
 
-      <!-- Row 1: Vendas por cidade + Por vendedor -->
+      <!-- Row 1: Por vendedor + Vendas por cidade (swapped) -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
 
-        <!-- Vendas por cidade -->
+        <!-- Por vendedor (agora à esquerda) -->
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <span class="tbl-title"><i class="fas fa-user-tie" style="color:var(--green);margin-right:5px"></i>Por Vendedor</span>
+            <span id="com-vend-filtro-badge" style="display:none;font-size:11px;padding:2px 7px;border-radius:4px;cursor:pointer;background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.4)">✕ limpar</span>
+            <span class="badge b-green" id="com-vend-count">—</span>
+          </div>
+          <div id="com-vendedor-bars" style="padding:12px 16px;max-height:260px;overflow-y:auto"></div>
+        </div>
+
+        <!-- Vendas por cidade (agora à direita, filtrável pelo vendedor) -->
         <div class="tbl-card" style="margin-bottom:0">
           <div class="tbl-header">
             <span class="tbl-title"><i class="fas fa-map-marker-alt" style="color:var(--accent);margin-right:5px"></i>Vendas por Cidade</span>
             <span class="badge b-blue" id="com-cid-count">—</span>
           </div>
-          <div id="com-cidades-bars" style="padding:12px 16px"></div>
-        </div>
-
-        <!-- Por vendedor -->
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header">
-            <span class="tbl-title"><i class="fas fa-user-tie" style="color:var(--green);margin-right:5px"></i>Por Vendedor</span>
-            <span class="badge b-green" id="com-vend-count">—</span>
-          </div>
-          <div id="com-vendedor-bars" style="padding:12px 16px"></div>
+          <div id="com-cidades-bars" style="padding:12px 16px;max-height:260px;overflow-y:auto"></div>
         </div>
 
       </div>
 
-      <!-- Row 2: Por plano (donut) + Últimas vendas -->
+      <!-- Row 2: Por plano (donut) + Todas as vendas -->
       <div style="display:grid;grid-template-columns:300px 1fr;gap:14px;margin-bottom:14px">
 
         <!-- Por plano -->
@@ -1357,20 +1368,20 @@ input[type="text"]::placeholder { color:var(--text3); }
           </div>
         </div>
 
-        <!-- Últimas vendas -->
+        <!-- Todas as vendas (scrollable) -->
         <div class="tbl-card" style="margin-bottom:0">
           <div class="tbl-header">
-            <span class="tbl-title"><i class="fas fa-list" style="color:var(--text3);margin-right:5px"></i>Últimas Vendas</span>
+            <span class="tbl-title"><i class="fas fa-list" style="color:var(--text3);margin-right:5px"></i>Vendas</span>
             <span id="com-filtro-badge" style="display:none;font-size:11px;padding:3px 8px;border-radius:4px;cursor:pointer;background:var(--accent-light);color:var(--accent);border:1px solid rgba(91,106,240,.4)">—</span>
             <span class="badge b-amber" id="com-ult-count">—</span>
           </div>
-          <div style="overflow-x:auto;max-height:320px;overflow-y:auto">
-            <table>
+          <div style="overflow-x:auto;max-height:380px;overflow-y:auto">
+            <table class="tbl" style="font-size:12px">
               <thead><tr>
-                <th>Cliente</th><th>Cidade</th><th>Vendedor</th><th>Plano</th><th>Data</th><th>Tipo</th>
+                <th>Cliente</th><th>Cidade</th><th>Vendedor</th><th>Plano</th><th>Data venda</th><th>Tipo</th><th>Status</th>
               </tr></thead>
               <tbody id="com-ult-tbl">
-                <tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr>
+                <tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr>
               </tbody>
             </table>
           </div>
@@ -4984,28 +4995,65 @@ function setComFiltro(type, val) {
   } else {
     _comFiltro = { type, val };
   }
-  if (_comData) {
-    renderComercialFiltrado(_comData);
-    // Atualiza visual ativo nas barras
-    renderComBarras('com-cidades-bars',  _comData.cidades,   _comData.cidades[0]?.total||1,  '#6366f1','#06b6d4');
-    renderComBarras('com-vendedor-bars', _comData.vendedores,_comData.vendedores[0]?.total||1,'#22c55e','#06b6d4');
-    renderComPlanoDonut(_comData.planos);
-  }
+  if (_comData) renderComercialAtualiza(_comData);
 }
 
-function renderComercialFiltrado(data) {
-  let ultimas = data.ultimas || [];
-  const badge = document.getElementById('com-filtro-badge');
+// Agrega cidades/planos a partir de uma lista de vendas filtradas
+function _comAgregaCidades(vendas) {
+  const m = {};
+  for (const v of vendas) {
+    if (!m[v.cidade]) m[v.cidade] = { nome: v.cidade, total: 0, novas: 0, reat: 0 };
+    m[v.cidade].total++;
+    if (v.reativacao) m[v.cidade].reat++; else m[v.cidade].novas++;
+  }
+  return Object.values(m).sort((a,b) => b.total - a.total);
+}
+function _comAgregaPlanos(vendas) {
+  const m = {};
+  for (const v of vendas) {
+    if (!m[v.plano]) m[v.plano] = { nome: v.plano, total: 0 };
+    m[v.plano].total++;
+  }
+  return Object.values(m).sort((a,b) => b.total - a.total);
+}
+
+function renderComercialAtualiza(data) {
+  let lista = data.ultimas || [];
+  const badge     = document.getElementById('com-filtro-badge');
+  const vendBadge = document.getElementById('com-vend-filtro-badge');
+
   if (_comFiltro.val) {
-    if (_comFiltro.type === 'cidade')   ultimas = ultimas.filter(v => v.cidade   === _comFiltro.val);
-    if (_comFiltro.type === 'vendedor') ultimas = ultimas.filter(v => v.vendedor === _comFiltro.val);
-    if (_comFiltro.type === 'plano')    ultimas = ultimas.filter(v => v.plano    === _comFiltro.val);
+    if (_comFiltro.type === 'cidade')   lista = lista.filter(v => v.cidade   === _comFiltro.val);
+    if (_comFiltro.type === 'vendedor') lista = lista.filter(v => v.vendedor === _comFiltro.val);
+    if (_comFiltro.type === 'plano')    lista = lista.filter(v => v.plano    === _comFiltro.val);
     if (badge) { badge.textContent = `Filtro: ${_comFiltro.val} ✕`; badge.style.display=''; badge.onclick=()=>setComFiltro('',''); }
   } else {
     if (badge) badge.style.display = 'none';
   }
-  renderComUltimas(ultimas);
+
+  // Quando vendedor selecionado: atualiza cidades e planos para refletir apenas esse vendedor
+  if (_comFiltro.type === 'vendedor' && _comFiltro.val) {
+    const vendasVend = (data.ultimas||[]).filter(v => v.vendedor === _comFiltro.val);
+    const cids  = _comAgregaCidades(vendasVend);
+    const plans = _comAgregaPlanos(vendasVend);
+    renderComBarras('com-cidades-bars', cids,  cids[0]?.total||1,  '#6366f1','#06b6d4');
+    renderComPlanoDonutData(plans);
+    if (vendBadge) { vendBadge.style.display=''; vendBadge.onclick=()=>setComFiltro('',''); }
+    const cidCount = document.getElementById('com-cid-count');
+    if (cidCount) cidCount.textContent = cids.length;
+  } else {
+    renderComBarras('com-cidades-bars',  data.cidades,   data.cidades[0]?.total||1,  '#6366f1','#06b6d4');
+    renderComPlanoDonutData(data.planos);
+    if (vendBadge) vendBadge.style.display='none';
+    const cidCount = document.getElementById('com-cid-count');
+    if (cidCount) cidCount.textContent = data.cidades.length;
+  }
+  renderComBarras('com-vendedor-bars', data.vendedores, data.vendedores[0]?.total||1,'#22c55e','#06b6d4');
+  renderComUltimas(lista);
 }
+
+// Alias para compatibilidade com código existente
+function renderComercialFiltrado(data) { renderComercialAtualiza(data); }
 
 function renderComBarras(containerId, items, maxVal, colorNew, colorReat) {
   const el = document.getElementById(containerId);
@@ -5032,7 +5080,8 @@ function renderComBarras(containerId, items, maxVal, colorNew, colorReat) {
   }).join('');
 }
 
-function renderComPlanoDonut(planos) {
+function renderComPlanoDonut(planos) { renderComPlanoDonutData(planos); }
+function renderComPlanoDonutData(planos) {
   const svgEl = document.getElementById('com-plano-donut');
   const legEl = document.getElementById('com-plano-legend');
   if (!svgEl || !planos.length) return;
@@ -5084,20 +5133,32 @@ let _comUltimasList = [];
 function renderComUltimas(ultimas) {
   _comUltimasList = ultimas;
   const tb = document.getElementById('com-ult-tbl');
+  const ct = document.getElementById('com-ult-count');
+  if (ct) ct.textContent = ultimas.length;
   if (!tb) return;
-  if (!ultimas.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Sem dados</td></tr>'; return; }
-  const fmtData = d => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
-  tb.innerHTML = ultimas.map((v, i) => `<tr onclick="verDetalhesVenda(${i})" style="cursor:pointer" title="Ver detalhes">
+  if (!ultimas.length) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">Sem dados</td></tr>'; return; }
+  const fmtData = d => {
+    if (!d) return '—';
+    const dt = new Date(d);
+    return isNaN(dt) ? d : dt.toLocaleDateString('pt-BR');
+  };
+  tb.innerHTML = ultimas.map((v, i) => {
+    const statusTag = v.cancelado
+      ? '<span style="background:rgba(239,68,68,.12);color:var(--red);font-size:10px;padding:2px 6px;border-radius:4px">Cancelado</span>'
+      : '<span style="background:rgba(34,197,94,.12);color:#22c55e;font-size:10px;padding:2px 6px;border-radius:4px">Ativo</span>';
+    return `<tr onclick="verDetalhesVenda(${i})" style="cursor:pointer" title="Ver detalhes">
     <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--accent);text-decoration:underline dotted" title="${v.cliente}">${v.cliente}</td>
     <td>${v.cidade || '—'}</td>
     <td style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.vendedor || '—'}</td>
     <td><span style="background:var(--accent-light);color:var(--accent);font-size:10px;padding:2px 6px;border-radius:4px;white-space:nowrap">${v.plano}</span></td>
-    <td style="white-space:nowrap">${fmtData(v.dataCad || v.dataVenda)}</td>
+    <td style="white-space:nowrap">${fmtData(v.dataVenda || v.dataCad)}</td>
     <td>${v.reativacao
       ? '<span style="background:rgba(6,182,212,.12);color:var(--cyan);font-size:10px;padding:2px 6px;border-radius:4px">Reativação</span>'
       : '<span style="background:rgba(34,197,94,.12);color:#22c55e;font-size:10px;padding:2px 6px;border-radius:4px">Nova</span>'
     }</td>
-  </tr>`).join('');
+    <td>${statusTag}</td>
+  </tr>`;
+  }).join('');
 }
 
 function verDetalhesVenda(idx) {
@@ -5157,23 +5218,19 @@ async function loadComercial() {
     if (noEp) noEp.style.display = 'none';
 
     _comData = data;
+    _comFiltro = { type: '', val: '' }; // reset filtro ao recarregar
 
     const ev = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
-    ev('com-total',    data.total);
-    ev('com-novas',    data.novas);
-    ev('com-reat',     data.reativacoes);
-    ev('com-pct-reat', data.total > 0 ? Math.round(data.reativacoes / data.total * 100) + '%' : '0%');
+    ev('com-total',      data.total);
+    ev('com-novas',      data.novas);
+    ev('com-reat',       data.reativacoes);
+    ev('com-pct-reat',   data.total > 0 ? Math.round(data.reativacoes / data.total * 100) + '%' : '0%');
+    ev('com-ativos',     data.ativos ?? '—');
+    ev('com-cancelados', data.cancelados ?? '—');
     ev('com-cid-count',  data.cidades.length);
     ev('com-vend-count', data.vendedores.length);
-    ev('com-ult-count',  data.ultimas?.length || 0);
 
-    const maxCid  = data.cidades[0]?.total  || 1;
-    const maxVend = data.vendedores[0]?.total || 1;
-
-    renderComBarras('com-cidades-bars',  data.cidades,   maxCid,  '#6366f1', '#06b6d4');
-    renderComBarras('com-vendedor-bars', data.vendedores, maxVend, '#22c55e', '#06b6d4');
-    renderComPlanoDonut(data.planos);
-    renderComUltimas(data.ultimas || []);
+    renderComercialAtualiza(data);
 
     const hora = new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
     if (badge) { badge.textContent = `Atualizado ${hora}`; badge.className = 'badge b-green'; }

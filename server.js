@@ -424,6 +424,29 @@ app.get('/api/debug-raw', async (req, res) => {
   } catch(err) { res.status(500).json({ erro: err.message }); }
 });
 
+// ── Debug: campos de serviço do cliente ──────────────────────────
+app.get('/api/debug-servico-campos', async (req, res) => {
+  try {
+    if (!_comAllClientes || !_comAllClientes.length) {
+      return res.json({ ok: false, msg: 'Cache vazio — acesse /api/comercial primeiro' });
+    }
+    // Acha um cliente com pelo menos 1 serviço
+    const cli = _comAllClientes.find(c => c.servicos && c.servicos.length);
+    if (!cli) return res.json({ ok: false, msg: 'Nenhum cliente com serviços encontrado' });
+    const s = cli.servicos[0];
+    res.json({
+      cliente_keys: Object.keys(cli).filter(k => k !== 'servicos'),
+      servico_keys: Object.keys(s),
+      data_venda:        s.data_venda,
+      data_habilitacao:  s.data_habilitacao,
+      data_cadastro_cli: cli.data_cadastro,
+      data_cancelamento: s.data_cancelamento,
+      status_prefixo:    s.status_prefixo,
+      sample_servico:    s,
+    });
+  } catch(err) { res.status(500).json({ erro: err.message }); }
+});
+
 // ── Ordens de Serviço (Chamados) ─────────────────────────────────
 app.get('/api/chamados', async (req, res) => {
   try {
@@ -945,36 +968,38 @@ function buildVendasFromClientes(clientes, iniStr, fimStr) {
   const vendas = [];
   for (const cli of clientes) {
     const nome    = cli.nome_razaosocial || cli.nome_fantasia || '—';
-    const dataCad = cli.data_cadastro;
-    const cadMs   = dataCad ? new Date(dataCad).getTime() : 0;
-    // Inclui se data_cadastro do cliente está no período
-    if (!cadMs || cadMs < iniMs || cadMs > fimMs) continue;
-
     const servicos = cli.servicos || [];
-    if (!servicos.length) {
-      vendas.push({ cliente: nome, cidade: 'Desconhecida', plano: '—',
-        vendedor: '—', status: '', dataCad, reativacao: false });
-      continue;
-    }
+
     for (const s of servicos) {
-      // endereco_instalacao pode ser objeto (com relacao) ou só ID sem relacao
+      // data_venda = data real da venda (para reativações é a data atual, não retroativa)
+      // Fallback: data_habilitacao, data_cadastro do serviço
+      const rawVenda = s.data_venda || s.data_habilitacao || null;
+      const vendaDate = rawVenda ? parseDate(rawVenda) : null;
+      const vendaMs   = vendaDate ? vendaDate.getTime() : 0;
+      if (!vendaMs || vendaMs < iniMs || vendaMs > fimMs) continue;
+
       const endInst = typeof s.endereco_instalacao === 'object' && s.endereco_instalacao
         ? s.endereco_instalacao : {};
       const cidade  = endInst.cidade || 'Desconhecida';
       const plano   = s.nome || '—';
       const status  = s.status_prefixo || '';
 
-      // Vendedor: campo do serviço (string ou objeto {nome})
       const vend = s.vendedor;
       const vendedor = typeof vend === 'string' ? vend
         : (vend?.nome || vend?.name || '—');
 
-      // Reativação: tinha cancelamento anterior (data_cancelamento preenchido)
-      // mas o serviço está ativo agora no período selecionado
-      const reativacao = !!(s.data_cancelamento &&
-        (status === 'servico_habilitado' || status === 'ativo'));
+      // Reativação: data_venda é recente (no período) mas data_habilitacao é retroativa
+      // Se data_venda != data_habilitacao e habilitacao > 30 dias antes → reativação
+      const habDate = s.data_habilitacao ? parseDate(s.data_habilitacao) : null;
+      const habMs   = habDate ? habDate.getTime() : 0;
+      // data_venda existe e é diferente da data_habilitacao em > 30 dias → reativação
+      const reativacao = !!(s.data_venda && habMs && vendaMs && (vendaMs - habMs) > 30 * 86400000);
 
-      vendas.push({ cliente: nome, cidade, plano, vendedor, status, dataCad, reativacao });
+      // Serviço cancelado após a venda?
+      const cancelado = !!(s.data_cancelamento && status !== 'servico_habilitado' && status !== 'ativo');
+
+      const dataVenda = vendaDate.toISOString().split('T')[0];
+      vendas.push({ cliente: nome, cidade, plano, vendedor, status, dataCad: dataVenda, dataVenda, reativacao, cancelado });
     }
   }
   return vendas;
@@ -996,16 +1021,19 @@ function buildComResult(vendas, iniStr, fimStr) {
       if (v.reativacao) vendedorMap[v.vendedor].reat++; else vendedorMap[v.vendedor].novas++;
     }
   }
+  const novas      = vendas.filter(v => !v.reativacao).length;
+  const reativacoes = vendas.filter(v => v.reativacao).length;
+  const cancelados = vendas.filter(v => v.cancelado).length;
+  const ativos     = vendas.filter(v => !v.cancelado).length;
   return {
     ok: true, fonte: 'integracao_cliente_todos',
     total: vendas.length,
-    novas: vendas.filter(v => !v.reativacao).length,
-    reativacoes: vendas.filter(v => v.reativacao).length,
+    novas, reativacoes, cancelados, ativos,
     periodo: { ini: iniStr, fim: fimStr },
-    cidades:    Object.values(cidadeMap).sort((a,b) => b.total - a.total).slice(0, 15),
+    cidades:    Object.values(cidadeMap).sort((a,b) => b.total - a.total),
     vendedores: Object.values(vendedorMap).sort((a,b) => b.total - a.total),
     planos:     Object.values(planoMap).sort((a,b) => b.total - a.total),
-    ultimas:    vendas.slice(0, 50),
+    ultimas:    vendas, // sem limite — frontend pagina/scrolla
   };
 }
 
