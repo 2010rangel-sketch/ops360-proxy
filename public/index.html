@@ -1435,15 +1435,45 @@ input[type="text"]::placeholder { color:var(--text3); }
         <span class="badge b-green" id="ret-atend-sync" style="margin-left:auto">—</span>
       </div>
 
-      <!-- Cancelamento Geral — destaque no topo -->
-      <div class="tbl-card" style="margin-bottom:14px;border-top:3px solid var(--red)">
-        <div class="tbl-header">
-          <span class="tbl-title"><i class="fas fa-times-circle" style="color:var(--red);margin-right:6px"></i>Cancelamento Geral do Mês</span>
-          <span class="badge b-red" id="ret-cancel-geral-badge">—</span>
+      <!-- Cancelamento Geral de Serviços — tabela rankeada por motivo -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+
+        <!-- Tabela de motivos -->
+        <div class="tbl-card" style="margin-bottom:0;border-top:3px solid var(--red)">
+          <div class="tbl-header">
+            <span class="tbl-title"><i class="fas fa-times-circle" style="color:var(--red);margin-right:6px"></i>Cancelamento Geral do Mês</span>
+            <span style="font-size:10px;color:var(--text3)">cancelamentos de serviço</span>
+            <span class="badge b-red" id="ret-cancel-geral-badge">—</span>
+          </div>
+          <div style="overflow-x:auto;max-height:320px;overflow-y:auto">
+            <table><thead><tr>
+              <th>#</th><th>Motivo</th><th>Total</th><th>%</th>
+            </tr></thead>
+            <tbody id="ret-cancel-serv-tbl">
+              <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr>
+            </tbody></table>
+          </div>
         </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;padding:10px 14px" id="ret-cancel-geral-chips">
-          <span style="color:var(--text3);font-size:12px">Carregando...</span>
+
+        <!-- Painel de clientes ao clicar num motivo -->
+        <div class="tbl-card" style="margin-bottom:0" id="ret-cancel-clientes-card">
+          <div class="tbl-header">
+            <span class="tbl-title" id="ret-cancel-clientes-titulo"><i class="fas fa-users" style="color:var(--text3);margin-right:5px"></i>Clientes</span>
+            <span class="badge b-red" id="ret-cancel-clientes-badge">—</span>
+          </div>
+          <div style="overflow-x:auto;max-height:320px;overflow-y:auto">
+            <table><thead><tr>
+              <th>Cliente</th><th>Cidade</th><th>Plano</th><th>Data</th>
+            </tr></thead>
+            <tbody id="ret-cancel-clientes-tbl">
+              <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:30px;font-size:12px">
+                <i class="fas fa-hand-pointer" style="display:block;margin-bottom:8px;font-size:20px;color:var(--border)"></i>
+                Clique em um motivo para ver os clientes
+              </td></tr>
+            </tbody></table>
+          </div>
         </div>
+
       </div>
 
       <!-- KPIs de retenção -->
@@ -1746,9 +1776,10 @@ input[type="text"]::placeholder { color:var(--text3); }
           <div class="form-group"><label>Prioridade</label><select id="nt-pri"><option value="h">🔴 Alta</option><option value="m" selected>🟡 Média</option><option value="l">🟢 Baixa</option></select></div>
           <div class="form-group"><label>Categoria</label><select id="nt-tag"><option>Operações</option><option>Chamados</option><option>Retenção</option><option>Reunião</option><option>Relatório</option><option>Equipe</option><option>Outro</option></select></div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:10px">
           <div class="form-group"><label>Prazo (data/hora)</label><input type="datetime-local" id="nt-date"></div>
           <div class="form-group"><label>Lembrete antes</label><select id="nt-alarm"><option value="10">10 minutos</option><option value="15" selected>15 minutos</option><option value="30">30 minutos</option><option value="60">1 hora</option><option value="120">2 horas</option><option value="1440">1 dia antes</option></select></div>
+          <div class="form-group"><label>Recorrência</label><select id="nt-recorrencia"><option value="">Não recorrente</option><option value="diaria">↻ Diária</option><option value="semanal">↻ Semanal</option><option value="mensal">↻ Mensal</option><option value="anual">↻ Anual</option></select></div>
           <div class="form-group"><label>Descrição</label><input type="text" id="nt-desc" placeholder="Detalhes opcionais..."></div>
         </div>
         <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px">
@@ -4666,10 +4697,12 @@ function renderTasks() {
         t.notifWA!==false    ? '<i class="fab fa-whatsapp" style="color:#22c55e;font-size:9px" title="WhatsApp"></i>' : '',
         t.notifICal!==false  ? '<i class="fas fa-calendar" style="color:var(--cyan);font-size:9px" title="iPhone Cal"></i>' : '',
       ].filter(Boolean).join('');
+      const recLabels = { diaria:'↻ Diária', semanal:'↻ Semanal', mensal:'↻ Mensal', anual:'↻ Anual' };
+      const recBadge  = t.recorrencia ? `<span style="font-size:9px;background:rgba(99,102,241,.18);color:var(--accent);padding:1px 6px;border-radius:8px">${recLabels[t.recorrencia]||t.recorrencia}</span>` : '';
       return `<div class="task-item" style="${urgStyle}">
         <div class="task-check ${t.done?'done':''}" onclick="toggleTask('${t.id}')">${t.done?'✓':''}</div>
         <div class="task-body">
-          <div class="task-title ${t.done?'done':''}">${t.title||t.t}</div>
+          <div class="task-title ${t.done?'done':''}">${t.title||t.t} ${recBadge}</div>
           <div class="task-meta">
             <span class="task-tag">${t.tag||''}</span>
             <span class="task-pri pri-${t.p}">${t.p==='h'?'Alta':t.p==='m'?'Média':'Baixa'}</span>
@@ -4698,8 +4731,10 @@ async function toggleTask(id) {
   if (!t) return;
   try {
     const r = await fetch(`/api/tasks/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({done:!t.done}) });
-    const updated = await r.json();
-    tasks = tasks.map(x=>x.id===id?updated:x);
+    const result = await r.json();
+    const { _proximaTarefa, ...updated } = result;
+    tasks = tasks.map(x=>x.id===id ? updated : x);
+    if (_proximaTarefa) tasks.push(_proximaTarefa);
     renderTasks();
   } catch(e) { console.error(e); }
 }
@@ -4729,6 +4764,7 @@ async function addTask() {
     notifEmail:  document.getElementById('nt-notif-email').checked,
     notifWA:     document.getElementById('nt-notif-wa').checked,
     notifICal:   document.getElementById('nt-notif-ical').checked,
+    recorrencia: document.getElementById('nt-recorrencia').value || '',
   };
   try {
     const r = await fetch('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
@@ -4738,6 +4774,7 @@ async function addTask() {
     document.getElementById('nt-title').value = '';
     document.getElementById('nt-date').value = '';
     document.getElementById('nt-desc').value = '';
+    document.getElementById('nt-recorrencia').value = '';
     hideAddTask();
   } catch(e) { console.error(e); }
 }

@@ -958,6 +958,54 @@ app.get('/api/retencao', async (req, res) => {
 
 
 
+// ── Cancelamentos de Serviço — por motivo, com lista de clientes ──
+app.get('/api/cancelamentos-servico', async (req, res) => {
+  try {
+    if (!_comAllClientes) {
+      warmupComercial();
+      return res.json({ ok: false, warming: true, msg: 'Carregando dados...' });
+    }
+
+    const { data_inicio, data_fim } = req.query;
+    const agora   = new Date();
+    const iniMes  = data_inicio ? new Date(data_inicio) : new Date(agora.getFullYear(), agora.getMonth(), 1);
+    const fimMes  = data_fim    ? new Date(data_fim)    : new Date(agora.getFullYear(), agora.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    const mapaMotivo = {};
+    let total = 0;
+
+    for (const cli of _comAllClientes) {
+      const nome   = cli.nome_razaosocial || cli.nome_fantasia || '—';
+      for (const s of (cli.servicos || [])) {
+        const dc = parseDate(s.data_cancelamento);
+        if (!dc || dc < iniMes || dc > fimMes) continue;
+
+        const motivo = (s.motivo_cancelamento || '').trim() || 'Não informado';
+        const plano  = s.nome || '—';
+        const endInst = typeof s.endereco_instalacao === 'object' && s.endereco_instalacao
+          ? s.endereco_instalacao : {};
+        const cidade = endInst.cidade || '—';
+        const valor  = parseFloat(s.valor) || 0;
+
+        if (!mapaMotivo[motivo]) mapaMotivo[motivo] = { motivo, total: 0, clientes: [] };
+        mapaMotivo[motivo].total++;
+        mapaMotivo[motivo].clientes.push({ nome, cidade, plano, valor, data: s.data_cancelamento });
+        total++;
+      }
+    }
+
+    const por_motivo = Object.values(mapaMotivo)
+      .sort((a, b) => b.total - a.total)
+      .map(m => ({ ...m, clientes: m.clientes.sort((a,b) => (b.data||'') > (a.data||'') ? 1 : -1) }));
+
+    res.json({ ok: true, total, por_motivo,
+      periodo: { ini: iniMes.toISOString(), fim: fimMes.toISOString() } });
+  } catch(err) {
+    console.error('/api/cancelamentos-servico:', err.message);
+    res.status(500).json({ ok: false, erro: err.message });
+  }
+});
+
 // ── COMERCIAL — GET /api/v1/integracao/cliente/todos ─────────────
 // Helper: busca todas as páginas do endpoint de integração
 // maxPag: limite de páginas (default 30 = 15.000 clientes); use menor para respostas rápidas
@@ -1019,7 +1067,7 @@ function buildVendasFromClientes(clientes, iniStr, fimStr) {
       const reativacao = !!(s.data_venda && habMs && vendaMs && (vendaMs - habMs) > 30 * 86400000);
 
       // Serviço cancelado após a venda?
-      const cancelado = !!(s.data_cancelamento && status !== 'servico_habilitado' && status !== 'ativo');
+      const cancelado = !!(s.data_cancelamento || status === 'cancelado' || status === 'rescindido');
 
       const dataVenda = vendaDate.toISOString().split('T')[0];
       vendas.push({ cliente: nome, cidade, plano, vendedor, status, dataCad: dataVenda, dataVenda, reativacao, cancelado });
@@ -1487,8 +1535,25 @@ app.put('/api/tasks/:id', (req, res) => {
   const idx = tasks.findIndex(t => t.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
   tasks[idx] = { ...tasks[idx], ...req.body };
+
+  // Auto-criar próxima ocorrência ao concluir tarefa recorrente
+  let _proximaTarefa = null;
+  const rec = tasks[idx].recorrencia;
+  if (req.body.done === true && rec && rec !== '') {
+    const base = tasks[idx].dueAt ? new Date(tasks[idx].dueAt) : new Date();
+    const next = new Date(base);
+    if      (rec === 'diaria')  next.setDate(next.getDate() + 1);
+    else if (rec === 'semanal') next.setDate(next.getDate() + 7);
+    else if (rec === 'mensal')  next.setMonth(next.getMonth() + 1);
+    else if (rec === 'anual')   next.setFullYear(next.getFullYear() + 1);
+    const pad = n => String(n).padStart(2, '0');
+    const nextStr = `${next.getFullYear()}-${pad(next.getMonth()+1)}-${pad(next.getDate())}T${pad(next.getHours())}:${pad(next.getMinutes())}`;
+    _proximaTarefa = { ...tasks[idx], id: Date.now().toString(), done: false, createdAt: new Date().toISOString(), dueAt: nextStr };
+    tasks.push(_proximaTarefa);
+  }
+
   saveTasks(tasks);
-  res.json(tasks[idx]);
+  res.json({ ...tasks[idx], _proximaTarefa });
 });
 
 app.delete('/api/tasks/:id', (req, res) => {
