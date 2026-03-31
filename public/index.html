@@ -1378,7 +1378,14 @@ input[type="text"]::placeholder { color:var(--text3); }
             <span id="com-filtro-badge" style="display:none;font-size:11px;padding:3px 8px;border-radius:4px;cursor:pointer;background:var(--accent-light);color:var(--accent);border:1px solid rgba(91,106,240,.4)">—</span>
             <span class="badge b-amber" id="com-ult-count">—</span>
           </div>
-          <div style="overflow-x:auto;max-height:380px;overflow-y:auto">
+          <div style="padding:8px 14px;border-bottom:1px solid var(--border)">
+            <div style="position:relative">
+              <i class="fas fa-search" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:12px;pointer-events:none"></i>
+              <input type="text" id="com-busca-cliente" placeholder="Buscar por nome do cliente..." oninput="renderComercialAtualiza(_comData)"
+                style="width:100%;box-sizing:border-box;padding:6px 10px 6px 30px;background:var(--bg);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
+            </div>
+          </div>
+          <div style="overflow-x:auto;max-height:340px;overflow-y:auto">
             <table class="tbl" style="font-size:12px">
               <thead><tr>
                 <th>Cliente</th><th>Cidade</th><th>Vendedor</th><th>Plano</th><th>Data venda</th><th>Tipo</th><th>Status</th>
@@ -5064,6 +5071,7 @@ function _comAgregaPlanos(vendas) {
 }
 
 function renderComercialAtualiza(data) {
+  if (!data) return;
   let lista = data.ultimas || [];
   const badge     = document.getElementById('com-filtro-badge');
   const vendBadge = document.getElementById('com-vend-filtro-badge');
@@ -5076,6 +5084,10 @@ function renderComercialAtualiza(data) {
   } else {
     if (badge) badge.style.display = 'none';
   }
+
+  // Filtro por nome do cliente (busca em tempo real)
+  const busca = (document.getElementById('com-busca-cliente')?.value || '').trim().toLowerCase();
+  if (busca) lista = lista.filter(v => (v.cliente || '').toLowerCase().includes(busca));
 
   // Quando vendedor selecionado: atualiza cidades e planos para refletir apenas esse vendedor
   if (_comFiltro.type === 'vendedor' && _comFiltro.val) {
