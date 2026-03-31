@@ -1064,8 +1064,8 @@ input[type="text"]::placeholder { color:var(--text3); }
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
         <div style="display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px">
           <button class="chip active atend-chip" data-p="hoje"  onclick="setAtendPeriodo('hoje',this)">Hoje</button>
-          <button class="chip atend-chip" data-p="7dias"        onclick="setAtendPeriodo('7dias',this)">7 dias</button>
-          <button class="chip atend-chip" data-p="mes"          onclick="setAtendPeriodo('mes',this)">Mês</button>
+          <button class="chip atend-chip" data-p="7dias"        onclick="setAtendPeriodo('7dias',this)">Últimos 7 dias</button>
+          <button class="chip atend-chip" data-p="mes"          onclick="setAtendPeriodo('mes',this)">Este Mês</button>
           <button class="chip atend-chip" data-p="custom"       onclick="setAtendPeriodo('custom',this)">Período</button>
         </div>
         <div id="atendDateRange" style="display:none;gap:6px;align-items:center">
@@ -1081,7 +1081,6 @@ input[type="text"]::placeholder { color:var(--text3); }
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--cyan)"></div><div class="kpi-mini-label">Total</div><div class="kpi-mini-val" id="at-total" style="color:var(--cyan)">—</div></div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">Resolvido remoto</div><div class="kpi-mini-val" id="at-semOS" style="color:var(--green)">—</div></div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">O.S Aberta</div><div class="kpi-mini-val" id="at-comOS" style="color:var(--accent)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">TMA médio</div><div class="kpi-mini-val" id="at-tma" style="color:var(--amber);font-size:18px">—</div></div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--purple)"></div><div class="kpi-mini-label">NOC / Rede</div><div class="kpi-mini-val" id="at-noc-total" style="color:var(--purple)">—</div></div>
       </div>
       <!-- Filtro por setor + botão configurar -->
@@ -1113,12 +1112,23 @@ input[type="text"]::placeholder { color:var(--text3); }
           </div>
         </div>
       </div>
+      <!-- Por Motivo (Tipo) -->
+      <div class="tbl-card" style="margin-bottom:14px">
+        <div class="tbl-header">
+          <span class="tbl-title">Por Motivo (Tipo)</span>
+          <span class="badge b-blue" id="at-tipo-count">—</span>
+          <span id="at-tipo-filtro-badge" style="display:none;font-size:11px;color:var(--accent);margin-left:8px;cursor:pointer" onclick="setAtendFiltroTipo(null)">✕ limpar filtro</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;padding:10px 14px" id="at-tipo-chips"></div>
+      </div>
+
       <!-- Por atendente + por setor -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px" id="at-atend-setor-grid">
         <div class="tbl-card" style="margin-bottom:0">
           <div class="tbl-header">
             <span class="tbl-title">Por Atendente</span>
             <span class="badge b-blue" id="at-atend-count">—</span>
+            <span id="at-atend-filtro-badge" style="display:none;font-size:11px;color:var(--accent);margin-left:8px;cursor:pointer" onclick="setAtendFiltroAt(null)">✕ limpar</span>
           </div>
           <div style="overflow-x:auto;max-height:300px;overflow-y:auto">
             <table><thead><tr><th>#</th><th>Atendente</th><th>Total</th><th style="color:#22c55e">Resolvido</th><th style="color:var(--accent)">O.S Aberta</th></tr></thead>
@@ -2364,7 +2374,7 @@ function _makeCatCard(key, cfg, tmi, periodoLabel) {
     </div>
     <div class="prog" style="margin-bottom:8px"><div class="prog-fill" style="width:${pct_ok}%;background:${cfg.color}"></div></div>
     <div style="display:flex;justify-content:space-between;align-items:center">
-      <span style="font-size:10px;color:var(--text3)">TM (tempo médio)</span>
+      <span style="font-size:10px;color:var(--text3)">TMA (tempo médio)</span>
       <span style="font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;color:${tmiVal?cfg.color:'var(--text3)'}">${tmiVal||'--'}</span>
     </div>
   </div>`;
@@ -2577,12 +2587,15 @@ function renderCidades() {
   const cidades = Object.entries(cidMap).sort((a,b)=>b[1].total-a[1].total);
   document.getElementById('cidadeCount').textContent = `${cidades.length} cidades`;
   const maxT = Math.max(...cidades.map(([,v])=>v.total),1);
-  el.innerHTML = cidades.map(([nome,d])=>`
-    <div style="padding:9px 12px;border-bottom:1px solid var(--border);${d.total===0?'opacity:0.45':''}">
+  const cidAtual = document.getElementById('filtCidade')?.value || '';
+  el.innerHTML = cidades.map(([nome,d])=>{
+    const ativo = cidAtual === nome;
+    return `<div onclick="filtrarChamadosCidade('${nome.replace(/'/g,"\\'")}')" style="padding:9px 12px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s;${d.total===0?'opacity:0.45':''}${ativo?';background:var(--bg3);outline:1px solid var(--accent);border-radius:4px':''}" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background='${ativo?'var(--bg3)':''}'" >
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
         <div style="display:flex;align-items:center;gap:6px">
-          <i class="fas fa-map-marker-alt" style="font-size:10px;color:var(--purple)"></i>
-          <span style="font-size:12.5px;font-weight:600">${nome}</span>
+          <i class="fas fa-map-marker-alt" style="font-size:10px;color:${ativo?'var(--accent)':'var(--purple)'}"></i>
+          <span style="font-size:12.5px;font-weight:600;color:${ativo?'var(--accent)':'var(--text)'}">${nome}</span>
+          ${ativo?`<span style="font-size:9px;color:var(--accent);opacity:.8">● filtrado</span>`:''}
         </div>
         <div style="display:flex;gap:5px;align-items:center">
           ${d.atrasado>0?`<span style="font-size:10px;color:var(--red);font-weight:700">⚠${d.atrasado}</span>`:''}
@@ -2596,9 +2609,17 @@ function renderCidades() {
           : Object.entries(tiposConfig).map(([k,v])=>d.cats[k]?`<span style="font-size:9.5px;background:${v.color}18;color:${v.color};padding:1px 5px;border-radius:3px">${v.label.split(' ')[0]} ${d.cats[k]}</span>`:'').join('')
         }
       </div>
-      <div class="prog"><div class="prog-fill" style="width:${Math.round(d.total/maxT*100)}%;background:var(--purple)"></div></div>
-    </div>
-  `).join('');
+      <div class="prog"><div class="prog-fill" style="width:${Math.round(d.total/maxT*100)}%;background:${ativo?'var(--accent)':'var(--purple)'}"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function filtrarChamadosCidade(nome) {
+  const sel = document.getElementById('filtCidade');
+  if (!sel) return;
+  // Toggle: se já filtrado na mesma cidade, limpa
+  sel.value = sel.value === nome ? '' : nome;
+  applyFilters();
 }
 
 // ── RENDER: TABELA PRINCIPAL ───────────────────────────────────────────────
@@ -3329,6 +3350,19 @@ renderRtbInsight();
 // ── ATENDIMENTO — dados reais do Hubsoft ──────────────────────────
 let atendPeriodo = 'hoje';
 let _atendData = null; // cache do último resultado
+let _atendFiltroTipo = null; // tipo selecionado (cross-filter)
+let _atendFiltroAt   = null; // atendente selecionado (cross-filter)
+
+function setAtendFiltroTipo(tipo) {
+  _atendFiltroTipo = _atendFiltroTipo === tipo ? null : tipo;
+  _atendFiltroAt   = null;
+  renderAtendimentosFiltrado();
+}
+function setAtendFiltroAt(at) {
+  _atendFiltroAt   = _atendFiltroAt === at ? null : at;
+  _atendFiltroTipo = null;
+  renderAtendimentosFiltrado();
+}
 
 const SETORES_KEY = 'ops360_setor_map';
 const SETORES_LISTA = ['NOC','Comercial','Cobrança','Financeiro','Call Center'];
@@ -3484,9 +3518,7 @@ function renderAtendimentos(data) {
   elVal('at-semOS', semOSTot);
   elVal('at-comOS', comOSTot);
 
-  const tmaVals = (data.por_atendente||[]).filter(a => a.tma !== null).map(a => a.tma);
-  const tmaMed  = tmaVals.length ? Math.round(tmaVals.reduce((s,v) => s+v, 0) / tmaVals.length) : null;
-  elVal('at-tma', fmtTma(tmaMed));
+  // at-tma removido da UI
 
   // NOC stats (separado — rede/infra)
   const noc = data.noc || null;
@@ -3511,39 +3543,82 @@ function renderAtendimentos(data) {
 
 function renderAtendimentosFiltrado() {
   if (!_atendData) return;
-  const data   = _atendData;
+  const data      = _atendData;
   const filtSetor = document.getElementById('filtAtendSetor')?.value || '';
-  const mapa   = carregarMapaSetores();
+  const mapa      = carregarMapaSetores();
 
-  // Aplica setor configurado manualmente (sobrescreve o inferido do servidor)
+  // Aplica setor configurado manualmente
   const porAtComSetor = (data.por_atendente || []).map(a => ({
-    ...a,
-    setor: mapa[a.atendente] || a.setor || ''
+    ...a, setor: mapa[a.atendente] || a.setor || ''
   }));
 
-  // Por atendente (com filtro de setor)
-  const atTbl   = document.getElementById('atendenteTbl');
-  const atCount = document.getElementById('at-atend-count');
+  // ── Por Motivo (Tipo) — chips clicáveis ──────────────────────
+  // Se um atendente está selecionado, mostra só os tipos que ele atendeu
+  const atSel      = _atendFiltroAt ? porAtComSetor.find(a => a.atendente === _atendFiltroAt) : null;
+  const porTipoBase = atSel
+    ? (atSel.tipos || []).map(t => ({ tipo: t.tipo, total: t.n, semOS: 0, comOS: 0 }))
+    : (data.por_tipo || []);
+  const porTipo    = porTipoBase;
+  const tipoChips  = document.getElementById('at-tipo-chips');
+  const tipoCount  = document.getElementById('at-tipo-count');
+  const tipoBadge  = document.getElementById('at-tipo-filtro-badge');
+  if (tipoCount) tipoCount.textContent = `${porTipo.length} motivos${atSel ? ` — ${_atendFiltroAt}` : ''}`;
+  if (tipoBadge) tipoBadge.style.display = _atendFiltroTipo ? '' : 'none';
+  if (tipoChips) {
+    const maxT = Math.max(...porTipo.map(t => t.total || 0), 1);
+    tipoChips.innerHTML = porTipo.map(t => {
+      const ativo = _atendFiltroTipo === t.tipo;
+      const pct   = Math.round((t.total || 0) / maxT * 100);
+      return `<div onclick="setAtendFiltroTipo(${JSON.stringify(t.tipo)})"
+        style="cursor:pointer;background:${ativo?'var(--accent)':'var(--surface)'};border:1px solid ${ativo?'var(--accent)':'var(--border)'};border-radius:20px;padding:5px 12px;font-size:12px;transition:.15s;position:relative;overflow:hidden"
+        onmouseenter="this.style.borderColor='var(--accent)'" onmouseleave="this.style.borderColor='${ativo?'var(--accent)':'var(--border)'}'"
+        title="${t.tipo}: ${t.total} atendimentos">
+        <div style="position:absolute;left:0;top:0;height:100%;width:${pct}%;background:${ativo?'rgba(255,255,255,.15)':'var(--accent)18'};pointer-events:none"></div>
+        <span style="position:relative;color:${ativo?'#fff':'var(--text)'}">
+          ${t.tipo || '(sem tipo)'}
+          <b style="margin-left:4px;color:${ativo?'#fff':'var(--accent)'}">${t.total || 0}</b>
+        </span>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Por Atendente (filtra pelo tipo selecionado ou setor) ─────
+  const atTbl      = document.getElementById('atendenteTbl');
+  const atCount    = document.getElementById('at-atend-count');
+  const atBadge    = document.getElementById('at-atend-filtro-badge');
+  if (atBadge) atBadge.style.display = _atendFiltroAt ? '' : 'none';
   let porAt = porAtComSetor;
   if (filtSetor) porAt = porAt.filter(a => a.setor === filtSetor);
-  if (atCount) atCount.textContent = `${porAt.length} atendentes`;
+  // Se um tipo está selecionado, mostra só quem atendeu esse tipo
+  if (_atendFiltroTipo) {
+    porAt = porAt.filter(a => (a.tipos || []).some(t => t.tipo === _atendFiltroTipo));
+  }
+  if (atCount) atCount.textContent = `${porAt.length} atendentes${_atendFiltroTipo ? ` — ${_atendFiltroTipo}` : ''}`;
   if (atTbl) {
     atTbl.innerHTML = porAt.length ? porAt.map((a, i) => {
-      const pctRes  = a.total > 0 ? Math.round(a.semOS / a.total * 100) : 0;
-      const pctOS   = a.total > 0 ? Math.round(a.comOS / a.total * 100) : 0;
-      return `<tr>
+      const ativo  = _atendFiltroAt === a.atendente;
+      // Total no tipo filtrado (se filtro ativo)
+      const totalExib = _atendFiltroTipo
+        ? ((a.tipos || []).find(t => t.tipo === _atendFiltroTipo)?.n || 0)
+        : a.total;
+      const pctRes = a.total > 0 ? Math.round(a.semOS / a.total * 100) : 0;
+      const pctOS  = a.total > 0 ? Math.round(a.comOS / a.total * 100) : 0;
+      return `<tr onclick="setAtendFiltroAt(${JSON.stringify(a.atendente)})" style="cursor:pointer;${ativo?'background:var(--surface3,rgba(255,255,255,.06));outline:1px solid var(--accent)':''}">
       <td style="color:var(--text3)">${i+1}</td>
-      <td style="font-weight:500">${a.atendente}${a.setor ? `<br><span style="font-size:10px;color:var(--text3)">${a.setor}</span>` : ''}</td>
-      <td class="mono" style="font-weight:600">${a.total}</td>
+      <td style="font-weight:500;color:${ativo?'var(--accent)':'var(--text)'}">${a.atendente}${a.setor ? `<br><span style="font-size:10px;color:var(--text3)">${a.setor}</span>` : ''}</td>
+      <td class="mono" style="font-weight:600">${totalExib}${_atendFiltroTipo&&totalExib!==a.total?`<span style="font-size:9px;color:var(--text3);display:block">${a.total} total</span>`:''}</td>
       <td class="mono" style="color:#22c55e">${a.semOS}<div style="font-size:10px;color:var(--text3)">${pctRes}%</div></td>
       <td class="mono" style="color:var(--accent)">${a.comOS}<div style="font-size:10px;color:var(--text3)">${pctOS}%</div></td>
     </tr>`;}).join('')
     : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px">Nenhum atendente no período</td></tr>`;
   }
 
-  // Recalcula Por Setor com base no setor real de cada atendente
+  // Recalcula Por Setor — filtra por atendente selecionado se houver
+  const baseSetor = _atendFiltroAt
+    ? porAtComSetor.filter(a => a.atendente === _atendFiltroAt)
+    : porAtComSetor;
   const mapaSetorReal = {};
-  porAtComSetor.forEach(a => {
+  baseSetor.forEach(a => {
     const s = a.setor || 'Sem setor';
     if (!mapaSetorReal[s]) mapaSetorReal[s] = { setor:s, total:0, comOS:0, semOS:0 };
     mapaSetorReal[s].total += a.total;
