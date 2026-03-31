@@ -428,7 +428,7 @@ input[type="text"]::placeholder { color:var(--text3); }
   #cx-map { height:300px!important; }
   #page-conexoes .tbl-card { max-height:320px!important; }
   /* Financeiro — grids empilhados no mobile */
-  #fin-kpi-row    { grid-template-columns:repeat(2,1fr)!important; }
+  #fin-kpi-row    { grid-template-columns:repeat(3,1fr)!important; }
   #fin-cancel-grid{ grid-template-columns:1fr!important; }
   #fin-mid-grid   { grid-template-columns:1fr!important; }
 }
@@ -1553,10 +1553,11 @@ input[type="text"]::placeholder { color:var(--text3); }
       </div>
 
       <!-- KPI row -->
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px" id="fin-kpi-row">
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px" id="fin-kpi-row">
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">MRR Ativo</div><div class="kpi-mini-val" id="fin-mrr" style="color:var(--accent)">—</div></div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Suspensos</div><div class="kpi-mini-val" id="fin-susp" style="color:var(--red)">—</div><div style="font-size:10px;color:var(--text3);text-align:center" id="fin-susp-val">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">Churn Mês Atual</div><div class="kpi-mini-val" id="fin-churn-atual" style="color:var(--amber)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">Susp. Parcial</div><div class="kpi-mini-val" id="fin-parcial" style="color:var(--amber)">—</div><div style="font-size:10px;color:var(--text3);text-align:center" id="fin-parcial-val">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Churn Mês Atual</div><div class="kpi-mini-val" id="fin-churn-atual" style="color:var(--red)">—</div></div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--text3)"></div><div class="kpi-mini-label">Churn Mês Anterior</div><div class="kpi-mini-val" id="fin-churn-ant" style="color:var(--text3)">—</div></div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:#ef4444"></div><div class="kpi-mini-label">1ª Mensalidade Risco</div><div class="kpi-mini-val" id="fin-prim" style="color:#ef4444">—</div><div style="font-size:10px;color:var(--text3);text-align:center" id="fin-prim-pct">—</div></div>
       </div>
@@ -5428,12 +5429,14 @@ function renderFinanceiro(d) {
   const r = d.resumo || {};
 
   // KPIs
-  fev('fin-mrr',        fmtBRLk(r.mrr_total));
-  fev('fin-susp',       (r.total_suspensos || 0) + ` (${r.pct_suspensos || 0}%)`);
-  fev('fin-susp-val',   fmtBRLk(r.mrr_suspenso) + ' em risco');
+  fev('fin-mrr',         fmtBRLk(r.mrr_total));
+  fev('fin-susp',        r.total_suspensos || 0);
+  fev('fin-susp-val',    fmtBRLk(r.mrr_suspenso) + ' em risco');
+  fev('fin-parcial',     r.total_parciais || 0);
+  fev('fin-parcial-val', fmtBRLk(r.mrr_parcial) + ' em risco');
   fev('fin-churn-atual', r.churn_mes_atual || 0);
   fev('fin-churn-ant',   r.churn_mes_anterior || 0);
-  fev('fin-prim',        (r.primeira_mens_risco || 0));
+  fev('fin-prim',        r.primeira_mens_risco || 0);
   fev('fin-prim-pct',    `${r.pct_primeira_mens || 0}% dos novos`);
 
   // Cancelamentos

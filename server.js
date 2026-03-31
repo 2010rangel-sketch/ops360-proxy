@@ -1791,6 +1791,12 @@ const FIN_CACHE_TTL = 30 * 60 * 1000; // 30 min
 
 function parseDate(s) {
   if (!s) return null;
+  // Formato brasileiro DD/MM/YYYY ou DD/MM/YYYY HH:mm
+  const brMatch = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (brMatch) {
+    const d = new Date(`${brMatch[3]}-${brMatch[2]}-${brMatch[1]}`);
+    return isNaN(d.getTime()) ? null : d;
+  }
   const d = new Date(s);
   return isNaN(d.getTime()) ? null : d;
 }
@@ -1833,12 +1839,18 @@ async function buildFinanceiro() {
   const mesAnteriorFim = new Date(agora.getFullYear(), agora.getMonth(), 0, 23, 59, 59);
   const h60            = new Date(agora.getTime() - 60 * 24 * 60 * 60 * 1000);
 
+  // Status que representam suspensão real (Hubsoft)
+  const STATUS_SUSPENSO   = new Set(['suspenso_debito','suspenso_pedido_cliente','bloqueio_temporario','suspenso_judicial','servico_bloqueado']);
+  const STATUS_PARCIAL    = new Set(['suspenso_parcialmente','suspenso_parcial','bloqueio_parcial']);
+  const STATUS_IGNORADOS  = new Set(['aguardando_instalacao','em_instalacao','aguardando_ativacao','prospecto']);
+
   // ── Análise: clientes ativos ──────────────────────────────────
   const suspensos     = [];
+  const parciaisSusp  = [];   // parcialmente suspensos
   const novosSusp     = [];   // primeira mensalidade não paga
   const novos60d      = [];   // todos os novos (denominador)
   const ltvCandidates = [];
-  const mrr           = { total: 0, suspenso: 0 };
+  const mrr           = { total: 0, suspenso: 0, parcial: 0 };
   const vendMapAtivo  = {};
 
   for (const cli of ativos) {
@@ -1854,12 +1866,19 @@ async function buildFinanceiro() {
       const dataHab  = parseDate(s.data_habilitacao);
       const isOn     = status === 'servico_habilitado';
       const isCan    = !!s.data_cancelamento;
+      const isIgn    = STATUS_IGNORADOS.has(status);
+      const isSusp   = STATUS_SUSPENSO.has(status);
+      const isParcial = STATUS_PARCIAL.has(status);
 
-      if (isOn && valor > 0)  mrr.total   += valor;
-      if (!isOn && !isCan && valor > 0) mrr.suspenso += valor;
+      if (isOn && valor > 0)      mrr.total   += valor;
+      if (isSusp && valor > 0)    mrr.suspenso += valor;
+      if (isParcial && valor > 0) mrr.parcial  += valor;
 
-      if (!isOn && !isCan) {
+      if (isSusp) {
         suspensos.push({ nome, plano, valor, cidade, vendedor, status, dataHab: s.data_habilitacao });
+      }
+      if (isParcial) {
+        parciaisSusp.push({ nome, plano, valor, cidade, vendedor, status, dataHab: s.data_habilitacao });
       }
 
       if (isOn && dataCadCli) {
@@ -1873,16 +1892,17 @@ async function buildFinanceiro() {
         });
       }
 
-      if (dataHab && dataHab >= h60) {
+      if (dataHab && dataHab >= h60 && !isIgn) {
         const obj = { nome, plano, valor, cidade, vendedor, dataHab: s.data_habilitacao, status };
         novos60d.push(obj);
-        if (!isOn) novosSusp.push(obj);
+        if (isSusp || isParcial) novosSusp.push(obj);
       }
 
       // vendedor health
-      if (!vendMapAtivo[vendedor]) vendMapAtivo[vendedor] = { vendedor, ativos: 0, suspensos: 0, mrr: 0 };
-      if (isOn)          { vendMapAtivo[vendedor].ativos++; vendMapAtivo[vendedor].mrr += valor; }
-      else if (!isCan)     vendMapAtivo[vendedor].suspensos++;
+      if (!vendMapAtivo[vendedor]) vendMapAtivo[vendedor] = { vendedor, ativos: 0, suspensos: 0, parciais: 0, mrr: 0 };
+      if (isOn)        { vendMapAtivo[vendedor].ativos++;   vendMapAtivo[vendedor].mrr += valor; }
+      else if (isSusp)   vendMapAtivo[vendedor].suspensos++;
+      else if (isParcial) vendMapAtivo[vendedor].parciais++;
     }
   }
 
@@ -1904,29 +1924,43 @@ async function buildFinanceiro() {
   const cancelMesAtual    = [];
   const cancelMesAnterior = [];
 
+  // Helper: processa serviço cancelado e adiciona ao mês correto
+  function processaCancelado(nome, s) {
+    const dc = parseDate(s.data_cancelamento);
+    if (!dc) return;
+    const dh    = parseDate(s.data_habilitacao);
+    const valor = parseFloat(s.valor) || 0;
+    const m     = mesesEntre(dh, dc);
+    const obj   = {
+      nome,
+      motivo:           s.motivo_cancelamento || '—',
+      vendedor:         getVendedorFin(s),
+      cidade:           getCidadeFin(s),
+      plano:            s.nome || '—',
+      valor,
+      dataHab:          s.data_habilitacao,
+      dataCancelamento: s.data_cancelamento,
+      mesesVida:        Math.round(m * 10) / 10,
+      ltvDinheiro:      Math.round(m * valor),
+      tempoFmt:         fmtTempoFin(m),
+    };
+    if (dc >= mesAtualIni)                                cancelMesAtual.push(obj);
+    else if (dc >= mesAnteriorIni && dc <= mesAnteriorFim) cancelMesAnterior.push(obj);
+  }
+
+  // 1) Clientes totalmente cancelados (cancelado=sim)
   for (const cli of canceladosRaw) {
+    const nome = cli.nome_razaosocial || cli.nome_fantasia || '—';
+    for (const s of (cli.servicos || [])) processaCancelado(nome, s);
+  }
+
+  // 2) Clientes ativos com serviços cancelados dentro do período (cancelou 1 serviço mas ficou com outro)
+  for (const cli of ativos) {
     const nome = cli.nome_razaosocial || cli.nome_fantasia || '—';
     for (const s of (cli.servicos || [])) {
       const dc = parseDate(s.data_cancelamento);
       if (!dc) continue;
-      const dh    = parseDate(s.data_habilitacao);
-      const valor = parseFloat(s.valor) || 0;
-      const m     = mesesEntre(dh, dc);
-      const obj   = {
-        nome,
-        motivo:          s.motivo_cancelamento || '—',
-        vendedor:        getVendedorFin(s),
-        cidade:          getCidadeFin(s),
-        plano:           s.nome || '—',
-        valor,
-        dataHab:         s.data_habilitacao,
-        dataCancelamento: s.data_cancelamento,
-        mesesVida:       Math.round(m * 10) / 10,
-        ltvDinheiro:     Math.round(m * valor),
-        tempoFmt:        fmtTempoFin(m),
-      };
-      if (dc >= mesAtualIni)                           cancelMesAtual.push(obj);
-      else if (dc >= mesAnteriorIni && dc <= mesAnteriorFim) cancelMesAnterior.push(obj);
+      if (dc >= mesAnteriorIni) processaCancelado(nome, s); // só captura se é recente
     }
   }
 
@@ -1956,7 +1990,7 @@ async function buildFinanceiro() {
 
   // Saúde por vendedor (add cancelamentos)
   [...cancelMesAtual, ...cancelMesAnterior].forEach(c => {
-    if (!vendMapAtivo[c.vendedor]) vendMapAtivo[c.vendedor] = { vendedor: c.vendedor, ativos: 0, suspensos: 0, mrr: 0 };
+    if (!vendMapAtivo[c.vendedor]) vendMapAtivo[c.vendedor] = { vendedor: c.vendedor, ativos: 0, suspensos: 0, parciais: 0, mrr: 0 };
     vendMapAtivo[c.vendedor].cancelados60d = (vendMapAtivo[c.vendedor].cancelados60d || 0) + 1;
   });
   const porVendedor = Object.values(vendMapAtivo)
@@ -1964,9 +1998,10 @@ async function buildFinanceiro() {
     .map(v => ({
       ...v,
       cancelados60d: v.cancelados60d || 0,
+      parciais:      v.parciais || 0,
       mrr:           Math.round(v.mrr * 100) / 100,
-      pct_saude:     (v.ativos + v.suspensos) > 0
-        ? Math.round(v.ativos / (v.ativos + v.suspensos) * 100) : 0,
+      pct_saude:     (v.ativos + v.suspensos + (v.parciais || 0)) > 0
+        ? Math.round(v.ativos / (v.ativos + v.suspensos + (v.parciais || 0)) * 100) : 0,
     }))
     .sort((a, b) => b.ativos - a.ativos);
 
@@ -1975,8 +2010,10 @@ async function buildFinanceiro() {
     resumo: {
       mrr_total:           Math.round(mrr.total * 100) / 100,
       mrr_suspenso:        Math.round(mrr.suspenso * 100) / 100,
+      mrr_parcial:         Math.round(mrr.parcial * 100) / 100,
       total_ativos:        ativos.length,
       total_suspensos:     suspensos.length,
+      total_parciais:      parciaisSusp.length,
       pct_suspensos:       ativos.length > 0 ? Math.round(suspensos.length / ativos.length * 1000) / 10 : 0,
       churn_mes_atual:     cancelMesAtual.length,
       churn_mes_anterior:  cancelMesAnterior.length,
@@ -1985,6 +2022,7 @@ async function buildFinanceiro() {
       pct_primeira_mens:   novos60d.length > 0 ? Math.round(novosSusp.length / novos60d.length * 100) : 0,
     },
     suspensos:           suspensos.slice(0, 300).sort((a, b) => new Date(b.dataHab || 0) - new Date(a.dataHab || 0)),
+    parciais:            parciaisSusp.slice(0, 100).sort((a, b) => new Date(b.dataHab || 0) - new Date(a.dataHab || 0)),
     ltv_top100:          ltvCandidates.slice(0, 100),
     cancelamentos: {
       mes_atual:    buildCancelStats(cancelMesAtual),
