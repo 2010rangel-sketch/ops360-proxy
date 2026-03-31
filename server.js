@@ -1030,6 +1030,7 @@ async function fetchIntegracaoClientes(token, params = {}, maxPag = 30) {
 // ── Cache do comercial ────────────────────────────────────────────
 // _comAllClientes: todos os clientes ativos (15k+), atualizado em background
 let _comAllClientes  = null;   // array de clientes normalizados
+let _comCancelados   = null;   // clientes cancelados recentes (para capturar cancelados no mesmo mês)
 let _comFetching     = false;  // lock
 let _comFetchedAt    = 0;      // timestamp da última busca completa
 
@@ -1121,8 +1122,13 @@ async function warmupComercial() {
     const clientes = await fetchIntegracaoClientes(token,
       { cancelado: 'nao', relacoes: 'endereco_instalacao' }, 30);
     _comAllClientes = clientes;
+    // Busca cancelados recentes (5 páginas ≈ 2500) para capturar clientes cancelados no mesmo mês
+    const token2 = await getToken();
+    const cancelados = await fetchIntegracaoClientes(token2,
+      { cancelado: 'sim', relacoes: 'endereco_instalacao' }, 5);
+    _comCancelados  = cancelados;
     _comFetchedAt   = Date.now();
-    console.log(`[comercial] Cache populado: ${clientes.length} clientes`);
+    console.log(`[comercial] Cache populado: ${clientes.length} ativos + ${cancelados.length} cancelados recentes`);
   } catch(e) {
     console.warn('[comercial] Warm-up falhou:', e.message);
   }
@@ -1147,7 +1153,8 @@ app.get('/api/comercial', async (req, res) => {
 
     // Cache disponível → responde instantaneamente
     if (_comAllClientes) {
-      const vendas = buildVendasFromClientes(_comAllClientes, iniStr, fimStr);
+      const todos  = [..._comAllClientes, ...(_comCancelados || [])];
+      const vendas = buildVendasFromClientes(todos, iniStr, fimStr);
       return res.json(buildComResult(vendas, iniStr, fimStr));
     }
 
