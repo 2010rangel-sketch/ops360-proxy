@@ -1112,16 +1112,6 @@ input[type="text"]::placeholder { color:var(--text3); }
           </div>
         </div>
       </div>
-      <!-- Por Motivo (Tipo) -->
-      <div class="tbl-card" style="margin-bottom:14px">
-        <div class="tbl-header">
-          <span class="tbl-title">Por Motivo (Tipo)</span>
-          <span class="badge b-blue" id="at-tipo-count">—</span>
-          <span id="at-tipo-filtro-badge" style="display:none;font-size:11px;color:var(--accent);margin-left:8px;cursor:pointer" onclick="setAtendFiltroTipo(null)">✕ limpar filtro</span>
-        </div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;padding:10px 14px" id="at-tipo-chips"></div>
-      </div>
-
       <!-- Por atendente + por setor -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px" id="at-atend-setor-grid">
         <div class="tbl-card" style="margin-bottom:0">
@@ -1130,7 +1120,7 @@ input[type="text"]::placeholder { color:var(--text3); }
             <span class="badge b-blue" id="at-atend-count">—</span>
             <span id="at-atend-filtro-badge" style="display:none;font-size:11px;color:var(--accent);margin-left:8px;cursor:pointer" onclick="setAtendFiltroAt(null)">✕ limpar</span>
           </div>
-          <div style="overflow-x:auto;max-height:300px;overflow-y:auto">
+          <div style="overflow-x:auto;max-height:320px;overflow-y:auto">
             <table><thead><tr><th>#</th><th>Atendente</th><th>Total</th><th style="color:#22c55e">Resolvido</th><th style="color:var(--accent)">O.S Aberta</th></tr></thead>
             <tbody id="atendenteTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px">Carregando...</td></tr></tbody></table>
           </div>
@@ -1140,10 +1130,23 @@ input[type="text"]::placeholder { color:var(--text3); }
             <span class="tbl-title">Por Setor</span>
             <span class="badge b-blue" id="at-setor-count">—</span>
           </div>
-          <div style="overflow-x:auto;max-height:300px;overflow-y:auto">
+          <div style="overflow-x:auto;max-height:320px;overflow-y:auto">
             <table><thead><tr><th>#</th><th>Setor</th><th>Total</th><th style="color:#22c55e">Resolvido</th><th style="color:var(--accent)">O.S Aberta</th><th>% Resol.</th></tr></thead>
             <tbody id="setorTbl"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Carregando...</td></tr></tbody></table>
           </div>
+        </div>
+      </div>
+
+      <!-- Por Motivo (Tipo) — abaixo, mesmo formato de tabela rankeada -->
+      <div class="tbl-card" style="margin-bottom:14px">
+        <div class="tbl-header">
+          <span class="tbl-title">Por Motivo (Tipo)</span>
+          <span class="badge b-blue" id="at-tipo-count">—</span>
+          <span id="at-tipo-filtro-badge" style="display:none;font-size:11px;color:var(--accent);margin-left:8px;cursor:pointer" onclick="setAtendFiltroTipo(null)">✕ limpar filtro</span>
+        </div>
+        <div style="overflow-x:auto;max-height:280px;overflow-y:auto">
+          <table><thead><tr><th>#</th><th>Tipo / Motivo</th><th>Total</th><th style="color:#22c55e">Resolvido</th><th style="color:var(--accent)">O.S Aberta</th><th>% Resol.</th></tr></thead>
+          <tbody id="at-tipo-tbl"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
         </div>
       </div>
       <!-- NOC / Rede — separado do atendimento comercial -->
@@ -3576,35 +3579,8 @@ function renderAtendimentosFiltrado() {
     ...a, setor: mapa[a.atendente] || a.setor || ''
   }));
 
-  // ── Por Motivo (Tipo) — chips clicáveis ──────────────────────
-  // Se um atendente está selecionado, mostra só os tipos que ele atendeu
+  // ── Por Atendente: quando selecionado mostra só os tipos que ele atendeu ──
   const atSel      = _atendFiltroAt ? porAtComSetor.find(a => a.atendente === _atendFiltroAt) : null;
-  const porTipoBase = atSel
-    ? (atSel.tipos || []).map(t => ({ tipo: t.tipo, total: t.n, semOS: 0, comOS: 0 }))
-    : (data.por_tipo || []);
-  const porTipo    = porTipoBase;
-  const tipoChips  = document.getElementById('at-tipo-chips');
-  const tipoCount  = document.getElementById('at-tipo-count');
-  const tipoBadge  = document.getElementById('at-tipo-filtro-badge');
-  if (tipoCount) tipoCount.textContent = `${porTipo.length} motivos${atSel ? ` — ${_atendFiltroAt}` : ''}`;
-  if (tipoBadge) tipoBadge.style.display = _atendFiltroTipo ? '' : 'none';
-  if (tipoChips) {
-    const maxT = Math.max(...porTipo.map(t => t.total || 0), 1);
-    tipoChips.innerHTML = porTipo.map(t => {
-      const ativo = _atendFiltroTipo === t.tipo;
-      const pct   = Math.round((t.total || 0) / maxT * 100);
-      return `<div onclick="setAtendFiltroTipo(${JSON.stringify(t.tipo)})"
-        style="cursor:pointer;background:${ativo?'var(--accent)':'var(--surface)'};border:1px solid ${ativo?'var(--accent)':'var(--border)'};border-radius:20px;padding:5px 12px;font-size:12px;transition:.15s;position:relative;overflow:hidden"
-        onmouseenter="this.style.borderColor='var(--accent)'" onmouseleave="this.style.borderColor='${ativo?'var(--accent)':'var(--border)'}'"
-        title="${t.tipo}: ${t.total} atendimentos">
-        <div style="position:absolute;left:0;top:0;height:100%;width:${pct}%;background:${ativo?'rgba(255,255,255,.15)':'var(--accent)18'};pointer-events:none"></div>
-        <span style="position:relative;color:${ativo?'#fff':'var(--text)'}">
-          ${t.tipo || '(sem tipo)'}
-          <b style="margin-left:4px;color:${ativo?'#fff':'var(--accent)'}">${t.total || 0}</b>
-        </span>
-      </div>`;
-    }).join('');
-  }
 
   // ── Por Atendente (filtra pelo tipo selecionado ou setor) ─────
   const atTbl      = document.getElementById('atendenteTbl');
@@ -3675,6 +3651,42 @@ function renderAtendimentosFiltrado() {
       </tr>`;
     }).join('')
     : `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Nenhum setor no período</td></tr>`;
+  }
+
+  // ── Por Motivo (Tipo) — tabela rankeada, abaixo de Por Atendente ─
+  const tipoTbl   = document.getElementById('at-tipo-tbl');
+  const tipoCount = document.getElementById('at-tipo-count');
+  const tipoBadge = document.getElementById('at-tipo-filtro-badge');
+  // Se atendente selecionado → só tipos dele; senão todos
+  let porTipo = [];
+  if (atSel) {
+    // Recalcula por tipo a partir dos dados do atendente selecionado
+    const tiposAt = atSel.tipos || [];
+    porTipo = tiposAt
+      .map(t => ({ tipo: t.tipo, total: t.n, semOS: 0, comOS: 0 }))
+      .sort((a,b) => b.total - a.total);
+  } else {
+    porTipo = (data.por_tipo || []).slice().sort((a,b) => b.total - a.total);
+  }
+  if (tipoCount) tipoCount.textContent = `${porTipo.length} motivos${atSel ? ` — ${_atendFiltroAt}` : ''}`;
+  if (tipoBadge) tipoBadge.style.display = _atendFiltroTipo ? '' : 'none';
+  if (tipoTbl) {
+    tipoTbl.innerHTML = porTipo.length ? porTipo.map((t, i) => {
+      const ativo   = _atendFiltroTipo === t.tipo;
+      const semOS   = t.semOS || 0;
+      const comOS   = t.comOS || 0;
+      const pctRes  = t.total > 0 ? Math.round(semOS / t.total * 100) : 0;
+      const pctOS   = t.total > 0 ? Math.round(comOS / t.total * 100) : 0;
+      return `<tr onclick="setAtendFiltroTipo(${JSON.stringify(t.tipo)})" style="cursor:pointer;${ativo ? 'background:rgba(91,106,240,.08);outline:1px solid var(--accent);' : ''}">
+        <td style="color:var(--text3)">${i+1}</td>
+        <td style="font-weight:500;color:${ativo ? 'var(--accent)' : 'var(--text)'}">${t.tipo || '(sem tipo)'}${ativo ? ' <span style="font-size:10px">✕</span>' : ''}</td>
+        <td class="mono" style="font-weight:600">${t.total}</td>
+        <td class="mono" style="color:#22c55e">${semOS}<div style="font-size:10px;color:var(--text3)">${pctRes}%</div></td>
+        <td class="mono" style="color:var(--accent)">${comOS}<div style="font-size:10px;color:var(--text3)">${pctOS}%</div></td>
+        <td style="font-size:11px;color:var(--text3)">${pctRes}%</td>
+      </tr>`;
+    }).join('')
+    : `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Nenhum tipo no período</td></tr>`;
   }
 
   // Clientes recorrentes
