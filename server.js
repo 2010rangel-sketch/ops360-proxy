@@ -1122,14 +1122,16 @@ async function warmupComercial() {
     const clientes = await fetchIntegracaoClientes(token,
       { cancelado: 'nao', relacoes: 'endereco_instalacao' }, 999);
     _comAllClientes = clientes;
-    // Busca TODOS os cancelados — necessário pois a API ordena por data_cadastro ASC
-    // e cancelados recentes ficam nas últimas páginas
+    // Busca cancelados sem limite — necessário pois a API ordena por data_cadastro ASC
+    // e cancelados recentes (mesmo mês) ficam nas últimas páginas
     const token2 = await getToken();
     const cancelados = await fetchIntegracaoClientes(token2,
       { cancelado: 'sim', relacoes: 'endereco_instalacao' }, 999);
-    _comCancelados  = cancelados;
+    // Deduplicar já no cache: remove cancelados que também estão nos ativos
+    const idsAtivos = new Set(clientes.map(c => c.id || c.id_cliente));
+    _comCancelados  = cancelados.filter(c => !idsAtivos.has(c.id || c.id_cliente));
     _comFetchedAt   = Date.now();
-    console.log(`[comercial] Cache populado: ${clientes.length} ativos + ${cancelados.length} cancelados`);
+    console.log(`[comercial] Cache populado: ${clientes.length} ativos + ${_comCancelados.length} cancelados únicos (${cancelados.length} total cancelados na API)`);
   } catch(e) {
     console.warn('[comercial] Warm-up falhou:', e.message);
   }
@@ -1154,8 +1156,11 @@ app.get('/api/comercial', async (req, res) => {
 
     // Cache disponível → responde instantaneamente
     if (_comAllClientes) {
-      const todos  = [..._comAllClientes, ...(_comCancelados || [])];
-      const vendas = buildVendasFromClientes(todos, iniStr, fimStr);
+      // Deduplicar: cancelados que já existem no cache de ativos (serviços mistos)
+      const activeIds = new Set(_comAllClientes.map(c => c.id || c.id_cliente));
+      const soCancel  = (_comCancelados || []).filter(c => !activeIds.has(c.id || c.id_cliente));
+      const todos     = [..._comAllClientes, ...soCancel];
+      const vendas    = buildVendasFromClientes(todos, iniStr, fimStr);
       return res.json(buildComResult(vendas, iniStr, fimStr));
     }
 
