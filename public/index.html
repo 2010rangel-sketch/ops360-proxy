@@ -1357,8 +1357,8 @@ input[type="text"]::placeholder { color:var(--text3); }
 
       </div>
 
-      <!-- Row 2: Por plano (donut) + Todas as vendas -->
-      <div style="display:grid;grid-template-columns:300px 1fr;gap:14px;margin-bottom:14px">
+      <!-- Row 2: Por plano + Por Status (donuts) + Todas as vendas -->
+      <div style="display:grid;grid-template-columns:260px 220px 1fr;gap:14px;margin-bottom:14px">
 
         <!-- Por plano -->
         <div class="tbl-card" style="margin-bottom:0">
@@ -1366,8 +1366,19 @@ input[type="text"]::placeholder { color:var(--text3); }
             <span class="tbl-title"><i class="fas fa-layer-group" style="color:var(--amber);margin-right:5px"></i>Por Plano</span>
           </div>
           <div style="padding:12px 16px">
-            <svg id="com-plano-donut" viewBox="0 0 200 200" style="width:100%;max-width:180px;display:block;margin:0 auto"></svg>
+            <svg id="com-plano-donut" viewBox="0 0 200 200" style="width:100%;max-width:160px;display:block;margin:0 auto"></svg>
             <div id="com-plano-legend" style="margin-top:10px"></div>
+          </div>
+        </div>
+
+        <!-- Por Status -->
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <span class="tbl-title"><i class="fas fa-signal" style="color:var(--cyan);margin-right:5px"></i>Por Status</span>
+          </div>
+          <div style="padding:12px 16px">
+            <svg id="com-status-donut" viewBox="0 0 200 200" style="width:100%;max-width:140px;display:block;margin:0 auto"></svg>
+            <div id="com-status-legend" style="margin-top:10px"></div>
           </div>
         </div>
 
@@ -5138,6 +5149,7 @@ function renderComercialAtualiza(data) {
   } else {
     renderComBarras('com-cidades-bars',  data.cidades,   data.cidades[0]?.total||1,  '#6366f1','#06b6d4');
     renderComPlanoDonutData(data.planos);
+    renderComStatusDonut(data.por_status || []);
     if (vendBadge) vendBadge.style.display='none';
     const cidCount = document.getElementById('com-cid-count');
     if (cidCount) cidCount.textContent = data.cidades.length;
@@ -5175,6 +5187,56 @@ function renderComBarras(containerId, items, maxVal, colorNew, colorReat) {
 }
 
 function renderComPlanoDonut(planos) { renderComPlanoDonutData(planos); }
+
+function renderComStatusDonut(porStatus) {
+  const svgEl = document.getElementById('com-status-donut');
+  const legEl = document.getElementById('com-status-legend');
+  if (!svgEl || !porStatus || !porStatus.length) return;
+  const LABELS = {
+    'servico_habilitado':'Habilitado','aguardando_instalacao':'Ag. Instalação',
+    'suspenso_parcialmente':'Susp. Parcial','suspenso_debito':'Susp. Débito',
+    'suspenso_pedido_cliente':'Susp. Pedido','cancelado':'Cancelado',
+    'rescindido':'Rescindido','agendado_para_instalacao':'Ag. p/ Inst.',
+    'inativo':'Inativo','desconhecido':'Desconhecido',
+  };
+  const COLORS = {
+    'servico_habilitado':'#22c55e','aguardando_instalacao':'#06b6d4',
+    'suspenso_parcialmente':'#f59e0b','suspenso_debito':'#ef4444',
+    'suspenso_pedido_cliente':'#f97316','cancelado':'#ef4444',
+    'rescindido':'#dc2626','agendado_para_instalacao':'#8b5cf6',
+    'inativo':'#6b7280','desconhecido':'#374151',
+  };
+  const total = porStatus.reduce((s, p) => s + p.total, 0);
+  const cx = 100, cy = 100, r = 75, ri = 48;
+  let startAngle = -Math.PI / 2;
+  let paths = '';
+  porStatus.forEach(p => {
+    const angle = (p.total / total) * 2 * Math.PI;
+    const end = startAngle + angle;
+    const x1 = cx + r*Math.cos(startAngle), y1 = cy + r*Math.sin(startAngle);
+    const x2 = cx + r*Math.cos(end),         y2 = cy + r*Math.sin(end);
+    const xi1= cx + ri*Math.cos(startAngle), yi1= cy + ri*Math.sin(startAngle);
+    const xi2= cx + ri*Math.cos(end),        yi2= cy + ri*Math.sin(end);
+    const large = angle > Math.PI ? 1 : 0;
+    const color = COLORS[p.status] || '#6366f1';
+    paths += `<path d="M ${xi1} ${yi1} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} L ${xi2} ${yi2} A ${ri} ${ri} 0 ${large} 0 ${xi1} ${yi1} Z" fill="${color}" stroke="var(--bg)" stroke-width="1.5"><title>${LABELS[p.status]||p.status}: ${p.total}</title></path>`;
+    startAngle = end;
+  });
+  svgEl.innerHTML = `${paths}<text x="100" y="95" text-anchor="middle" font-size="18" font-weight="700" fill="var(--text)">${total}</text><text x="100" y="112" text-anchor="middle" font-size="10" fill="var(--text3)">serviços</text>`;
+  if (legEl) {
+    legEl.innerHTML = porStatus.map(p => {
+      const color = COLORS[p.status] || '#6366f1';
+      const label = LABELS[p.status] || p.status;
+      return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:4px">
+        <div style="display:flex;align-items:center;gap:5px">
+          <span style="width:8px;height:8px;border-radius:2px;background:${color};display:inline-block;flex-shrink:0"></span>
+          <span style="color:var(--text2)">${label}</span>
+        </div>
+        <span style="color:var(--text3);font-weight:600">${p.total} <span style="font-weight:400">(${Math.round(p.total/total*100)}%)</span></span>
+      </div>`;
+    }).join('');
+  }
+}
 function renderComPlanoDonutData(planos) {
   const svgEl = document.getElementById('com-plano-donut');
   const legEl = document.getElementById('com-plano-legend');

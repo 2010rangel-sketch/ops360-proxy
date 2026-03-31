@@ -1099,26 +1099,36 @@ function buildComResult(vendas, iniStr, fimStr) {
       if (v.reativacao) vendedorMap[v.vendedor].reat++; else vendedorMap[v.vendedor].novas++;
     }
   }
-  const novas      = vendas.filter(v => !v.reativacao).length;
+  // Breakdown por status_prefixo
+  const statusMap = {};
+  for (const v of vendas) {
+    const st = v.status || 'desconhecido';
+    statusMap[st] = (statusMap[st] || 0) + 1;
+  }
+  const por_status = Object.entries(statusMap)
+    .sort((a, b) => b[1] - a[1])
+    .map(([status, total]) => ({ status, total }));
+
+  const novas       = vendas.filter(v => !v.reativacao).length;
   const reativacoes = vendas.filter(v => v.reativacao).length;
-  const cancelados = vendas.filter(v => v.cancelado).length;
-  const ativos     = vendas.filter(v => !v.cancelado).length;
+  const cancelados  = vendas.filter(v => v.cancelado).length;
+  const ativos      = vendas.filter(v => !v.cancelado).length;
   return {
     ok: true, fonte: 'integracao_cliente_todos',
     total: vendas.length,
     novas, reativacoes, cancelados, ativos,
     periodo: { ini: iniStr, fim: fimStr },
+    por_status,
     cidades:    Object.values(cidadeMap).sort((a,b) => b.total - a.total),
     vendedores: Object.values(vendedorMap).sort((a,b) => b.total - a.total),
     planos:     Object.values(planoMap).sort((a,b) => b.total - a.total),
-    ultimas:    vendas.slice().sort((a, b) => b.dataVenda > a.dataVenda ? -1 : b.dataVenda < a.dataVenda ? 1 : 0).reverse(),
+    ultimas:    vendas.slice().sort((a, b) => b.dataVenda > a.dataVenda ? 1 : -1),
   };
 }
 
 // Dispara busca completa em background (sem bloquear requests HTTP)
 async function warmupComercial() {
   if (_comFetching) return;
-  // Só rebusca se cache > 30 minutos
   if (_comAllClientes && (Date.now() - _comFetchedAt) < 1800000) return;
   _comFetching = true;
   try {
@@ -1126,13 +1136,11 @@ async function warmupComercial() {
     const token    = await getToken();
     const clientes = await fetchIntegracaoClientes(token,
       { cancelado: 'nao', relacoes: 'endereco_instalacao' }, 999);
+    // Só atualiza cache quando a busca completa (evita race condition)
     _comAllClientes = clientes;
-    // Cancelados sem limite — API ordena por data_cadastro ASC, cancelados do mês ficam nas últimas páginas
-    const token2    = await getToken();
-    _comCancelados  = await fetchIntegracaoClientes(token2,
-      { cancelado: 'sim', relacoes: 'endereco_instalacao' }, 999);
+    _comCancelados  = null; // limpa — será buscado por período em cada query
     _comFetchedAt   = Date.now();
-    console.log(`[comercial] Cache: ${clientes.length} ativos + ${_comCancelados.length} cancelados (dedup no buildVendas)`);
+    console.log(`[comercial] Cache populado: ${clientes.length} ativos`);
   } catch(e) {
     console.warn('[comercial] Warm-up falhou:', e.message);
   }
@@ -1155,10 +1163,17 @@ app.get('/api/comercial', async (req, res) => {
     const iniStr = req.query.data_inicio || fmtDate(primeiroDiaMes);
     const fimStr = req.query.data_fim    || fmtDate(ultimoDiaMes);
 
-    // Cache disponível → responde instantaneamente
+    // Cache disponível → busca cancelados do PERÍODO via filtro nativo da API (rápido: 1-2 páginas)
     if (_comAllClientes) {
-      // Mescla ativos + cancelados — dedup por chave composta dentro de buildVendasFromClientes
-      const todos  = [..._comAllClientes, ...(_comCancelados || [])];
+      const tkCanc   = await getToken();
+      const cancelados = await fetchIntegracaoClientes(tkCanc, {
+        cancelado: 'sim',
+        relacoes: 'endereco_instalacao',
+        tipo_data_cliente_servico: 'data_venda',
+        data_inicio_cliente_servico: iniStr,
+        data_fim_cliente_servico: fimStr,
+      }, 10);
+      const todos  = [..._comAllClientes, ...cancelados];
       const vendas = buildVendasFromClientes(todos, iniStr, fimStr);
       return res.json(buildComResult(vendas, iniStr, fimStr));
     }
