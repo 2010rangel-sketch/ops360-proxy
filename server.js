@@ -1043,9 +1043,9 @@ function buildVendasFromClientes(clientes, iniStr, fimStr) {
     const servicos = cli.servicos || [];
 
     for (const s of servicos) {
-      // data_venda = data real da venda (para reativações é a data atual, não retroativa)
-      // Fallback: data_habilitacao, data_cadastro do serviço
-      const rawVenda = s.data_venda || s.data_habilitacao || null;
+      // Usa SOMENTE data_venda — igual ao filtro "Data da Venda" do Hubsoft
+      // data_habilitacao é retroativa para reativações e não reflete a data de venda real
+      const rawVenda  = s.data_venda || null;
       const vendaDate = rawVenda ? parseDate(rawVenda) : null;
       const vendaMs   = vendaDate ? vendaDate.getTime() : 0;
       if (!vendaMs || vendaMs < iniMs || vendaMs > fimMs) continue;
