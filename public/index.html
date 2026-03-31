@@ -1425,6 +1425,17 @@ input[type="text"]::placeholder { color:var(--text3); }
         <span class="badge b-green" id="ret-atend-sync" style="margin-left:auto">—</span>
       </div>
 
+      <!-- Cancelamento Geral — destaque no topo -->
+      <div class="tbl-card" style="margin-bottom:14px;border-top:3px solid var(--red)">
+        <div class="tbl-header">
+          <span class="tbl-title"><i class="fas fa-times-circle" style="color:var(--red);margin-right:6px"></i>Cancelamento Geral do Mês</span>
+          <span class="badge b-red" id="ret-cancel-geral-badge">—</span>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;padding:10px 14px" id="ret-cancel-geral-chips">
+          <span style="color:var(--text3);font-size:12px">Carregando...</span>
+        </div>
+      </div>
+
       <!-- KPIs de retenção -->
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px">
         <div class="kpi-mini">
@@ -1529,10 +1540,12 @@ input[type="text"]::placeholder { color:var(--text3); }
         <span class="badge b-amber" id="remoc-total-badge">—</span>
       </div>
 
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px">
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">Equipamentos removidos</div><div class="kpi-mini-val" id="remoc-total" style="color:var(--amber)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Cancelamento geral</div><div class="kpi-mini-val" id="remoc-canc" style="color:var(--red)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:#22c55e"></div><div class="kpi-mini-label">Taxa de recuperação</div><div class="kpi-mini-val" id="remoc-cobr" style="color:#22c55e">—</div></div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px">
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">Removidos total</div><div class="kpi-mini-val" id="remoc-total" style="color:var(--amber)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Cancelamento</div><div class="kpi-mini-val" id="remoc-tipo-canc" style="color:var(--red)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Cobrança</div><div class="kpi-mini-val" id="remoc-tipo-cobr" style="color:var(--accent)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--cyan)"></div><div class="kpi-mini-label">SPC</div><div class="kpi-mini-val" id="remoc-tipo-spc" style="color:var(--cyan)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--text3)"></div><div class="kpi-mini-label">Outro motivo</div><div class="kpi-mini-val" id="remoc-tipo-outro" style="color:var(--text3)">—</div></div>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
@@ -1552,7 +1565,7 @@ input[type="text"]::placeholder { color:var(--text3); }
             <span class="tbl-title"><i class="fas fa-list" style="color:var(--text3);margin-right:5px"></i>Últimas remoções</span>
           </div>
           <div style="overflow-x:auto;max-height:280px;overflow-y:auto">
-            <table><thead><tr><th>Cliente</th><th>Cidade</th><th>Técnico</th><th>Tipo</th><th>Data</th></tr></thead>
+            <table><thead><tr><th>Cliente</th><th>Cidade</th><th>Técnico</th><th>Tipo de Abertura</th><th>Data</th></tr></thead>
             <tbody id="remocTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">—</td></tr></tbody></table>
           </div>
         </div>
@@ -3891,6 +3904,27 @@ function renderRetencao(data) {
   elVal('ret-ped-cancel', data.cancelados ?? '—');
   elVal('ret-ped-taxa',   data.taxa_retencao != null ? data.taxa_retencao + '%' : '—');
 
+  // Cancelamento Geral — destaque no topo
+  const cgBadge = document.getElementById('ret-cancel-geral-badge');
+  if (cgBadge) cgBadge.textContent = data.cancelamento_geral ?? '—';
+  const cgChips = document.getElementById('ret-cancel-geral-chips');
+  if (cgChips) {
+    const motivos = data.por_motivo_cancelamento_geral || [];
+    const total   = data.cancelamento_geral || 0;
+    if (!motivos.length) {
+      cgChips.innerHTML = '<span style="color:var(--text3);font-size:12px">Sem dados</span>';
+    } else {
+      cgChips.innerHTML = motivos.map(m => {
+        const pct = total > 0 ? Math.round(m.total / total * 100) : 0;
+        return `<span style="display:inline-flex;align-items:center;gap:5px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);border-radius:20px;padding:4px 10px;font-size:11px;color:var(--red);white-space:nowrap">
+          <span style="font-weight:700">${m.total}</span>
+          <span style="color:var(--text3)">${m.tipo}</span>
+          <span style="color:rgba(239,68,68,.6)">${pct}%</span>
+        </span>`;
+      }).join('');
+    }
+  }
+
   // Por atendente
   const atTbl   = document.getElementById('retAtendTbl');
   const atCount = document.getElementById('ret-atend-count');
@@ -5244,33 +5278,42 @@ async function loadComercial() {
 //  REMOÇÕES DE EQUIPAMENTOS (usa chamadosDB — sem API extra)
 // ══════════════════════════════════════════════════════════════════
 function renderRemocoes() {
-  // Filtra OS de remoção finalizadas
+  // Remoções = OS finalizadas cujo motivo de fechamento contém "remov" (fechadas como "Removido")
+  const norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
   const remocoes = chamadosDB.filter(c => {
-    const isRemocao = c.tipo === 'remocao'
-      || (c.cat && c.cat.toLowerCase().includes('remoc'))
-      || (c.cat && c.cat.toLowerCase().includes('retirad'));
     const isFinalizado = c.st === 'finalizado';
-    return isRemocao && isFinalizado;
+    const isRemovido   = norm(c.motivoFech).includes('remov');
+    return isFinalizado && isRemovido;
   });
 
   const total = remocoes.length;
-  const canc  = remocoes.filter(c => c.cat && (c.cat.toLowerCase().includes('cancelam') || c.cat.toLowerCase().includes('cancel'))).length;
-  const cobr  = remocoes.filter(c => c.cat && c.cat.toLowerCase().includes('cobran')).length;
 
-  // Card 2: cancelamento geral (qualquer tipo fechado como cancelado) — Card 3: taxa de recuperação
-  const cancelGeral = _retData ? (_retData.cancelamento_geral || 0) : 0;
-  const revertidos  = _retData ? (_retData.revertidos || 0) : 0;
-  const taxaRecup   = cancelGeral > 0
-    ? Math.round(revertidos / cancelGeral * 100) + '%'
-    : '—';
+  // Breakdown por tipo de abertura: SPC, Cobrança, Cancelamento, Outro
+  const categorizaTipo = t => {
+    const u = norm(t);
+    if (u.includes('spc'))    return 'spc';
+    if (u.includes('cobran')) return 'cobr';
+    if (u.includes('cancel')) return 'canc';
+    return 'outro';
+  };
+  let tipoCanc = 0, tipoCobr = 0, tipoSpc = 0, tipoOutro = 0;
+  for (const c of remocoes) {
+    const cat = categorizaTipo(c.tipo);
+    if (cat === 'canc')  tipoCanc++;
+    else if (cat === 'cobr')  tipoCobr++;
+    else if (cat === 'spc')   tipoSpc++;
+    else                      tipoOutro++;
+  }
 
   const ev = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
   ev('remoc-total',       total);
-  ev('remoc-canc',        cancelGeral);
-  ev('remoc-cobr',        taxaRecup);
+  ev('remoc-tipo-canc',   tipoCanc);
+  ev('remoc-tipo-cobr',   tipoCobr);
+  ev('remoc-tipo-spc',    tipoSpc);
+  ev('remoc-tipo-outro',  tipoOutro);
   ev('remoc-total-badge', total);
 
-  // Agrupa por técnico
+  // Ranking por técnico
   const tecMap = {};
   for (const c of remocoes) {
     const tec = c.tec || 'Sem técnico';
@@ -5292,22 +5335,24 @@ function renderRemocoes() {
           <div style="width:${Math.round(qtd/maxTec*100)}%;height:100%;background:var(--amber);border-radius:4px;transition:width .4s"></div>
         </div>
       </div>`).join('')
-      : '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem dados de remoção no período</div>';
+      : '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem remoções no período</div>';
   }
 
   // Tabela das últimas remoções
   const tb = document.getElementById('remocTbl');
   if (tb) {
-    const ultimas = [...remocoes].sort((a,b) => new Date(b.dataProgramada||0) - new Date(a.dataProgramada||0)).slice(0,30);
+    const ultimas = [...remocoes].sort((a,b) => new Date(b.dataProgramada||0) - new Date(a.dataProgramada||0)).slice(0,50);
     tb.innerHTML = ultimas.length ? ultimas.map(c => {
-      const data = c.dataProgramada ? new Date(c.dataProgramada).toLocaleDateString('pt-BR') : '—';
-      const tipo = c.cat || c.tipo || '—';
+      const data      = c.dataProgramada ? new Date(c.dataProgramada).toLocaleDateString('pt-BR') : '—';
+      const tipoLabel = c.tipo || c.cat || '—';
+      const catKey    = categorizaTipo(c.tipo);
+      const tagColor  = catKey === 'canc' ? 'var(--red)' : catKey === 'cobr' ? 'var(--accent)' : catKey === 'spc' ? 'var(--cyan)' : 'var(--text3)';
       return `<tr>
-        <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.cli}">${c.cli||'—'}</td>
+        <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.cli||''}">${c.cli||'—'}</td>
         <td>${c.cidade||'—'}</td>
         <td>${c.tec||'—'}</td>
-        <td style="font-size:10px;color:var(--text3)">${tipo}</td>
-        <td>${data}</td>
+        <td><span style="font-size:10px;color:${tagColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:120px" title="${tipoLabel}">${tipoLabel}</span></td>
+        <td style="white-space:nowrap">${data}</td>
       </tr>`;
     }).join('')
     : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Sem remoções no período</td></tr>';

@@ -548,6 +548,13 @@ app.get('/api/chamados', async (req, res) => {
         reagMotivo: normalizarStatus(stVal) === 'reagendado' ? (os.motivo_reagendamento || 'Reagendado') : null,
         lat:        coords ? parseFloat(coords[1]) || null : null,
         lng:        coords ? parseFloat(coords[0]) || null : null,
+        motivoFech: (() => {
+          const mf = os.motivo_fechamento;
+          if (!mf) return '';
+          if (typeof mf === 'string') return mf;
+          if (Array.isArray(mf)) return mf.map(m => m?.descricao || m?.nome || '').filter(Boolean).join(', ');
+          return mf?.descricao || mf?.nome || '';
+        })(),
         raw:        os,
       };
     });
@@ -840,6 +847,8 @@ app.get('/api/retencao', async (req, res) => {
       const sp = (a.status?.prefixo || '').toLowerCase();
       const sf = (a.status_fechamento || '').toLowerCase();
       if (!sf || sf === 'pendente' || sp === 'pendente' || sp === 'aguardando_analise') return 'pendente';
+      // status_fechamento indica cancelado/rescisão diretamente
+      if (sf.includes('cancel') || sf.includes('rescis')) return 'cancelado';
       const idMotivo = a.id_motivo_fechamento_atendimento;
       if (idMotivo && MOTIVO_CANCELADO.has(idMotivo)) return 'cancelado';
       if (idMotivo && MOTIVO_REVERTIDO.has(idMotivo)) return 'revertido';
@@ -890,7 +899,16 @@ app.get('/api/retencao', async (req, res) => {
     const taxa_retencao = fechados > 0 ? Math.round(revertidos / fechados * 100) : null;
 
     // Cancelamento geral: qualquer atendimento fechado como cancelado, independente do tipo de abertura
-    const cancelamento_geral = lista.filter(a => desfechoOf(a) === 'cancelado').length;
+    const todosCancel = lista.filter(a => desfechoOf(a) === 'cancelado');
+    const cancelamento_geral = todosCancel.length;
+    // Breakdown por tipo de abertura
+    const mapaMotivoGeral = {};
+    for (const a of todosCancel) {
+      const tipo = a.tipo_atendimento?.descricao || 'Sem tipo';
+      if (!mapaMotivoGeral[tipo]) mapaMotivoGeral[tipo] = { tipo, total: 0 };
+      mapaMotivoGeral[tipo].total++;
+    }
+    const por_motivo_cancelamento_geral = Object.values(mapaMotivoGeral).sort((a,b) => b.total - a.total);
 
     // Por atendente
     const mapaAt = {};
@@ -922,7 +940,7 @@ app.get('/api/retencao', async (req, res) => {
     res.json({
       ok: true,
       total, revertidos, cancelados, pendentes, taxa_retencao,
-      cancelamento_geral,
+      cancelamento_geral, por_motivo_cancelamento_geral,
       por_atendente, por_tipo, ultimos,
       sincronizado_em: new Date().toISOString(),
     });
