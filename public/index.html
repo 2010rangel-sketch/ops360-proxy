@@ -3640,14 +3640,16 @@ function renderAtendimentosFiltrado() {
   const setTbl   = document.getElementById('setorTbl');
   const setCount = document.getElementById('at-setor-count');
   const porSet   = porSetorReal;
-  if (setCount) setCount.textContent = `${porSet.length} setores`;
+  if (setCount) setCount.textContent = `${porSet.length} setores${_atendFiltroAt ? ` — ${atSel?.setor || ''}` : ''}`;
   if (setTbl) {
     setTbl.innerHTML = porSet.length ? porSet.map((s, i) => {
       const cor     = s.pctSemOS>=60?'#22c55e':s.pctSemOS>=30?'var(--amber)':'var(--red)';
       const ativo   = filtSetor === s.setor;
-      return `<tr onclick="filtrarPorSetor('${s.setor.replace(/'/g,"\\'")}')" style="cursor:pointer;${ativo?'background:var(--surface3,rgba(255,255,255,.06));outline:1px solid var(--accent);border-radius:4px':''}">
+      // Quando atendente selecionado, destaca o setor dele
+      const destaque = _atendFiltroAt && atSel?.setor === s.setor;
+      return `<tr onclick="filtrarPorSetor('${s.setor.replace(/'/g,"\\'")}')" style="cursor:pointer;${ativo?'background:rgba(91,106,240,.08);outline:1px solid var(--accent);border-radius:4px':destaque?'background:rgba(34,197,94,.06);outline:1px solid rgba(34,197,94,.4);border-radius:4px':''}">
         <td style="color:var(--text3)">${i+1}</td>
-        <td style="font-weight:600;color:${ativo?'var(--accent)':'var(--text)'}">${s.setor}${ativo?' <span style="font-size:10px">✕</span>':''}</td>
+        <td style="font-weight:600;color:${ativo?'var(--accent)':destaque?'#22c55e':'var(--text)'}">${s.setor}${ativo?' <span style="font-size:10px">✕</span>':destaque?` <span style="font-size:10px;color:rgba(34,197,94,.7)">(selecionado)</span>`:''}</td>
         <td class="mono" style="font-weight:600">${s.total}</td>
         <td class="mono" style="color:#22c55e">${s.semOS}</td>
         <td class="mono" style="color:var(--accent)">${s.comOS}</td>
@@ -3667,11 +3669,8 @@ function renderAtendimentosFiltrado() {
   // Se atendente selecionado → só tipos dele; senão todos
   let porTipo = [];
   if (atSel) {
-    // Recalcula por tipo a partir dos dados do atendente selecionado
-    const tiposAt = atSel.tipos || [];
-    porTipo = tiposAt
-      .map(t => ({ tipo: t.tipo, total: t.n, semOS: 0, comOS: 0 }))
-      .sort((a,b) => b.total - a.total);
+    // tipos agora vem do servidor com { tipo, total, comOS, semOS } já ordenados
+    porTipo = (atSel.tipos || []).slice().sort((a,b) => b.total - a.total);
   } else {
     porTipo = (data.por_tipo || []).slice().sort((a,b) => b.total - a.total);
   }

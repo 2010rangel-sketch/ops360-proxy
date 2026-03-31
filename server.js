@@ -715,19 +715,24 @@ app.get('/api/atendimentos', async (req, res) => {
 
     const isLC = (nome) => (nome || '').toUpperCase().includes('LC VIRTUAL') || (nome || '').toUpperCase().includes('LCVIRTUAL');
 
-    // Agrupa por atendente (inclui setor para filtro no cliente)
+    // Agrupa por atendente (inclui setor e tipos para cross-filter)
     const mapaAt = {};
     parsed.forEach(a => {
       const k = a.atendente;
-      if (!mapaAt[k]) mapaAt[k] = { atendente:k, setor:a.setor, total:0, comOS:0, semOS:0, tmaTot:0, tmaCount:0 };
+      if (!mapaAt[k]) mapaAt[k] = { atendente:k, setor:a.setor, total:0, comOS:0, semOS:0, tmaTot:0, tmaCount:0, tipos:{} };
       mapaAt[k].total++;
       if (a.temOS) mapaAt[k].comOS++; else if (a.isFechado) mapaAt[k].semOS++;
       if (a.tmaMin !== null) { mapaAt[k].tmaTot += a.tmaMin; mapaAt[k].tmaCount++; }
+      // Acumula tipos por atendente
+      if (!mapaAt[k].tipos[a.tipo]) mapaAt[k].tipos[a.tipo] = { tipo: a.tipo, total: 0, comOS: 0, semOS: 0 };
+      mapaAt[k].tipos[a.tipo].total++;
+      if (a.temOS) mapaAt[k].tipos[a.tipo].comOS++; else if (a.isFechado) mapaAt[k].tipos[a.tipo].semOS++;
     });
     const por_atendente = Object.values(mapaAt)
       .map(a => ({ atendente:a.atendente, setor:a.setor, total:a.total, comOS:a.comOS, semOS:a.semOS,
                    pctSemOS: a.total ? Math.round(a.semOS/a.total*100) : 0,
-                   tma: a.tmaCount ? Math.round(a.tmaTot/a.tmaCount) : null }))
+                   tma: a.tmaCount ? Math.round(a.tmaTot/a.tmaCount) : null,
+                   tipos: Object.values(a.tipos).sort((x,y) => y.total - x.total) }))
       .sort((a,b) => b.total - a.total);
 
     // Agrupa por setor
