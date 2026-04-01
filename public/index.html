@@ -5115,33 +5115,33 @@ if(il) il.innerHTML=ints.map(i=>`
 let comPeriodo = 'mes';
 let _comData   = null;
 
+function _d(y, m, d) {
+  // Retorna YYYY-MM-DD sem conversão de timezone (evita bleed UTC)
+  return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
 function getComDates() {
-  const agora = new Date();
+  const a = new Date();
   if (comPeriodo === 'mes') {
-    return {
-      ini: new Date(agora.getFullYear(), agora.getMonth(), 1).toISOString(),
-      fim: new Date(agora.getFullYear(), agora.getMonth()+1, 0, 23, 59, 59).toISOString(),
-    };
+    const fim = new Date(a.getFullYear(), a.getMonth()+1, 0);
+    return { ini: _d(a.getFullYear(), a.getMonth(), 1), fim: _d(fim.getFullYear(), fim.getMonth(), fim.getDate()) };
   }
   if (comPeriodo === 'mes_anterior') {
-    return {
-      ini: new Date(agora.getFullYear(), agora.getMonth()-1, 1).toISOString(),
-      fim: new Date(agora.getFullYear(), agora.getMonth(), 0, 23, 59, 59).toISOString(),
-    };
+    const fim = new Date(a.getFullYear(), a.getMonth(), 0);
+    return { ini: _d(a.getFullYear(), a.getMonth()-1, 1), fim: _d(fim.getFullYear(), fim.getMonth(), fim.getDate()) };
   }
   if (comPeriodo === '7dias') {
-    return { ini: new Date(agora.getTime()-7*86400000).toISOString(), fim: agora.toISOString() };
+    const ini7 = new Date(a.getTime()-7*86400000);
+    return { ini: _d(ini7.getFullYear(), ini7.getMonth(), ini7.getDate()), fim: _d(a.getFullYear(), a.getMonth(), a.getDate()) };
   }
   if (comPeriodo === 'hoje') {
-    const hoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
-    return { ini: hoje.toISOString(), fim: agora.toISOString() };
+    return { ini: _d(a.getFullYear(), a.getMonth(), a.getDate()), fim: _d(a.getFullYear(), a.getMonth(), a.getDate()) };
   }
   if (comPeriodo === 'custom') {
     const de  = document.getElementById('comDtDe')?.value;
     const ate = document.getElementById('comDtAte')?.value;
-    if (de && ate) return { ini: new Date(de).toISOString(), fim: new Date(ate+'T23:59:59').toISOString() };
+    if (de && ate) return { ini: de, fim: ate };
   }
-  return { ini: new Date(agora.getFullYear(), agora.getMonth(), 1).toISOString(), fim: agora.toISOString() };
+  return { ini: _d(a.getFullYear(), a.getMonth(), 1), fim: _d(a.getFullYear(), a.getMonth(), a.getDate()) };
 }
 
 function setComPeriodo(p, el) {
