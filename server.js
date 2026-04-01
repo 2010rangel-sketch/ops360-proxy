@@ -1046,15 +1046,6 @@ function buildVendasFromClientes(clientes, iniStr, fimStr) {
     const nome    = cli.nome_razaosocial || cli.nome_fantasia || '—';
     const servicos = cli.servicos || [];
 
-    // Histórico de cancelamento no nível do CLIENTE (qualquer serviço já cancelado).
-    // O Hubsoft apaga data_cancelamento quando reativa — por isso verificamos no nível do cliente,
-    // não no serviço individual. Se o cliente tem OU teve algum serviço cancelado, é candidato a reativação.
-    const temHistCancelado = servicos.some(sv =>
-      sv.data_cancelamento ||
-      sv.status_prefixo === 'cancelado' ||
-      sv.status_prefixo === 'rescindido'
-    );
-
     for (const s of servicos) {
       // Usa SOMENTE data_venda — igual ao filtro "Data da Venda" do Hubsoft
       const rawVenda  = s.data_venda || null;
@@ -1080,15 +1071,8 @@ function buildVendasFromClientes(clientes, iniStr, fimStr) {
       const habDate = s.data_habilitacao ? parseDate(s.data_habilitacao) : null;
       const habMs   = habDate ? habDate.getTime() : 0;
 
-      // Nova venda: sem habilitação (ag. instalação) OU habilitação dentro do período
-      const eNova = !habMs || (habMs >= iniMs && habMs <= fimMs);
-      // Reativação: habilitação antiga + cliente tem histórico de cancelamento em qualquer serviço
-      // (Hubsoft apaga data_cancelamento ao reativar — verificamos via outros serviços do cliente)
-      const eReat = habMs > 0 && habMs < iniMs && temHistCancelado;
-      // Falso positivo: habilitação antiga + NUNCA cancelou = troca de plano, não é venda
-      if (!eNova && !eReat) continue;
-
-      const reativacao = eReat;
+      // Reativação: data_habilitacao existe e é mais de 30 dias antes da data_venda
+      const reativacao = !!(habMs && vendaMs && (vendaMs - habMs) > 30 * 86400000);
 
       const cancelado = !!(s.data_cancelamento || status === 'cancelado' || status === 'rescindido');
 
