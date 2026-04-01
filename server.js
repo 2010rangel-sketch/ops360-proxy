@@ -983,13 +983,14 @@ app.get('/api/cancelamentos-servico', async (req, res) => {
     const todos = [...ativos, ...cancelados];
 
     // Motivos que NÃO devem ser contados como cancelamento nesta aba
+    // Usa includes() para ignorar prefixos como asterisco "* Desistência da Instalação"
     const norm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-    const MOTIVOS_IGNORADOS = new Set([
+    const MOTIVOS_IGNORADOS = [
       'desistencia da instalacao',
       'habilitado o user errado',
       'troca de titularidade',
-    ]);
-    const ignorarMotivo = m => MOTIVOS_IGNORADOS.has(norm(m));
+    ];
+    const ignorarMotivo = m => { const n = norm(m); return MOTIVOS_IGNORADOS.some(p => n.includes(p)); };
 
     const iniMs = new Date(iniStr).getTime();
     const fimMs = new Date(fimStr + 'T23:59:59').getTime();
@@ -1041,6 +1042,127 @@ app.get('/api/cancelamentos-servico', async (req, res) => {
     res.json({ ok: true, total, total_ativo, total_passivo, por_motivo, periodo: { ini: iniStr, fim: fimStr } });
   } catch(err) {
     console.error('/api/cancelamentos-servico:', err.message);
+    res.status(500).json({ ok: false, erro: err.message });
+  }
+});
+
+// ── Remoções de Equipamentos — OS finalizadas com motivo "removido" ──
+app.get('/api/remocoes', async (req, res) => {
+  try {
+    const { data_inicio, data_fim } = req.query;
+    const agora  = new Date();
+    const iniStr = data_inicio ? data_inicio.slice(0, 10)
+      : `${agora.getFullYear()}-${String(agora.getMonth()+1).padStart(2,'0')}-01`;
+    const fimStr = data_fim ? data_fim.slice(0, 10)
+      : (() => { const f = new Date(agora.getFullYear(), agora.getMonth()+1, 0); return f.toISOString().slice(0,10); })();
+
+    const iniMs = new Date(iniStr).getTime();
+    const fimMs = new Date(fimStr + 'T23:59:59').getTime();
+
+    // Query com margem de 14 dias antes do início para capturar OS agendadas antes mas fechadas no período
+    const queryIni = new Date(iniMs - 14 * 86400000).toISOString();
+    const queryFim = new Date(fimMs + 86400000).toISOString();
+
+    const normStr = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+    const extrairMotivo = os => {
+      const mf = os.motivo_fechamento;
+      if (!mf) return '';
+      if (typeof mf === 'string') return mf;
+      if (Array.isArray(mf)) return mf.map(m => m?.descricao || m?.nome || '').filter(Boolean).join(', ');
+      return mf?.descricao || mf?.nome || '';
+    };
+
+    // Busca paginada completa — apenas OS finalizadas
+    const PAGE_SIZE = 500;
+    const MAX_PAGES = 50;
+    const bodyBase = {
+      data_inicio: queryIni, data_fim: queryFim,
+      agendas: [], assinatura_cliente: null, bairros: null, cidades: [],
+      condominios: null, grupos_clientes: [], grupos_clientes_servicos: [],
+      motivo_fechamento: [], order_by: 'data_inicio_programado', order_by_key: 'DESC',
+      participantes: [], periodos: [], pop: [], prioridade: [], reservada: null,
+      servico: [], servico_status: [], status_ordem_servico: ['finalizado'], tecnicos: [],
+    };
+
+    const data1 = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=1`, bodyBase);
+    const lista  = [...extrairLista(data1)];
+    const { lastPage, total, perPage } = extrairPaginacao(data1);
+    let totalPages = lastPage || (total && perPage ? Math.ceil(total / perPage) : null);
+    if (!totalPages) totalPages = lista.length >= PAGE_SIZE ? MAX_PAGES : 1;
+    totalPages = Math.min(totalPages, MAX_PAGES);
+
+    if (totalPages > 1) {
+      const pages   = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+      const results = await Promise.all(pages.map(pg =>
+        hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=${pg}`, bodyBase).then(extrairLista)
+      ));
+      for (const r of results) lista.push(...r);
+    }
+
+    console.log(`[remocoes] total OS finalizadas buscadas: ${lista.length}`);
+
+    const norm = s => normStr(s);
+    const categorizaTipo = t => {
+      const u = norm(t);
+      if (u.includes('spc'))    return 'spc';
+      if (u.includes('cobran')) return 'cobr';
+      if (u.includes('cancel')) return 'canc';
+      return 'outro';
+    };
+
+    // Filtra por motivo "removido" E data de fechamento real dentro do período
+    const remocoes = [];
+    for (const os of lista) {
+      const mf = extrairMotivo(os);
+      if (!norm(mf).includes('removid')) continue;
+
+      // Data de fechamento: prefere data_termino_executado, cai em data_inicio_programado
+      const fechRaw = os.data_termino_executado || os.data_inicio_programado || os.data_cadastro;
+      const fechMs  = fechRaw ? new Date(fechRaw).getTime() : 0;
+      if (!fechMs || fechMs < iniMs || fechMs > fimMs) continue;
+
+      const tecs  = os.tecnicos || [];
+      const tec   = tecs.map(t => t.name || t.nome || t.display).filter(Boolean).join(', ') || 'Sem técnico';
+      const cs    = os.atendimento?.cliente_servico;
+      const end   = cs?.endereco_instalacao;
+      const cli   = cs?.display || cs?.cliente?.nome_razaosocial || cs?.cliente?.display || '—';
+      const cidade = end?.endereco_numero?.cidade?.nome || end?.cidade?.nome || end?.cidade?.display
+                  || cs?.cliente?.cidade?.nome || '—';
+      const tipo  = os.tipo_ordem_servico?.descricao || os.tipo_os?.nome || '—';
+
+      remocoes.push({ cli, cidade, tec, tipo, motivoFech: mf, data: fechRaw });
+    }
+
+    console.log(`[remocoes] removidos no período ${iniStr}→${fimStr}: ${remocoes.length}`);
+
+    // KPIs por tipo de abertura
+    let tipoCanc = 0, tipoCobr = 0, tipoSpc = 0, tipoOutro = 0;
+    const tecMap = {};
+    for (const r of remocoes) {
+      const cat = categorizaTipo(r.tipo);
+      if (cat === 'canc') tipoCanc++; else if (cat === 'cobr') tipoCobr++;
+      else if (cat === 'spc') tipoSpc++; else tipoOutro++;
+      tecMap[r.tec] = (tecMap[r.tec] || 0) + 1;
+    }
+
+    const por_tecnico = Object.entries(tecMap)
+      .sort((a, b) => b[1] - a[1])
+      .map(([tec, total]) => ({ tec, total }));
+
+    const ultimas = remocoes
+      .sort((a, b) => (b.data || '') > (a.data || '') ? 1 : -1)
+      .slice(0, 100);
+
+    res.json({
+      ok: true,
+      total: remocoes.length,
+      tipo_canc: tipoCanc, tipo_cobr: tipoCobr, tipo_spc: tipoSpc, tipo_outro: tipoOutro,
+      por_tecnico, ultimas,
+      periodo: { ini: iniStr, fim: fimStr },
+    });
+  } catch(err) {
+    console.error('/api/remocoes:', err.message);
     res.status(500).json({ ok: false, erro: err.message });
   }
 });

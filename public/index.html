@@ -1469,7 +1469,7 @@ input[type="text"]::placeholder { color:var(--text3); }
           <input type="date" id="retDtDe" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
           <span style="color:var(--text3);font-size:12px">até</span>
           <input type="date" id="retDtAte" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
-          <button class="btn btn-primary btn-sm" onclick="loadRetencaoAtend();loadCancelServico()" style="padding:5px 14px;font-size:12px"><i class="fas fa-search"></i> Buscar</button>
+          <button class="btn btn-primary btn-sm" onclick="loadRetencaoAtend();loadCancelServico();loadRemocoes()" style="padding:5px 14px;font-size:12px"><i class="fas fa-search"></i> Buscar</button>
         </div>
         <span class="badge b-green" id="ret-atend-sync" style="margin-left:auto">—</span>
       </div>
@@ -2145,7 +2145,7 @@ function goPage(id, el) {
     if (_retData) renderRetencao(_retData);
     loadRetencaoAtend();
     loadCancelServico();
-    renderRemocoes();
+    loadRemocoes();
   }
   if (id === 'comercial') {
     loadComercial();
@@ -3967,7 +3967,7 @@ function setRetPeriodo(p, el) {
   document.querySelectorAll(`.ret-chip[data-p="${p}"]`).forEach(b => b.classList.add('active'));
   const dr = document.getElementById('retDateRange');
   if (dr) dr.style.display = p === 'custom' ? 'flex' : 'none';
-  if (p !== 'custom') { loadRetencaoAtend(); loadCancelServico(); }
+  if (p !== 'custom') { loadRetencaoAtend(); loadCancelServico(); loadRemocoes(); }
 }
 
 async function loadCancelServico() {
@@ -4591,6 +4591,7 @@ function renderTMAranking() {
 
 loadRetencaoAtend();
 loadCancelServico();
+loadRemocoes();
 loadContratos();
 
 // ══════════════════════════════════════════════════════════════════
@@ -5603,16 +5604,13 @@ async function loadComercial() {
 }
 
 // ══════════════════════════════════════════════════════════════════
-//  REMOÇÕES DE EQUIPAMENTOS (usa chamadosDB — sem API extra)
+//  REMOÇÕES DE EQUIPAMENTOS
 // ══════════════════════════════════════════════════════════════════
+
+// Versão para o dashboard (usa chamadosDB em memória — rápido)
 function renderRemocoes() {
-  // Remoções = OS finalizadas cujo motivo de fechamento contém "remov" (fechadas como "Removido")
   const norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  const remocoes = chamadosDB.filter(c => {
-    const isFinalizado = c.st === 'finalizado';
-    const isRemovido   = norm(c.motivoFech).includes('remov');
-    return isFinalizado && isRemovido;
-  });
+  const remocoes = chamadosDB.filter(c => c.st === 'finalizado' && norm(c.motivoFech).includes('remov'));
 
   const total = remocoes.length;
 
@@ -5684,6 +5682,86 @@ function renderRemocoes() {
       </tr>`;
     }).join('')
     : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Sem remoções no período</td></tr>';
+  }
+}
+
+// Versão para a aba Cancelamento/Retenção — busca todas as OS do período via API
+let _remocAbort = null;
+let _remocSeq   = 0;
+async function loadRemocoes() {
+  if (_remocAbort) _remocAbort.abort();
+  _remocAbort = new AbortController();
+  const mySeq = ++_remocSeq;
+  const signal = _remocAbort.signal;
+
+  const ev = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
+  ev('remoc-total-badge', '…'); ev('remoc-total', '…');
+  const tbl = document.getElementById('remocTbl');
+  if (tbl) tbl.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Carregando…</td></tr>';
+
+  try {
+    const { ini, fim } = getRetDates();
+    const qs  = `data_inicio=${encodeURIComponent(ini)}&data_fim=${encodeURIComponent(fim)}`;
+    const res  = await fetch(`/api/remocoes?${qs}`, { signal });
+    const data = await res.json();
+    if (mySeq !== _remocSeq) return;
+    if (!data.ok) { ev('remoc-total', 'Erro'); return; }
+
+    ev('remoc-total',       data.total);
+    ev('remoc-total-badge', data.total);
+    ev('remoc-tipo-canc',   data.tipo_canc);
+    ev('remoc-tipo-cobr',   data.tipo_cobr);
+    ev('remoc-tipo-spc',    data.tipo_spc);
+    ev('remoc-tipo-outro',  data.tipo_outro);
+
+    const tecs   = data.por_tecnico || [];
+    const maxTec = tecs[0]?.total || 1;
+    ev('remoc-tec-count', tecs.length);
+    const barsEl = document.getElementById('remoc-tec-bars');
+    if (barsEl) {
+      barsEl.innerHTML = tecs.length ? tecs.map(t => `
+        <div style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
+            <span style="color:var(--text);font-weight:500">${t.tec}</span>
+            <span style="color:var(--amber);font-weight:700">${t.total}</span>
+          </div>
+          <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden">
+            <div style="width:${Math.round(t.total/maxTec*100)}%;height:100%;background:var(--amber);border-radius:4px;transition:width .4s"></div>
+          </div>
+        </div>`).join('')
+      : '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem remoções no período</div>';
+    }
+
+    const norm = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const categorizaTipo = t => {
+      const u = norm(t);
+      if (u.includes('spc'))    return 'spc';
+      if (u.includes('cobran')) return 'cobr';
+      if (u.includes('cancel')) return 'canc';
+      return 'outro';
+    };
+    const ultimas = data.ultimas || [];
+    if (tbl) {
+      tbl.innerHTML = ultimas.length ? ultimas.map(c => {
+        const dt      = c.data ? new Date(c.data).toLocaleDateString('pt-BR') : '—';
+        const catKey  = categorizaTipo(c.tipo);
+        const tagColor = catKey==='canc'?'var(--red)':catKey==='cobr'?'var(--accent)':catKey==='spc'?'var(--cyan)':'var(--text3)';
+        return `<tr>
+          <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.cli||''}">${c.cli||'—'}</td>
+          <td>${c.cidade||'—'}</td>
+          <td>${c.tec||'—'}</td>
+          <td><span style="font-size:10px;color:${tagColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:120px" title="${c.tipo}">${c.tipo}</span></td>
+          <td style="white-space:nowrap">${dt}</td>
+        </tr>`;
+      }).join('')
+      : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Sem remoções no período</td></tr>';
+    }
+  } catch(e) {
+    if (e.name === 'AbortError') return;
+    if (mySeq !== _remocSeq) return;
+    console.warn('loadRemocoes:', e.message);
+    const tbl = document.getElementById('remocTbl');
+    if (tbl) tbl.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--red);padding:20px">Erro ao carregar</td></tr>';
   }
 }
 
