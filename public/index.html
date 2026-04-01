@@ -1469,7 +1469,7 @@ input[type="text"]::placeholder { color:var(--text3); }
           <input type="date" id="retDtDe" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
           <span style="color:var(--text3);font-size:12px">até</span>
           <input type="date" id="retDtAte" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
-          <button class="btn btn-primary btn-sm" onclick="loadRetencaoAtend()" style="padding:5px 14px;font-size:12px"><i class="fas fa-search"></i> Buscar</button>
+          <button class="btn btn-primary btn-sm" onclick="loadRetencaoAtend();loadCancelServico()" style="padding:5px 14px;font-size:12px"><i class="fas fa-search"></i> Buscar</button>
         </div>
         <span class="badge b-green" id="ret-atend-sync" style="margin-left:auto">—</span>
       </div>
@@ -2129,12 +2129,9 @@ function goPage(id, el) {
     }
   }
   if (id === 'retencao') {
-    if (_retData) {
-      renderRetencao(_retData);
-      loadRetencaoAtend();
-    } else {
-      loadRetencaoAtend();
-    }
+    if (_retData) renderRetencao(_retData);
+    loadRetencaoAtend();
+    loadCancelServico();
     renderRemocoes();
   }
   if (id === 'comercial') {
@@ -3955,7 +3952,68 @@ function setRetPeriodo(p, el) {
   document.querySelectorAll(`.ret-chip[data-p="${p}"]`).forEach(b => b.classList.add('active'));
   const dr = document.getElementById('retDateRange');
   if (dr) dr.style.display = p === 'custom' ? 'flex' : 'none';
-  if (p !== 'custom') loadRetencaoAtend();
+  if (p !== 'custom') { loadRetencaoAtend(); loadCancelServico(); }
+}
+
+async function loadCancelServico() {
+  const tbl = document.getElementById('ret-cancel-serv-tbl');
+  if (tbl) tbl.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr>';
+  try {
+    const { ini, fim } = getRetDates();
+    const qs = `data_inicio=${encodeURIComponent(ini)}&data_fim=${encodeURIComponent(fim)}`;
+    const res  = await fetch(`/api/cancelamentos-servico?${qs}`);
+    const data = await res.json();
+    const badge = document.getElementById('ret-cancel-geral-badge');
+    if (!data.ok) {
+      if (tbl) tbl.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Erro ao carregar</td></tr>';
+      return;
+    }
+    if (badge) badge.textContent = data.total ?? '—';
+    const motivos = data.por_motivo || [];
+    if (!tbl) return;
+    if (!motivos.length) {
+      tbl.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Sem cancelamentos no período</td></tr>';
+      return;
+    }
+    tbl.innerHTML = motivos.map((m, i) => {
+      const pct = data.total > 0 ? Math.round(m.total / data.total * 100) : 0;
+      return `<tr onclick="mostrarClientesCancelamento(${i})" style="cursor:pointer" title="Ver clientes">
+        <td style="color:var(--text3);font-size:11px">${i+1}</td>
+        <td style="font-weight:500">${m.motivo}</td>
+        <td style="font-weight:700;color:var(--red)">${m.total}</td>
+        <td style="color:var(--text3)">${pct}%</td>
+      </tr>`;
+    }).join('');
+    window._cancelServMotivos = motivos;
+  } catch(e) {
+    console.warn('loadCancelServico:', e.message);
+    const tbl = document.getElementById('ret-cancel-serv-tbl');
+    if (tbl) tbl.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--red);padding:20px">Erro ao carregar</td></tr>';
+  }
+}
+
+function mostrarClientesCancelamento(idx) {
+  const motivos = window._cancelServMotivos || [];
+  const m = motivos[idx];
+  if (!m) return;
+  // Destaca linha selecionada
+  document.querySelectorAll('#ret-cancel-serv-tbl tr').forEach((tr, i) => {
+    tr.style.background = i === idx ? 'var(--accent-light)' : '';
+    tr.style.color = i === idx ? 'var(--accent)' : '';
+  });
+  const titulo = document.getElementById('ret-cancel-clientes-titulo');
+  const badge  = document.getElementById('ret-cancel-clientes-badge');
+  const tbl    = document.getElementById('ret-cancel-clientes-tbl');
+  if (titulo) titulo.innerHTML = `<i class="fas fa-users" style="color:var(--red);margin-right:5px"></i>${m.motivo}`;
+  if (badge)  badge.textContent = m.total;
+  if (!tbl) return;
+  const fmt = d => { if (!d) return '—'; const [dd,mm,yyyy] = d.split('/'); return dd&&mm&&yyyy ? `${dd}/${mm}/${yyyy}` : d; };
+  tbl.innerHTML = m.clientes.map(c => `<tr>
+    <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500" title="${c.nome}">${c.nome}</td>
+    <td style="color:var(--text3)">${c.cidade}</td>
+    <td><span style="background:var(--accent-light);color:var(--accent);font-size:10px;padding:2px 5px;border-radius:4px;white-space:nowrap">${c.plano}</span></td>
+    <td style="color:var(--text3);white-space:nowrap">${fmt(c.data)}</td>
+  </tr>`).join('');
 }
 
 async function loadRetencaoAtend() {
@@ -4502,6 +4560,7 @@ function renderTMAranking() {
 }
 
 loadRetencaoAtend();
+loadCancelServico();
 loadContratos();
 
 // ══════════════════════════════════════════════════════════════════

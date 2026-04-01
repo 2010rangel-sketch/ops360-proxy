@@ -961,35 +961,55 @@ app.get('/api/retencao', async (req, res) => {
 // ── Cancelamentos de Serviço — por motivo, com lista de clientes ──
 app.get('/api/cancelamentos-servico', async (req, res) => {
   try {
-    if (!_comAllClientes) {
-      warmupComercial();
-      return res.json({ ok: false, warming: true, msg: 'Carregando dados...' });
-    }
-
     const { data_inicio, data_fim } = req.query;
-    const agora   = new Date();
-    const iniMes  = data_inicio ? new Date(data_inicio) : new Date(agora.getFullYear(), agora.getMonth(), 1);
-    const fimMes  = data_fim    ? new Date(data_fim)    : new Date(agora.getFullYear(), agora.getMonth() + 1, 0, 23, 59, 59, 999);
+    const agora  = new Date();
+    const iniStr = data_inicio ? data_inicio.slice(0, 10)
+      : `${agora.getFullYear()}-${String(agora.getMonth()+1).padStart(2,'0')}-01`;
+    const fimStr = data_fim ? data_fim.slice(0, 10)
+      : (() => { const fim = new Date(agora.getFullYear(), agora.getMonth()+1, 0); return fim.toISOString().slice(0,10); })();
 
+    // Busca clientes com data_cancelamento no período via filtro nativo da API
+    const token = await getToken();
+    const params = {
+      relacoes: 'endereco_instalacao',
+      tipo_data_cliente_servico: 'data_cancelamento',
+      data_inicio_cliente_servico: iniStr,
+      data_fim_cliente_servico: fimStr,
+    };
+    const [ativos, cancelados] = await Promise.all([
+      fetchIntegracaoClientes(token, { ...params, cancelado: 'nao' }, 50),
+      fetchIntegracaoClientes(token, { ...params, cancelado: 'sim' }, 50),
+    ]);
+    const todos = [...ativos, ...cancelados];
+
+    const iniMs = new Date(iniStr).getTime();
+    const fimMs = new Date(fimStr + 'T23:59:59').getTime();
+    const seen  = new Set();
     const mapaMotivo = {};
     let total = 0;
 
-    for (const cli of _comAllClientes) {
-      const nome   = cli.nome_razaosocial || cli.nome_fantasia || '—';
+    for (const cli of todos) {
+      const nome = cli.nome_razaosocial || cli.nome_fantasia || '—';
       for (const s of (cli.servicos || [])) {
         const dc = parseDate(s.data_cancelamento);
-        if (!dc || dc < iniMes || dc > fimMes) continue;
+        if (!dc) continue;
+        const dcMs = dc.getTime();
+        if (dcMs < iniMs || dcMs > fimMs) continue;
+
+        // Dedup: mesmo cliente + plano + data cancelamento
+        const chave = `${nome}|${s.nome||''}|${s.data_cancelamento||''}`;
+        if (seen.has(chave)) continue;
+        seen.add(chave);
 
         const motivo = (s.motivo_cancelamento || '').trim() || 'Não informado';
         const plano  = s.nome || '—';
         const endInst = typeof s.endereco_instalacao === 'object' && s.endereco_instalacao
           ? s.endereco_instalacao : {};
         const cidade = endInst.cidade || '—';
-        const valor  = parseFloat(s.valor) || 0;
 
         if (!mapaMotivo[motivo]) mapaMotivo[motivo] = { motivo, total: 0, clientes: [] };
         mapaMotivo[motivo].total++;
-        mapaMotivo[motivo].clientes.push({ nome, cidade, plano, valor, data: s.data_cancelamento });
+        mapaMotivo[motivo].clientes.push({ nome, cidade, plano, motivo, data: s.data_cancelamento });
         total++;
       }
     }
@@ -998,8 +1018,7 @@ app.get('/api/cancelamentos-servico', async (req, res) => {
       .sort((a, b) => b.total - a.total)
       .map(m => ({ ...m, clientes: m.clientes.sort((a,b) => (b.data||'') > (a.data||'') ? 1 : -1) }));
 
-    res.json({ ok: true, total, por_motivo,
-      periodo: { ini: iniMes.toISOString(), fim: fimMes.toISOString() } });
+    res.json({ ok: true, total, por_motivo, periodo: { ini: iniStr, fim: fimStr } });
   } catch(err) {
     console.error('/api/cancelamentos-servico:', err.message);
     res.status(500).json({ ok: false, erro: err.message });
