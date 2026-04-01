@@ -3920,6 +3920,7 @@ function renderContratos(data) {
 // ── Retenção — Pedidos de Cancelamento ────────────────────────────
 let retPeriodo = 'mes';
 let _retData   = null;
+let _cancelServAbort = null; // abort controller para cancelar fetch anterior
 
 function getRetDates() {
   const agora  = new Date();
@@ -3956,12 +3957,17 @@ function setRetPeriodo(p, el) {
 }
 
 async function loadCancelServico() {
+  // Cancela qualquer fetch anterior em andamento (evita race condition)
+  if (_cancelServAbort) { _cancelServAbort.abort(); }
+  _cancelServAbort = new AbortController();
+  const signal = _cancelServAbort.signal;
+
   const tbl = document.getElementById('ret-cancel-serv-tbl');
   if (tbl) tbl.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr>';
   try {
     const { ini, fim } = getRetDates();
     const qs = `data_inicio=${encodeURIComponent(ini)}&data_fim=${encodeURIComponent(fim)}`;
-    const res  = await fetch(`/api/cancelamentos-servico?${qs}`);
+    const res  = await fetch(`/api/cancelamentos-servico?${qs}`, { signal });
     const data = await res.json();
     const badge = document.getElementById('ret-cancel-geral-badge');
     if (!data.ok) {
@@ -3986,6 +3992,7 @@ async function loadCancelServico() {
     }).join('');
     window._cancelServMotivos = motivos;
   } catch(e) {
+    if (e.name === 'AbortError') return; // request cancelado — não sobrescreve tabela
     console.warn('loadCancelServico:', e.message);
     const tbl = document.getElementById('ret-cancel-serv-tbl');
     if (tbl) tbl.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--red);padding:20px">Erro ao carregar</td></tr>';
