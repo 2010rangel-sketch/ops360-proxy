@@ -1237,7 +1237,7 @@ function buildVendasFromClientes(clientes, iniStr, fimStr) {
       // Reativação: data_habilitacao existe e é mais de 30 dias antes da data_venda
       const reativacao = !!(habMs && vendaMs && (vendaMs - habMs) > 30 * 86400000);
 
-      const cancelado = !!(s.data_cancelamento || status === 'cancelado' || status === 'rescindido');
+      const cancelado = !!(s.data_cancelamento || status.includes('cancelado') || status.includes('rescindi') || status.includes('rescisao'));
 
       const dataVenda = vendaDate.toISOString().split('T')[0];
       const motivo = (s.motivo_cancelamento || '').trim() || null;
