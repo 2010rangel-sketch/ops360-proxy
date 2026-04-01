@@ -5344,7 +5344,8 @@ function renderComPlanoDonutData(planos) {
   const COLORS = ['#6366f1','#22c55e','#f59e0b','#ef4444','#06b6d4','#a78bfa','#f97316','#84cc16','#ec4899','#14b8a6','#64748b'];
   // Agrupa planos além do top-10 em "Outros" para o donut ficar completo
   const top10 = planos.slice(0, 10);
-  const othersTotal = planos.slice(10).reduce((s, p) => s + p.total, 0);
+  const outrosPlanos = planos.slice(10);
+  const othersTotal = outrosPlanos.reduce((s, p) => s + p.total, 0);
   const displayPlanos = othersTotal > 0 ? [...top10, { nome: 'Outros', total: othersTotal }] : top10;
 
   const total = planos.reduce((s,p) => s + p.total, 0);
@@ -5374,18 +5375,28 @@ function renderComPlanoDonutData(planos) {
   svgEl.innerHTML = `${paths}<text x="100" y="95" text-anchor="middle" font-size="18" font-weight="700" fill="var(--text)">${total}</text><text x="100" y="112" text-anchor="middle" font-size="10" fill="var(--text3)">vendas</text>`;
 
   if (legEl) {
+    const outrosSubList = outrosPlanos.map(p => {
+      const isActivePlan = _comFiltro.type === 'plano' && _comFiltro.val === p.nome;
+      return `<div onclick="setComFiltro('plano','${p.nome.replace(/'/g,"&#39;")}')" style="display:flex;justify-content:space-between;align-items:center;font-size:10px;margin-bottom:3px;cursor:pointer;padding:2px 5px 2px 18px;border-radius:4px;border:1.5px solid ${isActivePlan?'var(--accent)':'transparent'};background:${isActivePlan?'var(--accent-light)':'rgba(100,116,139,.08)'}">
+        <span style="color:${isActivePlan?'var(--accent)':'var(--text3)'};max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.nome}">${p.nome}</span>
+        <span style="color:var(--text3);font-weight:600">${p.total} <span style="font-weight:400">(${Math.round(p.total/total*100)}%)</span></span>
+      </div>`;
+    }).join('');
+
     legEl.innerHTML = displayPlanos.map((p,i) => {
       const isActivePlan = _comFiltro.type === 'plano' && _comFiltro.val === p.nome;
-      const clickable = p.nome !== 'Outros';
-      return `
-      <div ${clickable ? `onclick="setComFiltro('plano','${p.nome.replace(/'/g,"&#39;")}')"` : ''} style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:4px;${clickable?'cursor:pointer;':''}padding:3px 5px;border-radius:4px;border:1.5px solid ${isActivePlan ? 'var(--accent)' : 'transparent'};background:${isActivePlan ? 'var(--accent-light)' : 'transparent'}">
+      const isOutros = p.nome === 'Outros';
+      const rowHtml = `<div ${!isOutros ? `onclick="setComFiltro('plano','${p.nome.replace(/'/g,"&#39;")}')"` : `onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'':'none';this.querySelector('.out-arrow').textContent=this.nextElementSibling.style.display===''?'▲':'▼'"`} style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:4px;cursor:pointer;padding:3px 5px;border-radius:4px;border:1.5px solid ${isActivePlan?'var(--accent)':'transparent'};background:${isActivePlan?'var(--accent-light)':'transparent'}">
         <div style="display:flex;align-items:center;gap:5px">
           <span style="width:8px;height:8px;border-radius:2px;background:${COLORS[i%COLORS.length]};display:inline-block;flex-shrink:0"></span>
-          <span style="color:${isActivePlan ? 'var(--accent)' : 'var(--text2)'};max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.nome}">${p.nome}</span>
+          <span style="color:${isActivePlan?'var(--accent)':'var(--text2)'};max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.nome}">${p.nome}</span>
+          ${isOutros ? `<span class="out-arrow" style="color:var(--text3);font-size:9px">▼</span>` : ''}
         </div>
         <span style="color:var(--text3);font-weight:600">${p.total} <span style="color:var(--text3);font-weight:400">(${Math.round(p.total/total*100)}%)</span></span>
-      </div>
-    `}).join('');
+      </div>`;
+      const subHtml = isOutros ? `<div style="display:none;margin-bottom:4px">${outrosSubList}</div>` : '';
+      return rowHtml + subHtml;
+    }).join('');
   }
 }
 
