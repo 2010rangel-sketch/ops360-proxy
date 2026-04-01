@@ -1410,6 +1410,34 @@ input[type="text"]::placeholder { color:var(--text3); }
 
       </div>
 
+      <!-- Row 3: Cancelamentos do mês (motivos + lista) -->
+      <div id="com-cancelados-row" style="display:none;margin-bottom:14px">
+        <div style="display:grid;grid-template-columns:280px 1fr;gap:14px">
+
+          <!-- Por Motivo -->
+          <div class="tbl-card" style="margin-bottom:0">
+            <div class="tbl-header">
+              <span class="tbl-title"><i class="fas fa-times-circle" style="color:var(--red);margin-right:5px"></i>Por Motivo</span>
+            </div>
+            <div id="com-cancel-motivos" style="padding:12px 16px;max-height:220px;overflow-y:auto"></div>
+          </div>
+
+          <!-- Lista de cancelados -->
+          <div class="tbl-card" style="margin-bottom:0">
+            <div class="tbl-header">
+              <span class="tbl-title"><i class="fas fa-user-slash" style="color:var(--red);margin-right:5px"></i>Cancelados do Mês</span>
+              <span class="badge b-red" id="com-cancel-count">—</span>
+            </div>
+            <div style="overflow-x:auto;max-height:220px;overflow-y:auto">
+              <table class="tbl" style="font-size:12px">
+                <thead><tr><th>Cliente</th><th>Vendedor</th><th>Plano</th><th>Motivo</th><th>Data</th></tr></thead>
+                <tbody id="com-cancel-tbl"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Aviso quando API não tem o endpoint ou sem permissão -->
       <div id="com-no-endpoint" style="display:none">
         <div class="tbl-card" style="padding:20px;background:rgba(245,158,11,.06);border-color:var(--amber)">
@@ -5127,6 +5155,7 @@ function renderComercialAtualiza(data) {
     if (_comFiltro.type === 'cidade')   lista = lista.filter(v => v.cidade   === _comFiltro.val);
     if (_comFiltro.type === 'vendedor') lista = lista.filter(v => v.vendedor === _comFiltro.val);
     if (_comFiltro.type === 'plano')    lista = lista.filter(v => v.plano    === _comFiltro.val);
+    if (_comFiltro.type === 'status')   lista = lista.filter(v => v.status   === _comFiltro.val);
     if (badge) { badge.textContent = `Filtro: ${_comFiltro.val} ✕`; badge.style.display=''; badge.onclick=()=>setComFiltro('',''); }
   } else {
     if (badge) badge.style.display = 'none';
@@ -5161,20 +5190,82 @@ function renderComercialAtualiza(data) {
 // Alias para compatibilidade com código existente
 function renderComercialFiltrado(data) { renderComercialAtualiza(data); }
 
+// ── Metas por vendedor (hardcoded) ───────────────────────────────
+const COM_METAS = {
+  'samara': 75, 'jamily': 75, 'jamilly': 75,
+  'edilson': 35, 'welson': 35, 'jair': 35, 'vitor': 35,
+  'escritório': 6, 'escritorio': 6, 'escritorio': 6,
+};
+function getMetaVendedor(nome) {
+  const lower = (nome || '').toLowerCase();
+  for (const [key, val] of Object.entries(COM_METAS)) {
+    if (lower.startsWith(key)) return val;
+  }
+  return 0;
+}
+
+function renderComCanceladosDetalhe(data) {
+  const row = document.getElementById('com-cancelados-row');
+  const tbl = document.getElementById('com-cancel-tbl');
+  const ct  = document.getElementById('com-cancel-count');
+  const motivosEl = document.getElementById('com-cancel-motivos');
+  const detalhe = data.cancelados_detalhe || [];
+  const porMotivo = data.cancelados_por_motivo || [];
+  if (row) row.style.display = detalhe.length ? '' : 'none';
+  if (ct) ct.textContent = detalhe.length;
+  if (motivosEl) {
+    const maxM = porMotivo[0]?.total || 1;
+    motivosEl.innerHTML = porMotivo.map(m => {
+      const pct = Math.round(m.total / maxM * 100);
+      return `<div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
+          <span style="color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${m.motivo}">${m.motivo}</span>
+          <span style="color:var(--red);font-weight:600">${m.total}</span>
+        </div>
+        <div style="background:var(--border);border-radius:4px;height:5px">
+          <div style="width:${pct}%;background:var(--red);border-radius:4px;transition:width .4s"></div>
+        </div>
+      </div>`;
+    }).join('') || '<div style="color:var(--text3);font-size:12px;text-align:center;padding:16px">Sem dados</div>';
+  }
+  if (tbl) {
+    if (!detalhe.length) { tbl.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Sem cancelamentos no período</td></tr>'; return; }
+    const fmt = d => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
+    tbl.innerHTML = detalhe.map(v => `<tr>
+      <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)" title="${v.cliente}">${v.cliente}</td>
+      <td style="white-space:nowrap;max-width:100px;overflow:hidden;text-overflow:ellipsis" title="${v.vendedor}">${v.vendedor || '—'}</td>
+      <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span style="background:var(--accent-light);color:var(--accent);font-size:10px;padding:2px 5px;border-radius:4px">${v.plano}</span></td>
+      <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text3)" title="${v.motivo}">${v.motivo}</td>
+      <td style="white-space:nowrap;color:var(--text3)">${fmt(v.dataVenda)}</td>
+    </tr>`).join('');
+  }
+}
+
 function renderComBarras(containerId, items, maxVal, colorNew, colorReat) {
   const el = document.getElementById(containerId);
   if (!el) return;
   if (!items.length) { el.innerHTML = '<div style="color:var(--text3);font-size:12px;text-align:center;padding:20px">Sem dados</div>'; return; }
   const filterType = containerId.includes('cidade') ? 'cidade' : 'vendedor';
+  const isVendedor = filterType === 'vendedor';
   el.innerHTML = items.map(item => {
     const pctTotal = maxVal > 0 ? Math.round(item.total / maxVal * 100) : 0;
     const pctReat  = item.total > 0 ? Math.round((item.reat||0) / item.total * 100) : 0;
     const isActive = _comFiltro.type === filterType && _comFiltro.val === item.nome;
+    const meta     = isVendedor ? getMetaVendedor(item.nome) : 0;
+    const metaPct  = meta > 0 ? Math.min(100, Math.round(item.total / meta * 100)) : 0;
+    const metaColor = metaPct >= 100 ? '#22c55e' : metaPct >= 70 ? '#f59e0b' : '#ef4444';
+    const metaBar  = meta > 0 ? `<div style="margin-top:3px;display:flex;align-items:center;gap:5px">
+      <div style="flex:1;background:var(--border);border-radius:4px;height:4px;position:relative">
+        <div style="width:${metaPct}%;background:${metaColor};border-radius:4px;height:100%;transition:width .4s"></div>
+        <div style="position:absolute;left:100%;top:50%;transform:translate(-50%,-50%);width:2px;height:8px;background:var(--text3);border-radius:1px"></div>
+      </div>
+      <span style="font-size:10px;color:${metaColor};font-weight:600;white-space:nowrap">${item.total}/${meta}</span>
+    </div>` : '';
     return `<div onclick="setComFiltro('${filterType}','${item.nome.replace(/'/g,"&#39;")}')"
-      style="margin-bottom:10px;cursor:pointer;padding:4px 6px;border-radius:6px;border:1.5px solid ${isActive?'var(--accent)':'transparent'};background:${isActive?'var(--accent-light)':'transparent'};transition:.15s">
+      style="margin-bottom:${meta?'12':'10'}px;cursor:pointer;padding:4px 6px;border-radius:6px;border:1.5px solid ${isActive?'var(--accent)':'transparent'};background:${isActive?'var(--accent-light)':'transparent'};transition:.15s">
       <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
         <span style="color:${isActive?'var(--accent)':'var(--text)'};font-weight:${isActive?'700':'500'};max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${item.nome}">${item.nome}</span>
-        <span style="color:var(--text3)">${item.total}${item.reat ? ` <span style="color:var(--cyan)">(${item.reat} reat.)</span>` : ''}</span>
+        <span style="color:var(--text3)">${meta?'':item.total}${item.reat ? ` <span style="color:var(--cyan)">(${item.reat} reat.)</span>` : ''}</span>
       </div>
       <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden">
         <div style="display:flex;height:100%;border-radius:4px;overflow:hidden">
@@ -5182,6 +5273,7 @@ function renderComBarras(containerId, items, maxVal, colorNew, colorReat) {
           <div style="width:${pctReat*pctTotal/100}%;background:${colorReat};transition:width .4s"></div>
         </div>
       </div>
+      ${metaBar}
     </div>`;
   }).join('');
 }
@@ -5219,7 +5311,13 @@ function renderComStatusDonut(porStatus) {
     const xi2= cx + ri*Math.cos(end),        yi2= cy + ri*Math.sin(end);
     const large = angle > Math.PI ? 1 : 0;
     const color = COLORS[p.status] || '#6366f1';
-    paths += `<path d="M ${xi1} ${yi1} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} L ${xi2} ${yi2} A ${ri} ${ri} 0 ${large} 0 ${xi1} ${yi1} Z" fill="${color}" stroke="var(--bg)" stroke-width="1.5"><title>${LABELS[p.status]||p.status}: ${p.total}</title></path>`;
+    const isActive = _comFiltro.type === 'status' && _comFiltro.val === p.status;
+    const dimmed   = _comFiltro.type === 'status' && !isActive;
+    paths += `<path onclick="setComFiltro('status','${p.status}')"
+      d="M ${xi1} ${yi1} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} L ${xi2} ${yi2} A ${ri} ${ri} 0 ${large} 0 ${xi1} ${yi1} Z"
+      fill="${color}" stroke="${isActive?'#fff':'var(--bg)'}" stroke-width="${isActive?'3':'1.5'}"
+      style="cursor:pointer;opacity:${dimmed?'0.4':'1'};transition:opacity .15s">
+      <title>${LABELS[p.status]||p.status}: ${p.total}</title></path>`;
     startAngle = end;
   });
   svgEl.innerHTML = `${paths}<text x="100" y="95" text-anchor="middle" font-size="18" font-weight="700" fill="var(--text)">${total}</text><text x="100" y="112" text-anchor="middle" font-size="10" fill="var(--text3)">serviços</text>`;
@@ -5227,10 +5325,11 @@ function renderComStatusDonut(porStatus) {
     legEl.innerHTML = porStatus.map(p => {
       const color = COLORS[p.status] || '#6366f1';
       const label = LABELS[p.status] || p.status;
-      return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:4px">
+      const isActive = _comFiltro.type === 'status' && _comFiltro.val === p.status;
+      return `<div onclick="setComFiltro('status','${p.status}')" style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:4px;cursor:pointer;padding:3px 5px;border-radius:4px;border:1.5px solid ${isActive?'var(--accent)':'transparent'};background:${isActive?'var(--accent-light)':'transparent'}">
         <div style="display:flex;align-items:center;gap:5px">
           <span style="width:8px;height:8px;border-radius:2px;background:${color};display:inline-block;flex-shrink:0"></span>
-          <span style="color:var(--text2)">${label}</span>
+          <span style="color:${isActive?'var(--accent)':'var(--text2)'}">${label}</span>
         </div>
         <span style="color:var(--text3);font-weight:600">${p.total} <span style="font-weight:400">(${Math.round(p.total/total*100)}%)</span></span>
       </div>`;
@@ -5242,13 +5341,18 @@ function renderComPlanoDonutData(planos) {
   const legEl = document.getElementById('com-plano-legend');
   if (!svgEl || !planos.length) return;
 
-  const COLORS = ['#6366f1','#22c55e','#f59e0b','#ef4444','#06b6d4','#a78bfa','#f97316','#84cc16','#ec4899','#14b8a6'];
+  const COLORS = ['#6366f1','#22c55e','#f59e0b','#ef4444','#06b6d4','#a78bfa','#f97316','#84cc16','#ec4899','#14b8a6','#64748b'];
+  // Agrupa planos além do top-10 em "Outros" para o donut ficar completo
+  const top10 = planos.slice(0, 10);
+  const othersTotal = planos.slice(10).reduce((s, p) => s + p.total, 0);
+  const displayPlanos = othersTotal > 0 ? [...top10, { nome: 'Outros', total: othersTotal }] : top10;
+
   const total = planos.reduce((s,p) => s + p.total, 0);
   const cx = 100, cy = 100, r = 75, ri = 45;
   let startAngle = -Math.PI / 2;
 
   let paths = '';
-  planos.slice(0,10).forEach((p, i) => {
+  displayPlanos.forEach((p, i) => {
     const angle = (p.total / total) * 2 * Math.PI;
     const endAngle = startAngle + angle;
     const x1 = cx + r * Math.cos(startAngle), y1 = cy + r * Math.sin(startAngle);
@@ -5270,10 +5374,11 @@ function renderComPlanoDonutData(planos) {
   svgEl.innerHTML = `${paths}<text x="100" y="95" text-anchor="middle" font-size="18" font-weight="700" fill="var(--text)">${total}</text><text x="100" y="112" text-anchor="middle" font-size="10" fill="var(--text3)">vendas</text>`;
 
   if (legEl) {
-    legEl.innerHTML = planos.slice(0,10).map((p,i) => {
+    legEl.innerHTML = displayPlanos.map((p,i) => {
       const isActivePlan = _comFiltro.type === 'plano' && _comFiltro.val === p.nome;
+      const clickable = p.nome !== 'Outros';
       return `
-      <div onclick="setComFiltro('plano','${p.nome.replace(/'/g,"&#39;")}')" style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:4px;cursor:pointer;padding:3px 5px;border-radius:4px;border:1.5px solid ${isActivePlan ? 'var(--accent)' : 'transparent'};background:${isActivePlan ? 'var(--accent-light)' : 'transparent'}">
+      <div ${clickable ? `onclick="setComFiltro('plano','${p.nome.replace(/'/g,"&#39;")}')"` : ''} style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:4px;${clickable?'cursor:pointer;':''}padding:3px 5px;border-radius:4px;border:1.5px solid ${isActivePlan ? 'var(--accent)' : 'transparent'};background:${isActivePlan ? 'var(--accent-light)' : 'transparent'}">
         <div style="display:flex;align-items:center;gap:5px">
           <span style="width:8px;height:8px;border-radius:2px;background:${COLORS[i%COLORS.length]};display:inline-block;flex-shrink:0"></span>
           <span style="color:${isActivePlan ? 'var(--accent)' : 'var(--text2)'};max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.nome}">${p.nome}</span>
@@ -5387,6 +5492,7 @@ async function loadComercial() {
     ev('com-vend-count', data.vendedores.length);
 
     renderComercialAtualiza(data);
+    renderComCanceladosDetalhe(data);
 
     const hora = new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
     if (badge) { badge.textContent = `Atualizado ${hora}`; badge.className = 'badge b-green'; }

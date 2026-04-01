@@ -1035,8 +1035,11 @@ let _comFetching     = false;  // lock
 let _comFetchedAt    = 0;      // timestamp da última busca completa
 
 function buildVendasFromClientes(clientes, iniStr, fimStr) {
-  const iniMs = new Date(iniStr).getTime();
-  const fimMs = new Date(fimStr + 'T23:59:59').getTime();
+  // Usa apenas a parte da data (YYYY-MM-DD) para evitar bleed de timezone:
+  // o frontend envia ISO com offset Brazil (-03:00), então "28/02 23:59 BRT" vira "01/03 02:59 UTC",
+  // fazendo vendas do dia 1/3 entrarem no filtro de fevereiro.
+  const iniMs = new Date(iniStr.slice(0, 10)).getTime();
+  const fimMs = new Date(fimStr.slice(0, 10) + 'T23:59:59').getTime();
   const vendas = [];
   const seen   = new Set(); // dedup por chave composta — evita dupla contagem quando cliente aparece nos dois caches
   for (const cli of clientes) {
@@ -1066,18 +1069,26 @@ function buildVendasFromClientes(clientes, iniStr, fimStr) {
       const vendedor = typeof vend === 'string' ? vend
         : (vend?.nome || vend?.name || '—');
 
-      // Reativação: data_venda é recente (no período) mas data_habilitacao é retroativa
-      // Se data_venda != data_habilitacao e habilitacao > 30 dias antes → reativação
       const habDate = s.data_habilitacao ? parseDate(s.data_habilitacao) : null;
       const habMs   = habDate ? habDate.getTime() : 0;
-      // data_venda existe e é diferente da data_habilitacao em > 30 dias → reativação
-      const reativacao = !!(s.data_venda && habMs && vendaMs && (vendaMs - habMs) > 30 * 86400000);
+      const dcDate  = s.data_cancelamento ? parseDate(s.data_cancelamento) : null;
+      const dcMs    = dcDate ? dcDate.getTime() : 0;
+
+      // Nova venda: sem habilitação (ag. instalação) OU habilitação dentro do mesmo período filtrado
+      const eNova = !habMs || (habMs >= iniMs && habMs <= fimMs);
+      // Reativação: habilitação é anterior ao período E serviço foi de fato cancelado antes da data_venda
+      const eReat = habMs > 0 && habMs < iniMs && dcMs > 0 && dcMs < vendaMs;
+      // Falso positivo: habilitação anterior ao período + sem cancelamento = mudança de plano, não conta como venda
+      if (!eNova && !eReat) continue;
+
+      const reativacao = eReat;
 
       // Serviço cancelado após a venda?
       const cancelado = !!(s.data_cancelamento || status === 'cancelado' || status === 'rescindido');
 
       const dataVenda = vendaDate.toISOString().split('T')[0];
-      vendas.push({ cliente: nome, cidade, plano, vendedor, status, dataCad: dataVenda, dataVenda, reativacao, cancelado });
+      const motivo = (s.motivo_cancelamento || '').trim() || null;
+      vendas.push({ cliente: nome, cidade, plano, vendedor, status, dataCad: dataVenda, dataVenda, reativacao, cancelado, motivo });
     }
   }
   return vendas;
@@ -1113,12 +1124,28 @@ function buildComResult(vendas, iniStr, fimStr) {
   const reativacoes = vendas.filter(v => v.reativacao).length;
   const cancelados  = vendas.filter(v => v.cancelado).length;
   const ativos      = vendas.filter(v => !v.cancelado).length;
+
+  // Detalhe dos cancelados: motivos e vendedores
+  const vendasCanceladas = vendas.filter(v => v.cancelado);
+  const motivoMap = {};
+  for (const v of vendasCanceladas) {
+    const m = v.motivo || 'Não informado';
+    if (!motivoMap[m]) motivoMap[m] = 0;
+    motivoMap[m]++;
+  }
+  const cancelados_por_motivo = Object.entries(motivoMap)
+    .sort((a, b) => b[1] - a[1])
+    .map(([motivo, total]) => ({ motivo, total }));
+  const cancelados_detalhe = vendasCanceladas
+    .sort((a, b) => b.dataVenda > a.dataVenda ? 1 : -1)
+    .map(v => ({ cliente: v.cliente, vendedor: v.vendedor, plano: v.plano, motivo: v.motivo || 'Não informado', dataVenda: v.dataVenda }));
   return {
     ok: true, fonte: 'integracao_cliente_todos',
     total: vendas.length,
     novas, reativacoes, cancelados, ativos,
     periodo: { ini: iniStr, fim: fimStr },
     por_status,
+    cancelados_por_motivo, cancelados_detalhe,
     cidades:    Object.values(cidadeMap).sort((a,b) => b.total - a.total),
     vendedores: Object.values(vendedorMap).sort((a,b) => b.total - a.total),
     planos:     Object.values(planoMap).sort((a,b) => b.total - a.total),
