@@ -5304,14 +5304,15 @@ function renderComBarras(containerId, items, maxVal, colorNew, colorReat) {
     const pctReat  = item.total > 0 ? Math.round((item.reat||0) / item.total * 100) : 0;
     const isActive = _comFiltro.type === filterType && _comFiltro.val === item.nome;
     const meta     = isVendedor ? getMetaVendedor(item.nome) : 0;
-    const metaPct  = meta > 0 ? Math.min(100, Math.round(item.total / meta * 100)) : 0;
+    const ativas   = (item.ativas != null) ? item.ativas : item.total;
+    const metaPct  = meta > 0 ? Math.min(100, Math.round(ativas / meta * 100)) : 0;
     const metaColor = metaPct >= 100 ? '#22c55e' : metaPct >= 70 ? '#f59e0b' : '#ef4444';
     const metaBar  = meta > 0 ? `<div style="margin-top:3px;display:flex;align-items:center;gap:5px">
       <div style="flex:1;background:var(--border);border-radius:4px;height:4px;position:relative">
         <div style="width:${metaPct}%;background:${metaColor};border-radius:4px;height:100%;transition:width .4s"></div>
         <div style="position:absolute;left:100%;top:50%;transform:translate(-50%,-50%);width:2px;height:8px;background:var(--text3);border-radius:1px"></div>
       </div>
-      <span style="font-size:10px;color:${metaColor};font-weight:600;white-space:nowrap">${item.total}/${meta}</span>
+      <span style="font-size:10px;color:${metaColor};font-weight:600;white-space:nowrap">${ativas}/${meta}</span>
     </div>` : '';
     return `<div onclick="setComFiltro('${filterType}','${item.nome.replace(/'/g,"&#39;")}')"
       style="margin-bottom:${meta?'12':'10'}px;cursor:pointer;padding:4px 6px;border-radius:6px;border:1.5px solid ${isActive?'var(--accent)':'transparent'};background:${isActive?'var(--accent-light)':'transparent'};transition:.15s">

@@ -1258,8 +1258,9 @@ function buildComResult(vendas, iniStr, fimStr) {
     if (!planoMap[v.plano]) planoMap[v.plano] = { nome: v.plano, total: 0 };
     planoMap[v.plano].total++;
     if (v.vendedor && v.vendedor !== '—') {
-      if (!vendedorMap[v.vendedor]) vendedorMap[v.vendedor] = { nome: v.vendedor, total: 0, novas: 0, reat: 0 };
+      if (!vendedorMap[v.vendedor]) vendedorMap[v.vendedor] = { nome: v.vendedor, total: 0, novas: 0, reat: 0, ativas: 0 };
       vendedorMap[v.vendedor].total++;
+      if (!v.cancelado) vendedorMap[v.vendedor].ativas++;
       if (v.reativacao) vendedorMap[v.vendedor].reat++; else vendedorMap[v.vendedor].novas++;
     }
   }
