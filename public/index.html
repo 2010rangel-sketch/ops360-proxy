@@ -1516,11 +1516,12 @@ input[type="text"]::placeholder { color:var(--text3); }
       </div>
 
       <!-- KPIs de retenção -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px">
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:14px">
         <div class="kpi-mini">
           <div class="kpi-mini-bar" style="background:var(--accent)"></div>
           <div class="kpi-mini-label">Pedidos de cancelamento</div>
           <div class="kpi-mini-val" id="ret-ped-total" style="color:var(--accent)">—</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px">via atendimento</div>
         </div>
         <div class="kpi-mini">
           <div class="kpi-mini-bar" style="background:var(--green)"></div>
@@ -1537,6 +1538,18 @@ input[type="text"]::placeholder { color:var(--text3); }
           <div class="kpi-mini-label">Taxa de retenção</div>
           <div class="kpi-mini-val" id="ret-ped-taxa" style="color:var(--amber)">—</div>
           <div style="font-size:10px;color:var(--text3);margin-top:2px">dos fechados</div>
+        </div>
+        <div class="kpi-mini">
+          <div class="kpi-mini-bar" style="background:#f43f5e"></div>
+          <div class="kpi-mini-label">Canc. Ativo</div>
+          <div class="kpi-mini-val" id="ret-canc-ativo" style="color:#f43f5e">—</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px">inadimplência</div>
+        </div>
+        <div class="kpi-mini">
+          <div class="kpi-mini-bar" style="background:#fb923c"></div>
+          <div class="kpi-mini-label">Canc. Passivo</div>
+          <div class="kpi-mini-val" id="ret-canc-passivo" style="color:#fb923c">—</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px">cliente pediu</div>
         </div>
       </div>
 
@@ -3981,6 +3994,9 @@ async function loadCancelServico() {
       return;
     }
     if (badge) badge.textContent = data.total ?? '—';
+    const elV = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+    elV('ret-canc-ativo',   data.total_ativo   ?? '—');
+    elV('ret-canc-passivo', data.total_passivo ?? '—');
     const motivos = data.por_motivo || [];
     if (!tbl) return;
     if (!motivos.length) {
@@ -4085,10 +4101,10 @@ function renderRetencao(data) {
     }
   }
 
-  // Por atendente
+  // Por atendente — ordenado por quem mais reverteu
   const atTbl   = document.getElementById('retAtendTbl');
   const atCount = document.getElementById('ret-atend-count');
-  const porAt   = data.por_atendente || [];
+  const porAt   = [...(data.por_atendente || [])].sort((a, b) => (b.revertidos || 0) - (a.revertidos || 0));
   if (atCount) atCount.textContent = `${porAt.length} atendentes`;
   if (atTbl) {
     atTbl.innerHTML = porAt.length ? porAt.map((a, i) => {

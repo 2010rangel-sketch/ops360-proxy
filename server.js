@@ -996,6 +996,10 @@ app.get('/api/cancelamentos-servico', async (req, res) => {
     const seen  = new Set();
     const mapaMotivo = {};
     let total = 0;
+    let total_ativo  = 0; // apenas inadimplência
+    let total_passivo = 0; // demais motivos (cliente pediu cancelamento)
+
+    const isInadimplencia = m => norm(m).includes('inadimp');
 
     for (const cli of todos) {
       const nome = cli.nome_razaosocial || cli.nome_fantasia || '—';
@@ -1014,7 +1018,7 @@ app.get('/api/cancelamentos-servico', async (req, res) => {
         if (seen.has(chave)) continue;
         seen.add(chave);
 
-        const motivo = (s.motivo_cancelamento || '').trim() || 'Não informado';
+        const motivo = motivoRaw || 'Não informado';
         const plano  = s.nome || '—';
         const endInst = typeof s.endereco_instalacao === 'object' && s.endereco_instalacao
           ? s.endereco_instalacao : {};
@@ -1024,6 +1028,9 @@ app.get('/api/cancelamentos-servico', async (req, res) => {
         mapaMotivo[motivo].total++;
         mapaMotivo[motivo].clientes.push({ nome, cidade, plano, motivo, data: s.data_cancelamento });
         total++;
+
+        if (isInadimplencia(motivo)) total_ativo++;
+        else total_passivo++;
       }
     }
 
@@ -1031,7 +1038,7 @@ app.get('/api/cancelamentos-servico', async (req, res) => {
       .sort((a, b) => b.total - a.total)
       .map(m => ({ ...m, clientes: m.clientes.sort((a,b) => (b.data||'') > (a.data||'') ? 1 : -1) }));
 
-    res.json({ ok: true, total, por_motivo, periodo: { ini: iniStr, fim: fimStr } });
+    res.json({ ok: true, total, total_ativo, total_passivo, por_motivo, periodo: { ini: iniStr, fim: fimStr } });
   } catch(err) {
     console.error('/api/cancelamentos-servico:', err.message);
     res.status(500).json({ ok: false, erro: err.message });
