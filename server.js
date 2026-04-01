@@ -1278,8 +1278,8 @@ function buildComResult(vendas, iniStr, fimStr) {
     .sort((a, b) => b[1] - a[1])
     .map(([status, total]) => ({ status, total }));
 
-  const novas       = vendas.filter(v => !v.reativacao).length;
-  const reativacoes = vendas.filter(v => v.reativacao).length;
+  const novas       = vendas.filter(v => !v.reativacao && !v.cancelado).length;
+  const reativacoes = vendas.filter(v => v.reativacao && !v.cancelado).length;
   const cancelados  = vendas.filter(v => v.cancelado).length;
   const ativos      = vendas.filter(v => !v.cancelado).length;
 
