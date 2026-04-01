@@ -4044,9 +4044,7 @@ function renderRetencao(data) {
   elVal('ret-ped-cancel', data.cancelados ?? '—');
   elVal('ret-ped-taxa',   data.taxa_retencao != null ? data.taxa_retencao + '%' : '—');
 
-  // Cancelamento Geral — destaque no topo
-  const cgBadge = document.getElementById('ret-cancel-geral-badge');
-  if (cgBadge) cgBadge.textContent = data.cancelamento_geral ?? '—';
+  // ret-cancel-geral-badge é gerenciado por loadCancelServico (já filtrado) — não sobrescrever aqui
   const cgChips = document.getElementById('ret-cancel-geral-chips');
   if (cgChips) {
     const motivos = data.por_motivo_cancelamento_geral || [];
