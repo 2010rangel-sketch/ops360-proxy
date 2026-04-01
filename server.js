@@ -1212,9 +1212,13 @@ function buildVendasFromClientes(clientes, iniStr, fimStr) {
       const rawVenda  = s.data_venda || null;
       const vendaDate = rawVenda ? parseDate(rawVenda) : null;
       const vendaMs   = vendaDate ? vendaDate.getTime() : 0;
-      // Inclui vendas com data_venda >= início do período, SEM limite superior:
-      // datas no futuro (ex: 31/12/2026) indicam erro de cadastro — o usuário quer vê-las para corrigir
+      // Para períodos passados, aplica limite superior (ex: março não mostra vendas de abril).
+      // Para o mês atual e futuro, sem limite superior: datas erradas (ex: 31/12/2026) aparecem
+      // para o usuário identificar e corrigir no Hubsoft.
+      const todayMs = new Date(new Date().toISOString().slice(0, 10)).getTime();
+      const isPastPeriod = fimMs < todayMs;
       if (!vendaMs || vendaMs < iniMs) continue;
+      if (isPastPeriod && vendaMs > fimMs) continue;
 
       // Dedup por chave composta: mesmo cliente + mesmo plano + mesma data_venda
       const chave = `${nome}|${s.nome || ''}|${s.data_venda || ''}`;
