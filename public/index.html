@@ -1590,42 +1590,6 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
       </div>
 
-      <!-- ── Contratos — pedidos de cancelamento este mês ── -->
-      <div style="font-weight:600;font-size:13px;color:var(--text2);margin-bottom:12px;padding-top:4px;border-top:1px solid var(--border)">Pedidos de cancelamento — este mês</div>
-      <div class="ret-hero">
-        <div class="ret-cell">
-          <div class="ret-val" id="ret-novos" style="color:var(--green)">—</div>
-          <div class="ret-label">Revertidos</div>
-          <div class="ret-sub" style="background:var(--green-light);color:var(--green)">salvos este mês</div>
-        </div>
-        <div class="ret-divider"></div>
-        <div class="ret-cell">
-          <div class="ret-val" id="ret-saldo" style="color:var(--accent)">—</div>
-          <div class="ret-label">Taxa de retenção</div>
-          <div class="ret-sub" id="ret-saldo-sub" style="background:var(--accent-light);color:var(--accent)">este mês</div>
-        </div>
-        <div class="ret-divider"></div>
-        <div class="ret-cell">
-          <div class="ret-val" id="ret-cancelados" style="color:var(--red)">—</div>
-          <div class="ret-label">Cancelados</div>
-          <div class="ret-sub" style="background:var(--red-light);color:var(--red)">este mês</div>
-        </div>
-      </div>
-      <!-- Tipos de pedido + Últimos cancelados -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px">
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header"><span class="tbl-title">Tipos de pedido</span><span class="badge b-amber" id="ret-motivos-badge">—</span></div>
-          <div style="padding:16px 18px" id="motivosCancDiv"></div>
-        </div>
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header"><span class="tbl-title">Últimos cancelados</span><span class="badge b-red" id="ret-canc-badge">—</span></div>
-          <div style="overflow-x:auto;max-height:300px;overflow-y:auto">
-            <table><thead><tr><th>Cliente</th><th>Atendente</th><th>Data</th></tr></thead>
-            <tbody id="retencaoTbl"><tr><td colspan="3" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
-          </div>
-        </div>
-      </div>
-
       <!-- ── Remoções de Equipamentos ── -->
       <div style="font-weight:700;font-size:14px;color:var(--text);margin-bottom:12px;padding-top:4px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px">
         <i class="fas fa-tools" style="color:var(--amber)"></i> Remoções de Equipamentos
