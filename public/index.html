@@ -3920,7 +3920,8 @@ function renderContratos(data) {
 // ── Retenção — Pedidos de Cancelamento ────────────────────────────
 let retPeriodo = 'mes';
 let _retData   = null;
-let _cancelServAbort = null; // abort controller para cancelar fetch anterior
+let _cancelServAbort = null;   // abort controller para cancelar fetch anterior
+let _cancelServSeq   = 0;      // versão — garante que resultado antigo nunca sobrescreva o atual
 
 function getRetDates() {
   const agora  = new Date();
@@ -3957,10 +3958,11 @@ function setRetPeriodo(p, el) {
 }
 
 async function loadCancelServico() {
-  // Cancela qualquer fetch anterior em andamento (evita race condition)
-  if (_cancelServAbort) { _cancelServAbort.abort(); }
+  // Cancela fetch anterior e marca esta chamada como a mais recente
+  if (_cancelServAbort) _cancelServAbort.abort();
   _cancelServAbort = new AbortController();
-  const signal = _cancelServAbort.signal;
+  const signal  = _cancelServAbort.signal;
+  const mySeq   = ++_cancelServSeq;   // versão desta chamada
 
   const tbl = document.getElementById('ret-cancel-serv-tbl');
   if (tbl) tbl.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr>';
@@ -3969,6 +3971,10 @@ async function loadCancelServico() {
     const qs = `data_inicio=${encodeURIComponent(ini)}&data_fim=${encodeURIComponent(fim)}`;
     const res  = await fetch(`/api/cancelamentos-servico?${qs}`, { signal });
     const data = await res.json();
+
+    // Se já houve uma chamada mais nova, descarta este resultado
+    if (mySeq !== _cancelServSeq) return;
+
     const badge = document.getElementById('ret-cancel-geral-badge');
     if (!data.ok) {
       if (tbl) tbl.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Erro ao carregar</td></tr>';
@@ -3993,6 +3999,7 @@ async function loadCancelServico() {
     window._cancelServMotivos = motivos;
   } catch(e) {
     if (e.name === 'AbortError') return; // request cancelado — não sobrescreve tabela
+    if (mySeq !== _cancelServSeq) return;
     console.warn('loadCancelServico:', e.message);
     const tbl = document.getElementById('ret-cancel-serv-tbl');
     if (tbl) tbl.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--red);padding:20px">Erro ao carregar</td></tr>';
