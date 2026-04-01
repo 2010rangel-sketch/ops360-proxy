@@ -982,6 +982,15 @@ app.get('/api/cancelamentos-servico', async (req, res) => {
     ]);
     const todos = [...ativos, ...cancelados];
 
+    // Motivos que NÃO devem ser contados como cancelamento nesta aba
+    const norm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const MOTIVOS_IGNORADOS = new Set([
+      'desistencia da instalacao',
+      'habilitado o user errado',
+      'troca de titularidade',
+    ]);
+    const ignorarMotivo = m => MOTIVOS_IGNORADOS.has(norm(m));
+
     const iniMs = new Date(iniStr).getTime();
     const fimMs = new Date(fimStr + 'T23:59:59').getTime();
     const seen  = new Set();
@@ -995,6 +1004,10 @@ app.get('/api/cancelamentos-servico', async (req, res) => {
         if (!dc) continue;
         const dcMs = dc.getTime();
         if (dcMs < iniMs || dcMs > fimMs) continue;
+
+        // Ignora motivos que não são cancelamentos reais (somente nesta aba)
+        const motivoRaw = (s.motivo_cancelamento || '').trim();
+        if (ignorarMotivo(motivoRaw)) continue;
 
         // Dedup: mesmo cliente + plano + data cancelamento
         const chave = `${nome}|${s.nome||''}|${s.data_cancelamento||''}`;
