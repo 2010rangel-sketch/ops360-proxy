@@ -6397,9 +6397,17 @@ function selectLtvAno(ano) {
 
 function filterLtv(txt) {
   const ltvTabs = document.getElementById('fin-ltv-tabs');
-  if (!ltvTabs || !_ltvAnoAtivo) return;
-  const dados = JSON.parse(ltvTabs.dataset.dados || '{}');
-  renderLtvTabela(dados[_ltvAnoAtivo] || [], txt.toLowerCase().trim());
+  if (!ltvTabs) return;
+  const q = txt.toLowerCase().trim();
+  if (q) {
+    // Busca em todos os anos
+    const dados = JSON.parse(ltvTabs.dataset.dados || '{}');
+    const todos = Object.values(dados).flat();
+    renderLtvTabela(todos, q);
+  } else {
+    // Sem filtro: volta para o ano selecionado
+    renderLtvTabela(JSON.parse(ltvTabs.dataset.dados || '{}')[_ltvAnoAtivo] || [], '');
+  }
 }
 
 function renderLtvTabela(lista, q) {
