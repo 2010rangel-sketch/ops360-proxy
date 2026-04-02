@@ -1516,7 +1516,7 @@ input[type="text"]::placeholder { color:var(--text3); }
       </div>
 
       <!-- KPIs de retenção -->
-      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:14px">
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:14px">
         <div class="kpi-mini">
           <div class="kpi-mini-bar" style="background:var(--accent)"></div>
           <div class="kpi-mini-label">Pedidos de cancelamento</div>
@@ -1543,7 +1543,7 @@ input[type="text"]::placeholder { color:var(--text3); }
         <div class="kpi-mini">
           <div class="kpi-mini-bar" style="background:var(--red)"></div>
           <div class="kpi-mini-label">Cancelamento Geral</div>
-          <div class="kpi-mini-val" id="ret-cancel-geral-badge" style="color:var(--red)">—</div>
+          <div class="kpi-mini-val" id="ret-cancel-geral-val" style="color:var(--red)">—</div>
           <div style="font-size:10px;color:var(--text3);margin-top:2px">cancelamentos de serviço</div>
         </div>
       </div>
@@ -3955,6 +3955,7 @@ async function loadCancelServico() {
     }
     if (badge) badge.textContent = data.total ?? '—';
     const elV = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+    elV('ret-cancel-geral-val', data.total ?? '—');
     elV('ret-canc-ativo',   data.total_ativo   ?? '—');
     elV('ret-canc-passivo', data.total_passivo ?? '—');
     const motivos = data.por_motivo || [];
