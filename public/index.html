@@ -1562,11 +1562,11 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
         <div class="tbl-card" style="margin-bottom:0">
           <div class="tbl-header">
-            <span class="tbl-title">Por Tipo de Solicitação</span>
+            <span class="tbl-title">Por Origem de Contato</span>
             <span class="badge b-blue" id="ret-tipo-count">—</span>
           </div>
           <div style="overflow-x:auto;max-height:280px;overflow-y:auto">
-            <table><thead><tr><th>#</th><th>Tipo</th><th>Total</th><th style="color:var(--green)">Revertidos</th><th style="color:var(--red)">Cancelados</th></tr></thead>
+            <table><thead><tr><th>#</th><th>Origem</th><th>Total</th><th style="color:var(--green)">Revertidos</th><th style="color:var(--red)">Cancelados</th></tr></thead>
             <tbody id="retTipoTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
           </div>
         </div>
@@ -4082,20 +4082,19 @@ function renderRetencao(data) {
   // Por tipo
   const tipoTbl   = document.getElementById('retTipoTbl');
   const tipoCount = document.getElementById('ret-tipo-count');
-  const porTipo   = data.por_tipo || [];
-  if (tipoCount) tipoCount.textContent = `${porTipo.length} tipos`;
+  const porOrigem = data.por_origem || [];
+  if (tipoCount) tipoCount.textContent = `${porOrigem.length} origens`;
   if (tipoTbl) {
-    tipoTbl.innerHTML = porTipo.length ? porTipo.map((t, i) => {
-      const isActive = _retFiltroTip === t.tipo;
-      return `<tr onclick="setRetFiltro('tipo','${t.tipo.replace(/'/g,"&#39;")}')" style="cursor:pointer;${isActive ? 'background:rgba(91,106,240,.08);outline:1px solid var(--accent);' : ''}">
+    tipoTbl.innerHTML = porOrigem.length ? porOrigem.map((t, i) => {
+      return `<tr>
         <td style="color:var(--text3)">${i+1}</td>
-        <td style="font-weight:500;color:${isActive ? 'var(--accent)' : 'var(--text)'}">${t.tipo}${isActive ? ' <span style="font-size:10px">✕</span>' : ''}</td>
+        <td style="font-weight:500">${t.origem}</td>
         <td class="mono" style="font-weight:600">${t.total}</td>
         <td class="mono" style="color:var(--green)">${t.revertidos}</td>
         <td class="mono" style="color:var(--red)">${t.cancelados}</td>
       </tr>`;
     }).join('')
-    : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Nenhum tipo encontrado</td></tr>`;
+    : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Sem dados no período</td></tr>`;
   }
 
   // Últimos pedidos

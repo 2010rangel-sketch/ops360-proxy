@@ -935,7 +935,12 @@ app.get('/api/retencao', async (req, res) => {
         const cliente   = cli?.nome_razaosocial || cli?.display || a.cliente_servico?.display || 'Sem cliente';
         const data      = a.data_fechamento || a.data_cadastro || null;
         const resumo    = a.descricao_fechamento || a.descricao_abertura || '';
-        return { tipo, desfecho, atendente, cliente, data, resumo };
+        const txtOrig   = ((a.descricao_abertura || '') + ' ' + (a.descricao_fechamento || '')).toUpperCase();
+        const origem    = txtOrig.includes('CHAT MIX') || txtOrig.includes('CHATMIX') ? 'ChatMix (WhatsApp)'
+                        : txtOrig.includes('PRESENCIAL') ? 'Presencial'
+                        : txtOrig.includes('LIGA') ? 'Ligação'
+                        : 'Origem ausente';
+        return { tipo, desfecho, atendente, cliente, data, resumo, origem };
       });
 
     const total      = pedidos.length;
@@ -970,15 +975,15 @@ app.get('/api/retencao', async (req, res) => {
       .map(a => ({ ...a, taxa: (a.revertidos + a.cancelados) > 0 ? Math.round(a.revertidos / (a.revertidos + a.cancelados) * 100) : null }))
       .sort((a, b) => b.total - a.total);
 
-    // Por tipo de atendimento
-    const mapaTipo = {};
+    // Por origem de contato
+    const mapaOrigem = {};
     pedidos.forEach(p => {
-      if (!mapaTipo[p.tipo]) mapaTipo[p.tipo] = { tipo: p.tipo, total: 0, revertidos: 0, cancelados: 0 };
-      mapaTipo[p.tipo].total++;
-      if (p.desfecho === 'revertido') mapaTipo[p.tipo].revertidos++;
-      else if (p.desfecho === 'cancelado') mapaTipo[p.tipo].cancelados++;
+      if (!mapaOrigem[p.origem]) mapaOrigem[p.origem] = { origem: p.origem, total: 0, revertidos: 0, cancelados: 0 };
+      mapaOrigem[p.origem].total++;
+      if (p.desfecho === 'revertido') mapaOrigem[p.origem].revertidos++;
+      else if (p.desfecho === 'cancelado') mapaOrigem[p.origem].cancelados++;
     });
-    const por_tipo = Object.values(mapaTipo).sort((a, b) => b.total - a.total);
+    const por_origem = Object.values(mapaOrigem).sort((a, b) => b.total - a.total);
 
     const ultimos = [...pedidos]
       .sort((a, b) => (b.data || '') > (a.data || '') ? 1 : -1)
@@ -988,7 +993,7 @@ app.get('/api/retencao', async (req, res) => {
       ok: true,
       total, revertidos, cancelados, pendentes, taxa_retencao,
       cancelamento_geral, por_motivo_cancelamento_geral,
-      por_atendente, por_tipo, ultimos,
+      por_atendente, por_origem, ultimos,
       sincronizado_em: new Date().toISOString(),
     });
   } catch (err) {
