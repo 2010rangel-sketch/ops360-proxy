@@ -1197,8 +1197,7 @@ app.get('/api/remocoes', async (req, res) => {
       .map(([tec, total]) => ({ tec, total }));
 
     const ultimas = remocoes
-      .sort((a, b) => (b.data || '') > (a.data || '') ? 1 : -1)
-      .slice(0, 100);
+      .sort((a, b) => (b.data || '') > (a.data || '') ? 1 : -1);
 
     res.json({
       ok: true,
