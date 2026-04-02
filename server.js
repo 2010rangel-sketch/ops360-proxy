@@ -432,23 +432,37 @@ app.get('/api/debug-retencao', async (req, res) => {
     const ini = data_inicio || new Date(agora.getFullYear(), agora.getMonth()-1, 1).toISOString().slice(0,10);
     const fim = data_fim    || new Date(agora.getFullYear(), agora.getMonth(), 0).toISOString().slice(0,10);
     const first = await hubsoftPost('v1/atendimento/consultar/paginado/500?page=1', { data_inicio: ini, data_fim: fim });
-    const lista = first?.atendimentos?.data || first?.atendimento?.data || first?.data || [];
+    const totalPages = first?.atendimentos?.last_page || first?.atendimento?.last_page || first?.last_page || 1;
+    let lista = first?.atendimentos?.data || first?.atendimento?.data || first?.data || [];
+    // Busca todas as páginas
+    if (totalPages > 1) {
+      const pages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+      const results = await Promise.all(pages.map(async pg => {
+        try {
+          const d = await hubsoftPost(`v1/atendimento/consultar/paginado/500?page=${pg}`, { data_inicio: ini, data_fim: fim });
+          return d?.atendimentos?.data || d?.atendimento?.data || d?.data || [];
+        } catch { return []; }
+      }));
+      results.forEach(r => lista.push(...r));
+    }
     const norm = s => (s || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const solicitacoes = lista.filter(a => {
       const u = norm(a.tipo_atendimento?.descricao || '');
       return u.includes('SOLICIT') && u.includes('CANCELAMENTO');
     });
+    // Agrupa por combinação de status_fechamento + id_motivo para mapear desfechos
+    const combinacoes = {};
+    for (const a of solicitacoes) {
+      const key = `sf=${a.status_fechamento}|sp=${a.status?.prefixo}|motivo=${a.id_motivo_fechamento_atendimento}`;
+      if (!combinacoes[key]) combinacoes[key] = { count: 0, exemplo_descricao: a.descricao_fechamento };
+      combinacoes[key].count++;
+    }
     res.json({
       ok: true,
-      total_pagina1: lista.length,
+      total_paginas: totalPages,
+      total_todos: lista.length,
       total_solicitacoes: solicitacoes.length,
-      amostra: solicitacoes.slice(0, 30).map(a => ({
-        tipo: a.tipo_atendimento?.descricao,
-        status_prefixo: a.status?.prefixo,
-        status_fechamento: a.status_fechamento,
-        descricao_fechamento: a.descricao_fechamento,
-        id_motivo_fechamento: a.id_motivo_fechamento_atendimento,
-      }))
+      combinacoes_desfecho: combinacoes,
     });
   } catch(e) { res.json({ ok: false, erro: e.message }); }
 });
