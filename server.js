@@ -862,19 +862,12 @@ app.get('/api/retencao', async (req, res) => {
       return 'revertido';
     };
 
-    // Regras de classificação de tipo:
-    // - SOLICITAÇÃO DE CANCELAMENTO → sempre é pedido de cancelamento
-    // - CANCELAMENTO COBRANÇA → NÃO é pedido de cancelamento
-    // - INFORMAÇÃO SOBRE CANCELAMENTO → só conta se desfecho = "cancelado"
-    // - Outros com CANCELAMENTO/RESCISÃO → conta (pedido genérico)
+    // Pedidos de cancelamento = SOMENTE tipo "SOLICITAÇÃO DE CANCELAMENTO", qualquer status (aberto ou fechado)
+    // Revertidos = mesmos pedidos fechados como "reverteu cancelamento"
     const norm = s => (s || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const isPedidoCancelamento = (tipo, desfecho) => {
+    const isSolicitacaoCancelamento = (tipo) => {
       const u = norm(tipo);
-      if (u.includes('SOLICIT') && u.includes('CANCELAMENTO'))  return true;   // SOLICITAÇÃO DE CANCELAMENTO
-      if (u.includes('CANCELAMENTO') && u.includes('COBRAN'))   return false;  // CANCELAMENTO COBRANÇA
-      if (u.includes('INFORMA') && u.includes('CANCELAMENTO'))  return desfecho === 'cancelado'; // INFORMAÇÃO SOBRE CANCELAMENTO — só se cancelado
-      if (u.includes('CANCELAMENTO') || u.includes('RESCIS'))   return true;   // outros tipos de cancelamento
-      return false;
+      return u.includes('SOLICIT') && u.includes('CANCELAMENTO');
     };
 
     const pedidos = lista
@@ -883,7 +876,7 @@ app.get('/api/retencao', async (req, res) => {
         const desfecho  = desfechoOf(a);
         return { _raw: a, tipo, desfecho };
       })
-      .filter(({ tipo, desfecho }) => isPedidoCancelamento(tipo, desfecho))
+      .filter(({ tipo }) => isSolicitacaoCancelamento(tipo))
       .map(({ _raw: a, tipo, desfecho }) => {
         const resps     = Array.isArray(a.usuarios_responsaveis) ? a.usuarios_responsaveis : [];
         const atendente = resps.map(u => u.name || u.nome).filter(Boolean).join(', ')
