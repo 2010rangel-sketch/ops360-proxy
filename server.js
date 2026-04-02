@@ -424,6 +424,35 @@ app.get('/api/debug-raw', async (req, res) => {
   } catch(err) { res.status(500).json({ erro: err.message }); }
 });
 
+// ── Debug: campos de atendimento de retenção ─────────────────────
+app.get('/api/debug-retencao', async (req, res) => {
+  try {
+    const { data_inicio, data_fim } = req.query;
+    const agora = new Date();
+    const ini = data_inicio || new Date(agora.getFullYear(), agora.getMonth()-1, 1).toISOString().slice(0,10);
+    const fim = data_fim    || new Date(agora.getFullYear(), agora.getMonth(), 0).toISOString().slice(0,10);
+    const first = await hubsoftPost('v1/atendimento/consultar/paginado/500?page=1', { data_inicio: ini, data_fim: fim });
+    const lista = first?.atendimentos?.data || first?.atendimento?.data || first?.data || [];
+    const norm = s => (s || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const solicitacoes = lista.filter(a => {
+      const u = norm(a.tipo_atendimento?.descricao || '');
+      return u.includes('SOLICIT') && u.includes('CANCELAMENTO');
+    });
+    res.json({
+      ok: true,
+      total_pagina1: lista.length,
+      total_solicitacoes: solicitacoes.length,
+      amostra: solicitacoes.slice(0, 30).map(a => ({
+        tipo: a.tipo_atendimento?.descricao,
+        status_prefixo: a.status?.prefixo,
+        status_fechamento: a.status_fechamento,
+        descricao_fechamento: a.descricao_fechamento,
+        id_motivo_fechamento: a.id_motivo_fechamento_atendimento,
+      }))
+    });
+  } catch(e) { res.json({ ok: false, erro: e.message }); }
+});
+
 // ── Debug: campos de serviço do cliente ──────────────────────────
 app.get('/api/debug-servico-campos', async (req, res) => {
   try {
