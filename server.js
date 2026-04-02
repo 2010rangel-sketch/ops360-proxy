@@ -2424,6 +2424,148 @@ async function buildFinanceiro() {
   };
 }
 
+// ── ADIÇÃO LÍQUIDA MENSAL ─────────────────────────────────────────────────────
+let _alCache = null;
+let _alFetchedAt = 0;
+const AL_CACHE_TTL = 2 * 60 * 60 * 1000; // 2h
+
+const MOTIVOS_IGNORAR_AL = ['desistencia da instalacao', 'habilitado o user errado', 'troca de titularidade'];
+const normAL = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+const ignorarMotAL = m => { const n = normAL(m); return MOTIVOS_IGNORAR_AL.some(p => n.includes(p)); };
+
+async function buildAdicaoLiquida() {
+  const agora = new Date();
+  // Mes anterior fechado (mês corrente ainda não fechou)
+  const mesAntFim = new Date(agora.getFullYear(), agora.getMonth(), 0); // último dia do mês anterior
+  const INICIO_ANO = 2025;
+  const INICIO_MES = 0; // Janeiro
+
+  // Lista de meses a processar
+  const meses = [];
+  for (let y = INICIO_ANO; y <= mesAntFim.getFullYear(); y++) {
+    const mIni = (y === INICIO_ANO) ? INICIO_MES : 0;
+    const mFim = (y === mesAntFim.getFullYear()) ? mesAntFim.getMonth() : 11;
+    for (let m = mIni; m <= mFim; m++) {
+      const ini = new Date(y, m, 1);
+      const fim = new Date(y, m + 1, 0);
+      const _df = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      meses.push({ ano: y, mes: m, iniStr: _df(ini), fimStr: _df(fim), label: ini.toLocaleString('pt-BR', {month:'short', year:'2-digit'}).replace('. ','/') });
+    }
+  }
+
+  // Garante que o cache de clientes ativos está disponível
+  if (!_comAllClientes) await warmupComercial();
+  const token = await getToken();
+
+  const NORM_MOTIVO_IGNORAR = ['desistencia da instalacao', 'habilitado o user errado', 'troca de titularidade'];
+
+  // Processa meses em lotes de 3 para não sobrecarregar a API
+  const resultados = [];
+  for (let i = 0; i < meses.length; i += 3) {
+    const lote = meses.slice(i, i + 3);
+    const loteRes = await Promise.all(lote.map(async ({ ano, mes, iniStr, fimStr, label }) => {
+      try {
+        // Vendas (novas + reativações)
+        const [cancelNao, cancelSim] = await Promise.all([
+          fetchIntegracaoClientes(token, { tipo_data_cliente_servico: 'data_venda', data_inicio_cliente_servico: iniStr, data_fim_cliente_servico: fimStr, cancelado: 'nao' }, 10),
+          fetchIntegracaoClientes(token, { tipo_data_cliente_servico: 'data_venda', data_inicio_cliente_servico: iniStr, data_fim_cliente_servico: fimStr, cancelado: 'sim' }, 10),
+        ]);
+        const vendas = buildVendasFromClientes([..._comAllClientes, ...cancelNao, ...cancelSim], iniStr, fimStr);
+        const novas       = vendas.filter(v => !v.reativacao && !v.cancelado).length;
+        const reativacoes = vendas.filter(v => v.reativacao && !v.cancelado).length;
+
+        // Cancelamentos do mês (mesmo filtro da aba Cancelamento/Retenção)
+        const [cNao, cSim] = await Promise.all([
+          fetchIntegracaoClientes(token, { tipo_data_cliente_servico: 'data_cancelamento', data_inicio_cliente_servico: iniStr, data_fim_cliente_servico: fimStr, cancelado: 'nao' }, 10),
+          fetchIntegracaoClientes(token, { tipo_data_cliente_servico: 'data_cancelamento', data_inicio_cliente_servico: iniStr, data_fim_cliente_servico: fimStr, cancelado: 'sim' }, 10),
+        ]);
+        const iniMs = new Date(iniStr).getTime();
+        const fimMs = new Date(fimStr + 'T23:59:59').getTime();
+        const seen  = new Set();
+        let cancelados = 0;
+        for (const cli of [...cNao, ...cSim]) {
+          for (const s of (cli.servicos || [])) {
+            const dc = parseDate(s.data_cancelamento);
+            if (!dc || dc.getTime() < iniMs || dc.getTime() > fimMs) continue;
+            if (ignorarMotAL(s.motivo_cancelamento)) continue;
+            const chave = `${cli.nome_razaosocial||''}|${s.nome||''}|${s.data_cancelamento||''}`;
+            if (seen.has(chave)) continue;
+            seen.add(chave);
+            cancelados++;
+          }
+        }
+        const adicao_liquida = novas + reativacoes - cancelados;
+        return { ano, mes, iniStr, fimStr, label, novas, reativacoes, cancelados, adicao_liquida };
+      } catch(e) {
+        const ini = new Date(ano, mes, 1);
+        const lbl = ini.toLocaleString('pt-BR', {month:'short', year:'2-digit'}).replace('. ','');
+        console.warn(`[adicao-liquida] Erro em ${iniStr}:`, e.message);
+        return { ano, mes, iniStr, fimStr, label: lbl, novas: 0, reativacoes: 0, cancelados: 0, adicao_liquida: 0, erro: true };
+      }
+    }));
+    resultados.push(...loteRes);
+  }
+
+  // Totais por ano
+  const porAno = {};
+  for (const r of resultados) {
+    if (!porAno[r.ano]) porAno[r.ano] = { ano: r.ano, novas: 0, reativacoes: 0, cancelados: 0, adicao_liquida: 0, meses: 0 };
+    porAno[r.ano].novas          += r.novas;
+    porAno[r.ano].reativacoes    += r.reativacoes;
+    porAno[r.ano].cancelados     += r.cancelados;
+    porAno[r.ano].adicao_liquida += r.adicao_liquida;
+    porAno[r.ano].meses++;
+  }
+
+  // Projeção 2026: média dos meses fechados de 2026 × 12
+  const meses2026 = resultados.filter(r => r.ano === 2026);
+  let projecao2026 = null;
+  if (meses2026.length > 0) {
+    const mediaMensal = meses2026.reduce((s, r) => s + r.adicao_liquida, 0) / meses2026.length;
+    const projetado   = Math.round(mediaMensal * 12);
+    const acumulado   = meses2026.reduce((s, r) => s + r.adicao_liquida, 0);
+    const restantes   = 12 - meses2026.length;
+    const projetadoRestante = Math.round(mediaMensal * restantes);
+    projecao2026 = {
+      meses_fechados: meses2026.length,
+      acumulado,
+      media_mensal: Math.round(mediaMensal),
+      projetado_anual: projetado,
+      projetado_restante: projetadoRestante,
+      estimativa_final: acumulado + projetadoRestante,
+    };
+  }
+
+  return {
+    ok: true,
+    meses: resultados,
+    por_ano: Object.values(porAno).sort((a, b) => a.ano - b.ano),
+    projecao2026,
+    gerado_em: new Date().toISOString(),
+  };
+}
+
+app.get('/api/adicao-liquida', async (req, res) => {
+  try {
+    const force = req.query.force === '1';
+    const agora = Date.now();
+    if (!force && _alCache && (agora - _alFetchedAt) < AL_CACHE_TTL) return res.json(_alCache);
+    if (force) { _alCache = null; _alFetchedAt = 0; }
+    if (!_comAllClientes) {
+      warmupComercial().catch(console.warn);
+      return res.json({ ok: false, motivo: 'cache_warmup', warming: true, info: 'Base de clientes sendo carregada. Tente em 60s.' });
+    }
+    const result  = await buildAdicaoLiquida();
+    _alCache      = result;
+    _alFetchedAt  = agora;
+    res.json(result);
+  } catch(e) {
+    console.error('[/api/adicao-liquida]', e.message);
+    if (_alCache) return res.json({ ..._alCache, aviso: e.message });
+    res.json({ ok: false, motivo: e.message });
+  }
+});
+
 app.get('/api/financeiro', async (req, res) => {
   try {
     const agora = Date.now();

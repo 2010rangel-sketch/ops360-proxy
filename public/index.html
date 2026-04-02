@@ -1723,6 +1723,44 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
       </div>
 
+      <!-- ═══ ADIÇÃO LÍQUIDA ═══ -->
+      <div class="tbl-card" style="margin-bottom:14px" id="fin-al-card">
+        <div class="tbl-header">
+          <span class="tbl-title"><i class="fas fa-chart-bar" style="color:var(--accent);margin-right:5px"></i>Adição Líquida Mensal</span>
+          <span class="badge b-blue" id="fin-al-badge">—</span>
+          <button class="btn btn-sm" onclick="loadAdicaoLiquida(true)" style="margin-left:auto"><i class="fas fa-sync-alt"></i> Atualizar</button>
+        </div>
+        <!-- Gráfico de barras -->
+        <div style="padding:16px 16px 4px;overflow-x:auto">
+          <div id="fin-al-chart" style="min-height:140px;display:flex;align-items:flex-end;justify-content:flex-start;gap:4px;min-width:600px">
+            <div style="color:var(--text3);font-size:12px;padding:40px;text-align:center;width:100%">Clique em <b>Atualizar</b> para carregar dados históricos.</div>
+          </div>
+          <div id="fin-al-legend" style="display:flex;gap:16px;justify-content:center;margin-top:6px;flex-wrap:wrap;font-size:11px;color:var(--text3)"></div>
+        </div>
+        <!-- Tabela por Ano + Projeção -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 16px 16px">
+          <!-- Totais por ano -->
+          <div>
+            <div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Adição Líquida Anual</div>
+            <table class="tbl" style="font-size:12px">
+              <thead><tr><th>Ano</th><th>Novas</th><th>Reat.</th><th>Cancel.</th><th>Adição Líq.</th></tr></thead>
+              <tbody id="fin-al-anual"></tbody>
+            </table>
+          </div>
+          <!-- Projeção 2026 -->
+          <div id="fin-al-proj-wrap">
+            <div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Projeção 2026</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="fin-al-proj-kpis">
+              <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Acumulado (meses fechados)</div><div class="kpi-mini-val" id="fin-al-acumulado" style="color:var(--accent)">—</div></div>
+              <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--cyan)"></div><div class="kpi-mini-label">Média Mensal 2026</div><div class="kpi-mini-val" id="fin-al-media" style="color:var(--cyan)">—</div></div>
+              <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">Projeção Anual (×12)</div><div class="kpi-mini-val" id="fin-al-proj" style="color:var(--green)">—</div></div>
+              <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">Estimativa Dez/26</div><div class="kpi-mini-val" id="fin-al-estimativa" style="color:var(--amber)">—</div></div>
+            </div>
+            <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5" id="fin-al-proj-nota">—</div>
+          </div>
+        </div>
+      </div>
+
       <!-- Top 100 LTV -->
       <div class="tbl-card" style="margin-bottom:14px">
         <div class="tbl-header">
@@ -2201,6 +2239,8 @@ function goPage(id, el) {
   if (id === 'financeiro') {
     if (_finData) renderFinanceiro(_finData);
     loadFinanceiro();
+    if (_alData) renderAdicaoLiquida(_alData);
+    else loadAdicaoLiquida();
   }
   if (id === 'fiscal') {
     loadFiscal();
@@ -6184,6 +6224,104 @@ function renderCancelStats(pfx, stats) {
       <td style="font-size:10px;color:var(--text3);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.motivo}</td>
     </tr>`).join('') : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Nenhum cancelamento</td></tr>`;
   }
+}
+
+// ─── ADIÇÃO LÍQUIDA ──────────────────────────────────────────────────────────
+let _alData = null;
+
+async function loadAdicaoLiquida(force = false) {
+  const badge = document.getElementById('fin-al-badge');
+  if (badge) { badge.textContent = 'Carregando...'; badge.className = 'badge b-amber'; }
+  const chart = document.getElementById('fin-al-chart');
+  if (chart && !_alData) chart.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:40px;text-align:center;width:100%">Buscando dados históricos do Hubsoft… pode levar até 60s na primeira vez.</div>';
+  try {
+    const r = await fetch(`${PROXY_URL}/api/adicao-liquida${force ? '?force=1' : ''}`);
+    const d = await r.json();
+    if (!d.ok) {
+      if (badge) { badge.textContent = d.info || d.motivo || 'Erro'; badge.className = 'badge b-red'; }
+      if (chart) chart.innerHTML = `<div style="color:var(--text3);font-size:12px;padding:40px;text-align:center;width:100%">${d.info || d.motivo}</div>`;
+      if (d.warming) setTimeout(() => loadAdicaoLiquida(), 30000);
+      return;
+    }
+    _alData = d;
+    renderAdicaoLiquida(d);
+    if (badge) {
+      const hora = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+      badge.textContent = `Atualizado ${hora}`;
+      badge.className = 'badge b-green';
+    }
+  } catch(e) {
+    if (badge) { badge.textContent = 'Erro de conexão'; badge.className = 'badge b-red'; }
+  }
+}
+
+function renderAdicaoLiquida(d) {
+  const meses = d.meses || [];
+  if (!meses.length) return;
+
+  // ── Gráfico de barras ─────────────────────────────────────────
+  const valores = meses.map(m => m.adicao_liquida);
+  const maxAbs  = Math.max(...valores.map(Math.abs), 1);
+  const maxVal  = Math.max(...valores);
+  const minVal  = Math.min(...valores);
+  const ALTURA  = 120; // px da barra máxima
+  const chart   = document.getElementById('fin-al-chart');
+  if (chart) {
+    chart.innerHTML = meses.map((m, i) => {
+      const al      = m.adicao_liquida;
+      const pct     = Math.abs(al) / maxAbs;
+      const h       = Math.max(Math.round(pct * ALTURA), 2);
+      const isPos   = al >= 0;
+      const isMax   = al === maxVal;
+      const isMin   = al === minVal;
+      const cor     = isMax ? '#22c55e' : isMin ? '#ef4444' : (isPos ? '#4ade80' : '#f87171');
+      const corTxt  = isPos ? '#22c55e' : '#ef4444';
+      const tooltip = `${m.label}: +${m.novas} novas +${m.reativacoes} reat. −${m.cancelados} cancel. = ${al > 0 ? '+' : ''}${al}`;
+      const anoLbl  = (i === 0 || meses[i-1].ano !== m.ano) ? `<div style="font-size:9px;color:var(--text3);margin-bottom:2px;font-weight:600">${m.ano}</div>` : '<div style="font-size:9px;color:transparent">·</div>';
+      return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:28px;max-width:52px;cursor:default" title="${tooltip}">
+        ${anoLbl}
+        <div style="font-size:9px;color:${corTxt};font-weight:700;line-height:1.2">${al > 0 ? '+' : ''}${al}</div>
+        <div style="width:100%;height:${h}px;background:${cor};border-radius:3px 3px 0 0;margin-top:2px;transition:opacity .2s;${isMax||isMin?'box-shadow:0 0 0 2px #fff3':''}"></div>
+        <div style="font-size:9px;color:var(--text3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center">${m.label}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Legenda
+  const legend = document.getElementById('fin-al-legend');
+  if (legend) {
+    legend.innerHTML = `
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#22c55e;display:inline-block"></span> Maior adição (+${maxVal})</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#ef4444;display:inline-block"></span> Menor adição (${minVal})</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#4ade80;display:inline-block"></span> Positivo</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#f87171;display:inline-block"></span> Negativo</span>`;
+  }
+
+  // ── Tabela anual ─────────────────────────────────────────────
+  const anualTbl = document.getElementById('fin-al-anual');
+  if (anualTbl) {
+    anualTbl.innerHTML = (d.por_ano || []).map(a => {
+      const cor = a.adicao_liquida >= 0 ? '#22c55e' : '#ef4444';
+      return `<tr>
+        <td style="font-weight:700">${a.ano}</td>
+        <td class="mono" style="color:#4ade80">+${a.novas}</td>
+        <td class="mono" style="color:var(--cyan)">+${a.reativacoes}</td>
+        <td class="mono" style="color:#f87171">−${a.cancelados}</td>
+        <td class="mono" style="color:${cor};font-weight:700">${a.adicao_liquida > 0 ? '+' : ''}${a.adicao_liquida}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="5" style="color:var(--text3);text-align:center">—</td></tr>';
+  }
+
+  // ── Projeção 2026 ─────────────────────────────────────────────
+  const p = d.projecao2026;
+  if (!p) { const w = document.getElementById('fin-al-proj-wrap'); if(w) w.style.opacity='.4'; return; }
+  const sinal = v => (v > 0 ? '+' : '') + v;
+  fev('fin-al-acumulado',  sinal(p.acumulado));
+  fev('fin-al-media',      sinal(p.media_mensal) + '/mês');
+  fev('fin-al-proj',       sinal(p.projetado_anual));
+  fev('fin-al-estimativa', sinal(p.estimativa_final));
+  const nota = document.getElementById('fin-al-proj-nota');
+  if (nota) nota.innerHTML = `Baseado em <b>${p.meses_fechados} meses fechados</b> de 2026. Estimativa de encerrar dezembro/26 com <b style="color:${p.estimativa_final>=0?'#22c55e':'#ef4444'}">${sinal(p.estimativa_final)} clientes líquidos</b> no ano.`;
 }
 
 // ─── FISCAL ──────────────────────────────────────────────────────────────────
