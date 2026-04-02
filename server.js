@@ -463,12 +463,8 @@ app.get('/api/debug-retencao', async (req, res) => {
       total_todos: lista.length,
       total_solicitacoes: solicitacoes.length,
       combinacoes_desfecho: combinacoes,
-      amostra_campos: solicitacoes.slice(0, 3).map(a => ({
-        origem_contato: a.origem_contato,
-        origem: a.origem,
-        canal: a.canal,
-        keys: Object.keys(a).filter(k => k.includes('origem') || k.includes('canal') || k.includes('contato')),
-      })),
+      todos_campos: solicitacoes.length > 0 ? Object.keys(solicitacoes[0]) : [],
+      amostra_raw: solicitacoes.length > 0 ? solicitacoes[0] : null,
     });
   } catch(e) { res.json({ ok: false, erro: e.message }); }
 });
