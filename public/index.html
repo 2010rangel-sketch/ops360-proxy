@@ -6424,16 +6424,24 @@ function renderLtvTabela(lista, q) {
   if (!ltvTbl) return;
   const filtrada = q ? lista.filter(c => c.nome.toLowerCase().includes(q)) : lista;
   const ordenada = filtrada.slice().sort((a, b) => (b.ltvDinheiro || 0) - (a.ltvDinheiro || 0));
-  ltvTbl.innerHTML = ordenada.length ? ordenada.map((c, i) => `<tr>
-    <td class="mono" style="color:var(--text3)">${i+1}</td>
-    <td style="font-weight:500;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.nome}">${c.nome}</td>
-    <td style="font-size:11px">${c.cidade}</td>
-    <td style="font-size:11px;color:var(--text3)">${c.plano}</td>
-    <td class="mono">${fmtBRL(c.valor)}</td>
-    <td style="font-size:11px;color:var(--text3)">${c.dataCad ? c.dataCad.substring(0,10) : '—'}</td>
-    <td style="font-size:11px;color:var(--accent)">${c.tempoFmt}</td>
-    <td class="mono" style="font-weight:700;color:#22c55e">${fmtBRLk(c.ltvDinheiro)}</td>
-  </tr>`).join('') : `<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px">${q ? 'Nenhum cliente encontrado' : 'Sem clientes neste ano'}</td></tr>`;
+  ltvTbl.innerHTML = ordenada.length ? ordenada.map((c, i) => {
+    const st = c.statusTipo || 'ativo';
+    const rowBg  = st === 'suspenso' ? 'rgba(244,63,94,.06)' : st === 'parcial' ? 'rgba(249,115,22,.06)' : '';
+    const nomeCor = st === 'suspenso' ? 'var(--red)' : st === 'parcial' ? 'var(--orange)' : 'var(--text)';
+    const badge  = st === 'suspenso' ? '<span style="font-size:9px;background:var(--red-light);color:var(--red);border-radius:3px;padding:1px 4px;margin-left:4px">SUSP</span>'
+                 : st === 'parcial'  ? '<span style="font-size:9px;background:var(--orange-light);color:var(--orange);border-radius:3px;padding:1px 4px;margin-left:4px">PARC</span>'
+                 : '';
+    return `<tr style="background:${rowBg}">
+      <td class="mono" style="color:var(--text3)">${i+1}</td>
+      <td style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${nomeCor}" title="${c.nome}">${c.nome}${badge}</td>
+      <td style="font-size:11px">${c.cidade}</td>
+      <td style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.plano}</td>
+      <td class="mono">${fmtBRL(c.valor)}</td>
+      <td style="font-size:11px;color:var(--text3)">${c.dataCad ? c.dataCad.substring(0,10) : '—'}</td>
+      <td style="font-size:11px;color:var(--accent);white-space:nowrap">${c.tempoFmt}</td>
+      <td class="mono" style="font-weight:700;color:#22c55e;white-space:nowrap">${fmtBRLk(c.ltvDinheiro)}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px">${q ? 'Nenhum cliente encontrado' : 'Sem clientes neste ano'}</td></tr>`;
 }
 
 // ─── ADIÇÃO LÍQUIDA ──────────────────────────────────────────────────────────

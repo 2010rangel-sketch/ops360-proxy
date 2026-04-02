@@ -2258,7 +2258,7 @@ async function buildFinanceiro() {
         parciaisSusp.push({ nome, plano, valor, cidade, vendedor, status, dataHab: s.data_habilitacao });
       }
 
-      if (isOn && dataCadCli) {
+      if ((isOn || isSusp || isParcial) && dataCadCli && !isCan) {
         const m = mesesEntre(dataCadCli, agora);
         ltvCandidates.push({
           nome, cidade, plano, valor,
@@ -2266,6 +2266,7 @@ async function buildFinanceiro() {
           mesesAtivo: Math.round(m * 10) / 10,
           ltvDinheiro: Math.round(m * valor),
           tempoFmt:    fmtTempoFin(m),
+          statusTipo: isSusp ? 'suspenso' : isParcial ? 'parcial' : 'ativo',
         });
       }
 
