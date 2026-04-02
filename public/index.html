@@ -1572,15 +1572,15 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
       </div>
 
-      <!-- Últimos pedidos -->
+      <!-- Pedidos de cancelamento -->
       <div class="tbl-card" style="margin-bottom:20px">
         <div class="tbl-header">
-          <span class="tbl-title">Últimos pedidos de cancelamento</span>
+          <span class="tbl-title">Pedidos de cancelamento</span>
           <span id="ret-filtro-badge" style="display:none;font-size:11px;padding:3px 8px;border-radius:4px;cursor:pointer;background:var(--accent-light);color:var(--accent);border:1px solid rgba(91,106,240,.4)">—</span>
           <span class="badge b-amber" id="ret-pedidos-badge">—</span>
         </div>
-        <div style="overflow-x:auto;max-height:260px;overflow-y:auto">
-          <table><thead><tr><th>Cliente</th><th>Tipo</th><th>Atendente</th><th>Desfecho</th><th>Data</th></tr></thead>
+        <div style="overflow-x:auto;max-height:400px;overflow-y:auto">
+          <table><thead><tr><th>Cliente</th><th>Atendente</th><th>Origem</th><th>Desfecho</th><th>Data</th></tr></thead>
           <tbody id="retPedidosTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
         </div>
       </div>
@@ -4087,9 +4087,10 @@ function renderRetencao(data) {
   if (tipoCount) tipoCount.textContent = `${porOrigem.length} origens`;
   if (tipoTbl) {
     tipoTbl.innerHTML = porOrigem.length ? porOrigem.map((t, i) => {
-      return `<tr>
+      const isActive = _retFiltroOrig === t.origem;
+      return `<tr onclick="setRetFiltro('origem','${t.origem.replace(/'/g,"&#39;")}')" style="cursor:pointer;${isActive ? 'background:rgba(91,106,240,.08);outline:1px solid var(--accent);' : ''}">
         <td style="color:var(--text3)">${i+1}</td>
-        <td style="font-weight:500">${t.origem}</td>
+        <td style="font-weight:500;color:${isActive ? 'var(--accent)' : 'var(--text)'}">${t.origem}${isActive ? ' <span style="font-size:10px">✕</span>' : ''}</td>
         <td class="mono" style="font-weight:600">${t.total}</td>
         <td class="mono" style="color:var(--green)">${t.revertidos}</td>
         <td class="mono" style="color:var(--red)">${t.cancelados}</td>
@@ -4098,20 +4099,21 @@ function renderRetencao(data) {
     : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Sem dados no período</td></tr>`;
   }
 
-  // Últimos pedidos
+  // Pedidos de cancelamento
   const pedTbl      = document.getElementById('retPedidosTbl');
   const pedBadge    = document.getElementById('ret-pedidos-badge');
   const filtroBadge = document.getElementById('ret-filtro-badge');
   let ultimos = data.ultimos || [];
-  // Aplica filtro de atendente ou tipo
-  if (_retFiltroAt)  ultimos = ultimos.filter(p => p.atendente === _retFiltroAt);
-  if (_retFiltroTip) ultimos = ultimos.filter(p => p.tipo      === _retFiltroTip);
-  const filtroAtivo = _retFiltroAt || _retFiltroTip;
+  // Aplica filtros
+  if (_retFiltroAt)   ultimos = ultimos.filter(p => p.atendente === _retFiltroAt);
+  if (_retFiltroTip)  ultimos = ultimos.filter(p => p.tipo      === _retFiltroTip);
+  if (_retFiltroOrig) ultimos = ultimos.filter(p => p.origem    === _retFiltroOrig);
+  const filtroAtivo = _retFiltroAt || _retFiltroTip || _retFiltroOrig;
   if (filtroBadge) {
     if (filtroAtivo) {
       filtroBadge.textContent = `Filtro: ${filtroAtivo} ✕`;
       filtroBadge.style.display = '';
-      filtroBadge.onclick = () => { _retFiltroAt = ''; _retFiltroTip = ''; if (_retData) renderRetencao(_retData); };
+      filtroBadge.onclick = () => { _retFiltroAt = ''; _retFiltroTip = ''; _retFiltroOrig = ''; if (_retData) renderRetencao(_retData); };
     } else {
       filtroBadge.style.display = 'none';
     }
@@ -4126,8 +4128,8 @@ function renderRetencao(data) {
   if (pedTbl) {
     pedTbl.innerHTML = ultimos.length ? ultimos.map(p => `<tr>
       <td style="font-weight:500;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.cliente}</td>
-      <td style="font-size:12px;color:var(--text2)">${p.tipo}</td>
       <td style="font-size:12px">${p.atendente}</td>
+      <td style="font-size:12px;color:var(--text2)">${p.origem || '—'}</td>
       <td>${desfechoBadge(p.desfecho, p.resumo)}</td>
       <td style="font-size:12px;color:var(--text3)">${p.data ? new Date(p.data).toLocaleDateString('pt-BR') : '—'}</td>
     </tr>`).join('')
@@ -5153,14 +5155,21 @@ function setComPeriodo(p, el) {
 let _comFiltro      = { type: '', val: '' }; // filtro ativo no comercial
 let _retFiltroAt    = '';                     // filtro atendente retenção
 let _retFiltroTip   = '';                     // filtro tipo retenção
+let _retFiltroOrig  = '';                     // filtro origem de contato
 
 function setRetFiltro(tipo, val) {
   if (tipo === 'atendente') {
-    _retFiltroAt  = _retFiltroAt === val ? '' : val;
-    _retFiltroTip = '';
+    _retFiltroAt   = _retFiltroAt === val ? '' : val;
+    _retFiltroTip  = '';
+    _retFiltroOrig = '';
+  } else if (tipo === 'origem') {
+    _retFiltroOrig = _retFiltroOrig === val ? '' : val;
+    _retFiltroAt   = '';
+    _retFiltroTip  = '';
   } else {
-    _retFiltroTip = _retFiltroTip === val ? '' : val;
-    _retFiltroAt  = '';
+    _retFiltroTip  = _retFiltroTip === val ? '' : val;
+    _retFiltroAt   = '';
+    _retFiltroOrig = '';
   }
   if (_retData) renderRetencao(_retData);
 }

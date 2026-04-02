@@ -986,8 +986,7 @@ app.get('/api/retencao', async (req, res) => {
     const por_origem = Object.values(mapaOrigem).sort((a, b) => b.total - a.total);
 
     const ultimos = [...pedidos]
-      .sort((a, b) => (b.data || '') > (a.data || '') ? 1 : -1)
-      .slice(0, 30);
+      .sort((a, b) => (b.data || '') > (a.data || '') ? 1 : -1);
 
     res.json({
       ok: true,
