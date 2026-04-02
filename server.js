@@ -431,7 +431,7 @@ app.get('/api/debug-retencao', async (req, res) => {
     const agora = new Date();
     const ini = data_inicio || new Date(agora.getFullYear(), agora.getMonth()-1, 1).toISOString().slice(0,10);
     const fim = data_fim    || new Date(agora.getFullYear(), agora.getMonth(), 0).toISOString().slice(0,10);
-    const first = await hubsoftPost('v1/atendimento/consultar/paginado/500?page=1', { data_inicio: ini, data_fim: fim });
+    const first = await hubsoftPost('v1/atendimento/consultar/paginado/500?page=1', { data_inicio: ini, data_fim: fim, relacoes: 'origem_contato' });
     const totalPages = first?.atendimentos?.last_page || first?.atendimento?.last_page || first?.last_page || 1;
     let lista = first?.atendimentos?.data || first?.atendimento?.data || first?.data || [];
     // Busca todas as páginas
@@ -464,11 +464,12 @@ app.get('/api/debug-retencao', async (req, res) => {
       total_solicitacoes: solicitacoes.length,
       combinacoes_desfecho: combinacoes,
       todos_campos: solicitacoes.length > 0 ? Object.keys(solicitacoes[0]) : [],
-      amostra_origem: solicitacoes.slice(0, 5).map(a => ({
-        descricao_abertura: (a.descricao_abertura || '').slice(0, 80),
-        ingresado: a.ingresado,
+      amostra_origem: solicitacoes.slice(0, 3).map(a => ({
         destino_atendimento: a.destino_atendimento,
         pop: a.pop,
+        // verificar se relacao origem veio como sub-objeto
+        origem_keys: a.origem ? Object.keys(a.origem) : null,
+        destino_keys: a.destino_atendimento && typeof a.destino_atendimento === 'object' ? Object.keys(a.destino_atendimento) : a.destino_atendimento,
       })),
     });
   } catch(e) { res.json({ ok: false, erro: e.message }); }
