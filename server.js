@@ -938,7 +938,7 @@ app.get('/api/retencao', async (req, res) => {
     const cancelados = pedidos.filter(p => p.desfecho === 'cancelado').length;
     const pendentes  = pedidos.filter(p => p.desfecho === 'pendente').length;
     const fechados   = revertidos + cancelados;
-    const taxa_retencao = fechados > 0 ? Math.round(revertidos / fechados * 100) : null;
+    const taxa_retencao = total > 0 ? Math.round(revertidos / total * 100) : null;
 
     // Cancelamento geral: qualquer atendimento fechado como cancelado, independente do tipo de abertura
     const todosCancel = lista.filter(a => desfechoOf(a) === 'cancelado');
