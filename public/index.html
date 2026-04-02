@@ -1776,6 +1776,14 @@ input[type="text"]::placeholder { color:var(--text3); }
           <span class="tbl-title">Clientes por Ano de Cadastro</span>
           <span class="badge b-blue" id="fin-ltv-count">—</span>
         </div>
+        <!-- Filtro de nome -->
+        <div style="padding:8px 14px;border-bottom:1px solid var(--border)">
+          <div style="position:relative">
+            <i class="fas fa-search" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:12px;pointer-events:none"></i>
+            <input type="text" id="fin-ltv-search" placeholder="Filtrar por nome do cliente..." oninput="filterLtv(this.value)"
+              style="width:100%;box-sizing:border-box;padding:6px 10px 6px 30px;background:var(--bg);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
+          </div>
+        </div>
         <!-- Tabs por ano -->
         <div style="padding:10px 14px 0;border-bottom:1px solid var(--border);overflow-x:auto">
           <div id="fin-ltv-tabs" style="display:flex;gap:4px;flex-wrap:nowrap;min-width:max-content"></div>
@@ -6372,20 +6380,34 @@ function renderCancelStats(pfx, stats) {
   }
 }
 
+let _ltvAnoAtivo = null;
+
 function selectLtvAno(ano) {
+  _ltvAnoAtivo = ano;
   const ltvTabs = document.getElementById('fin-ltv-tabs');
-  const ltvTbl  = document.getElementById('fin-ltv-lista');
-  if (!ltvTabs || !ltvTbl) return;
-  // Atualiza tab ativo
+  if (!ltvTabs) return;
   const anos = JSON.parse(ltvTabs.dataset.anos || '[]');
   anos.forEach(a => {
     const btn = document.getElementById(`fin-ltv-tab-${a}`);
     if (btn) btn.className = a === ano ? 'chip active' : 'chip';
   });
-  // Renderiza clientes do ano selecionado
+  const q = (document.getElementById('fin-ltv-search')?.value || '').toLowerCase().trim();
+  renderLtvTabela(JSON.parse(ltvTabs.dataset.dados || '{}')[ano] || [], q);
+}
+
+function filterLtv(txt) {
+  const ltvTabs = document.getElementById('fin-ltv-tabs');
+  if (!ltvTabs || !_ltvAnoAtivo) return;
   const dados = JSON.parse(ltvTabs.dataset.dados || '{}');
-  const lista = (dados[ano] || []).sort((a, b) => (b.ltvDinheiro || 0) - (a.ltvDinheiro || 0));
-  ltvTbl.innerHTML = lista.length ? lista.map((c, i) => `<tr>
+  renderLtvTabela(dados[_ltvAnoAtivo] || [], txt.toLowerCase().trim());
+}
+
+function renderLtvTabela(lista, q) {
+  const ltvTbl = document.getElementById('fin-ltv-lista');
+  if (!ltvTbl) return;
+  const filtrada = q ? lista.filter(c => c.nome.toLowerCase().includes(q)) : lista;
+  const ordenada = filtrada.slice().sort((a, b) => (b.ltvDinheiro || 0) - (a.ltvDinheiro || 0));
+  ltvTbl.innerHTML = ordenada.length ? ordenada.map((c, i) => `<tr>
     <td class="mono" style="color:var(--text3)">${i+1}</td>
     <td style="font-weight:500;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.nome}">${c.nome}</td>
     <td style="font-size:11px">${c.cidade}</td>
@@ -6394,7 +6416,7 @@ function selectLtvAno(ano) {
     <td style="font-size:11px;color:var(--text3)">${c.dataCad ? c.dataCad.substring(0,10) : '—'}</td>
     <td style="font-size:11px;color:var(--accent)">${c.tempoFmt}</td>
     <td class="mono" style="font-weight:700;color:#22c55e">${fmtBRLk(c.ltvDinheiro)}</td>
-  </tr>`).join('') : `<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px">Sem clientes neste ano</td></tr>`;
+  </tr>`).join('') : `<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px">${q ? 'Nenhum cliente encontrado' : 'Sem clientes neste ano'}</td></tr>`;
 }
 
 // ─── ADIÇÃO LÍQUIDA ──────────────────────────────────────────────────────────
