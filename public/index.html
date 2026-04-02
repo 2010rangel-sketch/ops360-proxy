@@ -3901,28 +3901,29 @@ let _cancelServAbort = null;   // abort controller para cancelar fetch anterior
 let _cancelServSeq   = 0;      // versão — garante que resultado antigo nunca sobrescreva o atual
 
 function getRetDates() {
-  const agora  = new Date();
-  const hoje   = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
-  if (retPeriodo === 'hoje') return { ini: hoje.toISOString(), fim: new Date(hoje.getTime() + 86400000).toISOString() };
-  if (retPeriodo === '7dias') return { ini: new Date(agora.getTime() - 7*86400000).toISOString(), fim: agora.toISOString() };
+  const a = new Date();
+  const pd = (y, m, d) => `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  if (retPeriodo === 'hoje') {
+    const s = pd(a.getFullYear(), a.getMonth(), a.getDate());
+    return { ini: s, fim: s };
+  }
+  if (retPeriodo === '7dias') {
+    const i7 = new Date(a.getTime() - 7*86400000);
+    return { ini: pd(i7.getFullYear(), i7.getMonth(), i7.getDate()), fim: pd(a.getFullYear(), a.getMonth(), a.getDate()) };
+  }
   if (retPeriodo === 'mes') {
-    return { ini: new Date(agora.getFullYear(), agora.getMonth(), 1).toISOString(), fim: agora.toISOString() };
+    return { ini: pd(a.getFullYear(), a.getMonth(), 1), fim: pd(a.getFullYear(), a.getMonth(), a.getDate()) };
   }
   if (retPeriodo === 'mes_anterior') {
-    const ini = new Date(agora.getFullYear(), agora.getMonth() - 1, 1);
-    const fim = new Date(agora.getFullYear(), agora.getMonth(), 0, 23, 59, 59, 999);
-    return { ini: ini.toISOString(), fim: fim.toISOString() };
+    const fim = new Date(a.getFullYear(), a.getMonth(), 0);
+    return { ini: pd(a.getFullYear(), a.getMonth()-1, 1), fim: pd(fim.getFullYear(), fim.getMonth(), fim.getDate()) };
   }
   if (retPeriodo === 'custom') {
     const de  = document.getElementById('retDtDe')?.value;
     const ate = document.getElementById('retDtAte')?.value;
-    if (de && ate) {
-      const [dy,dm,dd] = de.split('-').map(Number);
-      const [ay,am,ad] = ate.split('-').map(Number);
-      return { ini: new Date(dy,dm-1,dd).toISOString(), fim: new Date(ay,am-1,ad,23,59,59,999).toISOString() };
-    }
+    if (de && ate) return { ini: de, fim: ate };
   }
-  return { ini: new Date(agora.getFullYear(), agora.getMonth(), 1).toISOString(), fim: agora.toISOString() };
+  return { ini: pd(a.getFullYear(), a.getMonth(), 1), fim: pd(a.getFullYear(), a.getMonth(), a.getDate()) };
 }
 
 function setRetPeriodo(p, el) {
