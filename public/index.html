@@ -454,8 +454,10 @@ input[type="text"]::placeholder { color:var(--text3); }
   <div class="nav-item" onclick="goPage('atendimento',this)"><i class="fas fa-headset"></i> Atendimento<span class="nav-count nc-blue">18</span></div>
   <div class="nav-item" onclick="goPage('chamados',this)"><i class="fas fa-ticket-alt"></i> Chamados</div>
   <div class="nav-item" onclick="goPage('retencao',this)"><i class="fas fa-user-shield"></i> Cancelamento / Retenção</div>
-  <div class="nav-item" onclick="goPage('conexoes',this)"><i class="fas fa-wifi"></i> Conexões</div>
   <div class="nav-item" onclick="goPage('financeiro',this)"><i class="fas fa-dollar-sign"></i> Financeiro</div>
+  <div class="nav-item" onclick="goPage('fiscal',this)"><i class="fas fa-file-invoice"></i> Fiscal</div>
+  <div class="nav-item" onclick="goPage('estoque',this)"><i class="fas fa-boxes"></i> Estoque</div>
+  <div class="nav-item" onclick="goPage('conexoes',this)"><i class="fas fa-wifi"></i> Conexões</div>
 
   <div class="sidebar-section">Spaces</div>
   <div class="space-item" onclick="goPage('tarefas',this)"><div class="space-dot" style="background:#5b6af0">T</div> Tarefas</div>
@@ -1744,6 +1746,87 @@ input[type="text"]::placeholder { color:var(--text3); }
       </div>
     </div>
 
+    <!-- ═══ FISCAL ═══ -->
+    <div class="page" id="page-fiscal">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:16px;font-weight:700;color:var(--text)">Fiscal</div>
+          <div style="font-size:11px;color:var(--text3)">Títulos · cobranças · nota fiscal · inadimplência</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <span class="badge b-blue" id="fisc-sync-badge">—</span>
+          <button class="btn btn-primary btn-sm" onclick="loadFiscal(true)"><i class="fas fa-sync-alt"></i> Atualizar</button>
+        </div>
+      </div>
+      <div id="fisc-kpi-row" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Títulos em Aberto</div><div class="kpi-mini-val" id="fisc-kpi-aberto" style="color:var(--accent)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Vencidos</div><div class="kpi-mini-val" id="fisc-kpi-vencido" style="color:var(--red)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">Pagos (mês)</div><div class="kpi-mini-val" id="fisc-kpi-pago" style="color:var(--green)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">NFe Emitidas</div><div class="kpi-mini-val" id="fisc-kpi-nfe" style="color:var(--amber)">—</div></div>
+      </div>
+      <div class="tbl-card" style="margin-bottom:12px">
+        <div class="tbl-header"><span class="tbl-title">APIs Fiscais — Diagnóstico</span><span class="badge b-blue" id="fisc-ep-badge">aguardando</span></div>
+        <div id="fisc-ep-list" style="padding:10px 14px;display:flex;flex-wrap:wrap;gap:6px">
+          <span style="color:var(--text3);font-size:12px">Clique em <b>Atualizar</b> para testar os endpoints disponíveis no Hubsoft.</span>
+        </div>
+      </div>
+      <div id="fisc-dados-wrap" style="display:none" class="tbl-card">
+        <div class="tbl-header">
+          <span class="tbl-title" id="fisc-dados-title">Dados</span>
+          <span class="badge b-blue" id="fisc-dados-count">0</span>
+        </div>
+        <div style="max-height:420px;overflow-y:auto">
+          <table class="tbl"><thead><tr id="fisc-tbl-head"></tr></thead><tbody id="fisc-tbl-body"></tbody></table>
+        </div>
+      </div>
+      <div id="fisc-empty-wrap" style="display:none;padding:40px;text-align:center;color:var(--text3)">
+        <i class="fas fa-file-invoice" style="font-size:32px;margin-bottom:12px;opacity:.3;display:block"></i>
+        <div style="font-size:14px;font-weight:600;margin-bottom:6px">Módulo Fiscal em desenvolvimento</div>
+        <div style="font-size:12px">Nenhum endpoint fiscal encontrado no Hubsoft desta instância.<br>Verifique se o módulo de faturamento está habilitado no contrato.</div>
+      </div>
+    </div>
+
+    <!-- ═══ ESTOQUE ═══ -->
+    <div class="page" id="page-estoque">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:16px;font-weight:700;color:var(--text)">Estoque</div>
+          <div style="font-size:11px;color:var(--text3)">Materiais · equipamentos · inventário</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <span class="badge b-blue" id="esq-sync-badge">—</span>
+          <button class="btn btn-primary btn-sm" onclick="loadEstoque(true)"><i class="fas fa-sync-alt"></i> Atualizar</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Total de Itens</div><div class="kpi-mini-val" id="esq-kpi-total" style="color:var(--accent)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">Disponível</div><div class="kpi-mini-val" id="esq-kpi-disp" style="color:var(--green)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">Em Uso / Alocado</div><div class="kpi-mini-val" id="esq-kpi-uso" style="color:var(--amber)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Estoque Crítico</div><div class="kpi-mini-val" id="esq-kpi-crit" style="color:var(--red)">—</div></div>
+      </div>
+      <div class="tbl-card">
+        <div class="tbl-header">
+          <span class="tbl-title" id="esq-tbl-title">Itens do Estoque</span>
+          <span class="badge b-blue" id="esq-tbl-count">—</span>
+          <input type="text" placeholder="Filtrar..." id="esq-search" class="search-input" style="margin-left:auto;width:180px" oninput="filterEstoque(this.value)">
+        </div>
+        <div id="esq-empty-msg" style="padding:40px;text-align:center;color:var(--text3)">
+          <i class="fas fa-boxes" style="font-size:32px;margin-bottom:12px;opacity:.3;display:block"></i>
+          <div style="font-size:14px;font-weight:600;margin-bottom:6px">Módulo de Estoque em desenvolvimento</div>
+          <div style="font-size:12px">Clique em <b>Atualizar</b> para carregar dados do Hubsoft.</div>
+        </div>
+        <div style="max-height:500px;overflow-y:auto;display:none" id="esq-tbl-wrap">
+          <table class="tbl"><thead><tr id="esq-tbl-head"></tr></thead><tbody id="esq-tbl-body"></tbody></table>
+        </div>
+      </div>
+      <div class="tbl-card" style="margin-top:12px">
+        <div class="tbl-header"><span class="tbl-title">APIs de Estoque — Diagnóstico</span></div>
+        <div id="esq-ep-list" style="padding:10px 14px;display:flex;flex-wrap:wrap;gap:6px">
+          <span style="color:var(--text3);font-size:12px">Clique em <b>Atualizar</b> para testar os endpoints disponíveis no Hubsoft.</span>
+        </div>
+      </div>
+    </div>
+
     <!-- ═══ TAREFAS ═══ -->
     <div class="page" id="page-tarefas">
 
@@ -2080,7 +2163,7 @@ function goPage(id, el) {
   document.querySelectorAll('.nav-item, .space-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   if(el) el.classList.add('active');
-  const titles = {dashboard:'Dashboard',chamados:'Chamados',atendimento:'Atendimento',comercial:'Comercial',retencao:'Cancelamento / Retenção',conexoes:'Conexões',financeiro:'Financeiro',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
+  const titles = {dashboard:'Dashboard',chamados:'Chamados',atendimento:'Atendimento',comercial:'Comercial',retencao:'Cancelamento / Retenção',conexoes:'Conexões',financeiro:'Financeiro',fiscal:'Fiscal',estoque:'Estoque',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
   document.getElementById('pageTitle').textContent = titles[id]||id;
   // Restaura dados em memória ao navegar de volta para páginas com dados
   if (id === 'dashboard') {
@@ -2116,6 +2199,12 @@ function goPage(id, el) {
   if (id === 'financeiro') {
     if (_finData) renderFinanceiro(_finData);
     loadFinanceiro();
+  }
+  if (id === 'fiscal') {
+    loadFiscal();
+  }
+  if (id === 'estoque') {
+    loadEstoque();
   }
 }
 
@@ -6093,6 +6182,147 @@ function renderCancelStats(pfx, stats) {
       <td style="font-size:10px;color:var(--text3);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.motivo}</td>
     </tr>`).join('') : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Nenhum cancelamento</td></tr>`;
   }
+}
+
+// ─── FISCAL ──────────────────────────────────────────────────────────────────
+let _fiscData = null;
+async function loadFiscal(force = false) {
+  const badge = document.getElementById('fisc-sync-badge');
+  if (badge) { badge.textContent = 'Carregando...'; badge.className = 'badge b-blue'; }
+  try {
+    const r = await fetch(`${PROXY_URL}/api/fiscal${force ? '?force=1' : ''}`);
+    const d = await r.json();
+    _fiscData = d;
+    renderFiscal(d);
+    if (badge) {
+      const hora = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+      badge.textContent = `Atualizado ${hora}`;
+      badge.className = d.ok ? 'badge b-green' : 'badge b-red';
+    }
+  } catch(e) {
+    if (badge) { badge.textContent = 'Erro de conexão'; badge.className = 'badge b-red'; }
+  }
+}
+
+function renderFiscal(d) {
+  if (!d || !d.ok) return;
+  const epRes = d.endpoints_testados || {};
+  const epBadge = document.getElementById('fisc-ep-badge');
+  const epList  = document.getElementById('fisc-ep-list');
+  if (epList) {
+    const items = Object.entries(epRes);
+    if (items.length === 0) { epList.innerHTML = '<span style="color:var(--text3);font-size:12px">Nenhum endpoint testado.</span>'; }
+    else {
+      epList.innerHTML = items.map(([ep, v]) =>
+        `<span class="badge ${v.disponivel ? 'b-green' : 'b-red'}" style="font-size:11px" title="${v.erro||''}">
+          <i class="fas ${v.disponivel ? 'fa-check' : 'fa-times'}"></i> ${ep}${v.disponivel && v.total != null ? ' ('+v.total+')' : ''}
+        </span>`
+      ).join('');
+      if (epBadge) { const ok = items.filter(([,v])=>v.disponivel).length; epBadge.textContent = `${ok}/${items.length} disponíveis`; epBadge.className = ok > 0 ? 'badge b-green' : 'badge b-red'; }
+    }
+  }
+  const itens = d.dados || [];
+  const empty = document.getElementById('fisc-empty-wrap');
+  const wrap  = document.getElementById('fisc-dados-wrap');
+  if (!d.endpoint_ativo || itens.length === 0) {
+    if (empty) empty.style.display = 'block';
+    if (wrap)  wrap.style.display  = 'none';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  if (wrap)  wrap.style.display  = 'block';
+  const title = document.getElementById('fisc-dados-title');
+  const count = document.getElementById('fisc-dados-count');
+  if (title) title.textContent = d.endpoint_ativo;
+  if (count) count.textContent = itens.length;
+  // Renderiza cabeçalho dinamicamente com as chaves do primeiro item
+  const head = document.getElementById('fisc-tbl-head');
+  const body = document.getElementById('fisc-tbl-body');
+  const keys = itens.length > 0 ? Object.keys(itens[0]).slice(0, 8) : [];
+  if (head) head.innerHTML = keys.map(k => `<th>${k}</th>`).join('');
+  if (body) body.innerHTML = itens.map(item =>
+    `<tr>${keys.map(k => `<td style="font-size:11px;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis" title="${item[k]??''}">${item[k]??'—'}</td>`).join('')}</tr>`
+  ).join('');
+}
+
+// ─── ESTOQUE ─────────────────────────────────────────────────────────────────
+let _esqData = null;
+let _esqItens = [];
+async function loadEstoque(force = false) {
+  const badge = document.getElementById('esq-sync-badge');
+  if (badge) { badge.textContent = 'Carregando...'; badge.className = 'badge b-blue'; }
+  try {
+    const r = await fetch(`${PROXY_URL}/api/estoque${force ? '?force=1' : ''}`);
+    const d = await r.json();
+    _esqData = d;
+    renderEstoque(d);
+    if (badge) {
+      const hora = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+      badge.textContent = `Atualizado ${hora}`;
+      badge.className = d.ok ? 'badge b-green' : 'badge b-red';
+    }
+  } catch(e) {
+    if (badge) { badge.textContent = 'Erro de conexão'; badge.className = 'badge b-red'; }
+  }
+}
+
+function renderEstoque(d) {
+  if (!d || !d.ok) return;
+  // Diagnóstico
+  const epList = document.getElementById('esq-ep-list');
+  if (epList) {
+    const items = Object.entries(d.endpoints_testados || {});
+    if (items.length === 0) { epList.innerHTML = '<span style="color:var(--text3);font-size:12px">Nenhum endpoint testado.</span>'; }
+    else epList.innerHTML = items.map(([ep, v]) =>
+      `<span class="badge ${v.disponivel ? 'b-green' : 'b-red'}" style="font-size:11px" title="${v.erro||''}">
+        <i class="fas ${v.disponivel ? 'fa-check' : 'fa-times'}"></i> ${ep}${v.disponivel && v.total != null ? ' ('+v.total+')' : ''}
+      </span>`
+    ).join('');
+  }
+  _esqItens = d.items || [];
+  const count = _esqItens.length;
+  const title = document.getElementById('esq-tbl-title');
+  const cnt   = document.getElementById('esq-tbl-count');
+  if (title) title.textContent = d.endpoint_ativo ? `Itens — ${d.endpoint_ativo}` : 'Itens do Estoque';
+  if (cnt)   cnt.textContent   = count;
+  const emptyMsg = document.getElementById('esq-empty-msg');
+  const tblWrap  = document.getElementById('esq-tbl-wrap');
+  if (count === 0) {
+    if (emptyMsg) emptyMsg.style.display = 'block';
+    if (tblWrap)  tblWrap.style.display  = 'none';
+    // KPIs vazios
+    ['esq-kpi-total','esq-kpi-disp','esq-kpi-uso','esq-kpi-crit'].forEach(id => { const e = document.getElementById(id); if(e) e.textContent='—'; });
+    return;
+  }
+  if (emptyMsg) emptyMsg.style.display = 'none';
+  if (tblWrap)  tblWrap.style.display  = 'block';
+  // KPIs
+  const disponivel = _esqItens.filter(i => (i.quantidade_disponivel ?? i.qtd_disponivel ?? i.disponivel) > 0).length;
+  const uso        = _esqItens.filter(i => (i.quantidade_uso ?? i.qtd_uso ?? i.alocado) > 0).length;
+  const critico    = _esqItens.filter(i => { const q = i.quantidade_disponivel ?? i.qtd_disponivel ?? i.quantidade ?? 0; return Number(q) < 5; }).length;
+  const e1 = document.getElementById('esq-kpi-total'); if(e1) e1.textContent = count;
+  const e2 = document.getElementById('esq-kpi-disp');  if(e2) e2.textContent = disponivel || '—';
+  const e3 = document.getElementById('esq-kpi-uso');   if(e3) e3.textContent = uso || '—';
+  const e4 = document.getElementById('esq-kpi-crit');  if(e4) e4.textContent = critico || 0;
+  renderEstoqueTbl(_esqItens);
+}
+
+function renderEstoqueTbl(itens) {
+  const head = document.getElementById('esq-tbl-head');
+  const body = document.getElementById('esq-tbl-body');
+  if (!head || !body) return;
+  if (itens.length === 0) { body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px">Nenhum item encontrado</td></tr>'; return; }
+  const keys = Object.keys(itens[0]).slice(0, 8);
+  head.innerHTML = keys.map(k => `<th>${k}</th>`).join('');
+  body.innerHTML = itens.map(item =>
+    `<tr>${keys.map(k => `<td style="font-size:11px;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis" title="${item[k]??''}">${item[k]??'—'}</td>`).join('')}</tr>`
+  ).join('');
+}
+
+function filterEstoque(txt) {
+  if (!_esqItens.length) return;
+  const q = txt.toLowerCase().trim();
+  renderEstoqueTbl(q ? _esqItens.filter(i => JSON.stringify(i).toLowerCase().includes(q)) : _esqItens);
 }
 
 // AUTO-INIT: 1) cache imediato  2) sync em background  3) status badge

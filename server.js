@@ -2485,6 +2485,70 @@ cron.schedule('*/3 * * * *', async () => {
   }
 });
 
+// ── FISCAL ─────────────────────────────────────────────────────────────────
+app.get('/api/fiscal', async (req, res) => {
+  try {
+    const token = await getToken();
+    const headers = { Authorization: `Bearer ${token}` };
+    const candidatos = [
+      'v1/titulo', 'v1/boleto', 'v1/nfe', 'v1/fatura',
+      'v1/nota_fiscal', 'v1/cobranca', 'v1/financeiro_titulo',
+    ];
+    const endpoints_testados = {};
+    let dados = null;
+    let endpoint_ativo = null;
+    for (const ep of candidatos) {
+      try {
+        const r = await axios.get(`${HUBSOFT_HOST}/api/${ep}`, {
+          headers, params: { limit: 50 }, timeout: 6000,
+        });
+        const arr = Array.isArray(r.data) ? r.data
+          : (r.data?.data || r.data?.titulos || r.data?.boletos || r.data?.items || []);
+        endpoints_testados[ep] = { disponivel: true, total: arr.length };
+        if (!dados) { dados = arr; endpoint_ativo = ep; }
+      } catch (e) {
+        endpoints_testados[ep] = { disponivel: false, erro: e.response?.status || 'timeout' };
+      }
+    }
+    res.json({ ok: true, endpoint_ativo, endpoints_testados, dados: dados || [], total: dados?.length || 0 });
+  } catch (e) {
+    console.error('[/api/fiscal]', e.message);
+    res.json({ ok: false, motivo: e.message });
+  }
+});
+
+// ── ESTOQUE ─────────────────────────────────────────────────────────────────
+app.get('/api/estoque', async (req, res) => {
+  try {
+    const token = await getToken();
+    const headers = { Authorization: `Bearer ${token}` };
+    const candidatos = [
+      'v1/item', 'v1/itens', 'v1/estoque', 'v1/produto',
+      'v1/material', 'v1/equipamento',
+    ];
+    const endpoints_testados = {};
+    let items = null;
+    let endpoint_ativo = null;
+    for (const ep of candidatos) {
+      try {
+        const r = await axios.get(`${HUBSOFT_HOST}/api/${ep}`, {
+          headers, params: { limit: 200 }, timeout: 6000,
+        });
+        const arr = Array.isArray(r.data) ? r.data
+          : (r.data?.data || r.data?.items || r.data?.itens || r.data?.estoque || []);
+        endpoints_testados[ep] = { disponivel: true, total: arr.length };
+        if (!items) { items = arr; endpoint_ativo = ep; }
+      } catch (e) {
+        endpoints_testados[ep] = { disponivel: false, erro: e.response?.status || 'timeout' };
+      }
+    }
+    res.json({ ok: true, endpoint_ativo, endpoints_testados, items: items || [], total: items?.length || 0 });
+  } catch (e) {
+    console.error('[/api/estoque]', e.message);
+    res.json({ ok: false, motivo: e.message });
+  }
+});
+
 // ── Inicializa ────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`\n🚀 OPS360 Proxy rodando na porta ${PORT}`);
