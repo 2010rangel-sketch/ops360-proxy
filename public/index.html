@@ -1671,7 +1671,7 @@ input[type="text"]::placeholder { color:var(--text3); }
             <div id="fin-ca-motivo" style="display:flex;flex-wrap:wrap;gap:5px"></div>
           </div>
           <div style="max-height:220px;overflow-y:auto">
-            <table class="tbl"><thead><tr><th>Cliente</th><th>Plano</th><th>Tempo</th><th>LTV</th><th>Motivo</th></tr></thead>
+            <table class="tbl" style="table-layout:fixed;width:100%"><thead><tr><th style="width:22%">Cliente</th><th style="width:30%">Plano</th><th style="width:14%">Tempo</th><th style="width:16%">LTV</th><th style="width:18%">Motivo</th></tr></thead>
             <tbody id="fin-ca-lista"></tbody></table>
           </div>
         </div>
@@ -1688,7 +1688,7 @@ input[type="text"]::placeholder { color:var(--text3); }
             <div id="fin-cb-motivo" style="display:flex;flex-wrap:wrap;gap:5px"></div>
           </div>
           <div style="max-height:220px;overflow-y:auto">
-            <table class="tbl"><thead><tr><th>Cliente</th><th>Plano</th><th>Tempo</th><th>LTV</th><th>Motivo</th></tr></thead>
+            <table class="tbl" style="table-layout:fixed;width:100%"><thead><tr><th style="width:22%">Cliente</th><th style="width:30%">Plano</th><th style="width:14%">Tempo</th><th style="width:16%">LTV</th><th style="width:18%">Motivo</th></tr></thead>
             <tbody id="fin-cb-lista"></tbody></table>
           </div>
         </div>
@@ -6380,11 +6380,11 @@ function renderCancelStats(pfx, stats) {
   if (listaEl) {
     const lista = stats.lista || [];
     listaEl.innerHTML = lista.length ? lista.map(c => `<tr>
-      <td style="font-weight:500;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.nome}">${c.nome}</td>
-      <td style="font-size:11px;color:var(--text3)">${c.plano}</td>
-      <td style="font-size:11px;color:var(--accent)">${c.tempoFmt}</td>
-      <td class="mono" style="color:#22c55e;font-size:11px">${fmtBRLk(c.ltvDinheiro)}</td>
-      <td style="font-size:10px;color:var(--text3);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.motivo}</td>
+      <td style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.nome}">${c.nome}</td>
+      <td style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.plano}</td>
+      <td style="font-size:11px;color:var(--accent);white-space:nowrap">${c.tempoFmt}</td>
+      <td class="mono" style="color:#22c55e;font-size:11px;white-space:nowrap">${fmtBRLk(c.ltvDinheiro)}</td>
+      <td style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.motivo}</td>
     </tr>`).join('') : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Nenhum cancelamento</td></tr>`;
   }
 }
