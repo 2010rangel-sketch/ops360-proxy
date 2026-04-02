@@ -890,7 +890,7 @@ app.get('/api/retencao', async (req, res) => {
 
     // Desfecho via status.prefixo + id_motivo_fechamento_atendimento:
     const MOTIVO_CANCELADO = new Set([89]);
-    const MOTIVO_REVERTIDO = new Set([90]);
+    const MOTIVO_REVERTIDO = new Set([75, 90]); // 75 = cliente aceitou proposta (confirmado via debug)
     const desfechoOf = (a) => {
       const sp = (a.status?.prefixo || '').toLowerCase();
       const sf = (a.status_fechamento || '').toLowerCase();
