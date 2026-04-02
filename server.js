@@ -2405,7 +2405,7 @@ async function buildFinanceiro() {
     },
     suspensos:           suspensos.slice(0, 300).sort((a, b) => new Date(b.dataHab || 0) - new Date(a.dataHab || 0)),
     parciais:            parciaisSusp.slice(0, 100).sort((a, b) => new Date(b.dataHab || 0) - new Date(a.dataHab || 0)),
-    ltv_top100:          ltvCandidates.slice(0, 100),
+    ltv_top100:          ltvCandidates, // todos, agrupados por ano no frontend
     cancelamentos: {
       mes_atual:    buildCancelStats(cancelMesAtual),
       mes_anterior: buildCancelStats(cancelMesAnterior),

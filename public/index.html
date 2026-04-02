@@ -1770,13 +1770,18 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
       </div>
 
-      <!-- Top 100 LTV -->
+      <!-- Clientes por Ano (LTV) -->
       <div class="tbl-card" style="margin-bottom:14px">
         <div class="tbl-header">
-          <span class="tbl-title">Top 100 Clientes — Maior LTV Estimado</span>
-          <span class="badge b-blue">Mais antigos × valor mensal</span>
+          <span class="tbl-title">Clientes por Ano de Cadastro</span>
+          <span class="badge b-blue" id="fin-ltv-count">—</span>
         </div>
-        <div style="max-height:340px;overflow-y:auto">
+        <!-- Tabs por ano -->
+        <div style="padding:10px 14px 0;border-bottom:1px solid var(--border);overflow-x:auto">
+          <div id="fin-ltv-tabs" style="display:flex;gap:4px;flex-wrap:nowrap;min-width:max-content"></div>
+        </div>
+        <!-- Tabela -->
+        <div style="max-height:380px;overflow-y:auto">
           <table class="tbl"><thead><tr><th>#</th><th>Cliente</th><th>Cidade</th><th>Plano</th><th>Mensalidade</th><th>Cliente desde</th><th>Tempo ativo</th><th>LTV Est.</th></tr></thead>
           <tbody id="fin-ltv-lista"></tbody></table>
         </div>
@@ -6293,20 +6298,30 @@ function renderFinanceiro(d) {
     }).join('') : `<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:12px">Sem dados</td></tr>`;
   }
 
-  // LTV Top 100
-  const ltvTbl = document.getElementById('fin-ltv-lista');
-  if (ltvTbl) {
-    const lista = d.ltv_top100 || [];
-    ltvTbl.innerHTML = lista.length ? lista.map((c, i) => `<tr>
-      <td class="mono" style="color:var(--text3)">${i+1}</td>
-      <td style="font-weight:500;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.nome}</td>
-      <td style="font-size:11px">${c.cidade}</td>
-      <td style="font-size:11px;color:var(--text3)">${c.plano}</td>
-      <td class="mono">${fmtBRL(c.valor)}</td>
-      <td style="font-size:11px;color:var(--text3)">${c.dataCad ? c.dataCad.substring(0,10) : '—'}</td>
-      <td style="font-size:11px;color:var(--accent)">${c.tempoFmt}</td>
-      <td class="mono" style="font-weight:700;color:#22c55e">${fmtBRLk(c.ltvDinheiro)}</td>
-    </tr>`).join('') : `<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px">Sem dados</td></tr>`;
+  // Clientes por Ano de Cadastro
+  const ltvTodos = d.ltv_top100 || [];
+  // Agrupa por ano de cadastro
+  const _ltvPorAno = {};
+  for (const c of ltvTodos) {
+    const ano = c.dataCad ? c.dataCad.substring(0, 4) : 'Sem data';
+    if (!_ltvPorAno[ano]) _ltvPorAno[ano] = [];
+    _ltvPorAno[ano].push(c);
+  }
+  const _ltvAnos = Object.keys(_ltvPorAno).sort();
+  // Guarda no elemento para acesso posterior
+  const ltvTabs = document.getElementById('fin-ltv-tabs');
+  const ltvCount = document.getElementById('fin-ltv-count');
+  if (ltvCount) ltvCount.textContent = `${ltvTodos.length} clientes`;
+  if (ltvTabs) {
+    ltvTabs.dataset.anos = JSON.stringify(_ltvAnos);
+    ltvTabs.dataset.dados = JSON.stringify(_ltvPorAno);
+    ltvTabs.innerHTML = _ltvAnos.map(ano =>
+      `<button onclick="selectLtvAno('${ano}')" id="fin-ltv-tab-${ano}" class="chip" style="white-space:nowrap;margin-bottom:6px">
+        ${ano} <span style="color:var(--text3);font-size:10px">(${_ltvPorAno[ano].length})</span>
+      </button>`
+    ).join('');
+    // Seleciona o primeiro ano automaticamente
+    if (_ltvAnos.length) selectLtvAno(_ltvAnos[0]);
   }
 
   // Saúde por vendedor
@@ -6355,6 +6370,31 @@ function renderCancelStats(pfx, stats) {
       <td style="font-size:10px;color:var(--text3);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.motivo}</td>
     </tr>`).join('') : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Nenhum cancelamento</td></tr>`;
   }
+}
+
+function selectLtvAno(ano) {
+  const ltvTabs = document.getElementById('fin-ltv-tabs');
+  const ltvTbl  = document.getElementById('fin-ltv-lista');
+  if (!ltvTabs || !ltvTbl) return;
+  // Atualiza tab ativo
+  const anos = JSON.parse(ltvTabs.dataset.anos || '[]');
+  anos.forEach(a => {
+    const btn = document.getElementById(`fin-ltv-tab-${a}`);
+    if (btn) btn.className = a === ano ? 'chip active' : 'chip';
+  });
+  // Renderiza clientes do ano selecionado
+  const dados = JSON.parse(ltvTabs.dataset.dados || '{}');
+  const lista = (dados[ano] || []).sort((a, b) => (b.ltvDinheiro || 0) - (a.ltvDinheiro || 0));
+  ltvTbl.innerHTML = lista.length ? lista.map((c, i) => `<tr>
+    <td class="mono" style="color:var(--text3)">${i+1}</td>
+    <td style="font-weight:500;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.nome}">${c.nome}</td>
+    <td style="font-size:11px">${c.cidade}</td>
+    <td style="font-size:11px;color:var(--text3)">${c.plano}</td>
+    <td class="mono">${fmtBRL(c.valor)}</td>
+    <td style="font-size:11px;color:var(--text3)">${c.dataCad ? c.dataCad.substring(0,10) : '—'}</td>
+    <td style="font-size:11px;color:var(--accent)">${c.tempoFmt}</td>
+    <td class="mono" style="font-weight:700;color:#22c55e">${fmtBRLk(c.ltvDinheiro)}</td>
+  </tr>`).join('') : `<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px">Sem clientes neste ano</td></tr>`;
 }
 
 // ─── ADIÇÃO LÍQUIDA ──────────────────────────────────────────────────────────
