@@ -459,7 +459,7 @@ input[type="text"]::placeholder { color:var(--text3); }
   <div class="sidebar-section">Painel</div>
   <div class="nav-item active" onclick="goPage('dashboard',this)"><i class="fas fa-chart-pie"></i> Dashboard</div>
   <div class="nav-item" onclick="goPage('comercial',this)"><i class="fas fa-briefcase"></i> Comercial</div>
-  <div class="nav-item" onclick="goPage('atendimento',this)"><i class="fas fa-headset"></i> Atendimento<span class="nav-count nc-blue">18</span></div>
+  <div class="nav-item" onclick="goPage('atendimento',this)"><i class="fas fa-headset"></i> Atendimento</div>
   <div class="nav-item" onclick="goPage('chamados',this)"><i class="fas fa-ticket-alt"></i> Chamados</div>
   <div class="nav-item" onclick="goPage('retencao',this)"><i class="fas fa-user-shield"></i> Cancelamento / Retenção</div>
   <div class="nav-item" onclick="goPage('financeiro',this)"><i class="fas fa-dollar-sign"></i> Financeiro</div>
@@ -6227,8 +6227,17 @@ setInterval(() => {
 // ── FINANCEIRO ────────────────────────────────────────────────────────────────
 let _finData = null;
 
-const fmtBRL = v => v == null ? '—' : 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
-const fmtBRLk = v => v == null ? '—' : v >= 1000 ? 'R$ ' + (v/1000).toLocaleString('pt-BR',{maximumFractionDigits:1}) + 'k' : fmtBRL(v);
+const fmtBRL = v => {
+  if (v == null) return '—';
+  const n = Number(v);
+  const abs = Math.abs(n);
+  const sinal = n < 0 ? '-' : '';
+  if (abs >= 1_000_000_000) return `${sinal}R$ ${(abs/1_000_000_000).toLocaleString('pt-BR',{maximumFractionDigits:1})} bi`;
+  if (abs >= 1_000_000)     return `${sinal}R$ ${(abs/1_000_000).toLocaleString('pt-BR',{maximumFractionDigits:1})} mi`;
+  if (abs >= 1_000)         return `${sinal}R$ ${(abs/1_000).toLocaleString('pt-BR',{maximumFractionDigits:1})} mil`;
+  return `${sinal}R$ ${abs.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+};
+const fmtBRLk = fmtBRL;
 const fev = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
 
 async function loadFinanceiro(force = false) {
@@ -6260,9 +6269,9 @@ function renderFinanceiro(d) {
   // KPIs
   fev('fin-mrr',         fmtBRLk(r.mrr_total));
   fev('fin-susp',        r.total_suspensos || 0);
-  fev('fin-susp-val',    fmtBRLk(r.mrr_suspenso) + ' em risco');
+  fev('fin-susp-val',    'Fat. mensal de ' + fmtBRL(r.mrr_suspenso) + ' em risco');
   fev('fin-parcial',     r.total_parciais || 0);
-  fev('fin-parcial-val', fmtBRLk(r.mrr_parcial) + ' em risco');
+  fev('fin-parcial-val', 'Fat. mensal de ' + fmtBRL(r.mrr_parcial) + ' em risco');
   fev('fin-churn-atual', r.churn_mes_atual || 0);
   fev('fin-churn-ant',   r.churn_mes_anterior || 0);
   fev('fin-prim',        r.primeira_mens_risco || 0);
