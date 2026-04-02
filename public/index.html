@@ -433,6 +433,14 @@ input[type="text"]::placeholder { color:var(--text3); }
   #fin-mid-grid   { grid-template-columns:1fr!important; }
 }
 </style>
+<style>
+.rh-placeholder-row {
+  display:flex;justify-content:space-between;align-items:center;
+  padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;
+}
+.rh-placeholder-row:last-child { border-bottom:none; }
+.rh-ph-val { font-weight:600;color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:12px; }
+</style>
 </head>
 <body>
 
@@ -457,6 +465,7 @@ input[type="text"]::placeholder { color:var(--text3); }
   <div class="nav-item" onclick="goPage('financeiro',this)"><i class="fas fa-dollar-sign"></i> Financeiro</div>
   <div class="nav-item" onclick="goPage('fiscal',this)"><i class="fas fa-file-invoice"></i> Fiscal</div>
   <div class="nav-item" onclick="goPage('estoque',this)"><i class="fas fa-boxes"></i> Estoque</div>
+  <div class="nav-item" onclick="goPage('rh',this)"><i class="fas fa-users"></i> RH</div>
   <div class="nav-item" onclick="goPage('conexoes',this)"><i class="fas fa-wifi"></i> Conexões</div>
 
   <div class="sidebar-section">Spaces</div>
@@ -1867,6 +1876,128 @@ input[type="text"]::placeholder { color:var(--text3); }
       </div>
     </div>
 
+    <!-- ═══ RH ═══ -->
+    <div class="page" id="page-rh">
+
+      <!-- Header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:16px;font-weight:700;color:var(--text)">Recursos Humanos</div>
+          <div style="font-size:11px;color:var(--text3)">Headcount · absenteísmo · turnover · performance</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="badge" style="background:rgba(167,139,250,.15);color:var(--purple);border:1px solid rgba(167,139,250,.3)"><i class="fas fa-plug" style="margin-right:4px"></i>Integração RHiD pendente</span>
+        </div>
+      </div>
+
+      <!-- KPIs principais -->
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px">
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Headcount Total</div><div class="kpi-mini-val" id="rh-headcount" style="color:var(--accent)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">Ativos</div><div class="kpi-mini-val" id="rh-ativos" style="color:var(--green)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">Afastados</div><div class="kpi-mini-val" id="rh-afastados" style="color:var(--amber)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Turnover Mês</div><div class="kpi-mini-val" id="rh-turnover" style="color:var(--red)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--purple)"></div><div class="kpi-mini-label">Absenteísmo</div><div class="kpi-mini-val" id="rh-absenteismo" style="color:var(--purple)">—</div></div>
+      </div>
+
+      <!-- Grid linha 2 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px">
+
+        <!-- Headcount por Setor -->
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header"><span class="tbl-title">Headcount por Setor</span></div>
+          <div style="padding:12px 16px" id="rh-setor-list">
+            <div class="rh-placeholder-row"><span>Call Center</span><span class="rh-ph-val">—</span></div>
+            <div class="rh-placeholder-row"><span>Comercial</span><span class="rh-ph-val">—</span></div>
+            <div class="rh-placeholder-row"><span>Cobrança</span><span class="rh-ph-val">—</span></div>
+            <div class="rh-placeholder-row"><span>Financeiro</span><span class="rh-ph-val">—</span></div>
+            <div class="rh-placeholder-row"><span>NOC / Técnico</span><span class="rh-ph-val">—</span></div>
+            <div class="rh-placeholder-row"><span>Administrativo</span><span class="rh-ph-val">—</span></div>
+          </div>
+        </div>
+
+        <!-- Admissões e Desligamentos (últimos 6 meses) -->
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header"><span class="tbl-title">Admissões vs Desligamentos</span><span class="badge b-blue" style="font-size:10px">últimos 6 meses</span></div>
+          <div style="padding:12px 16px" id="rh-admissoes-list">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">
+              <span>Mês</span><span style="color:var(--green)">Admissões</span><span style="color:var(--red)">Desligamentos</span><span>Saldo</span>
+            </div>
+            <div id="rh-movimentacao-rows" style="font-size:12px;color:var(--text3);text-align:center;padding:20px 0">
+              <i class="fas fa-plug" style="opacity:.3;display:block;font-size:20px;margin-bottom:6px"></i>Aguardando integração RHiD
+            </div>
+          </div>
+        </div>
+
+        <!-- Férias e Aniversários -->
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header"><span class="tbl-title">Próximas Férias / Aniversários</span></div>
+          <div id="rh-ferias-aniv" style="padding:12px 16px;font-size:12px;color:var(--text3);text-align:center;padding:30px 16px">
+            <i class="fas fa-calendar-alt" style="opacity:.3;display:block;font-size:20px;margin-bottom:6px"></i>Aguardando integração RHiD
+          </div>
+        </div>
+      </div>
+
+      <!-- Linha 3: Absenteísmo + Performance -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+
+        <!-- Absenteísmo por Setor -->
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header"><span class="tbl-title">Absenteísmo por Setor</span><span class="badge b-amber">% de faltas no mês</span></div>
+          <div style="overflow-x:auto;max-height:240px;overflow-y:auto">
+            <table class="tbl"><thead><tr><th>Setor</th><th>Func.</th><th>Faltas</th><th>% Absent.</th></tr></thead>
+            <tbody id="rh-absenteismo-tbl">
+              <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:24px"><i class="fas fa-plug" style="opacity:.3;margin-right:6px"></i>Aguardando integração RHiD</td></tr>
+            </tbody></table>
+          </div>
+        </div>
+
+        <!-- Indicadores de Performance -->
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header"><span class="tbl-title">Performance / Metas</span><span class="badge b-blue">por colaborador</span></div>
+          <div style="overflow-x:auto;max-height:240px;overflow-y:auto">
+            <table class="tbl"><thead><tr><th>Colaborador</th><th>Setor</th><th>Meta</th><th>Realizado</th><th>%</th></tr></thead>
+            <tbody id="rh-performance-tbl">
+              <tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px"><i class="fas fa-plug" style="opacity:.3;margin-right:6px"></i>Aguardando integração RHiD</td></tr>
+            </tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Linha 4: Custo de Folha + Banco de Horas -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header"><span class="tbl-title">Custo de Folha por Setor</span><span class="badge b-blue">mensal estimado</span></div>
+          <div style="overflow-x:auto;max-height:220px;overflow-y:auto">
+            <table class="tbl"><thead><tr><th>Setor</th><th>Func.</th><th>Custo Estimado</th><th>% do Total</th></tr></thead>
+            <tbody id="rh-folha-tbl">
+              <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:24px"><i class="fas fa-plug" style="opacity:.3;margin-right:6px"></i>Aguardando integração RHiD</td></tr>
+            </tbody></table>
+          </div>
+        </div>
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header"><span class="tbl-title">Banco de Horas</span><span class="badge b-amber">saldo atual</span></div>
+          <div style="overflow-x:auto;max-height:220px;overflow-y:auto">
+            <table class="tbl"><thead><tr><th>Colaborador</th><th>Setor</th><th>Saldo (h)</th><th>Status</th></tr></thead>
+            <tbody id="rh-horas-tbl">
+              <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:24px"><i class="fas fa-plug" style="opacity:.3;margin-right:6px"></i>Aguardando integração RHiD</td></tr>
+            </tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Aviso integração -->
+      <div style="background:rgba(167,139,250,.07);border:1px solid rgba(167,139,250,.25);border-radius:var(--r-lg);padding:16px 20px;display:flex;gap:14px;align-items:flex-start">
+        <i class="fas fa-info-circle" style="color:var(--purple);font-size:18px;margin-top:1px;flex-shrink:0"></i>
+        <div>
+          <div style="font-weight:600;color:var(--purple);margin-bottom:4px">Integração com RHiD em desenvolvimento</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.7">
+            Esta página está pronta para receber os dados do sistema <b>RHiD</b>. Assim que a integração for configurada (via API ou webhook), todos os KPIs acima serão preenchidos automaticamente com dados reais de headcount, férias, absenteísmo, banco de horas, custo de folha e performance por colaborador.
+          </div>
+        </div>
+      </div>
+
+    </div>
+
     <!-- ═══ TAREFAS ═══ -->
     <div class="page" id="page-tarefas">
 
@@ -2203,7 +2334,7 @@ function goPage(id, el) {
   document.querySelectorAll('.nav-item, .space-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   if(el) el.classList.add('active');
-  const titles = {dashboard:'Dashboard',chamados:'Chamados',atendimento:'Atendimento',comercial:'Comercial',retencao:'Cancelamento / Retenção',conexoes:'Conexões',financeiro:'Financeiro',fiscal:'Fiscal',estoque:'Estoque',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
+  const titles = {dashboard:'Dashboard',chamados:'Chamados',atendimento:'Atendimento',comercial:'Comercial',retencao:'Cancelamento / Retenção',conexoes:'Conexões',financeiro:'Financeiro',fiscal:'Fiscal',estoque:'Estoque',rh:'RH',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
   document.getElementById('pageTitle').textContent = titles[id]||id;
   // Restaura dados em memória ao navegar de volta para páginas com dados
   if (id === 'dashboard') {
