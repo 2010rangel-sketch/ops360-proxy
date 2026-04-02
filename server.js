@@ -2202,18 +2202,22 @@ async function buildFinanceiro() {
     _comAllClientes = ativos;
   }
 
-  // Busca cancelados recentes (max 10 páginas = 5000)
-  const token2     = await getToken();
-  const canceladosRaw = await fetchIntegracaoClientes(token2, { cancelado: 'sim' }, 10);
-
   const agora          = new Date();
   const mesAtualIni    = new Date(agora.getFullYear(), agora.getMonth(), 1);
   const mesAnteriorIni = new Date(agora.getFullYear(), agora.getMonth() - 1, 1);
   const mesAnteriorFim = new Date(agora.getFullYear(), agora.getMonth(), 0, 23, 59, 59);
   const h60            = new Date(agora.getTime() - 60 * 24 * 60 * 60 * 1000);
 
+  // Datas em string para os filtros de cancelamento
+  const _dfmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const mesAtualIniStr = _dfmt(mesAtualIni);
+  const mesAtualFimStr = _dfmt(new Date(agora.getFullYear(), agora.getMonth()+1, 0));
+  const mesAntIniStr   = _dfmt(mesAnteriorIni);
+  const mesAntFimStr   = _dfmt(mesAnteriorFim);
+
   // Status que representam suspensão real (Hubsoft)
-  const STATUS_SUSPENSO   = new Set(['suspenso_debito','suspenso_pedido_cliente','bloqueio_temporario','suspenso_judicial','servico_bloqueado']);
+  // 'servico_bloqueado' removido — Hubsoft não o conta como "Suspenso" no dashboard
+  const STATUS_SUSPENSO   = new Set(['suspenso_debito','suspenso_pedido_cliente','bloqueio_temporario','suspenso_judicial']);
   const STATUS_PARCIAL    = new Set(['suspenso_parcialmente','suspenso_parcial','bloqueio_parcial']);
   const STATUS_IGNORADOS  = new Set(['aguardando_instalacao','em_instalacao','aguardando_ativacao','prospecto']);
 
@@ -2293,49 +2297,54 @@ async function buildFinanceiro() {
     }
   }
 
-  // ── Análise: cancelados ───────────────────────────────────────
-  const cancelMesAtual    = [];
-  const cancelMesAnterior = [];
+  // ── Análise: cancelados (mesmo método da aba Cancelamento/Retenção) ──────────
+  // Busca com filtro nativo da API por data_cancelamento — garante consistência
+  const token2 = await getToken();
+  const [canAtualAtiv, canAtualCan, canAntAtiv, canAntCan] = await Promise.all([
+    fetchIntegracaoClientes(token2, { tipo_data_cliente_servico: 'data_cancelamento', data_inicio_cliente_servico: mesAtualIniStr, data_fim_cliente_servico: mesAtualFimStr, cancelado: 'nao' }, 30),
+    fetchIntegracaoClientes(token2, { tipo_data_cliente_servico: 'data_cancelamento', data_inicio_cliente_servico: mesAtualIniStr, data_fim_cliente_servico: mesAtualFimStr, cancelado: 'sim' }, 30),
+    fetchIntegracaoClientes(token2, { tipo_data_cliente_servico: 'data_cancelamento', data_inicio_cliente_servico: mesAntIniStr,   data_fim_cliente_servico: mesAntFimStr,   cancelado: 'nao' }, 30),
+    fetchIntegracaoClientes(token2, { tipo_data_cliente_servico: 'data_cancelamento', data_inicio_cliente_servico: mesAntIniStr,   data_fim_cliente_servico: mesAntFimStr,   cancelado: 'sim' }, 30),
+  ]);
 
-  // Helper: processa serviço cancelado e adiciona ao mês correto
-  function processaCancelado(nome, s) {
-    const dc = parseDate(s.data_cancelamento);
-    if (!dc) return;
-    const dh    = parseDate(s.data_habilitacao);
-    const valor = parseFloat(s.valor) || 0;
-    const m     = mesesEntre(dh, dc);
-    const obj   = {
-      nome,
-      motivo:           s.motivo_cancelamento || '—',
-      vendedor:         getVendedorFin(s),
-      cidade:           getCidadeFin(s),
-      plano:            s.nome || '—',
-      valor,
-      dataHab:          s.data_habilitacao,
-      dataCancelamento: s.data_cancelamento,
-      mesesVida:        Math.round(m * 10) / 10,
-      ltvDinheiro:      Math.round(m * valor),
-      tempoFmt:         fmtTempoFin(m),
-    };
-    if (dc >= mesAtualIni)                                cancelMesAtual.push(obj);
-    else if (dc >= mesAnteriorIni && dc <= mesAnteriorFim) cancelMesAnterior.push(obj);
-  }
+  const normFin = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  const MOTIVOS_IGNORAR_FIN = ['desistencia da instalacao', 'habilitado o user errado', 'troca de titularidade'];
+  const ignorarMotFin = m => { const n = normFin(m); return MOTIVOS_IGNORAR_FIN.some(p => n.includes(p)); };
 
-  // 1) Clientes totalmente cancelados (cancelado=sim)
-  for (const cli of canceladosRaw) {
-    const nome = cli.nome_razaosocial || cli.nome_fantasia || '—';
-    for (const s of (cli.servicos || [])) processaCancelado(nome, s);
-  }
-
-  // 2) Clientes ativos com serviços cancelados dentro do período (cancelou 1 serviço mas ficou com outro)
-  for (const cli of ativos) {
-    const nome = cli.nome_razaosocial || cli.nome_fantasia || '—';
-    for (const s of (cli.servicos || [])) {
-      const dc = parseDate(s.data_cancelamento);
-      if (!dc) continue;
-      if (dc >= mesAnteriorIni) processaCancelado(nome, s); // só captura se é recente
+  function filtrarCancelFin(clientesNao, clientesSim, iniStr, fimStr) {
+    const iniMs = new Date(iniStr).getTime();
+    const fimMs = new Date(fimStr + 'T23:59:59').getTime();
+    const seen  = new Set();
+    const lista = [];
+    for (const cli of [...clientesNao, ...clientesSim]) {
+      const nome = cli.nome_razaosocial || cli.nome_fantasia || '—';
+      for (const s of (cli.servicos || [])) {
+        const dc = parseDate(s.data_cancelamento);
+        if (!dc || dc.getTime() < iniMs || dc.getTime() > fimMs) continue;
+        const motivoRaw = (s.motivo_cancelamento || '').trim();
+        if (ignorarMotFin(motivoRaw)) continue;
+        const chave = `${nome}|${s.nome||''}|${s.data_cancelamento||''}`;
+        if (seen.has(chave)) continue;
+        seen.add(chave);
+        const dh    = parseDate(s.data_habilitacao);
+        const valor = parseFloat(s.valor) || 0;
+        const m     = mesesEntre(dh || dc, dc);
+        lista.push({
+          nome, motivo: motivoRaw || '—',
+          vendedor: getVendedorFin(s), cidade: getCidadeFin(s),
+          plano: s.nome || '—', valor,
+          dataHab: s.data_habilitacao, dataCancelamento: s.data_cancelamento,
+          mesesVida: Math.round(m * 10) / 10,
+          ltvDinheiro: Math.round(m * valor),
+          tempoFmt: fmtTempoFin(m),
+        });
+      }
     }
+    return lista;
   }
+
+  const cancelMesAtual    = filtrarCancelFin(canAtualAtiv, canAtualCan, mesAtualIniStr, mesAtualFimStr);
+  const cancelMesAnterior = filtrarCancelFin(canAntAtiv,   canAntCan,   mesAntIniStr,  mesAntFimStr);
 
   function buildCancelStats(lista) {
     const porMotivo   = {};
@@ -2418,9 +2427,11 @@ async function buildFinanceiro() {
 app.get('/api/financeiro', async (req, res) => {
   try {
     const agora = Date.now();
-    if (_finCache && (agora - _finFetchedAt) < FIN_CACHE_TTL) {
+    const force = req.query.force === '1';
+    if (!force && _finCache && (agora - _finFetchedAt) < FIN_CACHE_TTL) {
       return res.json(_finCache);
     }
+    if (force) { _finCache = null; _finFetchedAt = 0; }
     if (_finFetching) {
       if (_finCache) return res.json({ ..._finCache, cache: true });
       return res.json({ ok: false, motivo: 'carregando', info: 'Análise financeira em andamento. Aguarde ~30s.' });
