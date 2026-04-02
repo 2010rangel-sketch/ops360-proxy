@@ -852,7 +852,8 @@ app.get('/api/retencao', async (req, res) => {
       const sp = (a.status?.prefixo || '').toLowerCase();
       const sf = (a.status_fechamento || '').toLowerCase();
       if (!sf || sf === 'pendente' || sp === 'pendente' || sp === 'aguardando_analise') return 'pendente';
-      // status_fechamento indica cancelado/rescisão diretamente
+      // Verificar revertido ANTES de cancelado — "reverteu cancelamento" contém "cancel"
+      if (sf.includes('revert')) return 'revertido';
       if (sf.includes('cancel') || sf.includes('rescis')) return 'cancelado';
       const idMotivo = a.id_motivo_fechamento_atendimento;
       if (idMotivo && MOTIVO_CANCELADO.has(idMotivo)) return 'cancelado';
