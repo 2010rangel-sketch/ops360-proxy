@@ -1116,6 +1116,16 @@ input[type="text"]::placeholder { color:var(--text3); }
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px" id="at-atend-setor-grid">
         <div class="tbl-card" style="margin-bottom:0">
           <div class="tbl-header">
+            <span class="tbl-title">Por Setor</span>
+            <span class="badge b-blue" id="at-setor-count">—</span>
+          </div>
+          <div style="overflow-x:auto;max-height:320px;overflow-y:auto">
+            <table><thead><tr><th>#</th><th>Setor</th><th>Total</th><th style="color:#22c55e">Resolvido</th><th style="color:var(--accent)">O.S Aberta</th><th>% Resol.</th></tr></thead>
+            <tbody id="setorTbl"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Carregando...</td></tr></tbody></table>
+          </div>
+        </div>
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
             <span class="tbl-title">Por Atendente</span>
             <span class="badge b-blue" id="at-atend-count">—</span>
             <span id="at-atend-filtro-badge" style="display:none;font-size:11px;color:var(--accent);margin-left:8px;cursor:pointer" onclick="setAtendFiltroAt(null)">✕ limpar</span>
@@ -1123,16 +1133,6 @@ input[type="text"]::placeholder { color:var(--text3); }
           <div style="overflow-x:auto;max-height:320px;overflow-y:auto">
             <table><thead><tr><th>#</th><th>Atendente</th><th>Total</th><th style="color:#22c55e">Resolvido</th><th style="color:var(--accent)">O.S Aberta</th></tr></thead>
             <tbody id="atendenteTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px">Carregando...</td></tr></tbody></table>
-          </div>
-        </div>
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header">
-            <span class="tbl-title">Por Setor</span>
-            <span class="badge b-blue" id="at-setor-count">—</span>
-          </div>
-          <div style="overflow-x:auto;max-height:320px;overflow-y:auto">
-            <table><thead><tr><th>#</th><th>Setor</th><th>Total</th><th style="color:#22c55e">Resolvido</th><th style="color:var(--accent)">O.S Aberta</th><th>% Resol.</th></tr></thead>
-            <tbody id="setorTbl"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Carregando...</td></tr></tbody></table>
           </div>
         </div>
       </div>
