@@ -1720,29 +1720,6 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
       </div>
 
-      <!-- 1ª Mensalidade -->
-      <div style="display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:14px" id="fin-mid-grid">
-        <!-- 1ª Mensalidade em Risco -->
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header">
-            <span class="tbl-title">1ª Mensalidade em Risco</span>
-            <span class="badge b-red" id="fin-prim-count">—</span>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border)">
-            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">Novos (60d)</div><div style="font-size:16px;font-weight:700;color:var(--text)" id="fin-prim-novos">—</div></div>
-            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">Não pagou</div><div style="font-size:16px;font-weight:700;color:#ef4444" id="fin-prim-np">—</div></div>
-            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">% de risco</div><div style="font-size:16px;font-weight:700;color:var(--amber)" id="fin-prim-pct2">—</div></div>
-          </div>
-          <div style="padding:8px 14px 0">
-            <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Por Vendedor</div>
-          </div>
-          <div style="max-height:160px;overflow-y:auto;padding-bottom:4px">
-            <table class="tbl" style="font-size:11px"><thead><tr><th>Vendedor</th><th>Novos</th><th>Risco</th><th>%</th></tr></thead>
-            <tbody id="fin-prim-vend"></tbody></table>
-          </div>
-        </div>
-      </div>
-
       <!-- ═══ ADIÇÃO LÍQUIDA ═══ -->
       <div class="tbl-card" style="margin-bottom:14px" id="fin-al-card">
         <div class="tbl-header">
@@ -1789,6 +1766,29 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
         <div style="padding:16px;overflow-x:auto">
           <div id="fin-tempo-chart" style="min-height:120px;display:flex;align-items:flex-end;gap:6px;min-width:500px"></div>
+        </div>
+      </div>
+
+      <!-- 1ª Mensalidade -->
+      <div style="display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:14px" id="fin-mid-grid">
+        <!-- 1ª Mensalidade em Risco -->
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <span class="tbl-title">1ª Mensalidade em Risco</span>
+            <span class="badge b-red" id="fin-prim-count">—</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border)">
+            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">Novos (60d)</div><div style="font-size:16px;font-weight:700;color:var(--text)" id="fin-prim-novos">—</div></div>
+            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">Não pagou</div><div style="font-size:16px;font-weight:700;color:#ef4444" id="fin-prim-np">—</div></div>
+            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">% de risco</div><div style="font-size:16px;font-weight:700;color:var(--amber)" id="fin-prim-pct2">—</div></div>
+          </div>
+          <div style="padding:8px 14px 0">
+            <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Por Vendedor</div>
+          </div>
+          <div style="max-height:160px;overflow-y:auto;padding-bottom:4px">
+            <table class="tbl" style="font-size:11px"><thead><tr><th>Vendedor</th><th>Novos</th><th>Risco</th><th>%</th></tr></thead>
+            <tbody id="fin-prim-vend"></tbody></table>
+          </div>
         </div>
       </div>
 
