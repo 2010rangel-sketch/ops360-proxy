@@ -1932,12 +1932,6 @@ input[type="text"]::placeholder { color:var(--text3); }
       <!-- Conteúdo (escondido até arquivo carregado) -->
       <div id="rh-content" style="display:none">
 
-        <!-- Abas -->
-        <div style="display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:0">
-          <button id="rh-tab-btn-dashboard" onclick="rhGoTab('dashboard')" style="padding:7px 16px;border:none;border-bottom:2px solid var(--accent);background:none;color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif"><i class="fas fa-chart-bar" style="margin-right:5px"></i>Dashboard</button>
-          <button id="rh-tab-btn-colaboradores" onclick="rhGoTab('colaboradores')" style="padding:7px 16px;border:none;border-bottom:2px solid transparent;background:none;color:var(--text2);font-size:12px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif"><i class="fas fa-users" style="margin-right:5px"></i>Colaboradores</button>
-        </div>
-
         <!-- Tab: Dashboard -->
         <div id="rh-tab-dashboard">
 
@@ -1950,20 +1944,42 @@ input[type="text"]::placeholder { color:var(--text3); }
           <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--purple)"></div><div class="kpi-mini-label">Empresas</div><div class="kpi-mini-val" id="rh-kpi-empresas" style="color:var(--purple)">—</div></div>
         </div>
 
-        <!-- Linha 1: Por Empresa | Por Setor | Tempo Médio por Setor -->
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px">
+        <!-- Linha 1: Por Setor | Colaboradores | Por Empresa + Tempo Médio -->
+        <div style="display:grid;grid-template-columns:220px 1fr 200px;gap:12px;margin-bottom:14px">
+
+          <!-- Coluna 1: Por Setor (clicável) -->
           <div class="tbl-card" style="margin-bottom:0">
-            <div class="tbl-header"><span class="tbl-title">Headcount por Empresa</span></div>
-            <div style="padding:10px 14px" id="rh-por-empresa"></div>
+            <div class="tbl-header"><span class="tbl-title">Por Setor</span><span class="badge b-blue" id="rh-setor-badge">ativos</span></div>
+            <div style="padding:6px 0;overflow-y:auto;max-height:320px" id="rh-por-setor"></div>
           </div>
+
+          <!-- Coluna 2: Colaboradores (dinâmico por setor) -->
           <div class="tbl-card" style="margin-bottom:0">
-            <div class="tbl-header"><span class="tbl-title">Headcount por Setor</span><span class="badge b-blue" id="rh-setor-badge">ativos</span></div>
-            <div style="padding:10px 14px" id="rh-por-setor"></div>
+            <div class="tbl-header">
+              <span class="tbl-title" id="rh-col-titulo">Todos os Colaboradores</span>
+              <span class="badge b-blue" id="rh-col-count">—</span>
+              <button id="rh-col-limpar" onclick="rhFiltrarSetor(null)" style="display:none;background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:0;margin-left:4px">✕ ver todos</button>
+            </div>
+            <div style="overflow-y:auto;max-height:300px">
+              <table class="tbl" style="font-size:11px">
+                <thead><tr><th>Colaborador</th><th>Cargo</th><th>Admissão</th><th>Tempo</th><th>Pendências</th></tr></thead>
+                <tbody id="rh-col-tbl"></tbody>
+              </table>
+            </div>
           </div>
-          <div class="tbl-card" style="margin-bottom:0">
-            <div class="tbl-header"><span class="tbl-title">Tempo Médio por Setor</span><span class="badge b-amber">colaboradores ativos</span></div>
-            <div style="padding:10px 14px" id="rh-tempo-setor"></div>
+
+          <!-- Coluna 3: Por Empresa + Tempo Médio por Setor (compactos) -->
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div class="tbl-card" style="margin-bottom:0">
+              <div class="tbl-header" style="padding:8px 12px"><span class="tbl-title" style="font-size:11px">Por Empresa</span></div>
+              <div style="padding:6px 12px" id="rh-por-empresa"></div>
+            </div>
+            <div class="tbl-card" style="margin-bottom:0">
+              <div class="tbl-header" style="padding:8px 12px"><span class="tbl-title" style="font-size:11px">Tempo Médio / Setor</span></div>
+              <div style="padding:6px 12px" id="rh-tempo-setor"></div>
+            </div>
           </div>
+
         </div>
 
         <!-- Linha 2: Admissões vs Desligamentos -->
@@ -2034,29 +2050,6 @@ input[type="text"]::placeholder { color:var(--text3); }
 
         </div><!-- /rh-tab-dashboard -->
 
-        <!-- Tab: Colaboradores -->
-        <div id="rh-tab-colaboradores" style="display:none">
-          <!-- Filtros -->
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
-            <select id="rh-col-filtro-empresa" onchange="renderRhColaboradores()" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:5px 10px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
-              <option value="">Todas as empresas</option>
-            </select>
-            <select id="rh-col-filtro-setor" onchange="renderRhColaboradores()" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:5px 10px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
-              <option value="">Todos os setores</option>
-            </select>
-            <input id="rh-col-busca" type="text" placeholder="🔍 Buscar colaborador..." oninput="renderRhColaboradores()" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:5px 10px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif;flex:1;min-width:180px">
-            <span id="rh-col-count" class="badge b-blue">—</span>
-          </div>
-          <!-- Tabela -->
-          <div class="tbl-card" style="margin-bottom:0">
-            <div style="overflow-y:auto;max-height:520px">
-              <table class="tbl">
-                <thead><tr><th>#</th><th>Colaborador</th><th>Função / Cargo</th><th>Setor</th><th>Empresa</th><th>Admissão</th><th>Tempo</th></tr></thead>
-                <tbody id="rh-col-tbl"></tbody>
-              </table>
-            </div>
-          </div>
-        </div><!-- /rh-tab-colaboradores -->
 
       </div>
 
@@ -7291,51 +7284,60 @@ function rhGoTab(tab) {
 
 function renderRhColaboradores() {
   const emps = window._rhEmployees || [];
-  const filtEmpresa = (document.getElementById('rh-col-filtro-empresa')?.value || '').trim();
-  const filtSetor   = (document.getElementById('rh-col-filtro-setor')?.value || '').trim();
-  const filtBusca   = (document.getElementById('rh-col-busca')?.value || '').toLowerCase().trim();
-
-  // Popular selects (só na primeira vez ou se vazio)
-  const selEmp = document.getElementById('rh-col-filtro-empresa');
-  const selSet = document.getElementById('rh-col-filtro-setor');
-  if (selEmp && selEmp.options.length <= 1) {
-    const empresas = [...new Set(emps.map(e => e.empresa).filter(Boolean))].sort();
-    empresas.forEach(em => { const o = new Option(em, em); selEmp.appendChild(o); });
-  }
-  if (selSet && selSet.options.length <= 1) {
-    const setores = [...new Set(emps.map(e => e.setor).filter(Boolean))].sort();
-    setores.forEach(s => { const o = new Option(s, s); selSet.appendChild(o); });
-  }
-
   const hoje = new Date();
   let lista = emps.filter(e => e.ativo);
-  if (filtEmpresa) lista = lista.filter(e => e.empresa === filtEmpresa);
-  if (filtSetor)   lista = lista.filter(e => e.setor === filtSetor);
-  if (filtBusca)   lista = lista.filter(e => (e.nome||'').toLowerCase().includes(filtBusca) || (e.cargo||'').toLowerCase().includes(filtBusca));
+  if (_rhSetorAtivo) lista = lista.filter(e => (e.depto || '') === _rhSetorAtivo);
   lista.sort((a, b) => (a.nome||'').localeCompare(b.nome||'', 'pt-BR'));
 
+  // Pendências: pega certs e CNH cadastrados
+  const nrLista = _nrGetLista ? _nrGetLista() : [];
+  const nrPorNome = {};
+  nrLista.forEach(c => { if (!nrPorNome[c.nome]) nrPorNome[c.nome] = []; nrPorNome[c.nome].push(c); });
+
+  const obrigatorios = new Set(NR_SETORES_OBRIGATORIOS);
+  const isObrig = e => {
+    const s = (e.depto || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    return NR_SETORES_OBRIGATORIOS.some(st => s.includes(st.normalize('NFD').replace(/[\u0300-\u036f]/g,'')));
+  };
+
+  const titulo = document.getElementById('rh-col-titulo');
+  if (titulo) titulo.textContent = _rhSetorAtivo ? _rhSetorAtivo : 'Todos os Colaboradores';
   const count = document.getElementById('rh-col-count');
   if (count) count.textContent = lista.length + ' colaborador' + (lista.length !== 1 ? 'es' : '');
 
   const tbody = document.getElementById('rh-col-tbl');
   if (!tbody) return;
-  if (!lista.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Nenhum colaborador encontrado</td></tr>'; return; }
+  if (!lista.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px">Nenhum colaborador</td></tr>'; return; }
 
-  tbody.innerHTML = lista.map((e, i) => {
+  tbody.innerHTML = lista.map(e => {
     const admFmt = e.admissao ? e.admissao.toLocaleDateString('pt-BR') : '—';
     let tempoStr = '—';
     if (e.admissao) {
       const meses = Math.floor((hoje - e.admissao) / (1000 * 60 * 60 * 24 * 30.44));
       tempoStr = meses >= 12 ? `${Math.floor(meses/12)}a ${meses%12}m` : `${meses}m`;
     }
+    // Pendências
+    let badges = '';
+    if (isObrig(e)) {
+      const certs = nrPorNome[e.nome] || [];
+      if (!certs.length) {
+        badges += `<span style="background:rgba(239,68,68,.15);color:var(--red);border-radius:3px;padding:1px 5px;font-size:10px;white-space:nowrap">NR falta</span> `;
+      } else {
+        const vencida = certs.some(c => { const d = c.vencimento ? new Date(c.vencimento) : null; return d && d < hoje; });
+        if (vencida) badges += `<span style="background:rgba(239,68,68,.15);color:var(--red);border-radius:3px;padding:1px 5px;font-size:10px;white-space:nowrap">NR vencida</span> `;
+      }
+    }
+    if (e.cnhVenc) {
+      const diff = Math.ceil((e.cnhVenc - hoje) / (1000 * 60 * 60 * 24));
+      if (diff < 0) badges += `<span style="background:rgba(239,68,68,.15);color:var(--red);border-radius:3px;padding:1px 5px;font-size:10px;white-space:nowrap">CNH vencida</span>`;
+      else if (diff <= 90) badges += `<span style="background:rgba(234,179,8,.15);color:var(--amber);border-radius:3px;padding:1px 5px;font-size:10px;white-space:nowrap">CNH ${diff}d</span>`;
+    }
     return `<tr>
-      <td style="text-align:center;font-size:11px;color:var(--text3)">${i+1}</td>
-      <td style="font-weight:500">${e.nome || '—'}</td>
+      <td style="font-size:11px;font-weight:500">${e.nome || '—'}</td>
       <td style="font-size:11px;color:var(--text2)">${e.cargo || '—'}</td>
-      <td style="font-size:11px"><span style="background:rgba(99,102,241,.12);color:var(--accent);border-radius:4px;padding:1px 7px;font-size:10px">${e.setor || '—'}</span></td>
-      <td style="font-size:11px;color:var(--text2)">${e.empresa || '—'}</td>
       <td style="font-size:11px;color:var(--text2)">${admFmt}</td>
       <td style="font-size:11px;color:var(--cyan)">${tempoStr}</td>
+      <td style="font-size:11px">${badges || '<span style="color:var(--text3);font-size:10px">OK</span>'}</td>
     </tr>`;
   }).join('');
 }
@@ -7376,6 +7378,21 @@ function renderRhDashboard(emps) {
   renderRhNR();
 }
 
+let _rhSetorAtivo = null;
+
+function rhFiltrarSetor(setor) {
+  _rhSetorAtivo = setor;
+  renderRhColaboradores();
+  // atualiza visual dos itens do setor
+  document.querySelectorAll('[data-rh-setor]').forEach(el => {
+    const ativo = el.dataset.rhSetor === setor;
+    el.style.background = ativo ? 'rgba(99,102,241,.15)' : '';
+    el.style.borderRadius = ativo ? '6px' : '';
+  });
+  const limpar = document.getElementById('rh-col-limpar');
+  if (limpar) limpar.style.display = setor ? '' : 'none';
+}
+
 function renderRhEmpresa(ativos) {
   const map = {};
   ativos.forEach(e => { const k = e.empresa || '(sem empresa)'; map[k] = (map[k] || 0) + 1; });
@@ -7387,16 +7404,16 @@ function renderRhEmpresa(ativos) {
   el.innerHTML = sorted.map(([nome, n], i) => {
     const pct = Math.round(n / max * 100);
     const cor = CORES[i % CORES.length];
-    return `<div style="margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-        <span style="font-size:12px;color:var(--text)">${nome}</span>
-        <span style="font-size:12px;font-weight:700;color:${cor}">${n}</span>
+    return `<div style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+        <span style="font-size:10px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px">${nome}</span>
+        <span style="font-size:11px;font-weight:700;color:${cor}">${n}</span>
       </div>
-      <div style="height:5px;background:var(--bg3);border-radius:3px">
-        <div style="height:5px;width:${pct}%;background:${cor};border-radius:3px"></div>
+      <div style="height:4px;background:var(--bg3);border-radius:3px">
+        <div style="height:4px;width:${pct}%;background:${cor};border-radius:3px"></div>
       </div>
     </div>`;
-  }).join('') || '<div style="color:var(--text3);font-size:12px;padding:8px 0">Sem dados</div>';
+  }).join('') || '<div style="color:var(--text3);font-size:11px;padding:4px 0">Sem dados</div>';
 }
 
 function renderRhSetor(ativos) {
@@ -7412,16 +7429,18 @@ function renderRhSetor(ativos) {
   el.innerHTML = sorted.map(([nome, n], i) => {
     const pct = Math.round(n / max * 100);
     const cor = CORES[i % CORES.length];
-    return `<div style="margin-bottom:10px">
+    return `<div data-rh-setor="${nome}" onclick="rhFiltrarSetor('${nome.replace(/'/g,"\\'")}'); this.closest('[id=rh-por-setor]').querySelectorAll('[data-rh-setor]').forEach(el=>{el.style.background=el.dataset.rhSetor==='${nome.replace(/'/g,"\\'")}' ? 'rgba(99,102,241,.15)' : '';el.style.borderRadius='6px';})" style="margin-bottom:2px;padding:6px 12px;cursor:pointer;transition:background .15s" onmouseenter="if(_rhSetorAtivo!==this.dataset.rhSetor)this.style.background='var(--bg3)'" onmouseleave="if(_rhSetorAtivo!==this.dataset.rhSetor)this.style.background=''">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-        <span style="font-size:11px;color:var(--text);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nome}</span>
+        <span style="font-size:11px;color:var(--text);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nome}</span>
         <span style="font-size:12px;font-weight:700;color:${cor}">${n}</span>
       </div>
-      <div style="height:5px;background:var(--bg3);border-radius:3px">
-        <div style="height:5px;width:${pct}%;background:${cor};border-radius:3px"></div>
+      <div style="height:4px;background:var(--bg3);border-radius:3px">
+        <div style="height:4px;width:${pct}%;background:${cor};border-radius:3px"></div>
       </div>
     </div>`;
-  }).join('') || '<div style="color:var(--text3);font-size:12px;padding:8px 0">Sem dados</div>';
+  }).join('') || '<div style="color:var(--text3);font-size:12px;padding:8px 12px">Sem dados</div>';
+  // também inicializa a lista de colaboradores
+  renderRhColaboradores();
 }
 
 function renderRhTempoMedioSetor(ativos, mesesTenure, fmtTempo) {
@@ -7662,11 +7681,9 @@ function abrirModalNR(nomePresel) {
     const outros = (window._rhEmployees || []).filter(e => !obrig.find(o => o.nome === e.nome));
     let opts = '<option value="">— Selecione o colaborador —</option>';
     if (obrig.length) {
-      opts += `<optgroup label="Suporte Técnico">` + obrig.map(e => `<option value="${e.nome}"${nomePresel===e.nome?' selected':''}>${e.nome}</option>`).join('') + '</optgroup>';
+      opts += `<optgroup label="Suporte Técnico / Fibra">` + obrig.map(e => `<option value="${e.nome}"${nomePresel===e.nome?' selected':''}>${e.nome}</option>`).join('') + '</optgroup>';
     }
-    if (outros.length) {
-      opts += `<optgroup label="Outros">` + outros.map(e => `<option value="${e.nome}"${nomePresel===e.nome?' selected':''}>${e.nome}</option>`).join('') + '</optgroup>';
-    }
+    // Não mostra "Outros" — certificados são exigência apenas do Suporte Técnico
     selNome.innerHTML = opts;
     if (nomePresel) { selNome.value = nomePresel; _nrPreencherSetor(nomePresel); }
   }
