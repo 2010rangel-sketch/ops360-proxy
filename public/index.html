@@ -1185,25 +1185,6 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
       </div>
 
-      <!-- Modal: clientes em risco por vendedor (1ª mensalidade) -->
-      <div id="modalRiscoVendedor" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:0;width:520px;max-width:96vw;max-height:80vh;display:flex;flex-direction:column">
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border)">
-            <div>
-              <div id="modalRiscoTitulo" style="font-weight:600;font-size:14px;color:var(--text)"></div>
-              <div id="modalRiscoSub" style="font-size:11px;color:var(--text3);margin-top:2px"></div>
-            </div>
-            <button onclick="document.getElementById('modalRiscoVendedor').style.display='none'" style="background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer;line-height:1">✕</button>
-          </div>
-          <div style="overflow-y:auto;flex:1">
-            <table class="tbl" style="font-size:12px">
-              <thead><tr><th>Cliente</th><th>Plano</th><th>Mensalidade</th><th>Cidade</th><th>Desde</th></tr></thead>
-              <tbody id="modalRiscoLista"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
       <!-- Clientes recorrentes — período dinâmico -->
       <div class="tbl-card">
         <div class="tbl-header">
@@ -1694,7 +1675,7 @@ input[type="text"]::placeholder { color:var(--text3); }
           </div>
           <div style="padding:10px 14px;border-bottom:1px solid var(--border)">
             <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Por Motivo</div>
-            <div id="fin-ca-motivo" style="display:flex;flex-wrap:wrap;gap:5px"></div>
+            <div id="fin-ca-motivo"></div>
           </div>
           <div style="max-height:220px;overflow-y:auto">
             <table class="tbl" style="table-layout:fixed;width:100%"><thead><tr><th style="width:22%">Cliente</th><th style="width:30%">Plano</th><th style="width:14%">Tempo</th><th style="width:16%">LTV</th><th style="width:18%">Motivo</th></tr></thead>
@@ -1711,7 +1692,7 @@ input[type="text"]::placeholder { color:var(--text3); }
           </div>
           <div style="padding:10px 14px;border-bottom:1px solid var(--border)">
             <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Por Motivo</div>
-            <div id="fin-cb-motivo" style="display:flex;flex-wrap:wrap;gap:5px"></div>
+            <div id="fin-cb-motivo"></div>
           </div>
           <div style="max-height:220px;overflow-y:auto">
             <table class="tbl" style="table-layout:fixed;width:100%"><thead><tr><th style="width:22%">Cliente</th><th style="width:30%">Plano</th><th style="width:14%">Tempo</th><th style="width:16%">LTV</th><th style="width:18%">Motivo</th></tr></thead>
@@ -1917,117 +1898,123 @@ input[type="text"]::placeholder { color:var(--text3); }
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap">
         <div>
           <div style="font-size:16px;font-weight:700;color:var(--text)">Recursos Humanos</div>
-          <div style="font-size:11px;color:var(--text3)">Headcount · absenteísmo · turnover · performance</div>
+          <div style="font-size:11px;color:var(--text3)">Headcount · turnover · tempo médio · CNH · NR35/NR10</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
-          <span id="rh-header-badge" class="badge" style="background:rgba(167,139,250,.15);color:var(--purple);border:1px solid rgba(167,139,250,.3)"><i class="fas fa-plug" style="margin-right:4px"></i>Integração RHiD pendente</span>
-          <span id="rh-sync-badge" class="badge b-blue"></span>
-          <button class="icon-btn" onclick="loadRh(true)" title="Forçar atualização"><i class="fas fa-sync-alt"></i></button>
+          <span id="rh-file-badge" class="badge" style="background:rgba(167,139,250,.15);color:var(--purple);border:1px solid rgba(167,139,250,.3)"><i class="fas fa-file-csv" style="margin-right:4px"></i>Nenhum arquivo carregado</span>
+          <label class="btn btn-sm" for="rh-csv-input" style="cursor:pointer;margin:0"><i class="fas fa-upload" style="margin-right:5px"></i>Subir CSV RHiD</label>
+          <input type="file" id="rh-csv-input" accept=".csv,.txt" style="display:none" onchange="handleRhFileUpload(event)">
         </div>
       </div>
 
-      <!-- KPIs principais -->
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px">
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Headcount Total</div><div class="kpi-mini-val" id="rh-headcount" style="color:var(--accent)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">Ativos</div><div class="kpi-mini-val" id="rh-ativos" style="color:var(--green)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">Afastados</div><div class="kpi-mini-val" id="rh-afastados" style="color:var(--amber)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Turnover Mês</div><div class="kpi-mini-val" id="rh-turnover" style="color:var(--red)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--purple)"></div><div class="kpi-mini-label">Absenteísmo</div><div class="kpi-mini-val" id="rh-absenteismo" style="color:var(--purple)">—</div></div>
+      <!-- Upload zone (visível enquanto sem arquivo) -->
+      <div id="rh-upload-zone" style="border:2px dashed var(--border);border-radius:12px;padding:48px 24px;text-align:center;margin-bottom:16px;cursor:pointer;transition:border-color .2s" onclick="document.getElementById('rh-csv-input').click()" ondragover="event.preventDefault();this.style.borderColor='var(--accent)'" ondragleave="this.style.borderColor='var(--border)'" ondrop="event.preventDefault();this.style.borderColor='var(--border)';handleRhFileDrop(event)">
+        <i class="fas fa-file-csv" style="font-size:36px;color:var(--accent);opacity:.6;display:block;margin-bottom:12px"></i>
+        <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px">Arraste o CSV do RHiD aqui ou clique para selecionar</div>
+        <div style="font-size:11px;color:var(--text3)">Exporte em <b>Funcionários → Exportar CSV</b> no painel RHiD · Separador: ponto e vírgula (;)</div>
       </div>
 
-      <!-- Grid linha 2 -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px">
+      <!-- Conteúdo (escondido até arquivo carregado) -->
+      <div id="rh-content" style="display:none">
 
-        <!-- Headcount por Setor -->
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header"><span class="tbl-title">Headcount por Setor</span></div>
-          <div style="padding:12px 16px" id="rh-setor-list">
-            <div class="rh-placeholder-row"><span>Call Center</span><span class="rh-ph-val">—</span></div>
-            <div class="rh-placeholder-row"><span>Comercial</span><span class="rh-ph-val">—</span></div>
-            <div class="rh-placeholder-row"><span>Cobrança</span><span class="rh-ph-val">—</span></div>
-            <div class="rh-placeholder-row"><span>Financeiro</span><span class="rh-ph-val">—</span></div>
-            <div class="rh-placeholder-row"><span>NOC / Técnico</span><span class="rh-ph-val">—</span></div>
-            <div class="rh-placeholder-row"><span>Administrativo</span><span class="rh-ph-val">—</span></div>
+        <!-- KPIs -->
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px">
+          <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Ativos</div><div class="kpi-mini-val" id="rh-kpi-ativos" style="color:var(--accent)">—</div></div>
+          <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Desligados (12m)</div><div class="kpi-mini-val" id="rh-kpi-desl12" style="color:var(--red)">—</div></div>
+          <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">Turnover (12m)</div><div class="kpi-mini-val" id="rh-kpi-turnover" style="color:var(--amber)">—</div></div>
+          <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--cyan)"></div><div class="kpi-mini-label">Tempo Médio Geral</div><div class="kpi-mini-val" id="rh-kpi-tempo" style="color:var(--cyan)">—</div></div>
+          <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--purple)"></div><div class="kpi-mini-label">Empresas</div><div class="kpi-mini-val" id="rh-kpi-empresas" style="color:var(--purple)">—</div></div>
+        </div>
+
+        <!-- Linha 1: Por Empresa | Por Setor | Tempo Médio por Setor -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px">
+          <div class="tbl-card" style="margin-bottom:0">
+            <div class="tbl-header"><span class="tbl-title">Headcount por Empresa</span></div>
+            <div style="padding:10px 14px" id="rh-por-empresa"></div>
+          </div>
+          <div class="tbl-card" style="margin-bottom:0">
+            <div class="tbl-header"><span class="tbl-title">Headcount por Setor</span><span class="badge b-blue" id="rh-setor-badge">ativos</span></div>
+            <div style="padding:10px 14px" id="rh-por-setor"></div>
+          </div>
+          <div class="tbl-card" style="margin-bottom:0">
+            <div class="tbl-header"><span class="tbl-title">Tempo Médio por Setor</span><span class="badge b-amber">colaboradores ativos</span></div>
+            <div style="padding:10px 14px" id="rh-tempo-setor"></div>
           </div>
         </div>
 
-        <!-- Admissões e Desligamentos (últimos 6 meses) -->
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header"><span class="tbl-title">Admissões vs Desligamentos</span><span class="badge b-blue" style="font-size:10px">últimos 6 meses</span></div>
-          <div style="padding:12px 16px" id="rh-admissoes-list">
-            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">
-              <span>Mês</span><span style="color:var(--green)">Admissões</span><span style="color:var(--red)">Desligamentos</span><span>Saldo</span>
+        <!-- Linha 2: Admissões vs Desligamentos -->
+        <div class="tbl-card" style="margin-bottom:14px">
+          <div class="tbl-header"><span class="tbl-title">Admissões vs Desligamentos</span><span class="badge b-blue">últimos 6 meses</span></div>
+          <div style="padding:14px 16px">
+            <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px" id="rh-movimentacao"></div>
+          </div>
+        </div>
+
+        <!-- Linha 3: Turnover por Setor | Aniversários do Mês -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+          <div class="tbl-card" style="margin-bottom:0">
+            <div class="tbl-header"><span class="tbl-title">Turnover por Setor</span><span class="badge b-red">últimos 12 meses</span></div>
+            <div style="overflow-x:auto;max-height:240px;overflow-y:auto">
+              <table class="tbl"><thead><tr><th>Setor</th><th>Ativos</th><th>Saídas (12m)</th><th>Turnover</th></tr></thead>
+              <tbody id="rh-turnover-setor"></tbody></table>
             </div>
-            <div id="rh-movimentacao-rows" style="font-size:12px;color:var(--text3);text-align:center;padding:20px 0">
-              <i class="fas fa-plug" style="opacity:.3;display:block;font-size:20px;margin-bottom:6px"></i>Aguardando integração RHiD
+          </div>
+          <div class="tbl-card" style="margin-bottom:0">
+            <div class="tbl-header"><span class="tbl-title">Aniversários do Mês</span><span class="badge b-green" id="rh-aniv-badge">—</span></div>
+            <div style="overflow-x:auto;max-height:240px;overflow-y:auto">
+              <table class="tbl"><thead><tr><th>Colaborador</th><th>Depto</th><th>Data</th><th>Idade</th></tr></thead>
+              <tbody id="rh-aniversarios"></tbody>
             </div>
           </div>
         </div>
 
-        <!-- Férias e Aniversários -->
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header"><span class="tbl-title">Próximas Férias / Aniversários</span></div>
-          <div id="rh-ferias-aniv" style="padding:12px 16px;font-size:12px;color:var(--text3);text-align:center;padding:30px 16px">
-            <i class="fas fa-calendar-alt" style="opacity:.3;display:block;font-size:20px;margin-bottom:6px"></i>Aguardando integração RHiD
+        <!-- Linha 4: CNH Vencimentos -->
+        <div class="tbl-card" style="margin-bottom:14px">
+          <div class="tbl-header">
+            <span class="tbl-title"><i class="fas fa-id-card" style="color:var(--accent);margin-right:5px"></i>Controle de CNH</span>
+            <span class="badge b-amber" id="rh-cnh-badge">—</span>
+          </div>
+          <div style="overflow-x:auto;max-height:260px;overflow-y:auto">
+            <table class="tbl"><thead><tr><th>Colaborador</th><th>Setor</th><th>Categoria</th><th>Vencimento</th><th>Status</th></tr></thead>
+            <tbody id="rh-cnh-tbl"></tbody>
           </div>
         </div>
+
+        <!-- Linha 5: NR Certificações -->
+        <div class="tbl-card" style="margin-bottom:14px">
+          <div class="tbl-header">
+            <span class="tbl-title"><i class="fas fa-certificate" style="color:var(--amber);margin-right:5px"></i>Controle NR35 / NR10 / Outras Certificações</span>
+            <button class="btn btn-sm" onclick="abrirModalNR()" style="margin-left:auto"><i class="fas fa-plus"></i> Adicionar</button>
+          </div>
+          <div style="overflow-x:auto;max-height:280px;overflow-y:auto">
+            <table class="tbl"><thead><tr><th>Colaborador</th><th>Setor/Cargo</th><th>Certificação</th><th>Emissão</th><th>Vencimento</th><th>Status</th><th style="width:40px"></th></tr></thead>
+            <tbody id="rh-nr-tbl"></tbody>
+          </div>
+        </div>
+
       </div>
 
-      <!-- Linha 3: Absenteísmo + Performance -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
-
-        <!-- Absenteísmo por Setor -->
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header"><span class="tbl-title">Absenteísmo por Setor</span><span class="badge b-amber">% de faltas — <span id="rh-mes-label">mês atual</span></span></div>
-          <div style="overflow-x:auto;max-height:240px;overflow-y:auto">
-            <table class="tbl"><thead><tr><th>Setor</th><th>Func.</th><th>Faltas</th><th>% Absent.</th></tr></thead>
-            <tbody id="rh-absenteismo-tbl">
-              <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:24px"><i class="fas fa-plug" style="opacity:.3;margin-right:6px"></i>Aguardando integração RHiD</td></tr>
-            </tbody></table>
+      <!-- Modal adicionar NR -->
+      <div id="modalNRCert" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:24px;width:420px;max-width:96vw">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <div style="font-weight:600;font-size:14px">Adicionar Certificação</div>
+            <button onclick="document.getElementById('modalNRCert').style.display='none'" style="background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer">✕</button>
           </div>
-        </div>
-
-        <!-- Indicadores de Performance -->
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header"><span class="tbl-title">Ponto — Resumo por Colaborador</span><span class="badge b-blue">dias / horas / faltas / atrasos / extras</span></div>
-          <div style="overflow-x:auto;max-height:240px;overflow-y:auto">
-            <table class="tbl"><thead><tr><th>Colaborador</th><th>Setor</th><th>Dias / Horas</th><th>Faltas / Atrasos</th><th>Extras</th></tr></thead>
-            <tbody id="rh-performance-tbl">
-              <tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px"><i class="fas fa-plug" style="opacity:.3;margin-right:6px"></i>Aguardando integração RHiD</td></tr>
-            </tbody></table>
-          </div>
-        </div>
-      </div>
-
-      <!-- Linha 4: Custo de Folha + Banco de Horas -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header"><span class="tbl-title">Custo de Folha por Setor</span><span class="badge b-blue">mensal estimado</span></div>
-          <div style="overflow-x:auto;max-height:220px;overflow-y:auto">
-            <table class="tbl"><thead><tr><th>Setor</th><th>Func.</th><th>Custo Estimado</th><th>% do Total</th></tr></thead>
-            <tbody id="rh-folha-tbl">
-              <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:24px"><i class="fas fa-plug" style="opacity:.3;margin-right:6px"></i>Aguardando integração RHiD</td></tr>
-            </tbody></table>
-          </div>
-        </div>
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header"><span class="tbl-title">Banco de Horas</span><span class="badge b-amber">saldo atual</span></div>
-          <div style="overflow-x:auto;max-height:220px;overflow-y:auto">
-            <table class="tbl"><thead><tr><th>Colaborador</th><th>Setor</th><th>Saldo (h)</th><th>Status</th></tr></thead>
-            <tbody id="rh-horas-tbl">
-              <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:24px"><i class="fas fa-plug" style="opacity:.3;margin-right:6px"></i>Aguardando integração RHiD</td></tr>
-            </tbody></table>
-          </div>
-        </div>
-      </div>
-
-      <!-- Aviso integração (escondido após carregar) -->
-      <div id="rh-integ-aviso" style="background:rgba(167,139,250,.07);border:1px solid rgba(167,139,250,.25);border-radius:var(--r-lg);padding:16px 20px;display:flex;gap:14px;align-items:flex-start">
-        <i class="fas fa-info-circle" style="color:var(--purple);font-size:18px;margin-top:1px;flex-shrink:0"></i>
-        <div>
-          <div style="font-weight:600;color:var(--purple);margin-bottom:4px">Conectando ao RHiD...</div>
-          <div style="font-size:12px;color:var(--text2);line-height:1.7">
-            Carregando dados de headcount, ponto eletrônico, absenteísmo e banco de horas do sistema <b>RHiD</b>.
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <input id="nr-nome" placeholder="Nome do colaborador" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:12px;width:100%;box-sizing:border-box">
+            <input id="nr-setor" placeholder="Setor / Cargo" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:12px;width:100%;box-sizing:border-box">
+            <select id="nr-tipo" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:12px;width:100%;box-sizing:border-box">
+              <option>NR35 — Trabalho em Altura</option>
+              <option>NR10 — Segurança em Eletricidade</option>
+              <option>NR12 — Segurança em Máquinas</option>
+              <option>NR33 — Espaço Confinado</option>
+              <option>Outro</option>
+            </select>
+            <input id="nr-emissao" type="date" placeholder="Data de emissão" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:12px;width:100%;box-sizing:border-box">
+            <input id="nr-vencimento" type="date" placeholder="Data de vencimento" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:12px;width:100%;box-sizing:border-box">
+            <input id="nr-obs" placeholder="Observações (opcional)" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:12px;width:100%;box-sizing:border-box">
+            <button onclick="salvarNRCert()" class="btn" style="width:100%;margin-top:4px">Salvar</button>
           </div>
         </div>
       </div>
@@ -2339,6 +2326,25 @@ input[type="text"]::placeholder { color:var(--text3); }
     <div class="notif-item"><div class="ni-icon" style="background:var(--orange-light);color:var(--orange)"><i class="fas fa-redo"></i></div><div><div class="notif-msg"><strong>Retrabalho #3851 aberto</strong>Mesmo cliente — 2ª visita em 7 dias</div><div class="notif-when">há 12 min · Email enviado</div></div></div>
     <div class="notif-item"><div class="ni-icon" style="background:var(--amber-light);color:var(--amber)"><i class="fas fa-user-minus"></i></div><div><div class="notif-msg"><strong>Cancelamento #12045</strong>Motivo: Preço</div><div class="notif-when">há 28 min</div></div></div>
     <div class="notif-item"><div class="ni-icon" style="background:var(--green-light);color:var(--green)"><i class="fas fa-check"></i></div><div><div class="notif-msg"><strong>Retenção bem-sucedida!</strong>Cliente #11983 revertido — Desconto 20%</div><div class="notif-when">há 1h 4min</div></div></div>
+  </div>
+</div>
+
+<!-- Modal global: clientes em risco por vendedor (1ª mensalidade) -->
+<div id="modalRiscoVendedor" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:0;width:520px;max-width:96vw;max-height:80vh;display:flex;flex-direction:column">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border)">
+      <div>
+        <div id="modalRiscoTitulo" style="font-weight:600;font-size:14px;color:var(--text)"></div>
+        <div id="modalRiscoSub" style="font-size:11px;color:var(--text3);margin-top:2px"></div>
+      </div>
+      <button onclick="document.getElementById('modalRiscoVendedor').style.display='none'" style="background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer;line-height:1">✕</button>
+    </div>
+    <div style="overflow-y:auto;flex:1">
+      <table class="tbl" style="font-size:12px">
+        <thead><tr><th>Cliente</th><th>Plano</th><th>Mensalidade</th><th>Cidade</th><th>Desde</th></tr></thead>
+        <tbody id="modalRiscoLista"></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -6408,20 +6414,23 @@ function renderCancelStats(pfx, stats) {
     const maxN    = motivos.length ? motivos[0].n : 1;
     const totalN  = motivos.reduce((s, m) => s + m.n, 0);
     const CORES   = ['#ef4444','#f97316','#eab308','#22c55e','#06b6d4','#8b5cf6','#ec4899','#94a3b8'];
-    motivoEl.innerHTML = motivos.map((m, i) => {
-      const pct  = totalN > 0 ? Math.round(m.n / totalN * 100) : 0;
-      const barW = Math.round(m.n / maxN * 100);
-      const cor  = CORES[i % CORES.length];
-      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)">
-        <div style="width:7px;height:7px;border-radius:50%;background:${cor};flex-shrink:0"></div>
-        <div style="flex:1;min-width:0;font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${m.motivo}">${m.motivo}</div>
-        <div style="width:70px;height:5px;background:rgba(255,255,255,.08);border-radius:3px;flex-shrink:0">
-          <div style="width:${barW}%;height:100%;background:${cor};border-radius:3px;transition:width .3s"></div>
-        </div>
-        <div style="font-size:11px;font-weight:700;color:${cor};min-width:20px;text-align:right">${m.n}</div>
-        <div style="font-size:10px;color:var(--text3);min-width:30px;text-align:right">${pct}%</div>
-      </div>`;
-    }).join('');
+    motivoEl.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px 12px">` +
+      motivos.map((m, i) => {
+        const pct  = totalN > 0 ? Math.round(m.n / totalN * 100) : 0;
+        const barW = Math.round(m.n / maxN * 100);
+        const cor  = CORES[i % CORES.length];
+        return `<div style="min-width:0">
+          <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">
+            <div style="width:6px;height:6px;border-radius:50%;background:${cor};flex-shrink:0"></div>
+            <div style="flex:1;font-size:10px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${m.motivo}">${m.motivo}</div>
+            <span style="font-size:11px;font-weight:700;color:${cor};flex-shrink:0">${m.n}</span>
+            <span style="font-size:10px;color:var(--text3);flex-shrink:0">${pct}%</span>
+          </div>
+          <div style="height:4px;background:rgba(255,255,255,.07);border-radius:2px">
+            <div style="width:${barW}%;height:100%;background:${cor};border-radius:2px"></div>
+          </div>
+        </div>`;
+      }).join('') + `</div>`;
   }
 
   const listaEl = document.getElementById(`fin-${pfx}-lista`);
@@ -6964,6 +6973,395 @@ function renderRhPonto(d) {
           </tr>`;
         }).join('');
   }
+}
+
+// ═══════════════════════════════════════════════════════
+//  RH CSV — parse & render
+// ═══════════════════════════════════════════════════════
+
+function handleRhFileUpload(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+  _loadRhFile(file);
+}
+
+function handleRhFileDrop(event) {
+  const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+  if (!file) return;
+  _loadRhFile(file);
+}
+
+function _loadRhFile(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const employees = parseRhCsv(e.target.result);
+      window._rhEmployees = employees;
+      document.getElementById('rh-upload-zone').style.display = 'none';
+      document.getElementById('rh-content').style.display = '';
+      const badge = document.getElementById('rh-file-badge');
+      if (badge) { badge.textContent = file.name; badge.style.cssText = 'background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.3)'; }
+      renderRhDashboard(employees);
+    } catch(err) {
+      alert('Erro ao processar CSV: ' + err.message);
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function parseRhCsv(text) {
+  // Remove BOM
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) throw new Error('CSV vazio ou sem linhas');
+
+  // Parse header — semicolon separated, may have quoted fields
+  function splitLine(line) {
+    const result = [];
+    let cur = '';
+    let inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { inQ = !inQ; }
+      else if (c === ';' && !inQ) { result.push(cur); cur = ''; }
+      else { cur += c; }
+    }
+    result.push(cur);
+    return result.map(s => s.trim().replace(/^"|"$/g, ''));
+  }
+
+  const headers = splitLine(lines[0]).map(h => h.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim());
+
+  function idx(name) {
+    const norm = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return headers.findIndex(h => h === norm || h.includes(norm));
+  }
+
+  const iNome       = idx('nome');
+  const iEmpresa    = idx('empresa');
+  const iDepto      = idx('departamento');
+  const iCargo      = idx('cargo');
+  const iAdmissao   = idx('data de admissao');
+  const iDemissao   = idx('data de demissao');
+  const iNascimento = idx('data de nascimento');
+  const iCNH        = idx('cnh');
+  const iCNHCat     = idx('categoria da cnh');
+  const iCNHVenc    = idx('vencimento da cnh');
+  const iAtivo      = idx('ativo');
+  const iMotivo     = idx('motivo de demissao');
+
+  function parseDate(str) {
+    if (!str || !str.trim() || str.trim() === '""') return null;
+    const s = str.trim().replace(/"/g, '');
+    const parts = s.split('/');
+    if (parts.length !== 3) return null;
+    const d = parseInt(parts[0], 10), m = parseInt(parts[1], 10) - 1, y = parseInt(parts[2], 10);
+    if (isNaN(d) || isNaN(m) || isNaN(y)) return null;
+    return new Date(y, m, d);
+  }
+
+  const employees = [];
+  for (let i = 1; i < lines.length; i++) {
+    const f = splitLine(lines[i]);
+    if (!f[iNome] || !f[iNome].trim()) continue;
+    const demissaoRaw = iDemissao >= 0 ? (f[iDemissao] || '').replace(/"/g, '').trim() : '';
+    const ativoRaw    = iAtivo >= 0 ? (f[iAtivo] || '').trim() : '';
+    const ativo = !demissaoRaw && (ativoRaw === '1' || ativoRaw === '' || ativoRaw.toLowerCase() === 'true');
+    employees.push({
+      nome:      f[iNome]      || '',
+      empresa:   iEmpresa  >= 0 ? f[iEmpresa]  || '' : '',
+      depto:     iDepto    >= 0 ? f[iDepto]    || '' : '',
+      cargo:     iCargo    >= 0 ? f[iCargo]    || '' : '',
+      admissao:  parseDate(iAdmissao   >= 0 ? f[iAdmissao]   : null),
+      demissao:  parseDate(demissaoRaw),
+      nascimento:parseDate(iNascimento >= 0 ? f[iNascimento] : null),
+      cnh:       iCNH     >= 0 ? (f[iCNH]     || '').replace(/"/g, '').trim() : '',
+      cnhCat:    iCNHCat  >= 0 ? (f[iCNHCat]  || '').replace(/"/g, '').trim() : '',
+      cnhVenc:   parseDate(iCNHVenc >= 0 ? f[iCNHVenc] : null),
+      motivo:    iMotivo  >= 0 ? (f[iMotivo]  || '').replace(/"/g, '').trim() : '',
+      ativo,
+    });
+  }
+  return employees;
+}
+
+function renderRhDashboard(emps) {
+  const hoje = new Date();
+  const ativos  = emps.filter(e => e.ativo);
+  const desl12  = emps.filter(e => !e.ativo && e.demissao && (hoje - e.demissao) <= 365 * 24 * 3600 * 1000);
+  const totalRef = ativos.length + desl12.length;
+  const turnover = totalRef > 0 ? (desl12.length / totalRef * 100).toFixed(1) : '0.0';
+
+  // Tempo médio geral (ativos)
+  function mesesTenure(e) {
+    if (!e.admissao) return null;
+    const fim = e.demissao || hoje;
+    return Math.floor((fim - e.admissao) / (1000 * 60 * 60 * 24 * 30.44));
+  }
+  const tenures = ativos.map(mesesTenure).filter(v => v !== null);
+  const avgMeses = tenures.length ? Math.round(tenures.reduce((a, b) => a + b, 0) / tenures.length) : 0;
+  const fmtTempo = m => m >= 12 ? `${Math.floor(m/12)}a ${m%12}m` : `${m}m`;
+
+  const empresas = [...new Set(ativos.map(e => e.empresa).filter(Boolean))];
+
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('rh-kpi-ativos',    ativos.length);
+  set('rh-kpi-desl12',    desl12.length);
+  set('rh-kpi-turnover',  turnover + '%');
+  set('rh-kpi-tempo',     fmtTempo(avgMeses));
+  set('rh-kpi-empresas',  empresas.length);
+
+  renderRhEmpresa(ativos);
+  renderRhSetor(ativos);
+  renderRhTempoMedioSetor(ativos, mesesTenure, fmtTempo);
+  renderRhMovimentacao(emps);
+  renderRhTurnoverSetor(ativos, desl12);
+  renderRhAniversarios(ativos);
+  renderRhCNH(ativos);
+  renderRhNR();
+}
+
+function renderRhEmpresa(ativos) {
+  const map = {};
+  ativos.forEach(e => { const k = e.empresa || '(sem empresa)'; map[k] = (map[k] || 0) + 1; });
+  const sorted = Object.entries(map).sort((a, b) => b[1] - a[1]);
+  const max = sorted[0] ? sorted[0][1] : 1;
+  const CORES = ['#6366f1','#06b6d4','#22c55e','#f97316','#ec4899','#eab308','#8b5cf6','#94a3b8'];
+  const el = document.getElementById('rh-por-empresa');
+  if (!el) return;
+  el.innerHTML = sorted.map(([nome, n], i) => {
+    const pct = Math.round(n / max * 100);
+    const cor = CORES[i % CORES.length];
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+        <span style="font-size:12px;color:var(--text)">${nome}</span>
+        <span style="font-size:12px;font-weight:700;color:${cor}">${n}</span>
+      </div>
+      <div style="height:5px;background:var(--bg3);border-radius:3px">
+        <div style="height:5px;width:${pct}%;background:${cor};border-radius:3px"></div>
+      </div>
+    </div>`;
+  }).join('') || '<div style="color:var(--text3);font-size:12px;padding:8px 0">Sem dados</div>';
+}
+
+function renderRhSetor(ativos) {
+  const map = {};
+  ativos.forEach(e => { const k = e.depto || '(sem setor)'; map[k] = (map[k] || 0) + 1; });
+  const sorted = Object.entries(map).sort((a, b) => b[1] - a[1]);
+  const max = sorted[0] ? sorted[0][1] : 1;
+  const CORES = ['#6366f1','#06b6d4','#22c55e','#f97316','#ec4899','#eab308','#8b5cf6','#94a3b8'];
+  const badge = document.getElementById('rh-setor-badge');
+  if (badge) badge.textContent = ativos.length + ' ativos';
+  const el = document.getElementById('rh-por-setor');
+  if (!el) return;
+  el.innerHTML = sorted.map(([nome, n], i) => {
+    const pct = Math.round(n / max * 100);
+    const cor = CORES[i % CORES.length];
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+        <span style="font-size:11px;color:var(--text);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nome}</span>
+        <span style="font-size:12px;font-weight:700;color:${cor}">${n}</span>
+      </div>
+      <div style="height:5px;background:var(--bg3);border-radius:3px">
+        <div style="height:5px;width:${pct}%;background:${cor};border-radius:3px"></div>
+      </div>
+    </div>`;
+  }).join('') || '<div style="color:var(--text3);font-size:12px;padding:8px 0">Sem dados</div>';
+}
+
+function renderRhTempoMedioSetor(ativos, mesesTenure, fmtTempo) {
+  const map = {};
+  ativos.forEach(e => {
+    const k = e.depto || '(sem setor)';
+    const m = mesesTenure(e);
+    if (m === null) return;
+    if (!map[k]) map[k] = [];
+    map[k].push(m);
+  });
+  const sorted = Object.entries(map).map(([s, arr]) => ({
+    setor: s,
+    avg: Math.round(arr.reduce((a, b) => a + b, 0) / arr.length),
+    n: arr.length
+  })).sort((a, b) => b.avg - a.avg);
+  const max = sorted[0] ? sorted[0].avg : 1;
+  const el = document.getElementById('rh-tempo-setor');
+  if (!el) return;
+  el.innerHTML = sorted.map(s => {
+    const pct = Math.round(s.avg / max * 100);
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+        <span style="font-size:11px;color:var(--text);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.setor}</span>
+        <span style="font-size:12px;font-weight:700;color:var(--cyan)">${fmtTempo(s.avg)}</span>
+      </div>
+      <div style="height:5px;background:var(--bg3);border-radius:3px">
+        <div style="height:5px;width:${pct}%;background:var(--cyan);border-radius:3px"></div>
+      </div>
+    </div>`;
+  }).join('') || '<div style="color:var(--text3);font-size:12px;padding:8px 0">Sem dados</div>';
+}
+
+function renderRhMovimentacao(emps) {
+  const hoje = new Date();
+  const meses = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+    meses.push({ ano: d.getFullYear(), mes: d.getMonth(), label: d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }) });
+  }
+  const el = document.getElementById('rh-movimentacao');
+  if (!el) return;
+  el.innerHTML = meses.map(({ ano, mes, label }) => {
+    const adm  = emps.filter(e => e.admissao  && e.admissao.getFullYear()  === ano && e.admissao.getMonth()  === mes).length;
+    const desl = emps.filter(e => e.demissao  && e.demissao.getFullYear()  === ano && e.demissao.getMonth()  === mes).length;
+    const saldo = adm - desl;
+    const cor = saldo > 0 ? 'var(--green)' : saldo < 0 ? 'var(--red)' : 'var(--text3)';
+    return `<div style="background:var(--bg3);border-radius:8px;padding:12px 10px;text-align:center">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:6px;text-transform:uppercase">${label}</div>
+      <div style="font-size:13px;font-weight:700;color:var(--green);margin-bottom:2px">+${adm} <span style="font-size:10px;font-weight:400">adm.</span></div>
+      <div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:6px">-${desl} <span style="font-size:10px;font-weight:400">desl.</span></div>
+      <div style="font-size:11px;font-weight:700;color:${cor};border-top:1px solid var(--border);padding-top:6px">${saldo > 0 ? '+' : ''}${saldo}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderRhTurnoverSetor(ativos, desl12) {
+  const map = {};
+  ativos.forEach(e => { const k = e.depto || '(sem setor)'; if (!map[k]) map[k] = { a: 0, d: 0 }; map[k].a++; });
+  desl12.forEach(e => { const k = e.depto || '(sem setor)'; if (!map[k]) map[k] = { a: 0, d: 0 }; map[k].d++; });
+  const sorted = Object.entries(map).map(([s, v]) => ({
+    setor: s, ativos: v.a, desl: v.d,
+    pct: (v.a + v.d) > 0 ? (v.d / (v.a + v.d) * 100).toFixed(1) : '0.0'
+  })).sort((a, b) => parseFloat(b.pct) - parseFloat(a.pct));
+  const tbody = document.getElementById('rh-turnover-setor');
+  if (!tbody) return;
+  tbody.innerHTML = sorted.map(s => {
+    const p = parseFloat(s.pct);
+    const cor = p > 20 ? 'var(--red)' : p > 10 ? 'var(--amber)' : 'var(--green)';
+    return `<tr>
+      <td style="font-size:12px">${s.setor}</td>
+      <td style="text-align:center">${s.ativos}</td>
+      <td style="text-align:center;color:var(--red)">${s.desl}</td>
+      <td style="text-align:center;font-weight:700;color:${cor}">${s.pct}%</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">Sem dados</td></tr>';
+}
+
+function renderRhAniversarios(ativos) {
+  const hoje = new Date();
+  const mesAtual = hoje.getMonth();
+  const aniv = ativos.filter(e => e.nascimento && e.nascimento.getMonth() === mesAtual)
+    .sort((a, b) => a.nascimento.getDate() - b.nascimento.getDate());
+  const badge = document.getElementById('rh-aniv-badge');
+  if (badge) badge.textContent = aniv.length + ' aniversariante' + (aniv.length !== 1 ? 's' : '');
+  const tbody = document.getElementById('rh-aniversarios');
+  if (!tbody) return;
+  tbody.innerHTML = aniv.map(e => {
+    const dia  = e.nascimento.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+    const idade = hoje.getFullYear() - e.nascimento.getFullYear();
+    const jaFez = hoje >= new Date(hoje.getFullYear(), e.nascimento.getMonth(), e.nascimento.getDate());
+    const idadeReal = jaFez ? idade : idade - 1;
+    const isHoje = e.nascimento.getDate() === hoje.getDate() && e.nascimento.getMonth() === hoje.getMonth();
+    return `<tr${isHoje ? ' style="background:rgba(34,197,94,.08)"' : ''}>
+      <td style="font-size:12px${isHoje ? ';color:var(--green);font-weight:600' : ''}">${e.nome}${isHoje ? ' 🎂' : ''}</td>
+      <td style="font-size:11px;color:var(--text3)">${e.depto || '—'}</td>
+      <td style="font-size:12px;color:var(--text2)">${dia}</td>
+      <td style="font-size:12px;text-align:center;color:var(--accent)">${idadeReal}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">Nenhum aniversariante este mês</td></tr>';
+}
+
+function renderRhCNH(ativos) {
+  const hoje = new Date();
+  const comCNH = ativos.filter(e => e.cnhVenc);
+  const badge = document.getElementById('rh-cnh-badge');
+  const sorted = comCNH.sort((a, b) => a.cnhVenc - b.cnhVenc);
+  const vencidos = sorted.filter(e => e.cnhVenc < hoje).length;
+  const a90     = sorted.filter(e => e.cnhVenc >= hoje && (e.cnhVenc - hoje) <= 90 * 24 * 3600 * 1000).length;
+  if (badge) {
+    badge.textContent = comCNH.length + ' com CNH' + (vencidos > 0 ? ` · ${vencidos} vencida${vencidos > 1 ? 's' : ''}` : a90 > 0 ? ` · ${a90} a vencer` : '');
+    badge.className = 'badge ' + (vencidos > 0 ? 'b-red' : a90 > 0 ? 'b-amber' : 'b-green');
+  }
+  const tbody = document.getElementById('rh-cnh-tbl');
+  if (!tbody) return;
+  if (!sorted.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Nenhum colaborador com CNH cadastrada</td></tr>'; return; }
+  tbody.innerHTML = sorted.map(e => {
+    const venc = e.cnhVenc.toLocaleDateString('pt-BR');
+    const diff = Math.ceil((e.cnhVenc - hoje) / (1000 * 60 * 60 * 24));
+    let status, cor;
+    if (diff < 0)        { status = 'Vencida';    cor = 'var(--red)'; }
+    else if (diff <= 30) { status = diff + 'd';    cor = 'var(--red)'; }
+    else if (diff <= 90) { status = diff + 'd';    cor = 'var(--amber)'; }
+    else                 { status = 'OK';          cor = 'var(--green)'; }
+    return `<tr>
+      <td style="font-size:12px">${e.nome}</td>
+      <td style="font-size:11px;color:var(--text3)">${e.depto || '—'}</td>
+      <td style="text-align:center;font-size:12px">${e.cnhCat || '—'}</td>
+      <td style="text-align:center;font-size:12px;color:${cor}">${venc}</td>
+      <td style="text-align:center"><span class="badge" style="background:${cor}22;color:${cor};border:1px solid ${cor}44;font-size:10px">${status}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderRhNR() {
+  const lista = JSON.parse(localStorage.getItem('rhNRCerts') || '[]');
+  const hoje = new Date();
+  const tbody = document.getElementById('rh-nr-tbl');
+  if (!tbody) return;
+  if (!lista.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:16px">Nenhuma certificação cadastrada · Clique em <b>+ Adicionar</b></td></tr>'; return; }
+  tbody.innerHTML = lista.map((c, i) => {
+    const vencDate = c.vencimento ? new Date(c.vencimento) : null;
+    const diff = vencDate ? Math.ceil((vencDate - hoje) / (1000 * 60 * 60 * 24)) : null;
+    let status = '—', cor = 'var(--text3)';
+    if (vencDate) {
+      if (diff < 0)        { status = 'Vencida';   cor = 'var(--red)'; }
+      else if (diff <= 30) { status = diff + 'd';   cor = 'var(--red)'; }
+      else if (diff <= 90) { status = diff + 'd';   cor = 'var(--amber)'; }
+      else                 { status = 'OK';         cor = 'var(--green)'; }
+    }
+    const emissaoFmt = c.emissao   ? new Date(c.emissao).toLocaleDateString('pt-BR')   : '—';
+    const vencFmt    = vencDate    ? vencDate.toLocaleDateString('pt-BR')               : '—';
+    return `<tr>
+      <td style="font-size:12px">${c.nome}</td>
+      <td style="font-size:11px;color:var(--text3)">${c.setor || '—'}</td>
+      <td style="font-size:12px;font-weight:600;color:var(--amber)">${c.tipo || '—'}</td>
+      <td style="font-size:12px;color:var(--text2)">${emissaoFmt}</td>
+      <td style="font-size:12px;color:${cor}">${vencFmt}</td>
+      <td style="text-align:center"><span class="badge" style="background:${cor}22;color:${cor};border:1px solid ${cor}44;font-size:10px">${status}</span></td>
+      <td style="text-align:center"><button onclick="removerNRCert(${i})" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:2px 4px" title="Remover">✕</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function abrirModalNR() {
+  ['nr-nome','nr-setor','nr-emissao','nr-vencimento','nr-obs'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  const sel = document.getElementById('nr-tipo'); if (sel) sel.selectedIndex = 0;
+  const modal = document.getElementById('modalNRCert');
+  if (modal) { modal.style.display = 'flex'; }
+}
+
+function salvarNRCert() {
+  const get = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  const nome = get('nr-nome');
+  if (!nome) { alert('Informe o nome do colaborador'); return; }
+  const cert = {
+    nome,
+    setor:      get('nr-setor'),
+    tipo:       get('nr-tipo'),
+    emissao:    get('nr-emissao'),
+    vencimento: get('nr-vencimento'),
+    obs:        get('nr-obs'),
+  };
+  const lista = JSON.parse(localStorage.getItem('rhNRCerts') || '[]');
+  lista.push(cert);
+  localStorage.setItem('rhNRCerts', JSON.stringify(lista));
+  document.getElementById('modalNRCert').style.display = 'none';
+  renderRhNR();
+}
+
+function removerNRCert(idx) {
+  const lista = JSON.parse(localStorage.getItem('rhNRCerts') || '[]');
+  lista.splice(idx, 1);
+  localStorage.setItem('rhNRCerts', JSON.stringify(lista));
+  renderRhNR();
 }
 </script>
 </body>
