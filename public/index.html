@@ -1185,6 +1185,25 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
       </div>
 
+      <!-- Modal: clientes em risco por vendedor (1ª mensalidade) -->
+      <div id="modalRiscoVendedor" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:0;width:520px;max-width:96vw;max-height:80vh;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border)">
+            <div>
+              <div id="modalRiscoTitulo" style="font-weight:600;font-size:14px;color:var(--text)"></div>
+              <div id="modalRiscoSub" style="font-size:11px;color:var(--text3);margin-top:2px"></div>
+            </div>
+            <button onclick="document.getElementById('modalRiscoVendedor').style.display='none'" style="background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer;line-height:1">✕</button>
+          </div>
+          <div style="overflow-y:auto;flex:1">
+            <table class="tbl" style="font-size:12px">
+              <thead><tr><th>Cliente</th><th>Plano</th><th>Mensalidade</th><th>Cidade</th><th>Desde</th></tr></thead>
+              <tbody id="modalRiscoLista"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <!-- Clientes recorrentes — período dinâmico -->
       <div class="tbl-card">
         <div class="tbl-header">
@@ -6317,8 +6336,10 @@ function renderFinanceiro(d) {
     const pv = pm.por_vendedor || [];
     primVend.innerHTML = pv.length ? pv.map(v => {
       const cor = v.pct >= 30 ? '#ef4444' : v.pct >= 15 ? 'var(--amber)' : '#22c55e';
-      return `<tr>
-        <td style="font-weight:500">${v.vendedor}</td>
+      const listaJson = JSON.stringify(v.lista || []).replace(/'/g,'&#39;').replace(/"/g,'&quot;');
+      const clicavel = (v.lista||[]).length > 0;
+      return `<tr ${clicavel ? `onclick="abrirRiscoVendedor('${v.vendedor.replace(/'/g,"&#39;")}',${v.nao_pagou},'${listaJson}')" style="cursor:pointer" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''"` : ''}>
+        <td style="font-weight:500">${v.vendedor}${clicavel ? ' <i class="fas fa-chevron-right" style="font-size:9px;opacity:.4;margin-left:3px"></i>' : ''}</td>
         <td class="mono">${v.novos}</td>
         <td class="mono" style="color:#ef4444">${v.nao_pagou}</td>
         <td class="mono" style="color:${cor}">${v.pct}%</td>
@@ -6816,6 +6837,24 @@ function fmtHMin(minutos) {
   const m = Math.abs(minutos) % 60;
   const sinal = minutos < 0 ? '-' : '';
   return `${sinal}${h}h${m > 0 ? m+'m' : ''}`;
+}
+
+function abrirRiscoVendedor(vendedor, total, listaJson) {
+  const lista = typeof listaJson === 'string' ? JSON.parse(listaJson.replace(/&quot;/g,'"').replace(/&#39;/g,"'")) : listaJson;
+  document.getElementById('modalRiscoTitulo').textContent = vendedor;
+  document.getElementById('modalRiscoSub').textContent = `${total} cliente${total !== 1 ? 's' : ''} com 1ª mensalidade em risco`;
+  const tbody = document.getElementById('modalRiscoLista');
+  tbody.innerHTML = lista.length ? lista.map(c => {
+    const data = c.dataHab ? new Date(c.dataHab).toLocaleDateString('pt-BR') : '—';
+    return `<tr>
+      <td style="font-weight:500">${c.nome || '—'}</td>
+      <td style="font-size:11px;color:var(--text3)">${c.plano || '—'}</td>
+      <td class="mono" style="color:var(--amber)">${c.valor ? 'R$ '+Number(c.valor).toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—'}</td>
+      <td style="font-size:11px;color:var(--text3)">${c.cidade || '—'}</td>
+      <td style="font-size:11px;color:var(--text3)">${data}</td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Sem clientes na lista</td></tr>';
+  document.getElementById('modalRiscoVendedor').style.display = 'flex';
 }
 
 function renderRhHeadcount(d) {
