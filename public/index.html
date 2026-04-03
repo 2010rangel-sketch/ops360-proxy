@@ -7071,18 +7071,30 @@ function handleRhFileDrop(event) {
 
 function _loadRhFile(file) {
   const reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = async function(e) {
     try {
       const text = e.target.result;
       const employees = parseRhCsv(text);
-      // Persiste CSV bruto e metadados no localStorage (sobrescreve versão anterior)
+      const meta = { nome: file.name, data: new Date().toISOString() };
+
+      // 1) Aplica imediatamente na tela
+      _aplicarRhDados(employees, file.name);
+
+      // 2) Salva no servidor (fonte de verdade)
+      try {
+        await fetch(`${PROXY_URL}/api/rh/csv-store`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ csv: text, meta }),
+        });
+      } catch(sErr) { console.warn('[RH] CSV não salvo no servidor:', sErr.message); }
+
+      // 3) Cache local como fallback offline
       try {
         localStorage.setItem('rhCsvData', text);
-        localStorage.setItem('rhCsvMeta', JSON.stringify({ nome: file.name, data: new Date().toISOString() }));
-      } catch(storageErr) {
-        console.warn('localStorage cheio, CSV não persistido:', storageErr.message);
-      }
-      _aplicarRhDados(employees, file.name);
+        localStorage.setItem('rhCsvMeta', JSON.stringify(meta));
+      } catch {}
+
     } catch(err) {
       alert('Erro ao processar CSV: ' + err.message);
     }
@@ -7117,14 +7129,28 @@ function _rhCsvMetaLabel(nomeArquivo) {
   } catch { return nomeArquivo || 'CSV'; }
 }
 
-function _restoreRhFromStorage() {
+async function _restoreRhFromStorage() {
+  try {
+    // Tenta servidor primeiro (fonte de verdade)
+    const r = await fetch(`${PROXY_URL}/api/rh/csv-store`);
+    if (r.ok) {
+      const { csv, meta } = await r.json();
+      if (csv) {
+        const employees = parseRhCsv(csv);
+        _aplicarRhDados(employees, meta?.nome || null);
+        // Atualiza cache local
+        try { localStorage.setItem('rhCsvData', csv); localStorage.setItem('rhCsvMeta', JSON.stringify(meta || {})); } catch {}
+        return;
+      }
+    }
+  } catch {}
+  // Fallback: localStorage (offline ou servidor sem dados)
   try {
     const text = localStorage.getItem('rhCsvData');
     if (!text) return;
     const employees = parseRhCsv(text);
     _aplicarRhDados(employees, null);
   } catch(e) {
-    // CSV salvo pode estar corrompido — descarta silenciosamente
     localStorage.removeItem('rhCsvData');
     localStorage.removeItem('rhCsvMeta');
   }
@@ -7422,8 +7448,32 @@ function renderRhCNH(ativos) {
   }).join('');
 }
 
+function _nrGetLista() {
+  try { return JSON.parse(localStorage.getItem('rhNRCerts') || '[]'); } catch { return []; }
+}
+async function _nrSyncServer(lista) {
+  try {
+    await fetch(`${PROXY_URL}/api/rh/nr-certs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(lista),
+    });
+  } catch(e) { console.warn('[NR] sync falhou:', e.message); }
+}
+async function _nrRestoreFromServer() {
+  try {
+    const r = await fetch(`${PROXY_URL}/api/rh/nr-certs`);
+    if (!r.ok) return;
+    const lista = await r.json();
+    if (Array.isArray(lista) && lista.length > 0) {
+      localStorage.setItem('rhNRCerts', JSON.stringify(lista));
+      renderRhNR();
+    }
+  } catch {}
+}
+
 function renderRhNR() {
-  const lista = JSON.parse(localStorage.getItem('rhNRCerts') || '[]');
+  const lista = _nrGetLista();
   const hoje = new Date();
   const tbody = document.getElementById('rh-nr-tbl');
   if (!tbody) return;
@@ -7462,25 +7512,20 @@ function salvarNRCert() {
   const get = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
   const nome = get('nr-nome');
   if (!nome) { alert('Informe o nome do colaborador'); return; }
-  const cert = {
-    nome,
-    setor:      get('nr-setor'),
-    tipo:       get('nr-tipo'),
-    emissao:    get('nr-emissao'),
-    vencimento: get('nr-vencimento'),
-    obs:        get('nr-obs'),
-  };
-  const lista = JSON.parse(localStorage.getItem('rhNRCerts') || '[]');
+  const cert = { nome, setor: get('nr-setor'), tipo: get('nr-tipo'), emissao: get('nr-emissao'), vencimento: get('nr-vencimento'), obs: get('nr-obs') };
+  const lista = _nrGetLista();
   lista.push(cert);
   localStorage.setItem('rhNRCerts', JSON.stringify(lista));
+  _nrSyncServer(lista);
   document.getElementById('modalNRCert').style.display = 'none';
   renderRhNR();
 }
 
 function removerNRCert(idx) {
-  const lista = JSON.parse(localStorage.getItem('rhNRCerts') || '[]');
+  const lista = _nrGetLista();
   lista.splice(idx, 1);
   localStorage.setItem('rhNRCerts', JSON.stringify(lista));
+  _nrSyncServer(lista);
   renderRhNR();
 }
 
@@ -7614,14 +7659,17 @@ function salvarNRLote() {
     salvos++;
   });
   localStorage.setItem('rhNRCerts', JSON.stringify(lista));
+  _nrSyncServer(lista);
   document.getElementById('modalNRLote').style.display = 'none';
   renderRhNR();
   window._nrLote = [];
 }
 
 // ── Restauração automática ao carregar a página ──────────────────
-_restoreRhFromStorage();
-renderRhNR();
+// Carrega servidor (fonte de verdade) e localStorage como fallback
+_restoreRhFromStorage();   // CSV — async, busca servidor → localStorage
+_nrRestoreFromServer();    // NR certs — async, servidor → localStorage
+renderRhNR();              // Renderiza localStorage imediatamente enquanto servidor responde
 </script>
 </body>
 </html>

@@ -274,7 +274,7 @@ function extrairPaginacao(data) {
 
 // ── CORS: permite acesso do dashboard em qualquer origem ─────────
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '15mb' }));
 
 // ── Serve o dashboard (arquivo HTML) ────────────────────────────
 app.use(express.static(path.join(__dirname, 'public')));
@@ -2972,6 +2972,71 @@ app.get('/api/rh/ponto', async (req, res) => {
     if (_rhPontoCache) return res.json({..._rhPontoCache, aviso:e.message});
     res.status(500).json({erro:e.message});
   }
+});
+
+// ════════════════════════════════════════════════════════════════
+//  RH STORAGE — CSV de funcionários + certificados NR
+//  Persiste em /data no Railway Volume montado em /app/data
+// ════════════════════════════════════════════════════════════════
+
+const RH_DATA_DIR  = path.join(__dirname, 'data');
+const RH_CSV_FILE  = path.join(RH_DATA_DIR, 'rh_csv.txt');
+const RH_CSV_META  = path.join(RH_DATA_DIR, 'rh_csv_meta.json');
+const RH_NR_FILE   = path.join(RH_DATA_DIR, 'rh_nr_certs.json');
+
+function ensureDataDir() {
+  try { fs.mkdirSync(RH_DATA_DIR, { recursive: true }); } catch {}
+}
+
+// GET /api/rh/csv-store  → devolve CSV salvo + meta
+app.get('/api/rh/csv-store', (req, res) => {
+  try {
+    const csv  = fs.existsSync(RH_CSV_FILE) ? fs.readFileSync(RH_CSV_FILE, 'utf8') : null;
+    const meta = fs.existsSync(RH_CSV_META) ? JSON.parse(fs.readFileSync(RH_CSV_META, 'utf8')) : null;
+    if (!csv) return res.json({ csv: null, meta: null });
+    res.json({ csv, meta });
+  } catch(e) { res.status(500).json({ erro: e.message }); }
+});
+
+// POST /api/rh/csv-store  → salva CSV enviado pelo browser
+// body: { csv: "<texto>", meta: { nome, data } }
+app.post('/api/rh/csv-store', express.text({ limit: '10mb' }), (req, res) => {
+  try {
+    ensureDataDir();
+    // Aceita tanto text/plain quanto JSON
+    let csv, meta;
+    const ct = req.headers['content-type'] || '';
+    if (ct.includes('application/json')) {
+      csv  = req.body.csv;
+      meta = req.body.meta;
+    } else {
+      // text/plain: body é o CSV, meta vem em header
+      csv  = req.body;
+      try { meta = JSON.parse(req.headers['x-rh-meta'] || '{}'); } catch { meta = {}; }
+    }
+    fs.writeFileSync(RH_CSV_FILE, csv, 'utf8');
+    fs.writeFileSync(RH_CSV_META, JSON.stringify({ ...meta, savedAt: new Date().toISOString() }));
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ erro: e.message }); }
+});
+
+// GET /api/rh/nr-certs  → devolve lista de certificações
+app.get('/api/rh/nr-certs', (req, res) => {
+  try {
+    const lista = fs.existsSync(RH_NR_FILE) ? JSON.parse(fs.readFileSync(RH_NR_FILE, 'utf8')) : [];
+    res.json(lista);
+  } catch(e) { res.status(500).json({ erro: e.message }); }
+});
+
+// POST /api/rh/nr-certs  → salva lista completa (substitui)
+// body: [ { nome, setor, tipo, emissao, vencimento, obs }, ... ]
+app.post('/api/rh/nr-certs', (req, res) => {
+  try {
+    ensureDataDir();
+    const lista = Array.isArray(req.body) ? req.body : [];
+    fs.writeFileSync(RH_NR_FILE, JSON.stringify(lista, null, 2));
+    res.json({ ok: true, total: lista.length });
+  } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
 // ── Inicializa ────────────────────────────────────────────────────
