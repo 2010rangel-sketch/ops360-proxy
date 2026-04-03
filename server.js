@@ -2989,9 +2989,15 @@ const { Pool } = require('pg');
 let _pgPool = null;
 function getPool() {
   if (!_pgPool) {
+    // Vercel Neon com prefixo STORAGE → STORAGE_URL; sem prefixo → DATABASE_URL
+    const connStr = process.env.DATABASE_URL
+      || process.env.POSTGRES_URL
+      || process.env.STORAGE_URL
+      || process.env.POSTGRES_PRISMA_URL;
+    if (!connStr) { console.warn('[db] Nenhuma DATABASE_URL encontrada'); return null; }
     _pgPool = new Pool({
-      connectionString: process.env.DATABASE_URL || process.env.POSTGRES_URL,
-      ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+      connectionString: connStr,
+      ssl: { rejectUnauthorized: false },
     });
   }
   return _pgPool;
@@ -3014,14 +3020,16 @@ async function dbInit() {
 
 async function kvGet(key) {
   try {
-    const r = await getPool().query('SELECT value FROM kv_store WHERE key=$1', [key]);
+    const pool = getPool(); if (!pool) return null;
+    const r = await pool.query('SELECT value FROM kv_store WHERE key=$1', [key]);
     return r.rows[0]?.value ?? null;
   } catch { return null; }
 }
 
 async function kvSet(key, value) {
   try {
-    await getPool().query(
+    const pool = getPool(); if (!pool) return false;
+    await pool.query(
       `INSERT INTO kv_store(key,value,updated_at) VALUES($1,$2,NOW())
        ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value, updated_at=NOW()`,
       [key, value]
