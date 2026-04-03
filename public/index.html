@@ -7586,7 +7586,13 @@ async function lerPdfNR(event) {
     dates.sort((a, b) => a - b);
     const toISO = dt => { const y=dt.getFullYear(), mo=String(dt.getMonth()+1).padStart(2,'0'), d=String(dt.getDate()).padStart(2,'0'); return `${y}-${mo}-${d}`; };
     const emissao    = dates.length > 0 ? toISO(dates[0]) : '';
-    const vencimento = dates.length > 1 ? toISO(dates[dates.length-1]) : '';
+    // Vencimento: usa data do PDF se encontrada, senão calcula emissão + 24 meses
+    let vencimento = dates.length > 1 ? toISO(dates[dates.length-1]) : '';
+    if (!vencimento && emissao) {
+      const base = new Date(emissao);
+      base.setMonth(base.getMonth() + 24);
+      vencimento = toISO(base);
+    }
     const linhas = fullText.split(/\n|\r/).map(l => l.trim()).filter(Boolean);
     let nome = '';
     // 1. Tenta padrões explícitos: "Certificamos que NOME", "concluído por NOME", "Nome: NOME"
