@@ -2470,6 +2470,7 @@ function goPage(id, el) {
   }
   if (id === 'rh') {
     loadRh();
+    if (!window._rhEmployees) _restoreRhFromStorage();
   }
 }
 
@@ -7072,18 +7073,61 @@ function _loadRhFile(file) {
   const reader = new FileReader();
   reader.onload = function(e) {
     try {
-      const employees = parseRhCsv(e.target.result);
-      window._rhEmployees = employees;
-      document.getElementById('rh-upload-zone').style.display = 'none';
-      document.getElementById('rh-content').style.display = '';
-      const badge = document.getElementById('rh-file-badge');
-      if (badge) { badge.textContent = file.name; badge.style.cssText = 'background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.3)'; }
-      renderRhDashboard(employees);
+      const text = e.target.result;
+      const employees = parseRhCsv(text);
+      // Persiste CSV bruto e metadados no localStorage (sobrescreve versão anterior)
+      try {
+        localStorage.setItem('rhCsvData', text);
+        localStorage.setItem('rhCsvMeta', JSON.stringify({ nome: file.name, data: new Date().toISOString() }));
+      } catch(storageErr) {
+        console.warn('localStorage cheio, CSV não persistido:', storageErr.message);
+      }
+      _aplicarRhDados(employees, file.name);
     } catch(err) {
       alert('Erro ao processar CSV: ' + err.message);
     }
   };
   reader.readAsText(file, 'UTF-8');
+}
+
+function _aplicarRhDados(employees, nomeArquivo) {
+  window._rhEmployees = employees;
+  document.getElementById('rh-upload-zone').style.display = 'none';
+  document.getElementById('rh-content').style.display = '';
+  const badge = document.getElementById('rh-file-badge');
+  if (badge) {
+    const meta = _rhCsvMetaLabel(nomeArquivo);
+    badge.innerHTML = `<i class="fas fa-file-csv" style="margin-right:4px"></i>${meta}`;
+    badge.style.cssText = 'background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.3)';
+  }
+  renderRhDashboard(employees);
+}
+
+function _rhCsvMetaLabel(nomeArquivo) {
+  try {
+    const meta = JSON.parse(localStorage.getItem('rhCsvMeta') || '{}');
+    const nome = nomeArquivo || meta.nome || 'CSV carregado';
+    if (meta.data) {
+      const d = new Date(meta.data);
+      const fmt = d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit' }) +
+                  ' ' + d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+      return `${nome} · ${fmt}`;
+    }
+    return nome;
+  } catch { return nomeArquivo || 'CSV'; }
+}
+
+function _restoreRhFromStorage() {
+  try {
+    const text = localStorage.getItem('rhCsvData');
+    if (!text) return;
+    const employees = parseRhCsv(text);
+    _aplicarRhDados(employees, null);
+  } catch(e) {
+    // CSV salvo pode estar corrompido — descarta silenciosamente
+    localStorage.removeItem('rhCsvData');
+    localStorage.removeItem('rhCsvMeta');
+  }
 }
 
 function parseRhCsv(text) {
@@ -7574,6 +7618,10 @@ function salvarNRLote() {
   renderRhNR();
   window._nrLote = [];
 }
+
+// ── Restauração automática ao carregar a página ──────────────────
+_restoreRhFromStorage();
+renderRhNR();
 </script>
 </body>
 </html>
