@@ -37,17 +37,17 @@ const SETOR_POR_NOME = {
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// ── Credenciais via variáveis de ambiente (configure no Railway) ──
+// ── Credenciais Hubsoft (Railway usa nomes PT, Vercel usa nomes EN — suporta ambos) ──
 const HUBSOFT_HOST          = process.env.HUBSOFT_HOST          || 'https://api.lcvirtual.hubsoft.com.br';
-const HUBSOFT_CLIENT_ID     = process.env.HUBSOFT_CLIENT_ID     || '71';
+const HUBSOFT_CLIENT_ID     = process.env.HUBSOFT_CLIENT_ID     || process.env.ID_DO_CLIENTE_HUBSOFT || '71';
 const HUBSOFT_CLIENT_SECRET = process.env.HUBSOFT_CLIENT_SECRET || '';
 const HUBSOFT_USERNAME      = process.env.HUBSOFT_USERNAME      || '2026rangel@gmail.com';
-const HUBSOFT_PASSWORD      = process.env.HUBSOFT_PASSWORD      || '';
-const grant_type           = process.env.grant_type             || 'password';
+const HUBSOFT_PASSWORD      = process.env.HUBSOFT_PASSWORD      || process.env.SENHA_HUBSOFT || '';
+const grant_type            = process.env.grant_type            || process.env.tipo_de_concessão || 'password';
 
 // ── Apple iCloud CalDAV ───────────────────────────────────────────
-const APPLE_ID           = process.env.APPLE_ID           || '';
-const APPLE_APP_PASSWORD = process.env.APPLE_APP_PASSWORD || '';
+const APPLE_ID           = process.env.APPLE_ID           || process.env.ID_MAÇÃ           || '';
+const APPLE_APP_PASSWORD = process.env.APPLE_APP_PASSWORD || process.env.SENHA_DO_APP_APP  || '';
 let caldavCache = null; // { auth, baseUrl, calPath } — descoberto na 1ª chamada
 
 function icsDateTime(d) {
@@ -1768,29 +1768,32 @@ const cron       = require('node-cron');
 
 const TASKS_FILE = path.join(__dirname, 'data', 'tasks.json');
 
-function loadTasks() {
+async function loadTasks() {
+  // Tenta DB primeiro, fallback arquivo
+  const raw = await kvGet('tasks');
+  if (raw) { try { return JSON.parse(raw); } catch {} }
   try { return JSON.parse(fs.readFileSync(TASKS_FILE, 'utf8')); } catch { return []; }
 }
-function saveTasks(tasks) {
-  try {
-    fs.mkdirSync(path.dirname(TASKS_FILE), { recursive:true });
-    fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2));
-  } catch(e) { console.error('[tasks] save error', e.message); }
+async function saveTasks(tasks) {
+  const json = JSON.stringify(tasks, null, 2);
+  await kvSet('tasks', json);
+  // backup local
+  try { fs.mkdirSync(path.dirname(TASKS_FILE), { recursive:true }); fs.writeFileSync(TASKS_FILE, json); } catch {}
 }
 
 // ── CRUD ─────────────────────────────────────────────────────────
-app.get('/api/tasks', (req, res) => res.json(loadTasks()));
+app.get('/api/tasks', async (req, res) => res.json(await loadTasks()));
 
-app.post('/api/tasks', (req, res) => {
-  const tasks = loadTasks();
+app.post('/api/tasks', async (req, res) => {
+  const tasks = await loadTasks();
   const t = { ...req.body, id: Date.now().toString(), done: false, createdAt: new Date().toISOString() };
   tasks.push(t);
-  saveTasks(tasks);
+  await saveTasks(tasks);
   res.json(t);
 });
 
-app.put('/api/tasks/:id', (req, res) => {
-  const tasks = loadTasks();
+app.put('/api/tasks/:id', async (req, res) => {
+  const tasks = await loadTasks();
   const idx = tasks.findIndex(t => t.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
   tasks[idx] = { ...tasks[idx], ...req.body };
@@ -1811,14 +1814,14 @@ app.put('/api/tasks/:id', (req, res) => {
     tasks.push(_proximaTarefa);
   }
 
-  saveTasks(tasks);
+  await saveTasks(tasks);
   res.json({ ...tasks[idx], _proximaTarefa });
 });
 
-app.delete('/api/tasks/:id', (req, res) => {
-  let tasks = loadTasks();
+app.delete('/api/tasks/:id', async (req, res) => {
+  let tasks = await loadTasks();
   tasks = tasks.filter(t => t.id !== req.params.id);
-  saveTasks(tasks);
+  await saveTasks(tasks);
   res.json({ ok: true });
 });
 
@@ -2975,73 +2978,134 @@ app.get('/api/rh/ponto', async (req, res) => {
 });
 
 // ════════════════════════════════════════════════════════════════
-//  RH STORAGE — CSV de funcionários + certificados NR
-//  Persiste em /data no Railway Volume montado em /app/data
+//  KV STORAGE — PostgreSQL (Vercel Postgres / Railway Postgres)
+//  Tabela única kv_store(key TEXT PK, value TEXT, updated_at TIMESTAMPTZ)
+//  Chaves usadas: rh_csv, rh_csv_meta, rh_nr_certs, tasks
 // ════════════════════════════════════════════════════════════════
 
-const RH_DATA_DIR  = path.join(__dirname, 'data');
-const RH_CSV_FILE  = path.join(RH_DATA_DIR, 'rh_csv.txt');
-const RH_CSV_META  = path.join(RH_DATA_DIR, 'rh_csv_meta.json');
-const RH_NR_FILE   = path.join(RH_DATA_DIR, 'rh_nr_certs.json');
+const { Pool } = require('pg');
 
-function ensureDataDir() {
-  try { fs.mkdirSync(RH_DATA_DIR, { recursive: true }); } catch {}
+// DATABASE_URL é injetado automaticamente pelo Vercel Postgres e Railway Postgres
+let _pgPool = null;
+function getPool() {
+  if (!_pgPool) {
+    _pgPool = new Pool({
+      connectionString: process.env.DATABASE_URL || process.env.POSTGRES_URL,
+      ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+    });
+  }
+  return _pgPool;
 }
 
-// GET /api/rh/csv-store  → devolve CSV salvo + meta
-app.get('/api/rh/csv-store', (req, res) => {
+async function dbInit() {
   try {
-    const csv  = fs.existsSync(RH_CSV_FILE) ? fs.readFileSync(RH_CSV_FILE, 'utf8') : null;
-    const meta = fs.existsSync(RH_CSV_META) ? JSON.parse(fs.readFileSync(RH_CSV_META, 'utf8')) : null;
-    if (!csv) return res.json({ csv: null, meta: null });
-    res.json({ csv, meta });
+    await getPool().query(`
+      CREATE TABLE IF NOT EXISTS kv_store (
+        key        TEXT PRIMARY KEY,
+        value      TEXT NOT NULL,
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    console.log('[db] kv_store pronta');
+  } catch(e) {
+    console.warn('[db] sem banco PostgreSQL disponível — usando fallback arquivo:', e.message);
+  }
+}
+
+async function kvGet(key) {
+  try {
+    const r = await getPool().query('SELECT value FROM kv_store WHERE key=$1', [key]);
+    return r.rows[0]?.value ?? null;
+  } catch { return null; }
+}
+
+async function kvSet(key, value) {
+  try {
+    await getPool().query(
+      `INSERT INTO kv_store(key,value,updated_at) VALUES($1,$2,NOW())
+       ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value, updated_at=NOW()`,
+      [key, value]
+    );
+    return true;
+  } catch(e) {
+    console.error('[kvSet]', e.message);
+    return false;
+  }
+}
+
+// ── Fallback arquivo (Railway sem Postgres, dev local) ────────────
+const RH_DATA_DIR = path.join(__dirname, 'data');
+function fileGet(name) {
+  try {
+    const p = path.join(RH_DATA_DIR, name);
+    return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null;
+  } catch { return null; }
+}
+function fileSet(name, content) {
+  try {
+    fs.mkdirSync(RH_DATA_DIR, { recursive: true });
+    fs.writeFileSync(path.join(RH_DATA_DIR, name), content, 'utf8');
+  } catch(e) { console.error('[fileSet]', e.message); }
+}
+
+async function storeGet(key) {
+  const v = await kvGet(key);
+  if (v !== null) return v;
+  return fileGet(key.replace(/\//g, '_') + (key.endsWith('meta') ? '.json' : key === 'rh_csv' ? '.txt' : '.json'));
+}
+async function storeSet(key, value) {
+  const ok = await kvSet(key, value);
+  // Escreve no arquivo também como backup local
+  fileSet(key.replace(/\//g, '_') + (key === 'rh_csv' ? '.txt' : '.json'), value);
+  return ok;
+}
+
+// ── Endpoints RH storage ─────────────────────────────────────────
+
+app.get('/api/rh/csv-store', async (req, res) => {
+  try {
+    const csv  = await storeGet('rh_csv');
+    const metaRaw = await storeGet('rh_csv_meta');
+    const meta = metaRaw ? JSON.parse(metaRaw) : null;
+    res.json({ csv: csv || null, meta });
   } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
-// POST /api/rh/csv-store  → salva CSV enviado pelo browser
-// body: { csv: "<texto>", meta: { nome, data } }
-app.post('/api/rh/csv-store', express.text({ limit: '10mb' }), (req, res) => {
+app.post('/api/rh/csv-store', async (req, res) => {
   try {
-    ensureDataDir();
-    // Aceita tanto text/plain quanto JSON
-    let csv, meta;
-    const ct = req.headers['content-type'] || '';
-    if (ct.includes('application/json')) {
-      csv  = req.body.csv;
-      meta = req.body.meta;
-    } else {
-      // text/plain: body é o CSV, meta vem em header
-      csv  = req.body;
-      try { meta = JSON.parse(req.headers['x-rh-meta'] || '{}'); } catch { meta = {}; }
-    }
-    fs.writeFileSync(RH_CSV_FILE, csv, 'utf8');
-    fs.writeFileSync(RH_CSV_META, JSON.stringify({ ...meta, savedAt: new Date().toISOString() }));
+    const { csv, meta } = req.body;
+    if (!csv) return res.status(400).json({ erro: 'csv obrigatório' });
+    await storeSet('rh_csv', csv);
+    await storeSet('rh_csv_meta', JSON.stringify({ ...(meta||{}), savedAt: new Date().toISOString() }));
     res.json({ ok: true });
   } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
-// GET /api/rh/nr-certs  → devolve lista de certificações
-app.get('/api/rh/nr-certs', (req, res) => {
+app.get('/api/rh/nr-certs', async (req, res) => {
   try {
-    const lista = fs.existsSync(RH_NR_FILE) ? JSON.parse(fs.readFileSync(RH_NR_FILE, 'utf8')) : [];
-    res.json(lista);
+    const raw = await storeGet('rh_nr_certs');
+    res.json(raw ? JSON.parse(raw) : []);
   } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
-// POST /api/rh/nr-certs  → salva lista completa (substitui)
-// body: [ { nome, setor, tipo, emissao, vencimento, obs }, ... ]
-app.post('/api/rh/nr-certs', (req, res) => {
+app.post('/api/rh/nr-certs', async (req, res) => {
   try {
-    ensureDataDir();
     const lista = Array.isArray(req.body) ? req.body : [];
-    fs.writeFileSync(RH_NR_FILE, JSON.stringify(lista, null, 2));
+    await storeSet('rh_nr_certs', JSON.stringify(lista));
     res.json({ ok: true, total: lista.length });
   } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
 // ── Inicializa ────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`\n🚀 OPS360 Proxy rodando na porta ${PORT}`);
-  console.log(`   Host Hubsoft: ${HUBSOFT_HOST}`);
-  console.log(`   Dashboard:    http://localhost:${PORT}\n`);
-});
+dbInit(); // cria tabela se não existir (não bloqueia)
+
+// Exporta para Vercel (serverless) — mantém listen para Railway/local
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`\n🚀 OPS360 Proxy rodando na porta ${PORT}`);
+    console.log(`   Host Hubsoft: ${HUBSOFT_HOST}`);
+    console.log(`   Dashboard:    http://localhost:${PORT}\n`);
+  });
+} else {
+  module.exports = app;
+}
