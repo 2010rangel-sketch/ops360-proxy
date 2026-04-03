@@ -2229,6 +2229,7 @@ async function buildFinanceiro() {
   const ltvCandidates = [];
   const mrr           = { total: 0, suspenso: 0, parcial: 0 };
   const vendMapAtivo  = {};
+  let mrrNovo         = 0;
 
   for (const cli of ativos) {
     const nome     = cli.nome_razaosocial || cli.nome_fantasia || '—';
@@ -2250,6 +2251,7 @@ async function buildFinanceiro() {
       if (isOn && valor > 0)      mrr.total   += valor;
       if (isSusp && valor > 0)    mrr.suspenso += valor;
       if (isParcial && valor > 0) mrr.parcial  += valor;
+      if (isOn && dataHab && dataHab >= mesAtualIni && valor > 0) mrrNovo += valor;
 
       if (isSusp) {
         suspensos.push({ nome, plano, valor, cidade, vendedor, status, dataHab: s.data_habilitacao });
@@ -2308,6 +2310,15 @@ async function buildFinanceiro() {
     fetchIntegracaoClientes(token2, { tipo_data_cliente_servico: 'data_cancelamento', data_inicio_cliente_servico: mesAntIniStr,   data_fim_cliente_servico: mesAntFimStr,   cancelado: 'sim' }, 30),
   ]);
 
+  // Cancelamentos últimos 6 meses (para saúde geral da carteira por vendedor)
+  const seisMesesAgoStr = _dfmt(new Date(agora.getFullYear(), agora.getMonth() - 6, 1));
+  const canGeralList = await fetchIntegracaoClientes(token2, {
+    tipo_data_cliente_servico: 'data_cancelamento',
+    data_inicio_cliente_servico: seisMesesAgoStr,
+    data_fim_cliente_servico: mesAtualFimStr,
+    cancelado: 'sim'
+  }, 60);
+
   const normFin = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
   const MOTIVOS_IGNORAR_FIN = ['desistencia da instalacao', 'habilitado o user errado', 'troca de titularidade'];
   const ignorarMotFin = m => { const n = normFin(m); return MOTIVOS_IGNORAR_FIN.some(p => n.includes(p)); };
@@ -2356,14 +2367,22 @@ async function buildFinanceiro() {
       porVendedor[c.vendedor].n++;
       porVendedor[c.vendedor].ltv += c.ltvDinheiro;
     });
-    const ltv_medio_meses = lista.length
-      ? lista.reduce((s, c) => s + c.mesesVida, 0) / lista.length : 0;
+
+    // Filtra desistências de instalação dos cálculos de LTV e tempo médio
+    const DESIST_KEYS = ['desistencia da instalacao', 'desistencia de instalacao'];
+    const listaCalc = lista.filter(c => {
+      const n = (c.motivo||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+      return !DESIST_KEYS.some(k => n.includes(k));
+    });
+    const ltv_medio_meses_calc = listaCalc.length
+      ? listaCalc.reduce((s,c) => s+c.mesesVida, 0) / listaCalc.length : 0;
+
     return {
       total:            lista.length,
-      ltv_total:        lista.reduce((s, c) => s + c.ltvDinheiro, 0),
-      ltv_medio_dinheiro: lista.length ? Math.round(lista.reduce((s,c)=>s+c.ltvDinheiro,0)/lista.length) : 0,
-      ltv_medio_meses:  Math.round(ltv_medio_meses * 10) / 10,
-      ltv_medio_tempo:  fmtTempoFin(ltv_medio_meses),
+      ltv_total:        listaCalc.reduce((s, c) => s + c.ltvDinheiro, 0),
+      ltv_medio_dinheiro: listaCalc.length ? Math.round(listaCalc.reduce((s,c)=>s+c.ltvDinheiro,0)/listaCalc.length) : 0,
+      ltv_medio_meses:  Math.round(ltv_medio_meses_calc * 10) / 10,
+      ltv_medio_tempo:  fmtTempoFin(ltv_medio_meses_calc),
       valor_mensal_perdido: Math.round(lista.reduce((s, c) => s + c.valor, 0) * 100) / 100,
       por_motivo:  Object.entries(porMotivo).sort((a, b) => b[1] - a[1]).map(([motivo, n]) => ({ motivo, n })),
       por_vendedor: Object.values(porVendedor).sort((a, b) => b.n - a.n),
@@ -2371,19 +2390,30 @@ async function buildFinanceiro() {
     };
   }
 
-  // Saúde por vendedor (add cancelamentos)
+  // Saúde por vendedor (add cancelamentos 60d)
   [...cancelMesAtual, ...cancelMesAnterior].forEach(c => {
     if (!vendMapAtivo[c.vendedor]) vendMapAtivo[c.vendedor] = { vendedor: c.vendedor, ativos: 0, suspensos: 0, parciais: 0, mrr: 0 };
     vendMapAtivo[c.vendedor].cancelados60d = (vendMapAtivo[c.vendedor].cancelados60d || 0) + 1;
   });
+
+  // Cancelados gerais (6 meses) por vendedor
+  for (const cli of canGeralList) {
+    for (const s of (cli.servicos || [])) {
+      const v = getVendedorFin(s);
+      if (!vendMapAtivo[v]) vendMapAtivo[v] = { vendedor: v, ativos: 0, suspensos: 0, parciais: 0, mrr: 0 };
+      vendMapAtivo[v].cancelados_geral = (vendMapAtivo[v].cancelados_geral || 0) + 1;
+    }
+  }
+
   const porVendedor = Object.values(vendMapAtivo)
     .filter(v => v.vendedor && v.vendedor !== '—')
     .map(v => ({
       ...v,
-      cancelados60d: v.cancelados60d || 0,
-      parciais:      v.parciais || 0,
-      mrr:           Math.round(v.mrr * 100) / 100,
-      pct_saude:     (v.ativos + v.suspensos + (v.parciais || 0)) > 0
+      cancelados60d:    v.cancelados60d || 0,
+      cancelados_geral: v.cancelados_geral || 0,
+      parciais:         v.parciais || 0,
+      mrr:              Math.round(v.mrr * 100) / 100,
+      pct_saude:        (v.ativos + v.suspensos + (v.parciais || 0)) > 0
         ? Math.round(v.ativos / (v.ativos + v.suspensos + (v.parciais || 0)) * 100) : 0,
     }))
     .sort((a, b) => b.ativos - a.ativos);
@@ -2394,6 +2424,8 @@ async function buildFinanceiro() {
       mrr_total:           Math.round(mrr.total * 100) / 100,
       mrr_suspenso:        Math.round(mrr.suspenso * 100) / 100,
       mrr_parcial:         Math.round(mrr.parcial * 100) / 100,
+      mrr_novo:            Math.round(mrrNovo * 100) / 100,
+      mrr_perdido:         Math.round(cancelMesAtual.reduce((s,c) => s + c.valor, 0) * 100) / 100,
       total_ativos:        ativos.length,
       total_suspensos:     suspensos.length,
       total_parciais:      parciaisSusp.length,
@@ -2484,6 +2516,7 @@ async function buildAdicaoLiquida() {
         const fimMs = new Date(fimStr + 'T23:59:59').getTime();
         const seen  = new Set();
         let cancelados = 0;
+        const cancelLista = [];
         for (const cli of [...cNao, ...cSim]) {
           for (const s of (cli.servicos || [])) {
             const dc = parseDate(s.data_cancelamento);
@@ -2493,10 +2526,29 @@ async function buildAdicaoLiquida() {
             if (seen.has(chave)) continue;
             seen.add(chave);
             cancelados++;
+            cancelLista.push({ motivo_cancelamento: s.motivo_cancelamento, data_habilitacao: s.data_habilitacao, data_cancelamento: s.data_cancelamento });
           }
         }
+        // Tempo médio de vida dos cancelados do mês (excluindo desistência de instalação)
+        const DESIST_AL = ['desistencia da instalacao', 'desistencia de instalacao'];
+        const normALfn  = s => (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+        const cancelSemDesist = cancelLista.filter(c => !DESIST_AL.some(k => normALfn(c.motivo_cancelamento).includes(k)));
+        let tempoMedioMeses = null;
+        if (cancelSemDesist.length > 0) {
+          const soma = cancelSemDesist.reduce((sum, s) => {
+            const dh = parseDate(s.data_habilitacao);
+            const dc = parseDate(s.data_cancelamento);
+            if (!dh || !dc) return sum;
+            return sum + mesesEntre(dh, dc);
+          }, 0);
+          tempoMedioMeses = soma / cancelSemDesist.length;
+        }
         const adicao_liquida = novas + reativacoes - cancelados;
-        return { ano, mes, iniStr, fimStr, label, novas, reativacoes, cancelados, adicao_liquida };
+        return {
+          ano, mes, iniStr, fimStr, label, novas, reativacoes, cancelados, adicao_liquida,
+          tempo_medio_meses: tempoMedioMeses !== null ? Math.round(tempoMedioMeses * 10) / 10 : null,
+          tempo_medio_fmt:   tempoMedioMeses !== null ? fmtTempoFin(tempoMedioMeses) : '—',
+        };
       } catch(e) {
         const ini = new Date(ano, mes, 1);
         const lbl = ini.toLocaleString('pt-BR', {month:'short', year:'2-digit'}).replace('. ','');

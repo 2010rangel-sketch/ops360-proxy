@@ -1647,13 +1647,20 @@ input[type="text"]::placeholder { color:var(--text3); }
       </div>
 
       <!-- KPI row -->
-      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px" id="fin-kpi-row">
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">MRR Ativo</div><div class="kpi-mini-val" id="fin-mrr" style="color:var(--accent)">—</div></div>
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:10px" id="fin-kpi-row">
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">MRR (Receita Recorrente Mensal)</div><div class="kpi-mini-val" id="fin-mrr" style="color:var(--accent)">—</div></div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Suspensos</div><div class="kpi-mini-val" id="fin-susp" style="color:var(--red)">—</div><div style="font-size:10px;color:var(--text3);text-align:center" id="fin-susp-val">—</div></div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">Susp. Parcial</div><div class="kpi-mini-val" id="fin-parcial" style="color:var(--amber)">—</div><div style="font-size:10px;color:var(--text3);text-align:center" id="fin-parcial-val">—</div></div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Churn Mês Atual</div><div class="kpi-mini-val" id="fin-churn-atual" style="color:var(--red)">—</div></div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--text3)"></div><div class="kpi-mini-label">Churn Mês Anterior</div><div class="kpi-mini-val" id="fin-churn-ant" style="color:var(--text3)">—</div></div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:#ef4444"></div><div class="kpi-mini-label">1ª Mensalidade Risco</div><div class="kpi-mini-val" id="fin-prim" style="color:#ef4444">—</div><div style="font-size:10px;color:var(--text3);text-align:center" id="fin-prim-pct">—</div></div>
+      </div>
+
+      <!-- MRR breakdown row -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px" id="fin-mrr-row">
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">MRR Perdido (churn mês)</div><div class="kpi-mini-val" id="fin-mrr-perdido" style="color:var(--red)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">MRR Novo (novas vendas)</div><div class="kpi-mini-val" id="fin-mrr-novo" style="color:var(--green)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--cyan)"></div><div class="kpi-mini-label">MRR Recuperado</div><div class="kpi-mini-val" id="fin-mrr-recup" style="color:var(--cyan)">—</div></div>
       </div>
 
       <!-- Cancelamentos: mês atual + anterior -->
@@ -1694,23 +1701,8 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
       </div>
 
-      <!-- Suspensos + 1ª Mensalidade -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px" id="fin-mid-grid">
-        <!-- Suspensos (inadimplência proxy) -->
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header">
-            <span class="tbl-title">Suspensos / Inadimplentes</span>
-            <span class="badge b-red" id="fin-susp-count">—</span>
-          </div>
-          <div style="padding:8px 14px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border)">
-            Clientes com serviço suspenso = proxy de inadimplência (API não expõe histórico de pagamentos)
-          </div>
-          <div style="max-height:220px;overflow-y:auto">
-            <table class="tbl"><thead><tr><th>Cliente</th><th>Plano</th><th>R$</th><th>Cidade</th><th>Vendedor</th></tr></thead>
-            <tbody id="fin-susp-lista"></tbody></table>
-          </div>
-        </div>
-
+      <!-- 1ª Mensalidade -->
+      <div style="display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:14px" id="fin-mid-grid">
         <!-- 1ª Mensalidade em Risco -->
         <div class="tbl-card" style="margin-bottom:0">
           <div class="tbl-header">
@@ -1770,6 +1762,23 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
       </div>
 
+      <!-- Tempo Médio de Vida Histórico -->
+      <div class="tbl-card" style="margin-bottom:14px" id="fin-tempo-medio-card">
+        <div class="tbl-header">
+          <span class="tbl-title"><i class="fas fa-clock" style="color:var(--amber);margin-right:5px"></i>Tempo Médio de Vida dos Clientes (ao cancelar)</span>
+          <span class="badge b-amber">Jan/2025 → último mês fechado · excluindo desistências de instalação</span>
+        </div>
+        <div style="padding:16px;overflow-x:auto">
+          <div id="fin-tempo-chart" style="min-height:120px;display:flex;align-items:flex-end;gap:6px;min-width:500px"></div>
+        </div>
+        <div style="overflow-x:auto;padding:0 16px 16px">
+          <table class="tbl" style="font-size:12px">
+            <thead><tr><th>Mês</th><th>Cancelados</th><th>Tempo Médio</th></tr></thead>
+            <tbody id="fin-tempo-tbl"></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Clientes por Ano (LTV) -->
       <div class="tbl-card" style="margin-bottom:14px">
         <div class="tbl-header">
@@ -1802,7 +1811,7 @@ input[type="text"]::placeholder { color:var(--text3); }
           <span class="badge b-blue" id="fin-vend-count">—</span>
         </div>
         <div style="max-height:340px;overflow-y:auto">
-          <table class="tbl"><thead><tr><th>Vendedor</th><th>Ativos</th><th>Suspensos</th><th>Cancelados (60d)</th><th>MRR</th><th>Saúde</th></tr></thead>
+          <table class="tbl"><thead><tr><th>Vendedor</th><th>Ativos</th><th>Suspensos</th><th>Cancel. (60d)</th><th>Cancel. Geral (6m)</th><th>MRR (Rec. Rec. Mensal)</th><th>Saúde</th></tr></thead>
           <tbody id="fin-vend-lista"></tbody></table>
         </div>
       </div>
@@ -6281,6 +6290,9 @@ function renderFinanceiro(d) {
   fev('fin-churn-ant',   r.churn_mes_anterior || 0);
   fev('fin-prim',        r.primeira_mens_risco || 0);
   fev('fin-prim-pct',    `${r.pct_primeira_mens || 0}% dos novos`);
+  fev('fin-mrr-perdido', fmtBRLk(r.mrr_perdido));
+  fev('fin-mrr-novo',    fmtBRLk(r.mrr_novo));
+  fev('fin-mrr-recup',   '—');
 
   // Cancelamentos
   renderCancelStats('ca', d.cancelamentos?.mes_atual);
@@ -6359,10 +6371,11 @@ function renderFinanceiro(d) {
         <td class="mono" style="color:#22c55e">${v.ativos}</td>
         <td class="mono" style="color:var(--red)">${v.suspensos}</td>
         <td class="mono" style="color:var(--amber)">${v.cancelados60d}</td>
+        <td class="mono" style="color:var(--text3)">${v.cancelados_geral||0}</td>
         <td class="mono">${fmtBRLk(v.mrr)}</td>
         <td style="min-width:80px">${bar}<span style="font-size:10px;color:${cor};margin-left:4px">${v.pct_saude}%</span></td>
       </tr>`;
-    }).join('') : `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Sem dados</td></tr>`;
+    }).join('') : `<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">Sem dados</td></tr>`;
   }
 }
 
@@ -6545,6 +6558,63 @@ function renderAdicaoLiquida(d) {
   fev('fin-al-estimativa', sinal(p.estimativa_final));
   const nota = document.getElementById('fin-al-proj-nota');
   if (nota) nota.innerHTML = `Baseado em <b>${p.meses_fechados} meses fechados</b> de 2026. Estimativa de encerrar dezembro/26 com <b style="color:${p.estimativa_final>=0?'#22c55e':'#ef4444'}">${sinal(p.estimativa_final)} clientes líquidos</b> no ano.`;
+
+  // Renderiza gráfico de tempo médio de vida
+  renderTempoMedioHist(d.meses || []);
+}
+
+function renderTempoMedioHist(meses) {
+  const comDados = meses.filter(m => m.tempo_medio_meses != null);
+  const chart = document.getElementById('fin-tempo-chart');
+  const tbl   = document.getElementById('fin-tempo-tbl');
+
+  if (!comDados.length) {
+    if (chart) chart.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:20px;text-align:center;width:100%">Sem dados de tempo médio. Carregue a Adição Líquida primeiro.</div>';
+    if (tbl)   tbl.innerHTML   = '<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:16px">—</td></tr>';
+    return;
+  }
+
+  const maxVal = Math.max(...comDados.map(m => m.tempo_medio_meses), 1);
+  const ALTURA = 100;
+
+  if (chart) {
+    chart.innerHTML = meses.map((m, i) => {
+      if (m.tempo_medio_meses == null) {
+        const anoLbl = (i === 0 || meses[i-1].ano !== m.ano) ? `<div style="font-size:9px;color:var(--text3);margin-bottom:2px;font-weight:600">${m.ano}</div>` : '<div style="font-size:9px;color:transparent">·</div>';
+        return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:28px;max-width:52px" title="${m.label}: sem dados">
+          ${anoLbl}
+          <div style="font-size:9px;color:transparent">0</div>
+          <div style="width:100%;height:2px;background:var(--border);border-radius:3px;margin-top:2px"></div>
+          <div style="font-size:9px;color:var(--text3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center">${m.label}</div>
+        </div>`;
+      }
+      const pct  = m.tempo_medio_meses / maxVal;
+      const h    = Math.max(Math.round(pct * ALTURA), 2);
+      const cor  = m.tempo_medio_meses >= 24 ? '#22c55e' : m.tempo_medio_meses >= 12 ? 'var(--amber)' : '#ef4444';
+      const anoLbl = (i === 0 || meses[i-1].ano !== m.ano) ? `<div style="font-size:9px;color:var(--text3);margin-bottom:2px;font-weight:600">${m.ano}</div>` : '<div style="font-size:9px;color:transparent">·</div>';
+      const tooltip = `${m.label}: ${m.tempo_medio_fmt} (${m.cancelados} cancelados)`;
+      return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:28px;max-width:52px;cursor:default" title="${tooltip}">
+        ${anoLbl}
+        <div style="font-size:9px;color:${cor};font-weight:700;line-height:1.2">${m.tempo_medio_fmt}</div>
+        <div style="width:100%;height:${h}px;background:${cor};border-radius:3px 3px 0 0;margin-top:2px;opacity:.85"></div>
+        <div style="font-size:9px;color:var(--text3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center">${m.label}</div>
+      </div>`;
+    }).join('');
+  }
+
+  if (tbl) {
+    tbl.innerHTML = meses.map(m => {
+      const fmt = m.tempo_medio_fmt || '—';
+      const cor = m.tempo_medio_meses != null
+        ? (m.tempo_medio_meses >= 24 ? '#22c55e' : m.tempo_medio_meses >= 12 ? 'var(--amber)' : '#ef4444')
+        : 'var(--text3)';
+      return `<tr>
+        <td style="font-weight:500">${m.label}</td>
+        <td class="mono" style="color:var(--text3)">${m.cancelados}</td>
+        <td class="mono" style="color:${cor}">${fmt}</td>
+      </tr>`;
+    }).join('');
+  }
 }
 
 // ─── FISCAL ──────────────────────────────────────────────────────────────────
