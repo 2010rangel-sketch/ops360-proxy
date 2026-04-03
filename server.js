@@ -2703,6 +2703,205 @@ app.get('/api/estoque', async (req, res) => {
   }
 });
 
+// ── RHiD Integration ─────────────────────────────────────────────
+const RHID_BASE   = 'https://rhid.com.br/v2/api.svc';
+const RHID_EMAIL  = process.env.RHID_EMAIL    || '2026rangel@gmail.com';
+const RHID_PASS   = process.env.RHID_PASSWORD || '166922';
+const RH_CACHE_TTL = 60 * 60 * 1000; // 1h
+
+let _rhToken    = null;
+let _rhTokenAt  = 0;
+let _rhCache    = null;
+let _rhCacheAt  = 0;
+
+async function rhidLogin() {
+  // Reutiliza token por até 3.5h (expira em 4h)
+  if (_rhToken && (Date.now() - _rhTokenAt) < 3.5 * 60 * 60 * 1000) return _rhToken;
+  const r = await fetch(`${RHID_BASE}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: RHID_EMAIL, password: RHID_PASS })
+  });
+  const d = await r.json();
+  if (!d.accessToken) throw new Error('RHiD login falhou');
+  _rhToken   = d.accessToken;
+  _rhTokenAt = Date.now();
+  return _rhToken;
+}
+
+async function rhidGet(path, token) {
+  const r = await fetch(`${RHID_BASE}${path}`, {
+    headers: { 'Authorization': 'Bearer ' + token }
+  });
+  const txt = await r.text();
+  try { return JSON.parse(txt); } catch { throw new Error(`RHiD ${path} retornou HTML (${r.status})`); }
+}
+
+// Busca apuracao_ponto para lista de pessoas em paralelo (batches de 10)
+async function fetchApuracaoAll(token, personIds, dataIni, dataFim) {
+  const results = {};
+  const batchSize = 10;
+  for (let i = 0; i < personIds.length; i += batchSize) {
+    const batch = personIds.slice(i, i + batchSize);
+    await Promise.all(batch.map(async id => {
+      try {
+        const url = `/apuracao_ponto?dataIni=${dataIni}&dataFinal=${dataFim}&idPerson=${id}`;
+        const raw = await rhidGet(url, token);
+        // API retorna JSON string (double-encoded às vezes)
+        const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        if (Array.isArray(data)) results[id] = data;
+      } catch { /* ignora erros individuais */ }
+    }));
+  }
+  return results;
+}
+
+async function buildRh() {
+  const token = await rhidLogin();
+
+  // Busca persons e departments em paralelo
+  const [dpRaw, ddRaw, dvRaw] = await Promise.all([
+    rhidGet('/person?start=0&length=500', token),
+    rhidGet('/department?start=0&length=100', token),
+    rhidGet('/device?start=0&length=50', token),
+  ]);
+
+  const persons     = dpRaw.records || [];
+  const departments = ddRaw.records || [];
+  const devices     = dvRaw.records || [];
+
+  // Mapa id→dept name
+  const deptMap = {};
+  for (const d of departments) deptMap[d.id] = d.name;
+
+  // Headcount por status
+  const ativos    = persons.filter(p => p.status === 0);
+  const afastados = persons.filter(p => p.status !== 0);
+
+  // Headcount por departamento (ativos)
+  const hcDept = {};
+  for (const p of ativos) {
+    const dname = deptMap[p.idDepartment] || 'Outros';
+    hcDept[dname] = (hcDept[dname] || 0) + 1;
+  }
+  const hcDeptSorted = Object.entries(hcDept)
+    .sort((a,b) => b[1]-a[1])
+    .map(([nome, total]) => ({ nome, total }));
+
+  // Mês corrente para apuração (mês anterior fechado se dia < 5, senão mês atual)
+  const now   = new Date();
+  const mesRef = now.getDate() < 5
+    ? new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    : new Date(now.getFullYear(), now.getMonth(), 1);
+  const anoRef = mesRef.getFullYear();
+  const mRef   = String(mesRef.getMonth() + 1).padStart(2,'0');
+  const lastDay = new Date(anoRef, mesRef.getMonth() + 1, 0).getDate();
+  const dataIni = `${anoRef}-${mRef}-01`;
+  const dataFim = `${anoRef}-${mRef}-${lastDay}`;
+  const mesLabel = mesRef.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+  // Apuração de ponto para todos os ativos
+  const personIds = ativos.map(p => p.id);
+  const apurMap   = await fetchApuracaoAll(token, personIds, dataIni, dataFim);
+
+  // Agrega por pessoa
+  const pessoaStats = [];
+  for (const p of ativos) {
+    const days = apurMap[p.id] || [];
+    const horasTrab  = days.reduce((s,d) => s + (d.totalHorasTrabalhadas || 0), 0);
+    const horasExtra = days.reduce((s,d) => s + (d.horasExtrasCalculadas || 0), 0);
+    const diasTrab   = days.filter(d => d.diasTrabalhados > 0 || d.totalHorasTrabalhadas > 0).length;
+    const faltas     = days.filter(d => d.faltaDiaInteiro).length;
+    const atrasos    = days.reduce((s,d) => s + (d.atrasoEntrada || 0), 0); // minutos
+    // Último saldo banco de horas
+    const lastDay2   = days.filter(d => d.saldoBancoFinalDia != null).pop();
+    const bancHoras  = lastDay2 ? lastDay2.saldoBancoFinalDia : 0;
+    const deptNome   = deptMap[p.idDepartment] || 'Outros';
+
+    pessoaStats.push({
+      id: p.id, nome: p.name, depto: deptNome,
+      horasTrab: Math.round(horasTrab / 60), // minutos → horas
+      horasExtra: Math.round(horasExtra / 60),
+      diasTrab, faltas,
+      atrasos: Math.round(atrasos), // minutos
+      bancHoras: Math.round(bancHoras / 60),
+    });
+  }
+
+  // Absenteísmo por setor: (dias falta / dias úteis esperados) × 100
+  const diasUteis = days => {
+    // Conta dias úteis do mês ref (aproximado: dias sem sáb/dom)
+    let c = 0;
+    const d = new Date(dataIni);
+    const fim = new Date(dataFim);
+    while (d <= fim) { const wd = d.getDay(); if (wd !== 0 && wd !== 6) c++; d.setDate(d.getDate()+1); }
+    return c;
+  };
+  const duteis = diasUteis();
+
+  const absDept = {};
+  for (const ps of pessoaStats) {
+    if (!absDept[ps.depto]) absDept[ps.depto] = { faltas: 0, total: 0 };
+    absDept[ps.depto].faltas += ps.faltas;
+    absDept[ps.depto].total  += 1;
+  }
+  const absDeptList = Object.entries(absDept)
+    .map(([nome, v]) => ({
+      nome,
+      total: v.total,
+      faltas: v.faltas,
+      pct: duteis > 0 ? ((v.faltas / (v.total * duteis)) * 100).toFixed(1) : '0.0',
+    }))
+    .sort((a,b) => parseFloat(b.pct) - parseFloat(a.pct));
+
+  // Banco de horas (top devedores e credores)
+  const bancoLista = pessoaStats
+    .filter(p => p.bancHoras !== 0)
+    .sort((a,b) => a.bancHoras - b.bancHoras); // negativos primeiro
+
+  // Totais gerais do mês
+  const totHorasTrab  = pessoaStats.reduce((s,p) => s+p.horasTrab, 0);
+  const totHorasExtra = pessoaStats.reduce((s,p) => s+p.horasExtra, 0);
+  const totFaltas     = pessoaStats.reduce((s,p) => s+p.faltas, 0);
+  const totAtrasos    = pessoaStats.reduce((s,p) => s+p.atrasos, 0);
+  const pctAbsent     = duteis > 0 && ativos.length > 0
+    ? ((totFaltas / (ativos.length * duteis)) * 100).toFixed(1)
+    : '0.0';
+
+  return {
+    headcount: persons.length,
+    ativos:    ativos.length,
+    afastados: afastados.length,
+    pctAbsent,
+    hcDeptSorted,
+    devices,
+    mesLabel,
+    dataIni, dataFim,
+    totHorasTrab, totHorasExtra, totFaltas,
+    totAtrasos,
+    absDeptList,
+    bancoLista,
+    pessoaStats: pessoaStats.sort((a,b) => a.nome.localeCompare(b.nome)),
+  };
+}
+
+app.get('/api/rh', async (req, res) => {
+  try {
+    const force = req.query.force === '1';
+    const agora = Date.now();
+    if (!force && _rhCache && (agora - _rhCacheAt) < RH_CACHE_TTL) return res.json(_rhCache);
+    if (force) { _rhCache = null; _rhCacheAt = 0; }
+    const result  = await buildRh();
+    _rhCache  = result;
+    _rhCacheAt = agora;
+    res.json(result);
+  } catch (e) {
+    console.error('[/api/rh]', e.message);
+    if (_rhCache) return res.json({ ..._rhCache, aviso: e.message });
+    res.status(500).json({ erro: e.message });
+  }
+});
+
 // ── Inicializa ────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`\n🚀 OPS360 Proxy rodando na porta ${PORT}`);
