@@ -1762,7 +1762,7 @@ input[type="text"]::placeholder { color:var(--text3); }
       <div class="tbl-card" style="margin-bottom:14px" id="fin-tempo-medio-card">
         <div class="tbl-header">
           <span class="tbl-title"><i class="fas fa-clock" style="color:var(--amber);margin-right:5px"></i>Tempo Médio de Vida dos Clientes (ao cancelar)</span>
-          <span class="badge b-amber">Jan/2025 → último mês fechado · excluindo desistências de instalação</span>
+          <span class="badge b-amber">Jan/2025 → mês atual · excluindo desistências de instalação</span>
         </div>
         <div style="padding:16px;overflow-x:auto">
           <div id="fin-tempo-chart" style="min-height:120px;display:flex;align-items:flex-end;gap:6px;min-width:500px"></div>
@@ -6523,17 +6523,24 @@ function renderAdicaoLiquida(d) {
       const pct     = Math.abs(al) / maxAbs;
       const h       = Math.max(Math.round(pct * ALTURA), 2);
       const isPos   = al >= 0;
-      const isMax   = al === maxVal;
-      const isMin   = al === minVal;
-      const cor     = isMax ? '#22c55e' : isMin ? '#ef4444' : (isPos ? '#4ade80' : '#f87171');
-      const corTxt  = isPos ? '#22c55e' : '#ef4444';
-      const tooltip = `${m.label}: +${m.novas} novas +${m.reativacoes} reat. −${m.cancelados} cancel. = ${al > 0 ? '+' : ''}${al}`;
+      const isMax   = al === maxVal && !m.parcial;
+      const isMin   = al === minVal && !m.parcial;
+      const cor     = m.parcial ? '#60a5fa' : isMax ? '#22c55e' : isMin ? '#ef4444' : (isPos ? '#4ade80' : '#f87171');
+      const corTxt  = m.parcial ? '#60a5fa' : (isPos ? '#22c55e' : '#ef4444');
+      const tooltip = m.parcial
+        ? `${m.label} (em andamento): +${m.novas} novas +${m.reativacoes} reat. −${m.cancelados} cancel. = ${al > 0 ? '+' : ''}${al}`
+        : `${m.label}: +${m.novas} novas +${m.reativacoes} reat. −${m.cancelados} cancel. = ${al > 0 ? '+' : ''}${al}`;
       const anoLbl  = (i === 0 || meses[i-1].ano !== m.ano) ? `<div style="font-size:9px;color:var(--text3);margin-bottom:2px;font-weight:600">${m.ano}</div>` : '<div style="font-size:9px;color:transparent">·</div>';
+      const barStyle = m.parcial
+        ? `width:100%;height:${h}px;background:${cor};border-radius:3px 3px 0 0;margin-top:2px;opacity:.7;border:1px dashed #93c5fd;box-sizing:border-box`
+        : `width:100%;height:${h}px;background:${cor};border-radius:3px 3px 0 0;margin-top:2px;transition:opacity .2s;${isMax||isMin?'box-shadow:0 0 0 2px #fff3':''}`;
+      const labelExtra = m.parcial ? `<div style="font-size:8px;color:#60a5fa;font-weight:600;margin-top:1px">parcial</div>` : '';
       return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:28px;max-width:52px;cursor:default" title="${tooltip}">
         ${anoLbl}
         <div style="font-size:9px;color:${corTxt};font-weight:700;line-height:1.2">${al > 0 ? '+' : ''}${al}</div>
-        <div style="width:100%;height:${h}px;background:${cor};border-radius:3px 3px 0 0;margin-top:2px;transition:opacity .2s;${isMax||isMin?'box-shadow:0 0 0 2px #fff3':''}"></div>
+        <div style="${barStyle}"></div>
         <div style="font-size:9px;color:var(--text3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center">${m.label}</div>
+        ${labelExtra}
       </div>`;
     }).join('');
   }
@@ -6605,14 +6612,21 @@ function renderTempoMedioHist(meses) {
       }
       const pct  = m.tempo_medio_meses / maxVal;
       const h    = Math.max(Math.round(pct * ALTURA), 2);
-      const cor  = m.tempo_medio_meses >= 24 ? '#22c55e' : m.tempo_medio_meses >= 12 ? 'var(--amber)' : '#ef4444';
+      const cor  = m.parcial ? '#60a5fa' : m.tempo_medio_meses >= 24 ? '#22c55e' : m.tempo_medio_meses >= 12 ? 'var(--amber)' : '#ef4444';
       const anoLbl = (i === 0 || meses[i-1].ano !== m.ano) ? `<div style="font-size:9px;color:var(--text3);margin-bottom:2px;font-weight:600">${m.ano}</div>` : '<div style="font-size:9px;color:transparent">·</div>';
-      const tooltip = `${m.label}: ${m.tempo_medio_fmt} (${m.cancelados} cancelados)`;
+      const tooltip = m.parcial
+        ? `${m.label} (em andamento): ${m.tempo_medio_fmt} (${m.cancelados} cancelados até agora)`
+        : `${m.label}: ${m.tempo_medio_fmt} (${m.cancelados} cancelados)`;
+      const barStyle = m.parcial
+        ? `width:100%;height:${h}px;background:${cor};border-radius:3px 3px 0 0;margin-top:2px;opacity:.7;border:1px dashed #93c5fd;box-sizing:border-box`
+        : `width:100%;height:${h}px;background:${cor};border-radius:3px 3px 0 0;margin-top:2px;opacity:.85`;
+      const labelExtra = m.parcial ? `<div style="font-size:8px;color:#60a5fa;font-weight:600;margin-top:1px">parcial</div>` : '';
       return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:28px;max-width:52px;cursor:default" title="${tooltip}">
         ${anoLbl}
         <div style="font-size:9px;color:${cor};font-weight:700;line-height:1.2">${m.tempo_medio_fmt}</div>
-        <div style="width:100%;height:${h}px;background:${cor};border-radius:3px 3px 0 0;margin-top:2px;opacity:.85"></div>
+        <div style="${barStyle}"></div>
         <div style="font-size:9px;color:var(--text3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center">${m.label}</div>
+        ${labelExtra}
       </div>`;
     }).join('');
   }

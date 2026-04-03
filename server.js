@@ -2469,21 +2469,22 @@ const ignorarMotAL = m => { const n = normAL(m); return MOTIVOS_IGNORAR_AL.some(
 
 async function buildAdicaoLiquida() {
   const agora = new Date();
-  // Mes anterior fechado (mês corrente ainda não fechou)
-  const mesAntFim = new Date(agora.getFullYear(), agora.getMonth(), 0); // último dia do mês anterior
   const INICIO_ANO = 2025;
   const INICIO_MES = 0; // Janeiro
+  const limiteAno = agora.getFullYear();
+  const limiteMes = agora.getMonth();
+  const _dfDate = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
-  // Lista de meses a processar
+  // Lista de meses a processar — inclui mês atual (parcial)
   const meses = [];
-  for (let y = INICIO_ANO; y <= mesAntFim.getFullYear(); y++) {
+  for (let y = INICIO_ANO; y <= limiteAno; y++) {
     const mIni = (y === INICIO_ANO) ? INICIO_MES : 0;
-    const mFim = (y === mesAntFim.getFullYear()) ? mesAntFim.getMonth() : 11;
+    const mFim = (y === limiteAno) ? limiteMes : 11;
     for (let m = mIni; m <= mFim; m++) {
       const ini = new Date(y, m, 1);
-      const fim = new Date(y, m + 1, 0);
-      const _df = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      meses.push({ ano: y, mes: m, iniStr: _df(ini), fimStr: _df(fim), label: ini.toLocaleString('pt-BR', {month:'short', year:'2-digit'}).replace('. ','/') });
+      const isCurrent = y === limiteAno && m === limiteMes;
+      const fim = isCurrent ? agora : new Date(y, m + 1, 0);
+      meses.push({ ano: y, mes: m, iniStr: _dfDate(ini), fimStr: _dfDate(fim), label: ini.toLocaleString('pt-BR', {month:'short', year:'2-digit'}).replace('. ','/'), parcial: isCurrent });
     }
   }
 
@@ -2497,7 +2498,7 @@ async function buildAdicaoLiquida() {
   const resultados = [];
   for (let i = 0; i < meses.length; i += 3) {
     const lote = meses.slice(i, i + 3);
-    const loteRes = await Promise.all(lote.map(async ({ ano, mes, iniStr, fimStr, label }) => {
+    const loteRes = await Promise.all(lote.map(async ({ ano, mes, iniStr, fimStr, label, parcial }) => {
       try {
         // Vendas (novas + reativações)
         const [cancelNao, cancelSim] = await Promise.all([
@@ -2546,7 +2547,7 @@ async function buildAdicaoLiquida() {
         }
         const adicao_liquida = novas + reativacoes - cancelados;
         return {
-          ano, mes, iniStr, fimStr, label, novas, reativacoes, cancelados, adicao_liquida,
+          ano, mes, iniStr, fimStr, label, parcial: parcial || false, novas, reativacoes, cancelados, adicao_liquida,
           tempo_medio_meses: tempoMedioMeses !== null ? Math.round(tempoMedioMeses * 10) / 10 : null,
           tempo_medio_fmt:   tempoMedioMeses !== null ? fmtTempoFin(tempoMedioMeses) : '—',
         };
@@ -2554,7 +2555,7 @@ async function buildAdicaoLiquida() {
         const ini = new Date(ano, mes, 1);
         const lbl = ini.toLocaleString('pt-BR', {month:'short', year:'2-digit'}).replace('. ','');
         console.warn(`[adicao-liquida] Erro em ${iniStr}:`, e.message);
-        return { ano, mes, iniStr, fimStr, label: lbl, novas: 0, reativacoes: 0, cancelados: 0, adicao_liquida: 0, erro: true };
+        return { ano, mes, iniStr, fimStr, label: lbl, parcial: parcial || false, novas: 0, reativacoes: 0, cancelados: 0, adicao_liquida: 0, erro: true };
       }
     }));
     resultados.push(...loteRes);
@@ -2571,8 +2572,8 @@ async function buildAdicaoLiquida() {
     porAno[r.ano].meses++;
   }
 
-  // Projeção 2026: média dos meses fechados de 2026 × 12
-  const meses2026 = resultados.filter(r => r.ano === 2026);
+  // Projeção 2026: média dos meses fechados de 2026 × 12 (exclui mês atual parcial)
+  const meses2026 = resultados.filter(r => r.ano === 2026 && !r.parcial);
   let projecao2026 = null;
   if (meses2026.length > 0) {
     const mediaMensal = meses2026.reduce((s, r) => s + r.adicao_liquida, 0) / meses2026.length;
