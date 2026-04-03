@@ -6712,32 +6712,35 @@ function filterEstoque(txt) {
 let _rhData = null;
 
 async function loadRh(force = false) {
-  const badge = document.getElementById('rh-sync-badge');
+  const badge  = document.getElementById('rh-sync-badge');
+  const hBadge = document.getElementById('rh-header-badge');
   if (badge) { badge.textContent = 'Carregando...'; badge.className = 'badge b-blue'; }
-  // Spinner nos KPIs
-  ['rh-headcount','rh-ativos','rh-afastados','rh-turnover','rh-absenteismo'].forEach(id => {
+  ['rh-headcount','rh-ativos','rh-afastados','rh-absenteismo'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = '<i class="fas fa-circle-notch fa-spin" style="font-size:10px;opacity:.5"></i>';
   });
   try {
+    // 1) Headcount rápido
     const r = await fetch(`${PROXY_URL}/api/rh${force ? '?force=1' : ''}`);
     const d = await r.json();
+    if (d.erro) throw new Error(d.erro);
     _rhData = d;
-    renderRh(d);
-    if (badge) {
-      const hora = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-      badge.textContent = `Atualizado ${hora}`;
-      badge.className = d.erro ? 'badge b-red' : 'badge b-green';
-    }
-    // Remove aviso de integração pendente após carregar
+    renderRhHeadcount(d);
+    if (hBadge) { hBadge.textContent = 'RHiD conectado'; hBadge.style.cssText='background:rgba(34,197,94,.15);color:var(--green);border-color:rgba(34,197,94,.3)'; }
     const aviso = document.getElementById('rh-integ-aviso');
-    if (aviso && !d.erro) aviso.style.display = 'none';
-    // Atualiza badge do header
-    const hBadge = document.getElementById('rh-header-badge');
-    if (hBadge && !d.erro) { hBadge.textContent = 'RHiD conectado'; hBadge.style.background='rgba(34,197,94,.15)'; hBadge.style.color='var(--green)'; hBadge.style.borderColor='rgba(34,197,94,.3)'; }
+    if (aviso) aviso.style.display = 'none';
+    if (badge) { badge.textContent = 'Headcount OK'; badge.className = 'badge b-green'; }
+
+    // 2) Ponto eletrônico (mais lento — carrega em seguida)
+    if (badge) { badge.textContent = 'Carregando ponto...'; badge.className = 'badge b-blue'; }
+    const rP = await fetch(`${PROXY_URL}/api/rh/ponto${force ? '?force=1' : ''}`);
+    const dP = await rP.json();
+    if (!dP.erro) renderRhPonto(dP);
+    const hora = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    if (badge) { badge.textContent = `Atualizado ${hora}`; badge.className = 'badge b-green'; }
   } catch(e) {
-    if (badge) { badge.textContent = 'Erro de conexão'; badge.className = 'badge b-red'; }
-    ['rh-headcount','rh-ativos','rh-afastados','rh-turnover','rh-absenteismo'].forEach(id => {
+    if (badge) { badge.textContent = 'Erro: '+e.message.substring(0,30); badge.className = 'badge b-red'; }
+    ['rh-headcount','rh-ativos','rh-afastados','rh-absenteismo'].forEach(id => {
       const el = document.getElementById(id); if (el) el.textContent = '—';
     });
   }
@@ -6751,22 +6754,14 @@ function fmtHMin(minutos) {
   return `${sinal}${h}h${m > 0 ? m+'m' : ''}`;
 }
 
-function renderRh(d) {
+function renderRhHeadcount(d) {
   if (!d || d.erro) return;
-
-  // KPIs principais
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-  set('rh-headcount',  d.headcount || '—');
-  set('rh-ativos',     d.ativos || '—');
-  set('rh-afastados',  d.afastados || '—');
-  set('rh-turnover',   '—'); // RHiD não fornece turnover direto
-  set('rh-absenteismo', (d.pctAbsent || '0') + '%');
+  set('rh-headcount', d.headcount || '—');
+  set('rh-ativos',    d.ativos    || '—');
+  set('rh-afastados', d.afastados || '—');
+  set('rh-turnover',  '—');
 
-  // Label do mês
-  const mesEl = document.getElementById('rh-mes-label');
-  if (mesEl) mesEl.textContent = d.mesLabel || '';
-
-  // Headcount por setor
   const setorEl = document.getElementById('rh-setor-list');
   if (setorEl && d.hcDeptSorted) {
     setorEl.innerHTML = d.hcDeptSorted.map(s =>
@@ -6777,70 +6772,63 @@ function renderRh(d) {
     ).join('');
   }
 
+  const movRows = document.getElementById('rh-movimentacao-rows');
+  if (movRows) movRows.innerHTML = `<div style="font-size:11px;color:var(--text3);padding:12px 0;text-align:center"><i class="fas fa-info-circle" style="margin-right:4px"></i>Dado não disponível via API RHiD</div>`;
+}
+
+function renderRhPonto(d) {
+  if (!d || d.erro) return;
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('rh-absenteismo', (d.pctAbsent || '0') + '%');
+
+  const mesEl = document.getElementById('rh-mes-label');
+  if (mesEl && d.mesLabel) mesEl.textContent = d.mesLabel;
+
   // Absenteísmo por setor
   const absTbl = document.getElementById('rh-absenteismo-tbl');
   if (absTbl && d.absDeptList) {
-    if (d.absDeptList.length === 0) {
-      absTbl.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">Sem faltas registradas no período</td></tr>';
-    } else {
-      absTbl.innerHTML = d.absDeptList.map(s => {
-        const pct = parseFloat(s.pct);
-        const cor = pct > 10 ? 'var(--red)' : pct > 5 ? 'var(--amber)' : 'var(--green)';
-        return `<tr>
-          <td>${s.nome}</td>
-          <td style="text-align:center">${s.total}</td>
-          <td style="text-align:center">${s.faltas}</td>
-          <td style="text-align:center;color:${cor};font-weight:600">${s.pct}%</td>
-        </tr>`;
-      }).join('');
-    }
+    absTbl.innerHTML = d.absDeptList.length === 0
+      ? '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">Sem faltas registradas no período</td></tr>'
+      : d.absDeptList.map(s => {
+          const pct = parseFloat(s.pct);
+          const cor = pct > 10 ? 'var(--red)' : pct > 5 ? 'var(--amber)' : 'var(--green)';
+          return `<tr><td>${s.nome}</td><td style="text-align:center">${s.total}</td><td style="text-align:center">${s.faltas}</td><td style="text-align:center;color:${cor};font-weight:600">${s.pct}%</td></tr>`;
+        }).join('');
   }
 
   // Banco de horas
   const bancoTbl = document.getElementById('rh-horas-tbl');
   if (bancoTbl && d.bancoLista) {
-    if (d.bancoLista.length === 0) {
-      bancoTbl.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">Sem saldo a exibir</td></tr>';
-    } else {
-      bancoTbl.innerHTML = d.bancoLista.slice(0, 30).map(p => {
-        const cor = p.bancHoras < 0 ? 'var(--red)' : p.bancHoras > 0 ? 'var(--green)' : 'var(--text3)';
-        const status = p.bancHoras < -8 ? 'Devedor' : p.bancHoras > 8 ? 'Credor' : 'Neutro';
-        return `<tr>
-          <td style="font-size:12px">${p.nome}</td>
-          <td style="font-size:11px;color:var(--text3)">${p.depto}</td>
-          <td style="text-align:right;color:${cor};font-weight:600;font-family:'JetBrains Mono',monospace">${p.bancHoras > 0 ? '+' : ''}${p.bancHoras}h</td>
-          <td style="text-align:center"><span class="badge ${p.bancHoras < 0 ? 'b-red' : p.bancHoras > 0 ? 'b-green' : ''}" style="font-size:10px">${status}</span></td>
-        </tr>`;
-      }).join('');
-    }
+    bancoTbl.innerHTML = d.bancoLista.length === 0
+      ? '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">Sem saldo a exibir</td></tr>'
+      : d.bancoLista.slice(0, 30).map(p => {
+          const cor    = p.bancHoras < 0 ? 'var(--red)' : p.bancHoras > 0 ? 'var(--green)' : 'var(--text3)';
+          const status = p.bancHoras < -8 ? 'Devedor' : p.bancHoras > 8 ? 'Credor' : 'Neutro';
+          return `<tr>
+            <td style="font-size:12px">${p.nome}</td>
+            <td style="font-size:11px;color:var(--text3)">${p.depto}</td>
+            <td style="text-align:right;color:${cor};font-weight:600;font-family:'JetBrains Mono',monospace">${p.bancHoras>0?'+':''}${p.bancHoras}h</td>
+            <td style="text-align:center"><span class="badge ${p.bancHoras<0?'b-red':p.bancHoras>0?'b-green':''}" style="font-size:10px">${status}</span></td>
+          </tr>`;
+        }).join('');
   }
 
-  // Tabela completa de colaboradores (absenteísmo detalhado)
+  // Ponto por colaborador
   const perfTbl = document.getElementById('rh-performance-tbl');
   if (perfTbl && d.pessoaStats) {
-    if (d.pessoaStats.length === 0) {
-      perfTbl.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Sem dados de ponto no período</td></tr>';
-    } else {
-      perfTbl.innerHTML = d.pessoaStats.map(p => {
-        const corFalt = p.faltas > 3 ? 'var(--red)' : p.faltas > 1 ? 'var(--amber)' : 'var(--text)';
-        const corAtr  = p.atrasos > 60 ? 'var(--amber)' : 'var(--text)';
-        return `<tr>
-          <td style="font-size:12px">${p.nome}</td>
-          <td style="font-size:11px;color:var(--text3)">${p.depto}</td>
-          <td style="text-align:center;color:var(--text2)">${p.diasTrab}d / ${p.horasTrab}h</td>
-          <td style="text-align:center;color:${corFalt}">${p.faltas}f / <span style="color:${corAtr}">${p.atrasos}m atr.</span></td>
-          <td style="text-align:center;color:${p.horasExtra > 0 ? 'var(--green)' : 'var(--text3)'}">${p.horasExtra > 0 ? '+'+p.horasExtra+'h' : '—'}</td>
-        </tr>`;
-      }).join('');
-    }
-  }
-
-  // Linha movimentação — não disponível na API atual
-  const movRows = document.getElementById('rh-movimentacao-rows');
-  if (movRows) {
-    movRows.innerHTML = `<div style="font-size:11px;color:var(--text3);padding:12px 0;text-align:center">
-      <i class="fas fa-info-circle" style="margin-right:4px"></i>Dado não disponível via API RHiD
-    </div>`;
+    perfTbl.innerHTML = d.pessoaStats.length === 0
+      ? '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Sem dados de ponto no período</td></tr>'
+      : d.pessoaStats.map(p => {
+          const corFalt = p.faltas > 3 ? 'var(--red)' : p.faltas > 1 ? 'var(--amber)' : 'var(--text)';
+          const corAtr  = p.atrasos > 60 ? 'var(--amber)' : 'var(--text)';
+          return `<tr>
+            <td style="font-size:12px">${p.nome}</td>
+            <td style="font-size:11px;color:var(--text3)">${p.depto}</td>
+            <td style="text-align:center;color:var(--text2)">${p.diasTrab}d / ${p.horasTrab}h</td>
+            <td style="text-align:center;color:${corFalt}">${p.faltas}f / <span style="color:${corAtr}">${p.atrasos}m atr.</span></td>
+            <td style="text-align:center;color:${p.horasExtra>0?'var(--green)':'var(--text3)'}"> ${p.horasExtra>0?'+'+p.horasExtra+'h':'—'}</td>
+          </tr>`;
+        }).join('');
   }
 }
 </script>

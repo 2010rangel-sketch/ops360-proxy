@@ -2759,14 +2759,27 @@ async function fetchApuracaoAll(token, personIds, dataIni, dataFim) {
 async function buildRh() {
   const token = await rhidLogin();
 
+  // Busca persons paginado (máx 100 por chamada)
+  async function fetchAllPersons(token) {
+    const pageSize = 100;
+    let start = 0, all = [];
+    while (true) {
+      const d = await rhidGet(`/person?start=${start}&length=${pageSize}`, token);
+      const recs = d.records || [];
+      all = all.concat(recs);
+      if (recs.length < pageSize) break;
+      start += pageSize;
+    }
+    return all;
+  }
+
   // Busca persons e departments em paralelo
-  const [dpRaw, ddRaw, dvRaw] = await Promise.all([
-    rhidGet('/person?start=0&length=500', token),
+  const [persons, ddRaw, dvRaw] = await Promise.all([
+    fetchAllPersons(token),
     rhidGet('/department?start=0&length=100', token),
     rhidGet('/device?start=0&length=50', token),
   ]);
 
-  const persons     = dpRaw.records || [];
   const departments = ddRaw.records || [];
   const devices     = dvRaw.records || [];
 
@@ -2788,102 +2801,18 @@ async function buildRh() {
     .sort((a,b) => b[1]-a[1])
     .map(([nome, total]) => ({ nome, total }));
 
-  // Mês corrente para apuração (mês anterior fechado se dia < 5, senão mês atual)
-  const now   = new Date();
-  const mesRef = now.getDate() < 5
-    ? new Date(now.getFullYear(), now.getMonth() - 1, 1)
-    : new Date(now.getFullYear(), now.getMonth(), 1);
-  const anoRef = mesRef.getFullYear();
-  const mRef   = String(mesRef.getMonth() + 1).padStart(2,'0');
-  const lastDay = new Date(anoRef, mesRef.getMonth() + 1, 0).getDate();
-  const dataIni = `${anoRef}-${mRef}-01`;
-  const dataFim = `${anoRef}-${mRef}-${lastDay}`;
-  const mesLabel = mesRef.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-
-  // Apuração de ponto para todos os ativos
-  const personIds = ativos.map(p => p.id);
-  const apurMap   = await fetchApuracaoAll(token, personIds, dataIni, dataFim);
-
-  // Agrega por pessoa
-  const pessoaStats = [];
-  for (const p of ativos) {
-    const days = apurMap[p.id] || [];
-    const horasTrab  = days.reduce((s,d) => s + (d.totalHorasTrabalhadas || 0), 0);
-    const horasExtra = days.reduce((s,d) => s + (d.horasExtrasCalculadas || 0), 0);
-    const diasTrab   = days.filter(d => d.diasTrabalhados > 0 || d.totalHorasTrabalhadas > 0).length;
-    const faltas     = days.filter(d => d.faltaDiaInteiro).length;
-    const atrasos    = days.reduce((s,d) => s + (d.atrasoEntrada || 0), 0); // minutos
-    // Último saldo banco de horas
-    const lastDay2   = days.filter(d => d.saldoBancoFinalDia != null).pop();
-    const bancHoras  = lastDay2 ? lastDay2.saldoBancoFinalDia : 0;
-    const deptNome   = deptMap[p.idDepartment] || 'Outros';
-
-    pessoaStats.push({
-      id: p.id, nome: p.name, depto: deptNome,
-      horasTrab: Math.round(horasTrab / 60), // minutos → horas
-      horasExtra: Math.round(horasExtra / 60),
-      diasTrab, faltas,
-      atrasos: Math.round(atrasos), // minutos
-      bancHoras: Math.round(bancHoras / 60),
-    });
-  }
-
-  // Absenteísmo por setor: (dias falta / dias úteis esperados) × 100
-  const diasUteis = days => {
-    // Conta dias úteis do mês ref (aproximado: dias sem sáb/dom)
-    let c = 0;
-    const d = new Date(dataIni);
-    const fim = new Date(dataFim);
-    while (d <= fim) { const wd = d.getDay(); if (wd !== 0 && wd !== 6) c++; d.setDate(d.getDate()+1); }
-    return c;
-  };
-  const duteis = diasUteis();
-
-  const absDept = {};
-  for (const ps of pessoaStats) {
-    if (!absDept[ps.depto]) absDept[ps.depto] = { faltas: 0, total: 0 };
-    absDept[ps.depto].faltas += ps.faltas;
-    absDept[ps.depto].total  += 1;
-  }
-  const absDeptList = Object.entries(absDept)
-    .map(([nome, v]) => ({
-      nome,
-      total: v.total,
-      faltas: v.faltas,
-      pct: duteis > 0 ? ((v.faltas / (v.total * duteis)) * 100).toFixed(1) : '0.0',
-    }))
-    .sort((a,b) => parseFloat(b.pct) - parseFloat(a.pct));
-
-  // Banco de horas (top devedores e credores)
-  const bancoLista = pessoaStats
-    .filter(p => p.bancHoras !== 0)
-    .sort((a,b) => a.bancHoras - b.bancHoras); // negativos primeiro
-
-  // Totais gerais do mês
-  const totHorasTrab  = pessoaStats.reduce((s,p) => s+p.horasTrab, 0);
-  const totHorasExtra = pessoaStats.reduce((s,p) => s+p.horasExtra, 0);
-  const totFaltas     = pessoaStats.reduce((s,p) => s+p.faltas, 0);
-  const totAtrasos    = pessoaStats.reduce((s,p) => s+p.atrasos, 0);
-  const pctAbsent     = duteis > 0 && ativos.length > 0
-    ? ((totFaltas / (ativos.length * duteis)) * 100).toFixed(1)
-    : '0.0';
-
   return {
     headcount: persons.length,
     ativos:    ativos.length,
     afastados: afastados.length,
-    pctAbsent,
     hcDeptSorted,
     devices,
-    mesLabel,
-    dataIni, dataFim,
-    totHorasTrab, totHorasExtra, totFaltas,
-    totAtrasos,
-    absDeptList,
-    bancoLista,
-    pessoaStats: pessoaStats.sort((a,b) => a.nome.localeCompare(b.nome)),
   };
 }
+
+// Cache separado para ponto (mais pesado)
+let _rhPontoCache   = null;
+let _rhPontoCacheAt = 0;
 
 app.get('/api/rh', async (req, res) => {
   try {
@@ -2899,6 +2828,87 @@ app.get('/api/rh', async (req, res) => {
     console.error('[/api/rh]', e.message);
     if (_rhCache) return res.json({ ..._rhCache, aviso: e.message });
     res.status(500).json({ erro: e.message });
+  }
+});
+
+app.get('/api/rh/ponto', async (req, res) => {
+  try {
+    const force = req.query.force === '1';
+    const agora = Date.now();
+    if (!force && _rhPontoCache && (agora - _rhPontoCacheAt) < RH_CACHE_TTL) return res.json(_rhPontoCache);
+    if (force) { _rhPontoCache = null; _rhPontoCacheAt = 0; }
+
+    const token   = await rhidLogin();
+    const dpRaw   = await rhidGet('/person?start=0&length=100', token);
+    const persons = dpRaw.records || [];
+    const deptDRaw = await rhidGet('/department?start=0&length=100', token);
+    const deptMap = {};
+    for (const d of (deptDRaw.records||[])) deptMap[d.id] = d.name;
+
+    const ativos = persons.filter(p => p.status === 0);
+    const now    = new Date();
+    const mesRef = now.getDate() < 5
+      ? new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      : new Date(now.getFullYear(), now.getMonth(), 1);
+    const anoRef = mesRef.getFullYear();
+    const mRef   = String(mesRef.getMonth()+1).padStart(2,'0');
+    const lastDayN = new Date(anoRef, mesRef.getMonth()+1, 0).getDate();
+    const dataIni = `${anoRef}-${mRef}-01`;
+    const dataFim = `${anoRef}-${mRef}-${lastDayN}`;
+
+    const apurMap = await fetchApuracaoAll(token, ativos.map(p=>p.id), dataIni, dataFim);
+
+    // Dias úteis do mês
+    let duteis = 0;
+    const d0 = new Date(dataIni), dfim = new Date(dataFim);
+    for (let d=new Date(d0); d<=dfim; d.setDate(d.getDate()+1)) {
+      const wd = d.getDay(); if(wd!==0&&wd!==6) duteis++;
+    }
+
+    const pessoaStats = ativos.map(p => {
+      const days = apurMap[p.id] || [];
+      const horasTrab  = days.reduce((s,d) => s+(d.totalHorasTrabalhadas||0), 0);
+      const horasExtra = days.reduce((s,d) => s+(d.horasExtrasCalculadas||0), 0);
+      const diasTrab   = days.filter(d => (d.totalHorasTrabalhadas||0)>0).length;
+      const faltas     = days.filter(d => d.faltaDiaInteiro).length;
+      const atrasos    = days.reduce((s,d) => s+(d.atrasoEntrada||0), 0);
+      const lastD      = [...days].reverse().find(d => d.saldoBancoFinalDia != null);
+      const bancHoras  = lastD ? lastD.saldoBancoFinalDia : 0;
+      return {
+        id: p.id, nome: p.name, depto: deptMap[p.idDepartment]||'Outros',
+        horasTrab: Math.round(horasTrab/60), horasExtra: Math.round(horasExtra/60),
+        diasTrab, faltas, atrasos: Math.round(atrasos), bancHoras: Math.round(bancHoras/60),
+      };
+    });
+
+    const totFaltas = pessoaStats.reduce((s,p)=>s+p.faltas,0);
+    const pctAbsent = duteis>0&&ativos.length>0
+      ? ((totFaltas/(ativos.length*duteis))*100).toFixed(1) : '0.0';
+
+    const absDept = {};
+    for (const ps of pessoaStats) {
+      if (!absDept[ps.depto]) absDept[ps.depto]={faltas:0,total:0};
+      absDept[ps.depto].faltas+=ps.faltas; absDept[ps.depto].total+=1;
+    }
+    const absDeptList = Object.entries(absDept)
+      .map(([nome,v])=>({nome,total:v.total,faltas:v.faltas,
+        pct:duteis>0?((v.faltas/(v.total*duteis))*100).toFixed(1):'0.0'}))
+      .sort((a,b)=>parseFloat(b.pct)-parseFloat(a.pct));
+
+    const bancoLista = pessoaStats.filter(p=>p.bancHoras!==0)
+      .sort((a,b)=>a.bancHoras-b.bancHoras);
+
+    const result = {
+      mesLabel: mesRef.toLocaleDateString('pt-BR',{month:'long',year:'numeric'}),
+      pctAbsent, absDeptList, bancoLista,
+      pessoaStats: pessoaStats.sort((a,b)=>a.nome.localeCompare(b.nome)),
+    };
+    _rhPontoCache = result; _rhPontoCacheAt = agora;
+    res.json(result);
+  } catch(e) {
+    console.error('[/api/rh/ponto]', e.message);
+    if (_rhPontoCache) return res.json({..._rhPontoCache, aviso:e.message});
+    res.status(500).json({erro:e.message});
   }
 });
 
