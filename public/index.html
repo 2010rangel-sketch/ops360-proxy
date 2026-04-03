@@ -2035,6 +2035,7 @@ input[type="text"]::placeholder { color:var(--text3); }
             <select id="nr-tipo" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:12px;width:100%;box-sizing:border-box">
               <option>NR35 — Trabalho em Altura</option>
               <option>NR10 — Segurança em Eletricidade</option>
+              <option>NR35 + NR10 — Altura e Eletricidade</option>
               <option>NR12 — Segurança em Máquinas</option>
               <option>NR33 — Espaço Confinado</option>
               <option>Outro</option>
@@ -7551,12 +7552,13 @@ async function lerPdfNR(event) {
   // Se for apenas 1 arquivo, abre o modal como antes para editar
   // Se for múltiplos, mostra painel de revisão em lote
   const NR_MAP = {
+    '(NR-?35|NR 35|trabalho em altura).{0,200}(NR-?10|NR 10|eletricidade|elétrica)|(NR-?10|NR 10|eletricidade|elétrica).{0,200}(NR-?35|NR 35|trabalho em altura)': 'NR35 + NR10 — Altura e Eletricidade',
     'NR-?35|NR 35|trabalho em altura': 'NR35 — Trabalho em Altura',
     'NR-?10|NR 10|eletricidade|elétrica': 'NR10 — Segurança em Eletricidade',
     'NR-?12|NR 12|máquinas|maquinas': 'NR12 — Segurança em Máquinas',
     'NR-?33|NR 33|confinado': 'NR33 — Espaço Confinado',
   };
-  const NR_OPTS = ['NR35 — Trabalho em Altura','NR10 — Segurança em Eletricidade','NR12 — Segurança em Máquinas','NR33 — Espaço Confinado','Outro'];
+  const NR_OPTS = ['NR35 — Trabalho em Altura','NR10 — Segurança em Eletricidade','NR35 + NR10 — Altura e Eletricidade','NR12 — Segurança em Máquinas','NR33 — Espaço Confinado','Outro'];
 
   async function extrairDoPdf(file) {
     const arrayBuffer = await file.arrayBuffer();
@@ -7587,8 +7589,21 @@ async function lerPdfNR(event) {
     const vencimento = dates.length > 1 ? toISO(dates[dates.length-1]) : '';
     const linhas = fullText.split(/\n|\r/).map(l => l.trim()).filter(Boolean);
     let nome = '';
-    for (const ln of linhas) {
-      if (/^[A-ZÀ-Ú ]{8,55}$/.test(ln) && !/(CERTIFICADO|TREINAMENTO|CURSO|NR\d|CNPJ|CPF|LTDA|EIRELI)/i.test(ln)) { nome = ln; break; }
+    // 1. Tenta padrões explícitos: "Certificamos que NOME", "concluído por NOME", "Nome: NOME"
+    const padroes = [
+      /(?:certificamos?\s+que|conclu[íi]do\s+por|participante[:\s]+|aluno[:\s]+|nome[:\s]+|certifica(?:-se)?\s+que)\s+([A-ZÀ-Úa-zà-ú][A-ZÀ-Úa-zà-ú ]{5,50})/i,
+      /\battendeu\b.{0,30}([A-ZÀ-Ú][A-ZÀ-Ú ]{5,45})/i,
+    ];
+    for (const re of padroes) {
+      const m = re.exec(fullText);
+      if (m) { nome = m[1].trim().replace(/\s+/g,' '); break; }
+    }
+    // 2. Fallback: linha em maiúsculas que parece nome próprio (≥2 palavras, sem palavras-chave)
+    if (!nome) {
+      const STOP = /CERTIFICADO|TREINAMENTO|CURSO|NR\d|CNPJ|CPF|LTDA|EIRELI|EMPRESA|VALIDADE|CARGA|HORA|DATA|EMISS|VENCI|CONTEÚDO|MÓDULO|INSTRU|DIRETOR|COORDENA|ASSINA|APROVADO|AUTORIZADO|PORTARIA|MINISTÉRIO|BRASIL|SEGURANÇA/i;
+      for (const ln of linhas) {
+        if (/^[A-ZÀ-Ú][A-ZÀ-Ú ]{7,54}$/.test(ln) && !STOP.test(ln) && ln.split(' ').length >= 2) { nome = ln; break; }
+      }
     }
     return { nome, tipo, emissao, vencimento, arquivo: file.name };
   }
