@@ -1750,24 +1750,39 @@ input[type="text"]::placeholder { color:var(--text3); }
       </div>
 
       <!-- 1ª Mensalidade -->
-      <div style="display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:14px" id="fin-mid-grid">
-        <!-- 1ª Mensalidade em Risco -->
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header">
-            <span class="tbl-title">1ª Mensalidade em Risco</span>
-            <span class="badge b-red" id="fin-prim-count">—</span>
+      <div class="tbl-card" style="margin-bottom:14px" id="fin-mid-grid">
+        <div class="tbl-header">
+          <span class="tbl-title">1ª Mensalidade em Risco</span>
+          <span class="badge b-red" id="fin-prim-count">—</span>
+        </div>
+        <!-- KPIs -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border)">
+          <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">Novos (60d)</div><div style="font-size:16px;font-weight:700;color:var(--text)" id="fin-prim-novos">—</div></div>
+          <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">Não pagou</div><div style="font-size:16px;font-weight:700;color:#ef4444" id="fin-prim-np">—</div></div>
+          <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">% de risco</div><div style="font-size:16px;font-weight:700;color:var(--amber)" id="fin-prim-pct2">—</div></div>
+        </div>
+        <!-- 2 colunas: vendedores | clientes -->
+        <div style="display:grid;grid-template-columns:280px 1fr;min-height:180px">
+          <!-- Coluna esquerda: por vendedor -->
+          <div style="border-right:1px solid var(--border)">
+            <div style="padding:8px 12px;font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border)">Por Vendedor</div>
+            <div style="overflow-y:auto;max-height:300px">
+              <table class="tbl" style="font-size:11px"><thead><tr><th>Vendedor</th><th>Novos</th><th>Risco</th><th>%</th></tr></thead>
+              <tbody id="fin-prim-vend"></tbody></table>
+            </div>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border)">
-            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">Novos (60d)</div><div style="font-size:16px;font-weight:700;color:var(--text)" id="fin-prim-novos">—</div></div>
-            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">Não pagou</div><div style="font-size:16px;font-weight:700;color:#ef4444" id="fin-prim-np">—</div></div>
-            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">% de risco</div><div style="font-size:16px;font-weight:700;color:var(--amber)" id="fin-prim-pct2">—</div></div>
-          </div>
-          <div style="padding:8px 14px 0">
-            <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Por Vendedor</div>
-          </div>
-          <div style="max-height:160px;overflow-y:auto;padding-bottom:4px">
-            <table class="tbl" style="font-size:11px"><thead><tr><th>Vendedor</th><th>Novos</th><th>Risco</th><th>%</th></tr></thead>
-            <tbody id="fin-prim-vend"></tbody></table>
+          <!-- Coluna direita: clientes em risco -->
+          <div>
+            <div style="padding:8px 12px;font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+              <span id="fin-prim-lista-titulo">Todos os clientes em risco</span>
+              <button id="fin-prim-limpar" onclick="filtrarPrimMensalidade(null)" style="display:none;background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:0">✕ ver todos</button>
+            </div>
+            <div style="overflow-y:auto;max-height:300px">
+              <table class="tbl" style="font-size:11px">
+                <thead><tr><th>Cliente</th><th>Plano</th><th>Mensalidade</th><th>Cidade</th><th>Desde</th></tr></thead>
+                <tbody id="fin-prim-clientes"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -1990,7 +2005,9 @@ input[type="text"]::placeholder { color:var(--text3); }
           <div class="tbl-card" style="margin-bottom:0">
             <div class="tbl-header">
               <span class="tbl-title"><i class="fas fa-certificate" style="color:var(--amber);margin-right:5px"></i>Certificações NR</span>
-              <button class="btn btn-sm" onclick="abrirModalNR()" style="margin-left:auto"><i class="fas fa-plus"></i> Adicionar</button>
+              <label class="btn btn-sm" for="nr-pdf-input" style="cursor:pointer;margin:0;margin-left:auto"><i class="fas fa-file-pdf" style="margin-right:4px"></i>Subir PDF</label>
+              <input type="file" id="nr-pdf-input" accept=".pdf" style="display:none" onchange="lerPdfNR(event)">
+              <button class="btn btn-sm" onclick="abrirModalNR()"><i class="fas fa-plus"></i> Manual</button>
             </div>
             <div style="overflow-y:auto;max-height:260px">
               <table class="tbl"><thead><tr><th>Colaborador</th><th>Cert.</th><th>Vencimento</th><th>Status</th><th style="width:28px"></th></tr></thead>
@@ -2009,6 +2026,8 @@ input[type="text"]::placeholder { color:var(--text3); }
             <div style="font-weight:600;font-size:14px">Adicionar Certificação</div>
             <button onclick="document.getElementById('modalNRCert').style.display='none'" style="background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer">✕</button>
           </div>
+          <!-- Indicador de extração do PDF -->
+          <div id="nr-pdf-status" style="display:none;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.3);border-radius:6px;padding:8px 10px;font-size:11px;color:var(--accent);margin-bottom:4px"></div>
           <div style="display:flex;flex-direction:column;gap:10px">
             <input id="nr-nome" placeholder="Nome do colaborador" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:12px;width:100%;box-sizing:border-box">
             <input id="nr-setor" placeholder="Setor / Cargo" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:12px;width:100%;box-sizing:border-box">
@@ -2019,8 +2038,8 @@ input[type="text"]::placeholder { color:var(--text3); }
               <option>NR33 — Espaço Confinado</option>
               <option>Outro</option>
             </select>
-            <input id="nr-emissao" type="date" placeholder="Data de emissão" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:12px;width:100%;box-sizing:border-box">
-            <input id="nr-vencimento" type="date" placeholder="Data de vencimento" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:12px;width:100%;box-sizing:border-box">
+            <input id="nr-emissao" type="date" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:12px;width:100%;box-sizing:border-box">
+            <input id="nr-vencimento" type="date" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:12px;width:100%;box-sizing:border-box">
             <input id="nr-obs" placeholder="Observações (opcional)" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:12px;width:100%;box-sizing:border-box">
             <button onclick="salvarNRCert()" class="btn" style="width:100%;margin-top:4px">Salvar</button>
           </div>
@@ -2357,6 +2376,7 @@ input[type="text"]::placeholder { color:var(--text3); }
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 // CLOCK
 function tick() { document.getElementById('clock').textContent = new Date().toLocaleTimeString('pt-BR'); }
@@ -2376,6 +2396,10 @@ function toggleTheme() {
 
 // NAV
 function goPage(id, el) {
+  // Fecha modais globais ao trocar de página
+  ['modalRiscoVendedor','modalNRCert'].forEach(mid => {
+    const m = document.getElementById(mid); if (m) m.style.display = 'none';
+  });
   if(window.innerWidth<=768){
     document.querySelector('.sidebar').classList.remove('open');
     document.getElementById('sidebarOverlay').classList.remove('open');
@@ -6344,15 +6368,15 @@ function renderFinanceiro(d) {
   fev('fin-prim-novos',  pm.total_novos || 0);
   fev('fin-prim-np',     pm.total_nao_pagou || 0);
   fev('fin-prim-pct2',   `${pm.pct || 0}%`);
+  const pv = pm.por_vendedor || [];
+  window._primTodosClientes = pv.flatMap(v => (v.lista || []).map(c => ({ ...c, vendedor: v.vendedor })));
+  window._primVendedores = pv;
   const primVend = document.getElementById('fin-prim-vend');
   if (primVend) {
-    const pv = pm.por_vendedor || [];
-    window._primMapLista = {};
     primVend.innerHTML = pv.length ? pv.map((v, idx) => {
       const cor = v.pct >= 30 ? '#ef4444' : v.pct >= 15 ? 'var(--amber)' : '#22c55e';
       const clicavel = (v.lista||[]).length > 0;
-      if (clicavel) window._primMapLista[idx] = { vendedor: v.vendedor, total: v.nao_pagou, lista: v.lista || [] };
-      return `<tr ${clicavel ? `onclick="abrirRiscoVendedor(${idx})" style="cursor:pointer" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''"` : ''}>
+      return `<tr id="fin-prim-vrow-${idx}" ${clicavel ? `onclick="filtrarPrimMensalidade(${idx})" style="cursor:pointer" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=this.dataset.sel?'rgba(99,102,241,.15)':''"` : ''}>
         <td style="font-weight:500">${v.vendedor}${clicavel ? ' <i class="fas fa-chevron-right" style="font-size:9px;opacity:.4;margin-left:3px"></i>' : ''}</td>
         <td class="mono">${v.novos}</td>
         <td class="mono" style="color:#ef4444">${v.nao_pagou}</td>
@@ -6360,6 +6384,7 @@ function renderFinanceiro(d) {
       </tr>`;
     }).join('') : `<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:12px">Sem dados</td></tr>`;
   }
+  filtrarPrimMensalidade(null);
 
   // Clientes por Ano de Cadastro
   const ltvTodos = d.ltv_top100 || [];
@@ -6886,23 +6911,52 @@ function fmtHMin(minutos) {
 }
 
 function abrirRiscoVendedor(idx) {
-  const entry = (window._primMapLista || {})[idx];
-  if (!entry) return;
-  const { vendedor, total, lista } = entry;
-  document.getElementById('modalRiscoTitulo').textContent = vendedor;
-  document.getElementById('modalRiscoSub').textContent = `${total} cliente${total !== 1 ? 's' : ''} com 1ª mensalidade em risco`;
-  const tbody = document.getElementById('modalRiscoLista');
+  // mantido para compatibilidade com aba Atendimento se ainda usada
+  filtrarPrimMensalidade(idx);
+}
+
+function _renderPrimClientesLista(lista) {
+  const tbody = document.getElementById('fin-prim-clientes');
+  if (!tbody) return;
   tbody.innerHTML = lista.length ? lista.map(c => {
     const data = c.dataHab ? new Date(c.dataHab).toLocaleDateString('pt-BR') : '—';
+    const valor = c.valor ? 'R$ ' + Number(c.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '—';
     return `<tr>
-      <td style="font-weight:500">${c.nome || '—'}</td>
-      <td style="font-size:11px;color:var(--text3)">${c.plano || '—'}</td>
-      <td class="mono" style="color:var(--amber)">${c.valor ? 'R$ '+Number(c.valor).toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—'}</td>
-      <td style="font-size:11px;color:var(--text3)">${c.cidade || '—'}</td>
-      <td style="font-size:11px;color:var(--text3)">${data}</td>
+      <td style="font-weight:500;font-size:11px">${c.nome || '—'}</td>
+      <td style="font-size:10px;color:var(--text3)">${c.plano || '—'}</td>
+      <td class="mono" style="color:var(--amber);font-size:11px">${valor}</td>
+      <td style="font-size:10px;color:var(--text3)">${c.cidade || '—'}</td>
+      <td style="font-size:10px;color:var(--text3)">${data}</td>
     </tr>`;
-  }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Sem clientes na lista</td></tr>';
-  document.getElementById('modalRiscoVendedor').style.display = 'flex';
+  }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Nenhum cliente</td></tr>';
+}
+
+function filtrarPrimMensalidade(idx) {
+  const pv = window._primVendedores || [];
+  const todos = window._primTodosClientes || [];
+  const titulo = document.getElementById('fin-prim-lista-titulo');
+  const btnLimpar = document.getElementById('fin-prim-limpar');
+
+  // Desmarca seleção anterior
+  pv.forEach((_, i) => {
+    const row = document.getElementById(`fin-prim-vrow-${i}`);
+    if (row) { row.style.background = ''; row.dataset.sel = ''; }
+  });
+
+  if (idx === null) {
+    if (titulo) titulo.textContent = `Todos os clientes em risco (${todos.length})`;
+    if (btnLimpar) btnLimpar.style.display = 'none';
+    _renderPrimClientesLista(todos);
+  } else {
+    const v = pv[idx];
+    if (!v) return;
+    const lista = v.lista || [];
+    if (titulo) titulo.textContent = `${v.vendedor} · ${lista.length} em risco`;
+    if (btnLimpar) btnLimpar.style.display = '';
+    const row = document.getElementById(`fin-prim-vrow-${idx}`);
+    if (row) { row.style.background = 'rgba(99,102,241,.15)'; row.dataset.sel = '1'; }
+    _renderPrimClientesLista(lista);
+  }
 }
 
 function renderRhHeadcount(d) {
@@ -7369,6 +7423,94 @@ function removerNRCert(idx) {
   lista.splice(idx, 1);
   localStorage.setItem('rhNRCerts', JSON.stringify(lista));
   renderRhNR();
+}
+
+async function lerPdfNR(event) {
+  const file = event.target.files && event.target.files[0];
+  event.target.value = '';
+  if (!file) return;
+
+  const status = document.getElementById('nr-pdf-status');
+  if (status) { status.style.display = ''; status.textContent = 'Lendo PDF...'; }
+
+  try {
+    if (typeof pdfjsLib === 'undefined') throw new Error('PDF.js não carregado');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+    let fullText = '';
+    for (let p = 1; p <= Math.min(pdf.numPages, 5); p++) {
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      fullText += content.items.map(i => i.str).join(' ') + '\n';
+    }
+
+    // Detectar tipo NR
+    const nrMap = {
+      'NR-?35|NR 35|trabalho em altura': 'NR35 — Trabalho em Altura',
+      'NR-?10|NR 10|eletricidade|elétrica': 'NR10 — Segurança em Eletricidade',
+      'NR-?12|NR 12|máquinas|maquinas': 'NR12 — Segurança em Máquinas',
+      'NR-?33|NR 33|confinado': 'NR33 — Espaço Confinado',
+    };
+    let tipoDetectado = null;
+    for (const [pat, val] of Object.entries(nrMap)) {
+      if (new RegExp(pat, 'i').test(fullText)) { tipoDetectado = val; break; }
+    }
+
+    // Extrair datas DD/MM/YYYY ou DD/MM/YY
+    const dateRe = /\b(\d{2})\/(\d{2})\/(\d{2,4})\b/g;
+    const dates = [];
+    let m;
+    while ((m = dateRe.exec(fullText)) !== null) {
+      const d = parseInt(m[1]), mo = parseInt(m[2]);
+      let y = parseInt(m[3]);
+      if (y < 100) y += 2000;
+      if (d >= 1 && d <= 31 && mo >= 1 && mo <= 12 && y >= 2000 && y <= 2040) {
+        dates.push(new Date(y, mo - 1, d));
+      }
+    }
+    dates.sort((a, b) => a - b);
+
+    // Emissão = menor data, vencimento = maior data
+    const toInput = dt => {
+      const y = dt.getFullYear(), mo = String(dt.getMonth()+1).padStart(2,'0'), d = String(dt.getDate()).padStart(2,'0');
+      return `${y}-${mo}-${d}`;
+    };
+    const emissao   = dates.length > 0 ? toInput(dates[0]) : '';
+    const vencimento = dates.length > 1 ? toInput(dates[dates.length - 1]) : '';
+
+    // Tentar extrair nome (heurística: primeira linha com letras maiúsculas longas)
+    const linhas = fullText.split(/\n|\r/).map(l => l.trim()).filter(Boolean);
+    let nomeDetectado = '';
+    for (const ln of linhas) {
+      if (/^[A-ZÀ-Ú ]{8,50}$/.test(ln.trim()) && !/(CERTIFICADO|TREINAMENTO|CURSO|NR|CNPJ|CPF)/i.test(ln)) {
+        nomeDetectado = ln.trim();
+        break;
+      }
+    }
+
+    // Preencher modal
+    abrirModalNR();
+    if (nomeDetectado) document.getElementById('nr-nome').value = nomeDetectado;
+    if (tipoDetectado) {
+      const sel = document.getElementById('nr-tipo');
+      for (let i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].text === tipoDetectado) { sel.selectedIndex = i; break; }
+      }
+    }
+    if (emissao)    document.getElementById('nr-emissao').value = emissao;
+    if (vencimento) document.getElementById('nr-vencimento').value = vencimento;
+    document.getElementById('nr-obs').value = `Arquivo: ${file.name}`;
+
+    const encontrou = [tipoDetectado && 'tipo', emissao && 'emissão', vencimento && 'vencimento', nomeDetectado && 'nome'].filter(Boolean);
+    if (status) status.textContent = `✓ Extraído do PDF: ${encontrou.join(', ') || 'confirme os campos'}. Verifique e salve.`;
+
+  } catch(err) {
+    if (status) { status.textContent = 'Erro ao ler PDF: ' + err.message + ' — preencha manualmente.'; }
+    abrirModalNR();
+  }
 }
 </script>
 </body>
