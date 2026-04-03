@@ -2397,12 +2397,20 @@ async function buildFinanceiro() {
     vendMapAtivo[c.vendedor].cancelados60d = (vendMapAtivo[c.vendedor].cancelados60d || 0) + 1;
   });
 
-  // Cancelados gerais (6 meses) por vendedor
-  for (const cli of canGeralList) {
-    for (const s of (cli.servicos || [])) {
-      const v = getVendedorFin(s);
-      if (!vendMapAtivo[v]) vendMapAtivo[v] = { vendedor: v, ativos: 0, suspensos: 0, parciais: 0, mrr: 0 };
-      vendMapAtivo[v].cancelados_geral = (vendMapAtivo[v].cancelados_geral || 0) + 1;
+  // Cancelados gerais (all-time) por vendedor — conta apenas serviços com data_cancelamento preenchida
+  {
+    const seenGeral = new Set();
+    for (const cli of canGeralList) {
+      const nome = cli.nome_razaosocial || cli.nome_fantasia || '—';
+      for (const s of (cli.servicos || [])) {
+        if (!s.data_cancelamento) continue;
+        const chave = `${nome}|${s.nome||''}|${s.data_cancelamento}`;
+        if (seenGeral.has(chave)) continue;
+        seenGeral.add(chave);
+        const v = getVendedorFin(s);
+        if (!vendMapAtivo[v]) vendMapAtivo[v] = { vendedor: v, ativos: 0, suspensos: 0, parciais: 0, mrr: 0 };
+        vendMapAtivo[v].cancelados_geral = (vendMapAtivo[v].cancelados_geral || 0) + 1;
+      }
     }
   }
 
