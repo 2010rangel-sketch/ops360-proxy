@@ -1950,46 +1950,54 @@ input[type="text"]::placeholder { color:var(--text3); }
           </div>
         </div>
 
-        <!-- Linha 3: Turnover por Setor | Aniversários do Mês -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
-          <div class="tbl-card" style="margin-bottom:0">
-            <div class="tbl-header"><span class="tbl-title">Turnover por Setor</span><span class="badge b-red">últimos 12 meses</span></div>
-            <div style="overflow-x:auto;max-height:240px;overflow-y:auto">
-              <table class="tbl"><thead><tr><th>Setor</th><th>Ativos</th><th>Saídas (12m)</th><th>Turnover</th></tr></thead>
-              <tbody id="rh-turnover-setor"></tbody></table>
-            </div>
+        <!-- Linha 3: Turnover por Setor -->
+        <div class="tbl-card" style="margin-bottom:14px">
+          <div class="tbl-header"><span class="tbl-title">Turnover por Setor</span><span class="badge b-red">últimos 12 meses</span></div>
+          <div style="overflow-x:auto;max-height:200px;overflow-y:auto">
+            <table class="tbl"><thead><tr><th>Setor</th><th>Ativos</th><th>Saídas (12m)</th><th>Turnover</th></tr></thead>
+            <tbody id="rh-turnover-setor"></tbody></table>
           </div>
+        </div>
+
+        <!-- Linha 4: Aniversários | CNH | Certificações -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px">
+
+          <!-- Aniversários do Mês -->
           <div class="tbl-card" style="margin-bottom:0">
-            <div class="tbl-header"><span class="tbl-title">Aniversários do Mês</span><span class="badge b-green" id="rh-aniv-badge">—</span></div>
-            <div style="overflow-x:auto;max-height:240px;overflow-y:auto">
+            <div class="tbl-header">
+              <span class="tbl-title">Aniversários do Mês</span>
+              <span class="badge b-green" id="rh-aniv-badge">—</span>
+            </div>
+            <div style="overflow-y:auto;max-height:260px">
               <table class="tbl"><thead><tr><th>Colaborador</th><th>Depto</th><th>Data</th><th>Idade</th></tr></thead>
-              <tbody id="rh-aniversarios"></tbody>
+              <tbody id="rh-aniversarios"></tbody></table>
             </div>
           </div>
-        </div>
 
-        <!-- Linha 4: CNH Vencimentos -->
-        <div class="tbl-card" style="margin-bottom:14px">
-          <div class="tbl-header">
-            <span class="tbl-title"><i class="fas fa-id-card" style="color:var(--accent);margin-right:5px"></i>Controle de CNH</span>
-            <span class="badge b-amber" id="rh-cnh-badge">—</span>
+          <!-- Controle de CNH -->
+          <div class="tbl-card" style="margin-bottom:0">
+            <div class="tbl-header">
+              <span class="tbl-title"><i class="fas fa-id-card" style="color:var(--accent);margin-right:5px"></i>Controle de CNH</span>
+              <span class="badge b-amber" id="rh-cnh-badge">—</span>
+            </div>
+            <div style="overflow-y:auto;max-height:260px">
+              <table class="tbl"><thead><tr><th>Colaborador</th><th>Cat.</th><th>Vencimento</th><th>Status</th></tr></thead>
+              <tbody id="rh-cnh-tbl"></tbody>
+            </div>
           </div>
-          <div style="overflow-x:auto;max-height:260px;overflow-y:auto">
-            <table class="tbl"><thead><tr><th>Colaborador</th><th>Setor</th><th>Categoria</th><th>Vencimento</th><th>Status</th></tr></thead>
-            <tbody id="rh-cnh-tbl"></tbody>
-          </div>
-        </div>
 
-        <!-- Linha 5: NR Certificações -->
-        <div class="tbl-card" style="margin-bottom:14px">
-          <div class="tbl-header">
-            <span class="tbl-title"><i class="fas fa-certificate" style="color:var(--amber);margin-right:5px"></i>Controle NR35 / NR10 / Outras Certificações</span>
-            <button class="btn btn-sm" onclick="abrirModalNR()" style="margin-left:auto"><i class="fas fa-plus"></i> Adicionar</button>
+          <!-- NR Certificações -->
+          <div class="tbl-card" style="margin-bottom:0">
+            <div class="tbl-header">
+              <span class="tbl-title"><i class="fas fa-certificate" style="color:var(--amber);margin-right:5px"></i>Certificações NR</span>
+              <button class="btn btn-sm" onclick="abrirModalNR()" style="margin-left:auto"><i class="fas fa-plus"></i> Adicionar</button>
+            </div>
+            <div style="overflow-y:auto;max-height:260px">
+              <table class="tbl"><thead><tr><th>Colaborador</th><th>Cert.</th><th>Vencimento</th><th>Status</th><th style="width:28px"></th></tr></thead>
+              <tbody id="rh-nr-tbl"></tbody>
+            </div>
           </div>
-          <div style="overflow-x:auto;max-height:280px;overflow-y:auto">
-            <table class="tbl"><thead><tr><th>Colaborador</th><th>Setor/Cargo</th><th>Certificação</th><th>Emissão</th><th>Vencimento</th><th>Status</th><th style="width:40px"></th></tr></thead>
-            <tbody id="rh-nr-tbl"></tbody>
-          </div>
+
         </div>
 
       </div>
@@ -7282,20 +7290,20 @@ function renderRhCNH(ativos) {
   }
   const tbody = document.getElementById('rh-cnh-tbl');
   if (!tbody) return;
-  if (!sorted.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Nenhum colaborador com CNH cadastrada</td></tr>'; return; }
+  if (!sorted.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">Nenhuma CNH cadastrada</td></tr>'; return; }
   tbody.innerHTML = sorted.map(e => {
-    const venc = e.cnhVenc.toLocaleDateString('pt-BR');
+    const venc = e.cnhVenc.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit' });
     const diff = Math.ceil((e.cnhVenc - hoje) / (1000 * 60 * 60 * 24));
     let status, cor;
-    if (diff < 0)        { status = 'Vencida';    cor = 'var(--red)'; }
-    else if (diff <= 30) { status = diff + 'd';    cor = 'var(--red)'; }
-    else if (diff <= 90) { status = diff + 'd';    cor = 'var(--amber)'; }
-    else                 { status = 'OK';          cor = 'var(--green)'; }
+    if (diff < 0)        { status = 'Vencida';  cor = 'var(--red)'; }
+    else if (diff <= 30) { status = diff + 'd'; cor = 'var(--red)'; }
+    else if (diff <= 90) { status = diff + 'd'; cor = 'var(--amber)'; }
+    else                 { status = 'OK';        cor = 'var(--green)'; }
+    const nomeAbrev = e.nome.split(' ').slice(0, 2).join(' ');
     return `<tr>
-      <td style="font-size:12px">${e.nome}</td>
-      <td style="font-size:11px;color:var(--text3)">${e.depto || '—'}</td>
-      <td style="text-align:center;font-size:12px">${e.cnhCat || '—'}</td>
-      <td style="text-align:center;font-size:12px;color:${cor}">${venc}</td>
+      <td style="font-size:11px" title="${e.nome}">${nomeAbrev}</td>
+      <td style="text-align:center;font-size:11px;color:var(--text2)">${e.cnhCat || '—'}</td>
+      <td style="text-align:center;font-size:11px;color:${cor}">${venc}</td>
       <td style="text-align:center"><span class="badge" style="background:${cor}22;color:${cor};border:1px solid ${cor}44;font-size:10px">${status}</span></td>
     </tr>`;
   }).join('');
@@ -7306,25 +7314,24 @@ function renderRhNR() {
   const hoje = new Date();
   const tbody = document.getElementById('rh-nr-tbl');
   if (!tbody) return;
-  if (!lista.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:16px">Nenhuma certificação cadastrada · Clique em <b>+ Adicionar</b></td></tr>'; return; }
+  if (!lista.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Nenhuma · <b>+ Adicionar</b></td></tr>'; return; }
   tbody.innerHTML = lista.map((c, i) => {
     const vencDate = c.vencimento ? new Date(c.vencimento) : null;
     const diff = vencDate ? Math.ceil((vencDate - hoje) / (1000 * 60 * 60 * 24)) : null;
     let status = '—', cor = 'var(--text3)';
     if (vencDate) {
-      if (diff < 0)        { status = 'Vencida';   cor = 'var(--red)'; }
-      else if (diff <= 30) { status = diff + 'd';   cor = 'var(--red)'; }
-      else if (diff <= 90) { status = diff + 'd';   cor = 'var(--amber)'; }
-      else                 { status = 'OK';         cor = 'var(--green)'; }
+      if (diff < 0)        { status = 'Vencida'; cor = 'var(--red)'; }
+      else if (diff <= 30) { status = diff + 'd'; cor = 'var(--red)'; }
+      else if (diff <= 90) { status = diff + 'd'; cor = 'var(--amber)'; }
+      else                 { status = 'OK';       cor = 'var(--green)'; }
     }
-    const emissaoFmt = c.emissao   ? new Date(c.emissao).toLocaleDateString('pt-BR')   : '—';
-    const vencFmt    = vencDate    ? vencDate.toLocaleDateString('pt-BR')               : '—';
+    const vencFmt = vencDate ? vencDate.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit' }) : '—';
+    const tipoAbrev = (c.tipo || '').replace('— ', '').split(' — ')[0].replace(/^(NR\d+|Outro).*/, '$1');
+    const nomeAbrev = c.nome.split(' ').slice(0, 2).join(' ');
     return `<tr>
-      <td style="font-size:12px">${c.nome}</td>
-      <td style="font-size:11px;color:var(--text3)">${c.setor || '—'}</td>
-      <td style="font-size:12px;font-weight:600;color:var(--amber)">${c.tipo || '—'}</td>
-      <td style="font-size:12px;color:var(--text2)">${emissaoFmt}</td>
-      <td style="font-size:12px;color:${cor}">${vencFmt}</td>
+      <td style="font-size:11px" title="${c.nome}">${nomeAbrev}</td>
+      <td style="font-size:11px;font-weight:600;color:var(--amber)" title="${c.tipo}">${tipoAbrev}</td>
+      <td style="text-align:center;font-size:11px;color:${cor}">${vencFmt}</td>
       <td style="text-align:center"><span class="badge" style="background:${cor}22;color:${cor};border:1px solid ${cor}44;font-size:10px">${status}</span></td>
       <td style="text-align:center"><button onclick="removerNRCert(${i})" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:2px 4px" title="Remover">✕</button></td>
     </tr>`;
