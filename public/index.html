@@ -1720,6 +1720,16 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
       </div>
 
+      <!-- Tempo Médio de Vida Histórico -->
+      <div class="tbl-card" style="margin-bottom:14px" id="fin-tempo-medio-card">
+        <div class="tbl-header">
+          <span class="tbl-title"><i class="fas fa-clock" style="color:var(--amber);margin-right:5px"></i>Tempo Médio de Vida dos Clientes mensal</span>
+        </div>
+        <div style="padding:16px;overflow-x:auto">
+          <div id="fin-tempo-chart" style="min-height:120px;display:flex;align-items:flex-end;gap:6px;min-width:500px"></div>
+        </div>
+      </div>
+
       <!-- ═══ ADIÇÃO LÍQUIDA ═══ -->
       <div class="tbl-card" style="margin-bottom:14px" id="fin-al-card">
         <div class="tbl-header">
@@ -1755,17 +1765,6 @@ input[type="text"]::placeholder { color:var(--text3); }
             </div>
             <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5" id="fin-al-proj-nota">—</div>
           </div>
-        </div>
-      </div>
-
-      <!-- Tempo Médio de Vida Histórico -->
-      <div class="tbl-card" style="margin-bottom:14px" id="fin-tempo-medio-card">
-        <div class="tbl-header">
-          <span class="tbl-title"><i class="fas fa-clock" style="color:var(--amber);margin-right:5px"></i>Tempo Médio de Vida dos Clientes (ao cancelar)</span>
-          <span class="badge b-amber">Jan/2025 → mês atual · excluindo desistências de instalação</span>
-        </div>
-        <div style="padding:16px;overflow-x:auto">
-          <div id="fin-tempo-chart" style="min-height:120px;display:flex;align-items:flex-end;gap:6px;min-width:500px"></div>
         </div>
       </div>
 
@@ -6334,11 +6333,12 @@ function renderFinanceiro(d) {
   const primVend = document.getElementById('fin-prim-vend');
   if (primVend) {
     const pv = pm.por_vendedor || [];
-    primVend.innerHTML = pv.length ? pv.map(v => {
+    window._primMapLista = {};
+    primVend.innerHTML = pv.length ? pv.map((v, idx) => {
       const cor = v.pct >= 30 ? '#ef4444' : v.pct >= 15 ? 'var(--amber)' : '#22c55e';
-      const listaJson = JSON.stringify(v.lista || []).replace(/'/g,'&#39;').replace(/"/g,'&quot;');
       const clicavel = (v.lista||[]).length > 0;
-      return `<tr ${clicavel ? `onclick="abrirRiscoVendedor('${v.vendedor.replace(/'/g,"&#39;")}',${v.nao_pagou},'${listaJson}')" style="cursor:pointer" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''"` : ''}>
+      if (clicavel) window._primMapLista[idx] = { vendedor: v.vendedor, total: v.nao_pagou, lista: v.lista || [] };
+      return `<tr ${clicavel ? `onclick="abrirRiscoVendedor(${idx})" style="cursor:pointer" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''"` : ''}>
         <td style="font-weight:500">${v.vendedor}${clicavel ? ' <i class="fas fa-chevron-right" style="font-size:9px;opacity:.4;margin-left:3px"></i>' : ''}</td>
         <td class="mono">${v.novos}</td>
         <td class="mono" style="color:#ef4444">${v.nao_pagou}</td>
@@ -6404,9 +6404,24 @@ function renderCancelStats(pfx, stats) {
 
   const motivoEl = document.getElementById(`fin-${pfx}-motivo`);
   if (motivoEl) {
-    motivoEl.innerHTML = (stats.por_motivo || []).slice(0, 8).map(m =>
-      `<span class="badge b-red" style="font-size:10px">${m.motivo} <b>${m.n}</b></span>`
-    ).join('');
+    const motivos = (stats.por_motivo || []).slice(0, 8);
+    const maxN    = motivos.length ? motivos[0].n : 1;
+    const totalN  = motivos.reduce((s, m) => s + m.n, 0);
+    const CORES   = ['#ef4444','#f97316','#eab308','#22c55e','#06b6d4','#8b5cf6','#ec4899','#94a3b8'];
+    motivoEl.innerHTML = motivos.map((m, i) => {
+      const pct  = totalN > 0 ? Math.round(m.n / totalN * 100) : 0;
+      const barW = Math.round(m.n / maxN * 100);
+      const cor  = CORES[i % CORES.length];
+      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+        <div style="width:7px;height:7px;border-radius:50%;background:${cor};flex-shrink:0"></div>
+        <div style="flex:1;min-width:0;font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${m.motivo}">${m.motivo}</div>
+        <div style="width:70px;height:5px;background:rgba(255,255,255,.08);border-radius:3px;flex-shrink:0">
+          <div style="width:${barW}%;height:100%;background:${cor};border-radius:3px;transition:width .3s"></div>
+        </div>
+        <div style="font-size:11px;font-weight:700;color:${cor};min-width:20px;text-align:right">${m.n}</div>
+        <div style="font-size:10px;color:var(--text3);min-width:30px;text-align:right">${pct}%</div>
+      </div>`;
+    }).join('');
   }
 
   const listaEl = document.getElementById(`fin-${pfx}-lista`);
@@ -6417,7 +6432,7 @@ function renderCancelStats(pfx, stats) {
       <td style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.plano}</td>
       <td style="font-size:11px;color:var(--accent);white-space:nowrap">${c.tempoFmt}</td>
       <td class="mono" style="color:#22c55e;font-size:11px;white-space:nowrap">${fmtBRLk(c.ltvDinheiro)}</td>
-      <td style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.motivo}</td>
+      <td style="font-size:10px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.motivo}">${c.motivo}</td>
     </tr>`).join('') : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Nenhum cancelamento</td></tr>`;
   }
 }
@@ -6853,8 +6868,10 @@ function fmtHMin(minutos) {
   return `${sinal}${h}h${m > 0 ? m+'m' : ''}`;
 }
 
-function abrirRiscoVendedor(vendedor, total, listaJson) {
-  const lista = typeof listaJson === 'string' ? JSON.parse(listaJson.replace(/&quot;/g,'"').replace(/&#39;/g,"'")) : listaJson;
+function abrirRiscoVendedor(idx) {
+  const entry = (window._primMapLista || {})[idx];
+  if (!entry) return;
+  const { vendedor, total, lista } = entry;
   document.getElementById('modalRiscoTitulo').textContent = vendedor;
   document.getElementById('modalRiscoSub').textContent = `${total} cliente${total !== 1 ? 's' : ''} com 1ª mensalidade em risco`;
   const tbody = document.getElementById('modalRiscoLista');
