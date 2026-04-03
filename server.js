@@ -1239,6 +1239,8 @@ let _comAllClientes  = null;   // array de clientes normalizados
 let _comCancelados   = null;   // clientes cancelados recentes (para capturar cancelados no mesmo mês)
 let _comFetching     = false;  // lock
 let _comFetchedAt    = 0;      // timestamp da última busca completa
+let _comAllCancelados = null;  // todos os cancelados (histórico completo)
+let _comAllCanceladosAt = 0;
 
 function buildVendasFromClientes(clientes, iniStr, fimStr) {
   // Usa apenas a parte da data (YYYY-MM-DD) para evitar bleed de timezone:
@@ -2310,14 +2312,13 @@ async function buildFinanceiro() {
     fetchIntegracaoClientes(token2, { tipo_data_cliente_servico: 'data_cancelamento', data_inicio_cliente_servico: mesAntIniStr,   data_fim_cliente_servico: mesAntFimStr,   cancelado: 'sim' }, 30),
   ]);
 
-  // Cancelamentos últimos 6 meses (para saúde geral da carteira por vendedor)
-  const seisMesesAgoStr = _dfmt(new Date(agora.getFullYear(), agora.getMonth() - 6, 1));
-  const canGeralList = await fetchIntegracaoClientes(token2, {
-    tipo_data_cliente_servico: 'data_cancelamento',
-    data_inicio_cliente_servico: seisMesesAgoStr,
-    data_fim_cliente_servico: mesAtualFimStr,
-    cancelado: 'sim'
-  }, 60);
+  // Cancelados all-time (histórico completo) para saúde da carteira por vendedor
+  // Cache de 2h separado — cancelados raramente mudam retroativamente
+  if (!_comAllCancelados || (Date.now() - _comAllCanceladosAt) > 2 * 60 * 60 * 1000) {
+    _comAllCancelados = await fetchIntegracaoClientes(token2, { cancelado: 'sim' }, 200);
+    _comAllCanceladosAt = Date.now();
+  }
+  const canGeralList = _comAllCancelados;
 
   const normFin = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
   const MOTIVOS_IGNORAR_FIN = ['desistencia da instalacao', 'habilitado o user errado', 'troca de titularidade'];
