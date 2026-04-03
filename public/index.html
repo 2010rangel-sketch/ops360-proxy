@@ -1932,6 +1932,15 @@ input[type="text"]::placeholder { color:var(--text3); }
       <!-- Conteúdo (escondido até arquivo carregado) -->
       <div id="rh-content" style="display:none">
 
+        <!-- Abas -->
+        <div style="display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:0">
+          <button id="rh-tab-btn-dashboard" onclick="rhGoTab('dashboard')" style="padding:7px 16px;border:none;border-bottom:2px solid var(--accent);background:none;color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif"><i class="fas fa-chart-bar" style="margin-right:5px"></i>Dashboard</button>
+          <button id="rh-tab-btn-colaboradores" onclick="rhGoTab('colaboradores')" style="padding:7px 16px;border:none;border-bottom:2px solid transparent;background:none;color:var(--text2);font-size:12px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif"><i class="fas fa-users" style="margin-right:5px"></i>Colaboradores</button>
+        </div>
+
+        <!-- Tab: Dashboard -->
+        <div id="rh-tab-dashboard">
+
         <!-- KPIs -->
         <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px">
           <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Ativos</div><div class="kpi-mini-val" id="rh-kpi-ativos" style="color:var(--accent)">—</div></div>
@@ -2022,6 +2031,32 @@ input[type="text"]::placeholder { color:var(--text3); }
             <tbody id="rh-nr-tbl"></tbody></table>
           </div>
         </div>
+
+        </div><!-- /rh-tab-dashboard -->
+
+        <!-- Tab: Colaboradores -->
+        <div id="rh-tab-colaboradores" style="display:none">
+          <!-- Filtros -->
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
+            <select id="rh-col-filtro-empresa" onchange="renderRhColaboradores()" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:5px 10px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
+              <option value="">Todas as empresas</option>
+            </select>
+            <select id="rh-col-filtro-setor" onchange="renderRhColaboradores()" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:5px 10px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
+              <option value="">Todos os setores</option>
+            </select>
+            <input id="rh-col-busca" type="text" placeholder="🔍 Buscar colaborador..." oninput="renderRhColaboradores()" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:5px 10px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif;flex:1;min-width:180px">
+            <span id="rh-col-count" class="badge b-blue">—</span>
+          </div>
+          <!-- Tabela -->
+          <div class="tbl-card" style="margin-bottom:0">
+            <div style="overflow-y:auto;max-height:520px">
+              <table class="tbl">
+                <thead><tr><th>#</th><th>Colaborador</th><th>Função / Cargo</th><th>Setor</th><th>Empresa</th><th>Admissão</th><th>Tempo</th></tr></thead>
+                <tbody id="rh-col-tbl"></tbody>
+              </table>
+            </div>
+          </div>
+        </div><!-- /rh-tab-colaboradores -->
 
       </div>
 
@@ -7239,6 +7274,70 @@ function parseRhCsv(text) {
     });
   }
   return employees;
+}
+
+function rhGoTab(tab) {
+  ['dashboard','colaboradores'].forEach(t => {
+    document.getElementById('rh-tab-' + t).style.display = t === tab ? '' : 'none';
+    const btn = document.getElementById('rh-tab-btn-' + t);
+    if (btn) {
+      btn.style.color = t === tab ? 'var(--accent)' : 'var(--text2)';
+      btn.style.borderBottom = t === tab ? '2px solid var(--accent)' : '2px solid transparent';
+      btn.style.fontWeight = t === tab ? '600' : '500';
+    }
+  });
+  if (tab === 'colaboradores') renderRhColaboradores();
+}
+
+function renderRhColaboradores() {
+  const emps = window._rhEmployees || [];
+  const filtEmpresa = (document.getElementById('rh-col-filtro-empresa')?.value || '').trim();
+  const filtSetor   = (document.getElementById('rh-col-filtro-setor')?.value || '').trim();
+  const filtBusca   = (document.getElementById('rh-col-busca')?.value || '').toLowerCase().trim();
+
+  // Popular selects (só na primeira vez ou se vazio)
+  const selEmp = document.getElementById('rh-col-filtro-empresa');
+  const selSet = document.getElementById('rh-col-filtro-setor');
+  if (selEmp && selEmp.options.length <= 1) {
+    const empresas = [...new Set(emps.map(e => e.empresa).filter(Boolean))].sort();
+    empresas.forEach(em => { const o = new Option(em, em); selEmp.appendChild(o); });
+  }
+  if (selSet && selSet.options.length <= 1) {
+    const setores = [...new Set(emps.map(e => e.setor).filter(Boolean))].sort();
+    setores.forEach(s => { const o = new Option(s, s); selSet.appendChild(o); });
+  }
+
+  const hoje = new Date();
+  let lista = emps.filter(e => e.ativo);
+  if (filtEmpresa) lista = lista.filter(e => e.empresa === filtEmpresa);
+  if (filtSetor)   lista = lista.filter(e => e.setor === filtSetor);
+  if (filtBusca)   lista = lista.filter(e => (e.nome||'').toLowerCase().includes(filtBusca) || (e.cargo||'').toLowerCase().includes(filtBusca));
+  lista.sort((a, b) => (a.nome||'').localeCompare(b.nome||'', 'pt-BR'));
+
+  const count = document.getElementById('rh-col-count');
+  if (count) count.textContent = lista.length + ' colaborador' + (lista.length !== 1 ? 'es' : '');
+
+  const tbody = document.getElementById('rh-col-tbl');
+  if (!tbody) return;
+  if (!lista.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Nenhum colaborador encontrado</td></tr>'; return; }
+
+  tbody.innerHTML = lista.map((e, i) => {
+    const admFmt = e.admissao ? e.admissao.toLocaleDateString('pt-BR') : '—';
+    let tempoStr = '—';
+    if (e.admissao) {
+      const meses = Math.floor((hoje - e.admissao) / (1000 * 60 * 60 * 24 * 30.44));
+      tempoStr = meses >= 12 ? `${Math.floor(meses/12)}a ${meses%12}m` : `${meses}m`;
+    }
+    return `<tr>
+      <td style="text-align:center;font-size:11px;color:var(--text3)">${i+1}</td>
+      <td style="font-weight:500">${e.nome || '—'}</td>
+      <td style="font-size:11px;color:var(--text2)">${e.cargo || '—'}</td>
+      <td style="font-size:11px"><span style="background:rgba(99,102,241,.12);color:var(--accent);border-radius:4px;padding:1px 7px;font-size:10px">${e.setor || '—'}</span></td>
+      <td style="font-size:11px;color:var(--text2)">${e.empresa || '—'}</td>
+      <td style="font-size:11px;color:var(--text2)">${admFmt}</td>
+      <td style="font-size:11px;color:var(--cyan)">${tempoStr}</td>
+    </tr>`;
+  }).join('');
 }
 
 function renderRhDashboard(emps) {
