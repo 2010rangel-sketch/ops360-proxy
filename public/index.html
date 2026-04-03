@@ -2005,8 +2005,8 @@ input[type="text"]::placeholder { color:var(--text3); }
           <div class="tbl-card" style="margin-bottom:0">
             <div class="tbl-header">
               <span class="tbl-title"><i class="fas fa-certificate" style="color:var(--amber);margin-right:5px"></i>Certificações NR</span>
-              <label class="btn btn-sm" for="nr-pdf-input" style="cursor:pointer;margin:0;margin-left:auto"><i class="fas fa-file-pdf" style="margin-right:4px"></i>Subir PDF</label>
-              <input type="file" id="nr-pdf-input" accept=".pdf" style="display:none" onchange="lerPdfNR(event)">
+              <label class="btn btn-sm" for="nr-pdf-input" style="cursor:pointer;margin:0;margin-left:auto"><i class="fas fa-file-pdf" style="margin-right:4px"></i>Subir PDFs</label>
+              <input type="file" id="nr-pdf-input" accept=".pdf" multiple style="display:none" onchange="lerPdfNR(event)">
               <button class="btn btn-sm" onclick="abrirModalNR()"><i class="fas fa-plus"></i> Manual</button>
             </div>
             <div style="overflow-y:auto;max-height:260px">
@@ -2356,6 +2356,21 @@ input[type="text"]::placeholder { color:var(--text3); }
   </div>
 </div>
 
+<!-- Modal global: revisão em lote de PDFs NR -->
+<div id="modalNRLote" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;width:640px;max-width:97vw;max-height:88vh;display:flex;flex-direction:column">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <div style="font-weight:600;font-size:14px" id="nr-lote-titulo">Revisão de PDFs</div>
+      <button onclick="document.getElementById('modalNRLote').style.display='none'" style="background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer;line-height:1">✕</button>
+    </div>
+    <div style="overflow-y:auto;flex:1;padding:16px;display:flex;flex-direction:column;gap:10px" id="nr-lote-corpo"></div>
+    <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0">
+      <button onclick="salvarNRLote()" class="btn" style="flex:1">Salvar selecionados</button>
+      <button onclick="document.getElementById('modalNRLote').style.display='none'" class="btn btn-sm" style="background:none;border:1px solid var(--border);color:var(--text2)">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal global: clientes em risco por vendedor (1ª mensalidade) -->
 <div id="modalRiscoVendedor" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
   <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:0;width:520px;max-width:96vw;max-height:80vh;display:flex;flex-direction:column">
@@ -2397,7 +2412,7 @@ function toggleTheme() {
 // NAV
 function goPage(id, el) {
   // Fecha modais globais ao trocar de página
-  ['modalRiscoVendedor','modalNRCert'].forEach(mid => {
+  ['modalRiscoVendedor','modalNRCert','modalNRLote'].forEach(mid => {
     const m = document.getElementById(mid); if (m) m.style.display = 'none';
   });
   if(window.innerWidth<=768){
@@ -7426,91 +7441,138 @@ function removerNRCert(idx) {
 }
 
 async function lerPdfNR(event) {
-  const file = event.target.files && event.target.files[0];
+  const files = Array.from(event.target.files || []);
   event.target.value = '';
-  if (!file) return;
+  if (!files.length) return;
 
-  const status = document.getElementById('nr-pdf-status');
-  if (status) { status.style.display = ''; status.textContent = 'Lendo PDF...'; }
+  if (typeof pdfjsLib === 'undefined') { alert('PDF.js ainda não carregou, tente em instantes.'); return; }
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-  try {
-    if (typeof pdfjsLib === 'undefined') throw new Error('PDF.js não carregado');
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  // Se for apenas 1 arquivo, abre o modal como antes para editar
+  // Se for múltiplos, mostra painel de revisão em lote
+  const NR_MAP = {
+    'NR-?35|NR 35|trabalho em altura': 'NR35 — Trabalho em Altura',
+    'NR-?10|NR 10|eletricidade|elétrica': 'NR10 — Segurança em Eletricidade',
+    'NR-?12|NR 12|máquinas|maquinas': 'NR12 — Segurança em Máquinas',
+    'NR-?33|NR 33|confinado': 'NR33 — Espaço Confinado',
+  };
+  const NR_OPTS = ['NR35 — Trabalho em Altura','NR10 — Segurança em Eletricidade','NR12 — Segurança em Máquinas','NR33 — Espaço Confinado','Outro'];
 
+  async function extrairDoPdf(file) {
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-
     let fullText = '';
     for (let p = 1; p <= Math.min(pdf.numPages, 5); p++) {
       const page = await pdf.getPage(p);
       const content = await page.getTextContent();
       fullText += content.items.map(i => i.str).join(' ') + '\n';
     }
-
-    // Detectar tipo NR
-    const nrMap = {
-      'NR-?35|NR 35|trabalho em altura': 'NR35 — Trabalho em Altura',
-      'NR-?10|NR 10|eletricidade|elétrica': 'NR10 — Segurança em Eletricidade',
-      'NR-?12|NR 12|máquinas|maquinas': 'NR12 — Segurança em Máquinas',
-      'NR-?33|NR 33|confinado': 'NR33 — Espaço Confinado',
-    };
-    let tipoDetectado = null;
-    for (const [pat, val] of Object.entries(nrMap)) {
-      if (new RegExp(pat, 'i').test(fullText)) { tipoDetectado = val; break; }
+    let tipo = 'Outro';
+    for (const [pat, val] of Object.entries(NR_MAP)) {
+      if (new RegExp(pat, 'i').test(fullText)) { tipo = val; break; }
     }
-
-    // Extrair datas DD/MM/YYYY ou DD/MM/YY
     const dateRe = /\b(\d{2})\/(\d{2})\/(\d{2,4})\b/g;
     const dates = [];
-    let m;
-    while ((m = dateRe.exec(fullText)) !== null) {
-      const d = parseInt(m[1]), mo = parseInt(m[2]);
-      let y = parseInt(m[3]);
+    let mt;
+    while ((mt = dateRe.exec(fullText)) !== null) {
+      const d = parseInt(mt[1]), mo = parseInt(mt[2]);
+      let y = parseInt(mt[3]);
       if (y < 100) y += 2000;
-      if (d >= 1 && d <= 31 && mo >= 1 && mo <= 12 && y >= 2000 && y <= 2040) {
+      if (d >= 1 && d <= 31 && mo >= 1 && mo <= 12 && y >= 2000 && y <= 2040)
         dates.push(new Date(y, mo - 1, d));
-      }
     }
     dates.sort((a, b) => a - b);
-
-    // Emissão = menor data, vencimento = maior data
-    const toInput = dt => {
-      const y = dt.getFullYear(), mo = String(dt.getMonth()+1).padStart(2,'0'), d = String(dt.getDate()).padStart(2,'0');
-      return `${y}-${mo}-${d}`;
-    };
-    const emissao   = dates.length > 0 ? toInput(dates[0]) : '';
-    const vencimento = dates.length > 1 ? toInput(dates[dates.length - 1]) : '';
-
-    // Tentar extrair nome (heurística: primeira linha com letras maiúsculas longas)
+    const toISO = dt => { const y=dt.getFullYear(), mo=String(dt.getMonth()+1).padStart(2,'0'), d=String(dt.getDate()).padStart(2,'0'); return `${y}-${mo}-${d}`; };
+    const emissao    = dates.length > 0 ? toISO(dates[0]) : '';
+    const vencimento = dates.length > 1 ? toISO(dates[dates.length-1]) : '';
     const linhas = fullText.split(/\n|\r/).map(l => l.trim()).filter(Boolean);
-    let nomeDetectado = '';
+    let nome = '';
     for (const ln of linhas) {
-      if (/^[A-ZÀ-Ú ]{8,50}$/.test(ln.trim()) && !/(CERTIFICADO|TREINAMENTO|CURSO|NR|CNPJ|CPF)/i.test(ln)) {
-        nomeDetectado = ln.trim();
-        break;
-      }
+      if (/^[A-ZÀ-Ú ]{8,55}$/.test(ln) && !/(CERTIFICADO|TREINAMENTO|CURSO|NR\d|CNPJ|CPF|LTDA|EIRELI)/i.test(ln)) { nome = ln; break; }
     }
-
-    // Preencher modal
-    abrirModalNR();
-    if (nomeDetectado) document.getElementById('nr-nome').value = nomeDetectado;
-    if (tipoDetectado) {
-      const sel = document.getElementById('nr-tipo');
-      for (let i = 0; i < sel.options.length; i++) {
-        if (sel.options[i].text === tipoDetectado) { sel.selectedIndex = i; break; }
-      }
-    }
-    if (emissao)    document.getElementById('nr-emissao').value = emissao;
-    if (vencimento) document.getElementById('nr-vencimento').value = vencimento;
-    document.getElementById('nr-obs').value = `Arquivo: ${file.name}`;
-
-    const encontrou = [tipoDetectado && 'tipo', emissao && 'emissão', vencimento && 'vencimento', nomeDetectado && 'nome'].filter(Boolean);
-    if (status) status.textContent = `✓ Extraído do PDF: ${encontrou.join(', ') || 'confirme os campos'}. Verifique e salve.`;
-
-  } catch(err) {
-    if (status) { status.textContent = 'Erro ao ler PDF: ' + err.message + ' — preencha manualmente.'; }
-    abrirModalNR();
+    return { nome, tipo, emissao, vencimento, arquivo: file.name };
   }
+
+  // Mostra spinner no botão
+  const btn = document.querySelector('label[for="nr-pdf-input"]');
+  const btnOrig = btn ? btn.innerHTML : '';
+  if (btn) btn.innerHTML = '<i class="fas fa-circle-notch fa-spin" style="margin-right:4px"></i>Lendo...';
+
+  const resultados = await Promise.all(files.map(f => extrairDoPdf(f).catch(e => ({ nome:'', tipo:'Outro', emissao:'', vencimento:'', arquivo: f.name, erro: e.message }))));
+  if (btn) btn.innerHTML = btnOrig;
+
+  if (files.length === 1) {
+    // Modo edição individual (modal)
+    const r = resultados[0];
+    abrirModalNR();
+    document.getElementById('nr-nome').value = r.nome;
+    document.getElementById('nr-obs').value = `Arquivo: ${r.arquivo}`;
+    document.getElementById('nr-emissao').value = r.emissao;
+    document.getElementById('nr-vencimento').value = r.vencimento;
+    const sel = document.getElementById('nr-tipo');
+    for (let i = 0; i < sel.options.length; i++) if (sel.options[i].text === r.tipo) { sel.selectedIndex = i; break; }
+    const st = document.getElementById('nr-pdf-status');
+    if (st) { st.style.display=''; st.textContent = r.erro ? 'Erro: '+r.erro+' — preencha manualmente.' : '✓ Dados extraídos — confirme e salve.'; }
+    return;
+  }
+
+  // Modo lote: painel de revisão
+  window._nrLote = resultados;
+  const corpo = resultados.map((r, i) => {
+    const selOpts = NR_OPTS.map(o => `<option${o===r.tipo?' selected':''}>${o}</option>`).join('');
+    const cor = r.erro ? 'var(--red)' : r.vencimento ? 'var(--text)' : 'var(--amber)';
+    return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:8px 12px" id="nr-lote-${i}">
+      <div style="grid-column:1/-1;display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px" title="${r.arquivo}"><i class="fas fa-file-pdf" style="color:var(--red);margin-right:4px"></i>${r.arquivo}</span>
+        ${r.erro ? `<span style="font-size:10px;color:var(--red)">⚠ ${r.erro}</span>` : ''}
+        <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2);cursor:pointer"><input type="checkbox" id="nr-lote-chk-${i}" checked style="accent-color:var(--accent)"> Salvar</label>
+      </div>
+      <div style="grid-column:1/-1">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:3px">Nome do colaborador</div>
+        <input id="nr-lote-nome-${i}" value="${r.nome}" placeholder="Nome" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:5px;padding:6px 8px;color:${cor};font-size:12px;box-sizing:border-box">
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--text3);margin-bottom:3px">Certificação</div>
+        <select id="nr-lote-tipo-${i}" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:5px;padding:6px 8px;color:var(--text);font-size:11px;box-sizing:border-box">${selOpts}</select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:3px">Emissão</div>
+          <input id="nr-lote-emissao-${i}" type="date" value="${r.emissao}" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:5px;padding:6px 8px;color:var(--text);font-size:11px;box-sizing:border-box">
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:3px">Vencimento</div>
+          <input id="nr-lote-venc-${i}" type="date" value="${r.vencimento}" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:5px;padding:6px 5px;color:var(--text);font-size:11px;box-sizing:border-box">
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('nr-lote-corpo').innerHTML = corpo;
+  document.getElementById('nr-lote-titulo').textContent = `${resultados.length} PDF${resultados.length>1?'s':''} — revise e confirme`;
+  document.getElementById('modalNRLote').style.display = 'flex';
+}
+
+function salvarNRLote() {
+  const lista = JSON.parse(localStorage.getItem('rhNRCerts') || '[]');
+  let salvos = 0;
+  (window._nrLote || []).forEach((r, i) => {
+    const chk = document.getElementById(`nr-lote-chk-${i}`);
+    if (!chk || !chk.checked) return;
+    lista.push({
+      nome:       (document.getElementById(`nr-lote-nome-${i}`)?.value || r.nome).trim(),
+      setor:      '',
+      tipo:       document.getElementById(`nr-lote-tipo-${i}`)?.value || r.tipo,
+      emissao:    document.getElementById(`nr-lote-emissao-${i}`)?.value || r.emissao,
+      vencimento: document.getElementById(`nr-lote-venc-${i}`)?.value || r.vencimento,
+      obs:        `Arquivo: ${r.arquivo}`,
+    });
+    salvos++;
+  });
+  localStorage.setItem('rhNRCerts', JSON.stringify(lista));
+  document.getElementById('modalNRLote').style.display = 'none';
+  renderRhNR();
+  window._nrLote = [];
 }
 </script>
 </body>
