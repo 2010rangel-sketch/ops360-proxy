@@ -2346,8 +2346,10 @@ function goPage(id, el) {
     else { renderTecChart(); renderCidadeChart(); renderChamadosDash(); }
   }
   if (id === 'atendimento') {
-    if (_atendData) {
-      renderAtendimentos(_atendData); // exibe imediatamente
+    const { ini: _atIni } = getAtendDates();
+    const _atDataDeHoje = _atendData && (_atendData.periodo === atendPeriodo || (_atendData.sincronizado_em && _atendData.sincronizado_em.slice(0,10) === new Date().toISOString().slice(0,10)));
+    if (_atendData && _atDataDeHoje) {
+      renderAtendimentos(_atendData); // exibe imediatamente só se for do mesmo dia/período
       loadAtendimentos();             // atualiza em background
     } else {
       loadAtendimentos();
@@ -3839,29 +3841,32 @@ function setAtendPeriodo(p, el) {
 }
 
 function getAtendDates() {
+  // Sempre retorna YYYY-MM-DD no horário local do browser (Brasil)
   const agora = new Date();
-  const hoje  = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+  const fmtD = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const hoje  = fmtD(agora);
   if (atendPeriodo === 'hoje') {
-    return { ini: hoje.toISOString(), fim: new Date(hoje.getTime() + 24*60*60*1000).toISOString() };
+    return { ini: hoje, fim: hoje };
   }
   if (atendPeriodo === '7dias') {
-    return { ini: new Date(agora.getTime() - 7*24*60*60*1000).toISOString(), fim: agora.toISOString() };
+    const d7 = new Date(agora.getTime() - 7*24*60*60*1000);
+    return { ini: fmtD(d7), fim: hoje };
   }
   if (atendPeriodo === 'mes') {
     const ini = new Date(agora.getFullYear(), agora.getMonth(), 1);
-    return { ini: ini.toISOString(), fim: agora.toISOString() };
+    return { ini: fmtD(ini), fim: hoje };
   }
   if (atendPeriodo === 'mes_anterior') {
     const ini = new Date(agora.getFullYear(), agora.getMonth() - 1, 1);
-    const fim = new Date(agora.getFullYear(), agora.getMonth(), 0, 23, 59, 59, 999);
-    return { ini: ini.toISOString(), fim: fim.toISOString() };
+    const fim = new Date(agora.getFullYear(), agora.getMonth(), 0);
+    return { ini: fmtD(ini), fim: fmtD(fim) };
   }
   if (atendPeriodo === 'custom') {
     const de  = document.getElementById('atendDtDe')?.value;
     const ate = document.getElementById('atendDtAte')?.value;
-    if (de && ate) return { ini: new Date(de).toISOString(), fim: new Date(new Date(ate).setHours(23,59,59,999)).toISOString() };
+    if (de && ate) return { ini: de, fim: ate };
   }
-  return { ini: hoje.toISOString(), fim: new Date(hoje.getTime() + 24*60*60*1000).toISOString() };
+  return { ini: hoje, fim: hoje };
 }
 
 function fmtTma(min) {

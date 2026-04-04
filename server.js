@@ -691,19 +691,18 @@ app.get('/api/atendimentos', async (req, res) => {
     const { data_inicio, data_fim, all } = req.query;
     const agora = new Date();
 
-    // Período selecionado (ou hoje por default)
-    let ini, fim;
-    if (data_inicio) {
-      ini = new Date(data_inicio);
-      fim = data_fim ? new Date(new Date(data_fim).setHours(23,59,59,999))
-                     : new Date(ini.getTime() + 24*60*60*1000);
-    } else {
-      ini = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
-      fim = new Date(ini.getTime() + 24*60*60*1000);
-    }
+    // Período selecionado — sempre ancora em BRT (UTC-3)
+    // Aceita tanto 'YYYY-MM-DD' quanto ISO completo; usa só a parte da data
+    const BRT = 3 * 3600 * 1000; // UTC-3 → midnight BRT = 03:00 UTC
+    const iniStr = (data_inicio || '').slice(0, 10) ||
+      (() => { const d = new Date(agora.getTime() - BRT); return d.toISOString().slice(0,10); })();
+    const fimStr = (data_fim || '').slice(0, 10) || iniStr;
+    const ini = new Date(iniStr + 'T03:00:00.000Z'); // 00:00 BRT
+    const fim = new Date(fimStr + 'T03:00:00.000Z'); // 00:00 BRT do dia fim
+    fim.setTime(fim.getTime() + 24 * 3600 * 1000);   // até 23:59:59 BRT (= próxima meia-noite)
 
     // Cache key
-    const atendKey = `${ini.toISOString().slice(0,10)}-${fim.toISOString().slice(0,10)}-${all||'false'}`;
+    const atendKey = `${iniStr}-${fimStr}-${all||'false'}`;
     const atendMem = _atendCacheMap[atendKey];
     if (atendMem && (Date.now() - atendMem.ts) < ATEND_CACHE_TTL) return res.json({ ...atendMem.data, cache: 'mem' });
     const atendDb = await dbCacheGet(`cache:atendimentos:${atendKey}`, ATEND_CACHE_TTL);
