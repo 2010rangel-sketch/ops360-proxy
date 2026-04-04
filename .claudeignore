@@ -1,8 +1,12 @@
 # Nunca precisa ser lido — só gerenciado pelo npm automaticamente
 package-lock.json
+node_modules/
 
 # Arquivo de preview antigo, não é o projeto real
 public/preview-dash-chamados.html
 
 # Dados de tarefas — JSON puro, não é código
 data/tasks.json
+
+# Documentação duplicada — conteúdo já está no CLAUDE.md
+OPS360_DOCUMENTACAO.md
