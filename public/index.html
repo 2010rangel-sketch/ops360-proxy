@@ -5898,10 +5898,14 @@ async function loadComercial() {
       if (noEp)  noEp.style.display  = '';
       if (errEl) errEl.textContent   = data.info || data.motivo || '';
       const titleEl = document.getElementById('com-endpoint-title');
-      if (titleEl) titleEl.textContent = data.motivo === 'sem_permissao_403'
-        ? '⚠️ Permissão insuficiente na API Hubsoft (HTTP 403)'
-        : 'Integração de cadastros pendente';
-      if (badge) { badge.textContent = 'Sem acesso'; badge.className = 'badge b-red'; }
+      if (data.motivo === 'sem_permissao_403') {
+        if (titleEl) titleEl.textContent = '⚠️ Permissão insuficiente na API Hubsoft (HTTP 403)';
+        if (badge) { badge.textContent = 'Sem acesso'; badge.className = 'badge b-red'; }
+      } else {
+        if (titleEl) titleEl.textContent = 'Integração de cadastros pendente';
+        if (badge) { badge.textContent = 'Tentando em 30s...'; badge.className = 'badge b-amber'; }
+        setTimeout(() => loadComercial(), 30000);
+      }
       return;
     }
     if (noEp) noEp.style.display = 'none';

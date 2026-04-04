@@ -1546,14 +1546,19 @@ app.get('/api/comercial', async (req, res) => {
 
     // Cache disponível → busca cancelados do PERÍODO via filtro nativo da API (rápido: 1-2 páginas)
     if (_comAllClientes) {
-      const tkCanc   = await getToken();
-      const cancelados = await fetchIntegracaoClientes(tkCanc, {
-        cancelado: 'sim',
-        relacoes: 'endereco_instalacao',
-        tipo_data_cliente_servico: 'data_venda',
-        data_inicio_cliente_servico: iniStr,
-        data_fim_cliente_servico: fimStr,
-      }, 10);
+      let cancelados = [];
+      try {
+        const tkCanc = await getToken();
+        cancelados = await fetchIntegracaoClientes(tkCanc, {
+          cancelado: 'sim',
+          relacoes: 'endereco_instalacao',
+          tipo_data_cliente_servico: 'data_venda',
+          data_inicio_cliente_servico: iniStr,
+          data_fim_cliente_servico: fimStr,
+        }, 10);
+      } catch(e) {
+        console.warn('[comercial] busca cancelados falhou (usando só ativos):', e.message);
+      }
       const todos  = [..._comAllClientes, ...cancelados];
       const vendas = buildVendasFromClientes(todos, iniStr, fimStr);
       return res.json(buildComResult(vendas, iniStr, fimStr));
