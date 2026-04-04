@@ -4467,7 +4467,8 @@ function showDashTab() {
   renderDashAtendimento();
   renderDashRetencao();
   renderDashComercial();
-  renderDashConexoes();
+  renderDashFinanceiro();
+  renderDashRh();
 }
 
 // ── DASHBOARD DE CHAMADOS ─────────────────────────────────────────────────
@@ -4972,6 +4973,46 @@ function renderDashComercial() {
     }</td>
   </tr>`).join('')
   : '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">Sem vendas no período</td></tr>';
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  DASH FINANCEIRO
+// ══════════════════════════════════════════════════════════════════
+function renderDashFinanceiro() {
+  const d  = _finData;
+  const ev = (id,v) => { const e=document.getElementById(id); if(e) e.textContent=v; };
+  if (!d) return;
+  const r = d.resumo || {};
+  const fmt = v => (typeof fmtBRLk === 'function') ? fmtBRLk(v) : (v != null ? 'R$'+Math.round(v/1000)+'k' : '—');
+  ev('dash-fin-mrr',         fmt(r.mrr_total));
+  ev('dash-fin-susp',        r.total_suspensos  ?? '—');
+  ev('dash-fin-churn-atual', r.churn_mes_atual  ?? '—');
+  ev('dash-fin-churn-ant',   r.churn_mes_anterior ?? '—');
+  ev('dash-fin-mrr-perdido', fmt(r.mrr_perdido));
+  ev('dash-fin-mrr-novo',    fmt(r.mrr_novo));
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  DASH RH
+// ══════════════════════════════════════════════════════════════════
+function renderDashRh() {
+  const emps = window._rhEmployees;
+  const ev   = (id,v) => { const e=document.getElementById(id); if(e) e.textContent=v; };
+  if (!emps || !emps.length) return;
+  const hoje   = new Date();
+  const ativos = emps.filter(e => e.ativo);
+  const desl12 = emps.filter(e => !e.ativo && e.demissao && (hoje - e.demissao) <= 365*24*3600*1000);
+  const total  = ativos.length + desl12.length;
+  const turn   = total > 0 ? (desl12.length / total * 100).toFixed(1)+'%' : '0%';
+  const ten    = ativos.map(e => e.admissao ? Math.floor((hoje - e.admissao)/(1000*60*60*24*30.44)) : null).filter(v=>v!==null);
+  const avgM   = ten.length ? Math.round(ten.reduce((a,b)=>a+b,0)/ten.length) : 0;
+  const fmtT   = m => m>=12 ? Math.floor(m/12)+'a '+m%12+'m' : m+'m';
+  const emps_  = [...new Set(ativos.map(e=>e.empresa).filter(Boolean))];
+  ev('dash-rh-ativos',   ativos.length);
+  ev('dash-rh-turnover', turn);
+  ev('dash-rh-tempo',    fmtT(avgM));
+  ev('dash-rh-desl12',   desl12.length);
+  ev('dash-rh-empresas', emps_.length);
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -6300,6 +6341,7 @@ async function loadFinanceiro(force = false) {
     }
     _finData = d;
     renderFinanceiro(d);
+    renderDashFinanceiro();
     if (badge) {
       const hora = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
       badge.textContent = `Atualizado ${hora}`;
@@ -7080,6 +7122,7 @@ function _aplicarRhDados(employees, nomeArquivo) {
     badge.style.cssText = 'background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.3)';
   }
   renderRhDashboard(employees);
+  renderDashRh();
 }
 
 function _rhCsvMetaLabel(nomeArquivo) {
