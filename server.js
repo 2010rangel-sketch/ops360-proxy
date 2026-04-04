@@ -2467,9 +2467,12 @@ async function buildFinanceiro() {
       // Evita puxar data de serviço cancelado ou data_cadastro desatualizada
       if ((isOn || isSusp || isParcial) && dataHab && !isCan) {
         const m = mesesEntre(dataHab, agora);
+        // Converte para ISO YYYY-MM-DD (data_habilitacao vem em DD/MM/YYYY do Hubsoft)
+        const _dh = dataHab;
+        const dataCadISO = `${_dh.getFullYear()}-${String(_dh.getMonth()+1).padStart(2,'0')}-${String(_dh.getDate()).padStart(2,'0')}`;
         ltvCandidates.push({
           nome, cidade, plano, valor,
-          dataCad:    s.data_habilitacao,
+          dataCad:    dataCadISO,
           mesesAtivo: Math.round(m * 10) / 10,
           ltvDinheiro: Math.round(m * valor),
           tempoFmt:    fmtTempoFin(m),
