@@ -7794,23 +7794,24 @@ async function lerPdfNR(event) {
   if (btn) btn.innerHTML = btnOrig;
 
   if (files.length === 1) {
-    // Modo edição individual (modal)
     const r = resultados[0];
-    // Tenta encontrar colaborador pelo nome extraído do PDF
     const emps = window._rhEmployees || [];
     const nomeNorm = n => n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
     const match = emps.find(e => nomeNorm(e.nome) === nomeNorm(r.nome || '')) ||
                   emps.find(e => nomeNorm(e.nome).includes(nomeNorm(r.nome || '').split(' ')[0]) && nomeNorm(r.nome || '').length > 4);
-    abrirModalNR(match ? match.nome : '');
-    if (!match && r.nome) {
-      // nome não encontrado no CSV — coloca como opção extra temporária
-      const selNome = document.getElementById('nr-nome');
-      if (selNome) {
-        const opt = new Option(r.nome + ' (PDF)', r.nome);
-        selNome.appendChild(opt);
-        selNome.value = r.nome;
-      }
+    // Abre modal com TODOS os colaboradores (não só Suporte Técnico) para PDF individual
+    const selNome = document.getElementById('nr-nome');
+    if (selNome) {
+      const obrig = _nrColaboradoresObrigatorios();
+      const outros = emps.filter(e => e.ativo && !obrig.find(o => o.nome === e.nome));
+      let opts = '<option value="">— Selecione o colaborador —</option>';
+      if (obrig.length) opts += `<optgroup label="Suporte Técnico / Fibra">` + obrig.map(e => `<option value="${e.nome}"${match&&match.nome===e.nome?' selected':''}>${e.nome}</option>`).join('') + '</optgroup>';
+      if (outros.length) opts += `<optgroup label="Outros colaboradores">` + outros.map(e => `<option value="${e.nome}"${match&&match.nome===e.nome?' selected':''}>${e.nome}</option>`).join('') + '</optgroup>';
+      selNome.innerHTML = opts;
+      if (match) { selNome.value = match.nome; _nrPreencherSetor(match.nome); }
     }
+    const modal = document.getElementById('modalNRCert');
+    if (modal) modal.style.display = 'flex';
     document.getElementById('nr-obs').value = `Arquivo: ${r.arquivo}`;
     document.getElementById('nr-emissao').value = r.emissao;
     document.getElementById('nr-vencimento').value = r.vencimento;
