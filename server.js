@@ -2465,7 +2465,8 @@ async function buildFinanceiro() {
 
       // LTV: usa data_habilitacao do serviço ativo (não data_cadastro do cliente)
       // Evita puxar data de serviço cancelado ou data_cadastro desatualizada
-      if ((isOn || isSusp || isParcial) && dataHab && !isCan) {
+      // Remove !isCan: serviço reativado pode ter data_cancelamento do passado mas status ativo agora
+      if ((isOn || isSusp || isParcial) && dataHab) {
         const m = mesesEntre(dataHab, agora);
         // Converte para ISO YYYY-MM-DD (data_habilitacao vem em DD/MM/YYYY do Hubsoft)
         const _dh = dataHab;
