@@ -719,7 +719,7 @@ input[type="text"]::placeholder { color:var(--text3); }
         <div style="display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:5px 10px">
           <div class="live-dot"></div>
           <span style="font-size:11px;font-weight:600;color:var(--green)">AO VIVO</span>
-          <span style="font-size:10.5px;color:var(--text3);font-family:'JetBrains Mono',monospace" id="lastSync">--:--:--</span>
+          <span style="font-size:10.5px;color:var(--text3);font-family:'JetBrains Mono',monospace" id="lastSyncChamados">--:--:--</span>
         </div>
         <!-- Filtro período -->
         <div style="display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px">
@@ -3525,7 +3525,7 @@ function rebuildAll() {
   renderRtbInsight();
   renderChamadosDash();
   loadAllWeather();
-  const el = document.getElementById('lastSync');
+  const el = document.getElementById('lastSyncChamados');
   if(el) el.textContent = new Date().toLocaleTimeString('pt-BR');
   // Atualiza contadores da nav lateral
   const abertos = chamadosDB.filter(c=>!['finalizado','cancelado'].includes(c.st)).length;
@@ -3723,7 +3723,7 @@ function loadAllWeather() {
 
 // ── AUTO-REFRESH A CADA 30s — busca dados reais do Hubsoft ────────
 async function autoRefresh() {
-  const el = document.getElementById('lastSync');
+  const el = document.getElementById('lastSyncChamados');
   if(el) el.textContent = new Date().toLocaleTimeString('pt-BR');
 
   // Só atualiza automaticamente se o usuário estiver no período "hoje"
