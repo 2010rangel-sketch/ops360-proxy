@@ -500,327 +500,219 @@ input[type="text"]::placeholder { color:var(--text3); }
   <!-- PAGE CONTENT -->
   <div class="page-content">
 
-    <!-- ═══ DASHBOARD ═══ -->
+    <!-- ═══ DASHBOARD GERAL ═══ -->
     <div class="page active" id="page-dashboard">
-      <!-- Cabeçalho: filtros à esquerda, seletor de visão à direita -->
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap">
-        <!-- Filtros de período -->
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <div style="display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px">
-            <button class="chip active per-chip" data-p="hoje"         onclick="setPeriodo('hoje',this)">Hoje</button>
-            <button class="chip per-chip"        data-p="amanha"       onclick="setPeriodo('amanha',this)">Amanhã</button>
-            <button class="chip per-chip"        data-p="custom"       onclick="setPeriodo('custom',this)">Período</button>
-          </div>
-          <div id="dashDateRange" style="display:none;gap:6px;align-items:center">
-            <input type="date" id="dashDtDe"  onchange="syncDates('de',this.value)" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
-            <span style="color:var(--text3);font-size:12px">até</span>
-            <input type="date" id="dashDtAte" onchange="syncDates('ate',this.value)" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
-          </div>
-          <button id="btnBuscarDash" class="btn btn-primary btn-sm" onclick="buscarPeriodo()" style="padding:5px 14px;font-size:12px"><i class="fas fa-search"></i> Buscar</button>
+
+      <!-- Filtro de período -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <div style="display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px">
+          <button class="chip active per-chip" data-p="hoje"   onclick="setPeriodo('hoje',this)">Hoje</button>
+          <button class="chip per-chip"        data-p="amanha" onclick="setPeriodo('amanha',this)">Amanhã</button>
+          <button class="chip per-chip"        data-p="custom" onclick="setPeriodo('custom',this)">Período</button>
         </div>
-        <!-- Seletor de visão (direita) -->
-        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-          <span style="font-size:11px;color:var(--text3);font-weight:500;letter-spacing:.04em;text-transform:uppercase">Visão</span>
-          <div style="display:flex;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:3px" id="dashTabBar">
-            <button id="dash-tab-btn-atendimento" class="dash-view-btn active" onclick="showDashTab('atendimento')"><i class="fas fa-headset"></i> Atend.</button>
-            <button id="dash-tab-btn-retencao"    class="dash-view-btn" onclick="showDashTab('retencao')"><i class="fas fa-user-shield"></i> Canc./Ret.</button>
-            <button id="dash-tab-btn-comercial"   class="dash-view-btn" onclick="showDashTab('comercial')"><i class="fas fa-briefcase"></i> Comercial</button>
-            <button id="dash-tab-btn-conexoes"    class="dash-view-btn" onclick="showDashTab('conexoes')"><i class="fas fa-wifi"></i> Conexões</button>
+        <div id="dashDateRange" style="display:none;gap:6px;align-items:center">
+          <input type="date" id="dashDtDe"  onchange="syncDates('de',this.value)"  style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
+          <span style="color:var(--text3);font-size:12px">até</span>
+          <input type="date" id="dashDtAte" onchange="syncDates('ate',this.value)" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="buscarPeriodo()" style="padding:5px 14px;font-size:12px"><i class="fas fa-search"></i> Buscar</button>
+        <span id="lastSync" style="font-size:11px;color:var(--text3);margin-left:auto">—</span>
+      </div>
+
+      <!-- CHAMADOS AO VIVO -->
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px">
+        <div class="kpi-card" style="border-top:3px solid var(--accent);cursor:pointer" onclick="goPage('chamados')">
+          <div class="kpi-label">EM EXECUÇÃO</div>
+          <div class="kpi-value" id="kv-exec" style="color:var(--accent)">—</div>
+          <div class="kpi-sub">chamados hoje</div>
+        </div>
+        <div class="kpi-card" style="border-top:3px solid var(--amber);cursor:pointer" onclick="goPage('chamados')">
+          <div class="kpi-label">AGUARDANDO</div>
+          <div class="kpi-value" id="kv-reag" style="color:var(--amber)">—</div>
+          <div class="kpi-sub">na fila</div>
+        </div>
+        <div class="kpi-card" style="border-top:3px solid var(--red);cursor:pointer" onclick="goPage('chamados')">
+          <div class="kpi-label">ATRASADOS</div>
+          <div class="kpi-value" id="kv-atr" style="color:var(--red)">—</div>
+          <div class="kpi-sub">fora do SLA</div>
+        </div>
+        <div class="kpi-card" style="border-top:3px solid var(--green);cursor:pointer" onclick="goPage('chamados')">
+          <div class="kpi-label">FINALIZADOS</div>
+          <div class="kpi-value" id="kv-fin" style="color:var(--green)">—</div>
+          <div class="kpi-sub" id="kv-fin-sub">hoje</div>
+        </div>
+        <div class="kpi-card" style="border-top:3px solid var(--orange);cursor:pointer" onclick="goPage('chamados')">
+          <div class="kpi-label">RETRABALHOS</div>
+          <div class="kpi-value" id="kv-rtb" style="color:var(--orange)">—</div>
+          <div class="kpi-sub" id="kv-rtb-sub">do total</div>
+        </div>
+      </div>
+
+      <!-- ATENDIMENTO + COMERCIAL -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header" style="cursor:pointer" onclick="goPage('atendimento')">
+            <span class="tbl-title"><i class="fas fa-headset" style="color:var(--cyan);margin-right:6px"></i>Atendimento</span>
+            <span class="badge b-blue" id="atend-sync-badge">—</span>
+          </div>
+          <div class="kpi-row" style="padding:8px 4px 4px;gap:8px">
+            <div class="kpi-mini">
+              <div class="kpi-mini-bar" style="background:var(--cyan)"></div>
+              <div class="kpi-mini-label">Total</div>
+              <div class="kpi-mini-val" style="color:var(--cyan)" id="da-total">—</div>
+            </div>
+            <div class="kpi-mini">
+              <div class="kpi-mini-bar" style="background:var(--accent)"></div>
+              <div class="kpi-mini-label">TMA médio</div>
+              <div class="kpi-mini-val" style="color:var(--accent)" id="da-tma">—</div>
+            </div>
+            <div class="kpi-mini">
+              <div class="kpi-mini-bar" style="background:var(--green)"></div>
+              <div class="kpi-mini-label">Sem OS</div>
+              <div class="kpi-mini-val" style="color:var(--green)" id="da-semOS">—</div>
+              <div class="kpi-mini-sub" id="da-semOS-pct">—</div>
+            </div>
+            <div class="kpi-mini">
+              <div class="kpi-mini-bar" style="background:var(--orange)"></div>
+              <div class="kpi-mini-label">Gerou OS</div>
+              <div class="kpi-mini-val" style="color:var(--orange)" id="da-comOS">—</div>
+              <div class="kpi-mini-sub" id="da-comOS-pct">—</div>
+            </div>
+            <div class="kpi-mini">
+              <div class="kpi-mini-bar" style="background:var(--purple)"></div>
+              <div class="kpi-mini-label">Atendentes</div>
+              <div class="kpi-mini-val" style="color:var(--purple)" id="da-atend">—</div>
+            </div>
+          </div>
+          <div style="padding:0 4px 8px">
+            <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;padding:6px 12px 4px">Por tipo</div>
+            <div id="da-tipo-bars" style="padding:0 12px 4px;max-height:160px;overflow-y:auto"></div>
+          </div>
+          <div style="display:none"><span id="da-tipo-badge"></span><div id="da-atend-bars"></div><div id="da-atend-badge"></div><svg id="da-donut"></svg><div id="da-donut-legend"></div></div>
+        </div>
+
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header" style="cursor:pointer" onclick="goPage('comercial')">
+            <span class="tbl-title"><i class="fas fa-briefcase" style="color:var(--accent);margin-right:6px"></i>Comercial</span>
+            <span class="badge b-blue" id="dco-periodo">—</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:8px 4px 4px">
+            <div class="kpi-card" style="border-top:3px solid var(--accent);padding:10px 8px">
+              <div class="kpi-label" style="font-size:9px">TOTAL</div>
+              <div class="kpi-value" id="dco-total" style="color:var(--accent);font-size:22px">—</div>
+            </div>
+            <div class="kpi-card" style="border-top:3px solid var(--green);padding:10px 8px">
+              <div class="kpi-label" style="font-size:9px">NOVAS</div>
+              <div class="kpi-value" id="dco-novas" style="color:var(--green);font-size:22px">—</div>
+            </div>
+            <div class="kpi-card" style="border-top:3px solid var(--cyan);padding:10px 8px">
+              <div class="kpi-label" style="font-size:9px">REAT.</div>
+              <div class="kpi-value" id="dco-reat" style="color:var(--cyan);font-size:22px">—</div>
+            </div>
+            <div class="kpi-card" style="border-top:3px solid var(--amber);padding:10px 8px">
+              <div class="kpi-label" style="font-size:9px">% REAT.</div>
+              <div class="kpi-value" id="dco-pct-reat" style="color:var(--amber);font-size:22px">—</div>
+            </div>
+          </div>
+          <div style="padding:0 4px 8px">
+            <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;padding:6px 12px 4px">Por vendedor</div>
+            <div id="dco-vend-bars" style="padding:0 12px 4px;max-height:160px;overflow-y:auto"></div>
+          </div>
+          <div style="display:none">
+            <span id="dco-cid-count"></span><div id="dco-cidades-bars"></div>
+            <span id="dco-vend-count"></span>
+            <svg id="dco-donut"></svg><div id="dco-donut-legend"></div>
+            <span id="dco-ult-count"></span><tbody id="dco-ult-tbl"></tbody>
           </div>
         </div>
       </div>
 
+      <!-- RETENÇÃO + CONEXÕES -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
 
-
-      <!-- ═══ DASH-ATENDIMENTO ═══ -->
-      <div id="dash-tab-atendimento" style="display:none">
-
-        <!-- KPI row -->
-        <div class="kpi-row" style="margin-bottom:14px">
-          <div class="kpi-mini">
-            <div class="kpi-mini-bar" style="background:var(--cyan)"></div>
-            <div class="kpi-mini-label">Total atendimentos</div>
-            <div class="kpi-mini-val" style="color:var(--cyan)" id="da-total">—</div>
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header" style="cursor:pointer" onclick="goPage('retencao')">
+            <span class="tbl-title"><i class="fas fa-user-shield" style="color:var(--red);margin-right:6px"></i>Cancelamento / Retenção</span>
           </div>
-          <div class="kpi-mini">
-            <div class="kpi-mini-bar" style="background:var(--accent)"></div>
-            <div class="kpi-mini-label">TMA médio</div>
-            <div class="kpi-mini-val" style="color:var(--accent)" id="da-tma">—</div>
-          </div>
-          <div class="kpi-mini">
-            <div class="kpi-mini-bar" style="background:var(--green)"></div>
-            <div class="kpi-mini-label">Resolvidos (sem OS)</div>
-            <div class="kpi-mini-val" style="color:var(--green)" id="da-semOS">—</div>
-            <div class="kpi-mini-sub" id="da-semOS-pct">—</div>
-          </div>
-          <div class="kpi-mini">
-            <div class="kpi-mini-bar" style="background:var(--orange)"></div>
-            <div class="kpi-mini-label">Gerou OS</div>
-            <div class="kpi-mini-val" style="color:var(--orange)" id="da-comOS">—</div>
-            <div class="kpi-mini-sub" id="da-comOS-pct">—</div>
-          </div>
-          <div class="kpi-mini">
-            <div class="kpi-mini-bar" style="background:#a78bfa"></div>
-            <div class="kpi-mini-label">Atendentes ativos</div>
-            <div class="kpi-mini-val" style="color:#a78bfa" id="da-atend">—</div>
-          </div>
-        </div>
-
-        <!-- Donut + Por tipo -->
-        <div style="display:grid;grid-template-columns:320px 1fr;gap:14px;margin-bottom:14px">
-          <!-- Donut distribuição -->
-          <div class="dash-card" style="padding:16px">
-            <div class="dash-card-title">Distribuição</div>
-            <div class="dash-card-sub">Resolvido vs gerou OS</div>
-            <div style="display:flex;align-items:center;gap:16px;margin-top:10px">
-              <svg id="da-donut" width="130" height="130" viewBox="0 0 140 140">
-                <circle cx="70" cy="70" r="52" fill="none" stroke="var(--bg3)" stroke-width="18"/>
-              </svg>
-              <div id="da-donut-legend" style="display:flex;flex-direction:column;gap:8px;flex:1"></div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:8px 4px 4px">
+            <div style="text-align:center;background:var(--bg3);border-radius:var(--r);padding:10px 6px">
+              <div style="font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;margin-bottom:4px">Pedidos</div>
+              <div style="font-size:24px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--text)" id="dr-total">—</div>
+            </div>
+            <div style="text-align:center;background:var(--bg3);border-radius:var(--r);padding:10px 6px;border-top:2px solid var(--green)">
+              <div style="font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;margin-bottom:4px">Revertidos</div>
+              <div style="font-size:24px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--green)" id="dr-revert">—</div>
+            </div>
+            <div style="text-align:center;background:var(--bg3);border-radius:var(--r);padding:10px 6px;border-top:2px solid var(--red)">
+              <div style="font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;margin-bottom:4px">Cancelados</div>
+              <div style="font-size:24px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--red)" id="dr-cancel">—</div>
+            </div>
+            <div style="text-align:center;background:var(--bg3);border-radius:var(--r);padding:10px 6px;border-top:2px solid var(--green)">
+              <div style="font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;margin-bottom:4px">Retenção</div>
+              <div style="font-size:24px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--green)" id="dr-taxa">—</div>
             </div>
           </div>
-
-          <!-- Por tipo de atendimento -->
-          <div class="tbl-card" style="margin-bottom:0">
-            <div class="tbl-header">
-              <span class="tbl-title">Por tipo de atendimento</span>
-              <span class="badge b-blue" id="da-tipo-badge"></span>
-            </div>
-            <div id="da-tipo-bars" style="padding:8px 16px 4px"></div>
-          </div>
-        </div>
-
-        <!-- Ranking por atendente -->
-        <div class="tbl-card">
-          <div class="tbl-header">
-            <span class="tbl-title">Ranking por atendente</span>
-            <span class="badge b-blue" id="da-atend-badge"></span>
-          </div>
-          <div id="da-atend-bars" style="padding:8px 16px 4px;columns:2;gap:32px"></div>
-        </div>
-
-      </div><!-- /#dash-tab-atendimento -->
-
-      <!-- ═══ DASH-RETENCAO ═══ -->
-      <div id="dash-tab-retencao" style="display:none">
-
-        <!-- KPI row 1 -->
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:10px">
-          <div class="dash-card" style="text-align:center;padding:18px 16px">
-            <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Pedidos de cancelamento</div>
-            <div style="font-size:38px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--text);line-height:1" id="dr-total">—</div>
-          </div>
-          <div class="dash-card" style="text-align:center;padding:18px 16px;border-top:3px solid var(--green)">
-            <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Revertidos</div>
-            <div style="font-size:38px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--green);line-height:1" id="dr-revert">—</div>
-            <div style="font-size:10px;color:var(--text3);margin-top:4px">cliente mantido</div>
-          </div>
-          <div class="dash-card" style="text-align:center;padding:18px 16px;border-top:3px solid var(--red)">
-            <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Cancelados</div>
-            <div style="font-size:38px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--red);line-height:1" id="dr-cancel">—</div>
-            <div style="font-size:10px;color:var(--text3);margin-top:4px">cliente perdido</div>
-          </div>
-          <div class="dash-card" style="text-align:center;padding:18px 16px;border-top:3px solid var(--amber)">
-            <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Pendentes</div>
-            <div style="font-size:38px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--amber);line-height:1" id="dr-pend">—</div>
-            <div style="font-size:10px;color:var(--text3);margin-top:4px">em aberto</div>
-          </div>
-        </div>
-
-        <!-- KPI row 2 -->
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px">
-          <div class="dash-card" style="text-align:center;padding:18px 16px;border-top:3px solid var(--green)">
-            <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Taxa de retenção</div>
-            <div style="font-size:38px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--green);line-height:1" id="dr-taxa">—</div>
-            <div style="font-size:10px;color:var(--text3);margin-top:4px">revertidos / fechados</div>
-          </div>
-          <div class="dash-card" style="text-align:center;padding:18px 16px;border-top:3px solid var(--red)">
-            <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Cancelamento geral</div>
-            <div style="font-size:38px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--red);line-height:1" id="dr-canc-geral">—</div>
-            <div style="font-size:10px;color:var(--text3);margin-top:4px">qualquer tipo fechado como cancelado</div>
-          </div>
-          <div class="dash-card" style="text-align:center;padding:18px 16px;border-top:3px solid #22c55e">
-            <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Taxa de recuperação</div>
-            <div style="font-size:38px;font-weight:800;font-family:'JetBrains Mono',monospace;color:#22c55e;line-height:1" id="dr-taxa-recup">—</div>
-            <div style="font-size:10px;color:var(--text3);margin-top:4px">revertidos / cancelamento geral</div>
-          </div>
-        </div>
-
-        <!-- Donut + Por tipo -->
-        <div style="display:grid;grid-template-columns:320px 1fr;gap:14px;margin-bottom:14px">
-          <div class="dash-card" style="padding:16px">
-            <div class="dash-card-title">Desfecho dos pedidos</div>
-            <div class="dash-card-sub">Revertido · Cancelado · Pendente</div>
-            <div style="display:flex;align-items:center;gap:16px;margin-top:10px">
-              <svg id="dr-donut" width="130" height="130" viewBox="0 0 140 140">
-                <circle cx="70" cy="70" r="52" fill="none" stroke="var(--bg3)" stroke-width="18"/>
-              </svg>
-              <div id="dr-donut-legend" style="display:flex;flex-direction:column;gap:8px;flex:1"></div>
-            </div>
-          </div>
-
-          <div class="tbl-card" style="margin-bottom:0">
-            <div class="tbl-header">
-              <span class="tbl-title">Por tipo de cancelamento</span>
-              <span class="badge b-blue" id="dr-tipo-badge"></span>
-            </div>
-            <div id="dr-tipo-bars" style="padding:8px 16px 4px"></div>
-          </div>
-        </div>
-
-        <!-- Ranking atendentes retenção -->
-        <div class="tbl-card" style="margin-bottom:14px">
-          <div class="tbl-header">
-            <span class="tbl-title">Taxa de retenção por atendente</span>
-            <span class="badge b-blue" id="dr-atend-badge"></span>
-          </div>
-          <div id="dr-atend-bars" style="padding:8px 16px 4px;columns:2;gap:32px"></div>
-        </div>
-
-        <!-- Últimos pedidos -->
-        <div class="tbl-card">
-          <div class="tbl-header">
-            <span class="tbl-title">Últimos pedidos de cancelamento</span>
-            <span class="badge b-blue" id="dr-ultimos-badge"></span>
-          </div>
-          <table class="data-table" style="font-size:12px">
-            <thead><tr>
-              <th>Cliente</th><th>Tipo</th><th>Atendente</th><th>Desfecho</th><th>Data</th>
-            </tr></thead>
-            <tbody id="dr-ultimos-body"></tbody>
-          </table>
-        </div>
-
-      </div><!-- /#dash-tab-retencao -->
-
-      <!-- ═══ DASH-COMERCIAL ═══ -->
-      <div id="dash-tab-comercial" style="display:none">
-
-        <!-- KPIs -->
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
-          <div class="kpi-card" style="border-top:3px solid var(--accent)">
-            <div class="kpi-label">TOTAL DE VENDAS</div>
-            <div class="kpi-value" id="dco-total" style="color:var(--accent)">—</div>
-            <div class="kpi-sub" id="dco-periodo">mês atual</div>
-          </div>
-          <div class="kpi-card" style="border-top:3px solid #22c55e">
-            <div class="kpi-label">NOVAS</div>
-            <div class="kpi-value" id="dco-novas" style="color:#22c55e">—</div>
-            <div class="kpi-sub">novos clientes</div>
-          </div>
-          <div class="kpi-card" style="border-top:3px solid var(--cyan)">
-            <div class="kpi-label">REATIVAÇÕES</div>
-            <div class="kpi-value" id="dco-reat" style="color:var(--cyan)">—</div>
-            <div class="kpi-sub">clientes retornaram</div>
-          </div>
-          <div class="kpi-card" style="border-top:3px solid var(--amber)">
-            <div class="kpi-label">% REATIVAÇÃO</div>
-            <div class="kpi-value" id="dco-pct-reat" style="color:var(--amber)">—</div>
-            <div class="kpi-sub">do total de vendas</div>
-          </div>
-        </div>
-
-        <!-- Gráficos linha 1: cidades + vendedores -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-          <div class="tbl-card" style="padding:14px">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-              <span class="tbl-title" style="font-size:13px"><i class="fas fa-map-marker-alt" style="color:var(--accent);margin-right:5px"></i>Top Cidades</span>
-              <span class="badge b-blue" id="dco-cid-count">—</span>
-            </div>
-            <div id="dco-cidades-bars" style="max-height:220px;overflow-y:auto"></div>
-          </div>
-          <div class="tbl-card" style="padding:14px">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-              <span class="tbl-title" style="font-size:13px"><i class="fas fa-user-tie" style="color:#22c55e;margin-right:5px"></i>Por Vendedor</span>
-              <span class="badge b-green" id="dco-vend-count">—</span>
-            </div>
-            <div id="dco-vend-bars" style="max-height:220px;overflow-y:auto"></div>
-          </div>
-        </div>
-
-        <!-- Gráficos linha 2: planos + últimas vendas -->
-        <div style="display:grid;grid-template-columns:280px 1fr;gap:10px">
-          <div class="tbl-card" style="padding:14px">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-              <span class="tbl-title" style="font-size:13px"><i class="fas fa-layer-group" style="color:var(--purple);margin-right:5px"></i>Por Plano</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:10px">
-              <svg id="dco-donut" width="100" height="100" viewBox="0 0 140 140"></svg>
-              <div id="dco-donut-legend" style="flex:1;display:flex;flex-direction:column;gap:6px;font-size:11px"></div>
-            </div>
-          </div>
-          <div class="tbl-card" style="padding:14px">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-              <span class="tbl-title" style="font-size:13px"><i class="fas fa-list" style="color:var(--amber);margin-right:5px"></i>Últimas Vendas</span>
-              <span class="badge b-amber" id="dco-ult-count">—</span>
-            </div>
-            <div style="overflow-x:auto">
-              <table class="tbl" style="font-size:12px">
-                <thead><tr>
-                  <th>Cliente</th><th>Cidade</th><th>Vendedor</th><th>Plano</th><th>Data</th><th>Tipo</th>
+          <div style="padding:0 4px 8px">
+            <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;padding:6px 12px 4px">Últimos pedidos</div>
+            <div style="overflow-x:auto;max-height:170px;overflow-y:auto;padding:0 4px">
+              <table style="width:100%;font-size:11px">
+                <thead style="position:sticky;top:0;background:var(--surface2)"><tr>
+                  <th>Cliente</th><th>Tipo</th><th>Atendente</th><th>Desfecho</th><th>Data</th>
                 </tr></thead>
-                <tbody id="dco-ult-tbl">
-                  <tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">—</td></tr>
-                </tbody>
+                <tbody id="dr-ultimos-body"></tbody>
               </table>
             </div>
           </div>
-        </div>
-
-      </div><!-- /#dash-tab-comercial -->
-
-      <!-- ═══ DASH-CONEXÕES ═══ -->
-      <div id="dash-tab-conexoes" style="display:none">
-
-        <!-- KPIs -->
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
-          <div class="kpi-card" style="border-top:3px solid #22c55e">
-            <div class="kpi-label">ONLINE</div>
-            <div class="kpi-value" id="dcx-online" style="color:#22c55e">—</div>
-            <div class="kpi-sub">clientes conectados</div>
-          </div>
-          <div class="kpi-card" style="border-top:3px solid #f43f5e">
-            <div class="kpi-label">OFFLINE</div>
-            <div class="kpi-value" id="dcx-offline" style="color:#f43f5e">—</div>
-            <div class="kpi-sub">sem conexão</div>
-          </div>
-          <div class="kpi-card" style="border-top:3px solid var(--amber)">
-            <div class="kpi-label">CIDADES AFETADAS</div>
-            <div class="kpi-value" id="dcx-af" style="color:var(--amber)">—</div>
-            <div class="kpi-sub">com offline &gt; 0</div>
-          </div>
-          <div class="kpi-card" style="border-top:3px solid var(--cyan)">
-            <div class="kpi-label">TAXA ONLINE</div>
-            <div class="kpi-value" id="dcx-taxa" style="color:var(--cyan)">—</div>
-            <div class="kpi-sub" id="dcx-ts">—</div>
+          <div style="display:none">
+            <span id="dr-pend"></span><span id="dr-canc-geral"></span><span id="dr-taxa-recup"></span>
+            <svg id="dr-donut"></svg><div id="dr-donut-legend"></div>
+            <span id="dr-tipo-badge"></span><div id="dr-tipo-bars"></div>
+            <span id="dr-atend-badge"></span><div id="dr-atend-bars"></div>
+            <span id="dr-ultimos-badge"></span>
           </div>
         </div>
 
-        <!-- Status geral + Top cidades offline -->
-        <div style="display:grid;grid-template-columns:220px 1fr;gap:10px">
-          <!-- Donut online/offline -->
-          <div class="tbl-card" style="padding:14px">
-            <div style="font-weight:600;font-size:13px;margin-bottom:10px">Status Geral</div>
-            <div style="display:flex;flex-direction:column;align-items:center;gap:10px">
-              <svg id="dcx-donut" width="110" height="110" viewBox="0 0 140 140"></svg>
-              <div id="dcx-donut-legend" style="width:100%;display:flex;flex-direction:column;gap:6px;font-size:11px"></div>
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header" style="cursor:pointer" onclick="goPage('conexoes')">
+            <span class="tbl-title"><i class="fas fa-wifi" style="color:var(--green);margin-right:6px"></i>Conexões</span>
+            <span style="font-size:10px;color:var(--text3)" id="dcx-ts">—</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:8px 4px 4px">
+            <div class="kpi-card" style="border-top:3px solid var(--green);padding:10px 8px">
+              <div class="kpi-label" style="font-size:9px">ONLINE</div>
+              <div class="kpi-value" id="dcx-online" style="color:var(--green);font-size:22px">—</div>
+            </div>
+            <div class="kpi-card" style="border-top:3px solid var(--red);padding:10px 8px">
+              <div class="kpi-label" style="font-size:9px">OFFLINE</div>
+              <div class="kpi-value" id="dcx-offline" style="color:var(--red);font-size:22px">—</div>
+            </div>
+            <div class="kpi-card" style="border-top:3px solid var(--amber);padding:10px 8px">
+              <div class="kpi-label" style="font-size:9px">CIDADES</div>
+              <div class="kpi-value" id="dcx-af" style="color:var(--amber);font-size:22px">—</div>
+              <div class="kpi-sub" style="font-size:9px">afetadas</div>
+            </div>
+            <div class="kpi-card" style="border-top:3px solid var(--cyan);padding:10px 8px">
+              <div class="kpi-label" style="font-size:9px">% ONLINE</div>
+              <div class="kpi-value" id="dcx-taxa" style="color:var(--cyan);font-size:22px">—</div>
             </div>
           </div>
-          <!-- Top cidades com mais offline -->
-          <div class="tbl-card" style="padding:14px">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-              <span class="tbl-title" style="font-size:13px"><i class="fas fa-map-marker-alt" style="color:#f43f5e;margin-right:5px"></i>Cidades com Mais Offline</span>
-              <span class="badge b-red" id="dcx-city-count">—</span>
-            </div>
-            <div id="dcx-city-bars" style="max-height:260px;overflow-y:auto"></div>
+          <div style="padding:0 4px 8px">
+            <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;padding:6px 12px 4px">Cidades com mais offline</div>
+            <div id="dcx-city-bars" style="padding:0 12px 4px;max-height:170px;overflow-y:auto"></div>
+          </div>
+          <div style="display:none">
+            <svg id="dcx-donut"></svg><div id="dcx-donut-legend"></div>
+            <span id="dcx-city-count"></span>
           </div>
         </div>
-
-      </div><!-- /#dash-tab-conexoes -->
+      </div>
 
     </div>
 
-    <!-- ═══ CHAMADOS (por tipo) ═══ -->
+
+
+        <!-- ═══ CHAMADOS (por tipo) ═══ -->
     <div class="page" id="page-chamados">
 
       <!-- ── BARRA DE FILTROS AO VIVO ── -->
@@ -2450,7 +2342,7 @@ function goPage(id, el) {
   document.getElementById('pageTitle').textContent = titles[id]||id;
   // Restaura dados em memória ao navegar de volta para páginas com dados
   if (id === 'dashboard') {
-    showDashTab('atendimento');
+    showDashTab();
   }
   if (id === 'chamados') {
     // DOM já está atualizado pelo autoRefresh — só força rebuild se ainda sem dados
@@ -4011,8 +3903,7 @@ async function loadAtendimentos() {
 
 function renderAtendimentos(data) {
   _atendData = data;
-  const atendTab = document.getElementById('dash-tab-atendimento');
-  if (atendTab && atendTab.style.display !== 'none') renderDashAtendimento();
+  renderDashAtendimento();
   const badge = document.getElementById('atend-sync-badge');
   const hora  = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
   if (badge) { badge.textContent = `Atualizado ${hora}`; badge.className = 'badge b-green'; }
@@ -4454,8 +4345,7 @@ async function loadRetencaoAtend() {
     if (data.ok) {
       _retData = data;
       renderRetencao(data);
-      const retTab = document.getElementById('dash-tab-retencao');
-      if (retTab && retTab.style.display !== 'none') renderDashRetencao();
+      renderDashRetencao();
     }
     else if (badge) { badge.textContent = 'Erro'; badge.className = 'badge b-red'; }
   } catch(e) {
@@ -4572,18 +4462,12 @@ function renderRetencao(data) {
   }
 }
 
-function showDashTab(name) {
-  ['atendimento','retencao','comercial','conexoes'].forEach(t => {
-    const el  = document.getElementById(`dash-tab-${t}`);
-    const btn = document.getElementById(`dash-tab-btn-${t}`);
-    if (el)  el.style.display = t === name ? '' : 'none';
-    if (btn) btn.classList.toggle('active', t === name);
-  });
-  if (name === 'chamados')    { renderDashboard(); renderTecChart(); renderCidadeChart(); renderChamadosDash(); }
-  if (name === 'atendimento') renderDashAtendimento();
-  if (name === 'retencao')    renderDashRetencao();
-  if (name === 'comercial')   renderDashComercial();
-  if (name === 'conexoes')    renderDashConexoes();
+function showDashTab() {
+  renderDashboard();
+  renderDashAtendimento();
+  renderDashRetencao();
+  renderDashComercial();
+  renderDashConexoes();
 }
 
 // ── DASHBOARD DE CHAMADOS ─────────────────────────────────────────────────
@@ -6946,7 +6830,7 @@ function filterEstoque(txt) {
 // AUTO-INIT: 1) cache imediato  2) sync em background  3) status badge
 (function() {
   // Garante que o tab inicial do dash esteja visível antes de qualquer render
-  showDashTab('atendimento');
+  showDashTab();
   // Passo 1 — exibe cache instantaneamente
   const cache = carregarCache();
   if (cache) {
