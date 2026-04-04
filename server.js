@@ -1460,7 +1460,7 @@ async function warmupComercial() {
     _comAllClientes = clientes;
     _comCancelados  = null;
     _comFetchedAt   = Date.now();
-    dbCacheSet('cache:com_clientes', clientes); // persiste no banco — sobrevive redeploy
+    // Não persiste clientes brutos no DB — array 15k+ estoura cota de transferência
     console.log(`[comercial] Cache populado: ${clientes.length} ativos`);
   } catch(e) {
     console.warn('[comercial] Warm-up falhou:', e.message);
@@ -1501,15 +1501,10 @@ async function warmupComercial() {
     // Estoque
     const esq = await dbCacheRestore('cache:estoque');
     if (esq) { _estoqueCache = esq; _estoqueFetchedAt = Date.now(); console.log('[boot] estoque restaurado'); }
-    // Comercial (clientes ativos — grande, mas crítico para performance)
-    const com = await dbCacheRestore('cache:com_clientes');
-    if (com && com.length) { _comAllClientes = com; _comFetchedAt = Date.now(); console.log(`[boot] comercial restaurado: ${com.length} clientes`); }
     // Conexões
     const cx = await dbCacheRestore('cache:conexoes');
     if (cx?.cidades) { _cxCache = { clientes: [], cidades: cx.cidades, ts: cx.ts }; console.log('[boot] conexoes restauradas'); }
-    // Cancelados gerais (histórico — TTL 6h)
-    const canGeral = await dbCacheRestore('cache:com_cancelados_geral');
-    if (canGeral?.length) { _comAllCancelados = canGeral; _comAllCanceladosAt = Date.now(); console.log(`[boot] cancelados-geral restaurados: ${canGeral.length}`); }
+    // Clientes brutos não são persistidos no DB (array grande) — warm-up em background aos 5s
   } catch(e) { console.warn('[boot] restauração do banco falhou:', e.message); }
 })();
 
@@ -1559,7 +1554,7 @@ function warmupCanceladosGeral() {
   if (_comAllCancelados && (Date.now() - _comAllCanceladosAt) < 6 * 60 * 60 * 1000) return;
   _comAllCanceladosFetching = true;
   getToken().then(tk => fetchIntegracaoClientes(tk, { cancelado: 'sim' }, 200))
-    .then(r => { _comAllCancelados = r; _comAllCanceladosAt = Date.now(); _comAllCanceladosFetching = false; dbCacheSet('cache:com_cancelados_geral', r); console.log(`[cancelados-geral] warm-up OK: ${r.length}`); })
+    .then(r => { _comAllCancelados = r; _comAllCanceladosAt = Date.now(); _comAllCanceladosFetching = false; // não persiste cancelados brutos no DB (array grande, estoura cota) console.log(`[cancelados-geral] warm-up OK: ${r.length}`); })
     .catch(e => { _comAllCanceladosFetching = false; console.warn('[cancelados-geral] falhou:', e.message); });
 }
 setTimeout(() => warmupCanceladosGeral(), 90000);
@@ -2525,7 +2520,7 @@ async function buildFinanceiro() {
   if (!_comAllCancelados && !_comAllCanceladosFetching) {
     _comAllCanceladosFetching = true;
     getToken().then(tk => fetchIntegracaoClientes(tk, { cancelado: 'sim' }, 200))
-      .then(r => { _comAllCancelados = r; _comAllCanceladosAt = Date.now(); _comAllCanceladosFetching = false; dbCacheSet('cache:com_cancelados_geral', r); })
+      .then(r => { _comAllCancelados = r; _comAllCanceladosAt = Date.now(); _comAllCanceladosFetching = false; // não persiste cancelados brutos no DB (array grande, estoura cota) })
       .catch(e => { _comAllCanceladosFetching = false; console.warn('[cancelados-geral] warm-up falhou:', e.message); });
   }
 
@@ -2876,12 +2871,15 @@ app.get('/api/financeiro', async (req, res) => {
     if (_finFetching) {
       return res.json({ ok: false, motivo: 'carregando', info: 'Análise financeira em andamento. Aguarde ~30s.' });
     }
-    // 6) Sem cache nenhum → rebuild síncrono (primeira vez)
+    // 6) Sem cache nenhum → dispara rebuild em background, responde imediatamente
+    // NUNCA await buildFinanceiro() inline — demora 90-120s e estoura timeout Vercel (300s)
     _finFetching = true;
-    const result  = await buildFinanceiro();
-    _finCache     = result; _finFetchedAt = agora; _finFetching = false;
-    dbCacheSet('cache:financeiro', result);
-    res.json(result);
+    buildFinanceiro().then(r => {
+      _finCache = r; _finFetchedAt = Date.now(); _finFetching = false;
+      dbCacheSet('cache:financeiro', r);
+      console.log('[financeiro] primeiro build OK');
+    }).catch(e => { _finFetching = false; console.warn('[financeiro] primeiro build falhou:', e.message); });
+    return res.json({ ok: false, motivo: 'carregando', info: 'Análise financeira em andamento. Aguarde ~30s.' });
   } catch (e) {
     _finFetching = false;
     console.error('[/api/financeiro]', e.message);
