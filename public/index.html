@@ -957,7 +957,7 @@ input[type="text"]::placeholder { color:var(--text3); }
           <input type="date" id="atendDtAte" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
         </div>
         <button class="btn btn-primary btn-sm" onclick="loadAtendimentos()" style="padding:5px 14px;font-size:12px"><i class="fas fa-search"></i> Buscar</button>
-        <span class="badge b-green" id="atend-sync-badge" style="margin-left:auto">Carregando...</span>
+        <span class="badge b-green" id="atend-page-sync-badge" style="margin-left:auto">—</span>
       </div>
       <!-- KPIs dinâmicos -->
       <div class="kpi-row" style="margin-bottom:14px">
@@ -3883,7 +3883,7 @@ function filtrarPorSetor(setor) {
 async function loadAtendimentos() {
   const { ini, fim } = getAtendDates();
   const useAll = atendPeriodo !== 'hoje';
-  const badge = document.getElementById('atend-sync-badge');
+  const badge = document.getElementById('atend-page-sync-badge');
   if (badge) { badge.textContent = useAll ? 'Carregando páginas...' : 'Buscando...'; badge.className = 'badge b-amber'; }
   try {
     const qs = `data_inicio=${encodeURIComponent(ini)}&data_fim=${encodeURIComponent(fim)}${useAll ? '&all=true' : ''}&periodo=${encodeURIComponent(atendPeriodo)}`;
@@ -3902,7 +3902,7 @@ async function loadAtendimentos() {
 function renderAtendimentos(data) {
   _atendData = data;
   renderDashAtendimento();
-  const badge = document.getElementById('atend-sync-badge');
+  const badge = document.getElementById('atend-page-sync-badge');
   const hora  = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
   if (badge) { badge.textContent = `Atualizado ${hora}`; badge.className = 'badge b-green'; }
 
