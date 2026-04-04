@@ -2046,7 +2046,7 @@ input[type="text"]::placeholder { color:var(--text3); }
             <div id="rh-nr-faltando" style="display:flex;flex-wrap:wrap;gap:4px"></div>
           </div>
           <div style="overflow-y:auto;max-height:300px">
-            <table class="tbl"><thead><tr><th>Colaborador</th><th>Setor</th><th>Certificação</th><th>Emissão</th><th>Vencimento</th><th>Status</th><th style="width:28px"></th></tr></thead>
+            <table class="tbl"><thead><tr><th>Colaborador</th><th>Certificação</th><th>Emissão</th><th>Vencimento</th><th>Status</th><th style="width:28px"></th></tr></thead>
             <tbody id="rh-nr-tbl"></tbody></table>
           </div>
         </div>
@@ -7646,7 +7646,7 @@ function renderRhNR() {
       faltandoWrap.style.display = 'none';
     }
   }
-  if (!lista.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:16px">Nenhuma certificação · clique em <b>+ Manual</b> ou <b>Subir PDFs</b></td></tr>'; return; }
+  if (!lista.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">Nenhuma certificação · clique em <b>+ Manual</b> ou <b>Subir PDFs</b></td></tr>'; return; }
   tbody.innerHTML = lista.map((c, i) => {
     const vencDate = c.vencimento ? new Date(c.vencimento) : null;
     const emissDate = c.emissao ? new Date(c.emissao) : null;
@@ -7663,7 +7663,6 @@ function renderRhNR() {
     const nomeAbrev = c.nome.split(' ').slice(0, 2).join(' ');
     return `<tr>
       <td style="font-size:11px" title="${c.nome}">${nomeAbrev}</td>
-      <td style="font-size:11px;color:var(--text2)">${c.setor || '—'}</td>
       <td style="font-size:11px;font-weight:600;color:var(--amber)" title="${c.tipo}">${tipoAbrev}</td>
       <td style="text-align:center;font-size:11px;color:var(--text2)">${fmt(emissDate)}</td>
       <td style="text-align:center;font-size:11px;color:${cor}">${fmt(vencDate)}</td>
