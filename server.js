@@ -1328,6 +1328,7 @@ let _comFetching     = false;  // lock
 let _comFetchedAt    = 0;      // timestamp da última busca completa
 let _comAllCancelados = null;  // todos os cancelados (histórico completo)
 let _comAllCanceladosAt = 0;
+let _comAllCanceladosFetching = false;
 
 function buildVendasFromClientes(clientes, iniStr, fimStr) {
   // Usa apenas a parte da data (YYYY-MM-DD) para evitar bleed de timezone:
@@ -1506,6 +1507,9 @@ async function warmupComercial() {
     // Conexões
     const cx = await dbCacheRestore('cache:conexoes');
     if (cx?.cidades) { _cxCache = { clientes: [], cidades: cx.cidades, ts: cx.ts }; console.log('[boot] conexoes restauradas'); }
+    // Cancelados gerais (histórico — TTL 6h)
+    const canGeral = await dbCacheRestore('cache:com_cancelados_geral');
+    if (canGeral?.length) { _comAllCancelados = canGeral; _comAllCanceladosAt = Date.now(); console.log(`[boot] cancelados-geral restaurados: ${canGeral.length}`); }
   } catch(e) { console.warn('[boot] restauração do banco falhou:', e.message); }
 })();
 
@@ -1513,7 +1517,7 @@ async function warmupComercial() {
 setTimeout(() => warmupComercial().catch(console.warn), 5000);
 // Warm-up de conexões logo após o comercial (10s delay para não sobrecarregar)
 setTimeout(() => fetchConexoesHubsoft().catch(console.warn), 10000);
-// Warm-up do financeiro (120s — espera comercial terminar de carregar ~15k clientes)
+// Warm-up do financeiro (65s — comercial leva ~55s; financeiro reutiliza _comAllClientes)
 setTimeout(() => {
   // Só executa se cache está ausente ou vencido, e não há rebuild em andamento
   if (_finFetching || (_finCache && (Date.now() - _finFetchedAt) < FIN_CACHE_TTL)) return;
@@ -1523,7 +1527,7 @@ setTimeout(() => {
     dbCacheSet('cache:financeiro', r);
     console.log('[financeiro] warm-up OK + salvo no banco');
   }).catch(e => { _finFetching = false; console.warn('[financeiro] warm-up falhou:', e.message); });
-}, 120000);
+}, 65000);
 // Cron: renova cache do financeiro a cada 25min (antes do TTL de 30min expirar)
 setInterval(() => {
   if (_finFetching || !_finCache) return; // não duplica rebuild
@@ -1549,6 +1553,18 @@ setTimeout(async () => {
 }, 20000);
 // Renova a cada 30 minutos
 setInterval(() => warmupComercial().catch(console.warn), 1800000);
+// Warm-up cancelados gerais (90s após boot — não bloqueia nada crítico)
+function warmupCanceladosGeral() {
+  if (_comAllCanceladosFetching) return;
+  if (_comAllCancelados && (Date.now() - _comAllCanceladosAt) < 6 * 60 * 60 * 1000) return;
+  _comAllCanceladosFetching = true;
+  getToken().then(tk => fetchIntegracaoClientes(tk, { cancelado: 'sim' }, 200))
+    .then(r => { _comAllCancelados = r; _comAllCanceladosAt = Date.now(); _comAllCanceladosFetching = false; dbCacheSet('cache:com_cancelados_geral', r); console.log(`[cancelados-geral] warm-up OK: ${r.length}`); })
+    .catch(e => { _comAllCanceladosFetching = false; console.warn('[cancelados-geral] falhou:', e.message); });
+}
+setTimeout(() => warmupCanceladosGeral(), 90000);
+// Renova a cada 6h
+setInterval(() => warmupCanceladosGeral(), 6 * 60 * 60 * 1000);
 
 app.get('/api/comercial', async (req, res) => {
   try {
@@ -2503,12 +2519,15 @@ async function buildFinanceiro() {
   ]);
 
   // Cancelados all-time (histórico completo) para saúde da carteira por vendedor
-  // Cache de 2h separado — cancelados raramente mudam retroativamente
-  if (!_comAllCancelados || (Date.now() - _comAllCanceladosAt) > 2 * 60 * 60 * 1000) {
-    _comAllCancelados = await fetchIntegracaoClientes(token2, { cancelado: 'sim' }, 200);
-    _comAllCanceladosAt = Date.now();
+  // Carregado em background independente — não bloqueia buildFinanceiro
+  const canGeralList = _comAllCancelados || [];
+  // Se vazio, dispara warm-up em background (não await)
+  if (!_comAllCancelados && !_comAllCanceladosFetching) {
+    _comAllCanceladosFetching = true;
+    getToken().then(tk => fetchIntegracaoClientes(tk, { cancelado: 'sim' }, 200))
+      .then(r => { _comAllCancelados = r; _comAllCanceladosAt = Date.now(); _comAllCanceladosFetching = false; dbCacheSet('cache:com_cancelados_geral', r); })
+      .catch(e => { _comAllCanceladosFetching = false; console.warn('[cancelados-geral] warm-up falhou:', e.message); });
   }
-  const canGeralList = _comAllCancelados;
 
   const normFin = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
   const MOTIVOS_IGNORAR_FIN = ['desistencia da instalacao', 'habilitado o user errado', 'troca de titularidade'];
