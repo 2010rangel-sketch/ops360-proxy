@@ -970,11 +970,6 @@ input[type="text"]::placeholder { color:var(--text3); }
         <span style="font-size:12px;color:var(--text3)">Setor:</span>
         <select id="filtAtendSetor" onchange="renderAtendimentosFiltrado()" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:4px 10px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
           <option value="">Todos</option>
-          <option>NOC</option>
-          <option>Comercial</option>
-          <option>Cobrança</option>
-          <option>Financeiro</option>
-          <option>Call Center</option>
         </select>
         <button onclick="abrirConfigSetores()" class="btn btn-sm" style="padding:4px 12px;font-size:11px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);color:var(--text2);cursor:pointer"><i class="fas fa-cog"></i> Configurar setores</button>
       </div>
@@ -1016,6 +1011,24 @@ input[type="text"]::placeholder { color:var(--text3); }
             <table><thead><tr><th>#</th><th>Atendente</th><th>Total</th><th style="color:#22c55e">Resolvido</th><th style="color:var(--accent)">O.S Aberta</th></tr></thead>
             <tbody id="atendenteTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px">Carregando...</td></tr></tbody></table>
           </div>
+        </div>
+      </div>
+
+      <!-- Painel detalhe atendente selecionado -->
+      <div id="at-atend-detalhe" style="display:none;margin-bottom:14px" class="tbl-card">
+        <div class="tbl-header">
+          <span class="tbl-title" id="at-atend-detalhe-nome">—</span>
+          <span class="badge b-blue" id="at-atend-detalhe-setor">—</span>
+          <button onclick="setAtendFiltroAt(null)" style="margin-left:auto;background:none;border:1px solid var(--border2);border-radius:var(--r);color:var(--text3);font-size:11px;padding:2px 10px;cursor:pointer">✕ Limpar</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:10px 4px 6px">
+          <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Total</div><div class="kpi-mini-val" id="at-det-total" style="color:var(--accent)">—</div></div>
+          <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">Resolvido</div><div class="kpi-mini-val" id="at-det-semOS" style="color:var(--green)">—</div></div>
+          <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--orange)"></div><div class="kpi-mini-label">Gerou OS</div><div class="kpi-mini-val" id="at-det-comOS" style="color:var(--orange)">—</div></div>
+        </div>
+        <div style="padding:0 4px 10px">
+          <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Por tipo de atendimento</div>
+          <div id="at-det-tipos" style="display:flex;flex-direction:column;gap:5px"></div>
         </div>
       </div>
 
@@ -3784,6 +3797,11 @@ function setAtendFiltroAt(at) {
   _atendFiltroAt   = _atendFiltroAt === at ? null : at;
   _atendFiltroTipo = null;
   renderAtendimentosFiltrado();
+  // Scroll para o painel de detalhe quando selecionando
+  if (_atendFiltroAt) {
+    const det = document.getElementById('at-atend-detalhe');
+    if (det) setTimeout(() => det.scrollIntoView({ behavior:'smooth', block:'nearest' }), 100);
+  }
 }
 
 const SETORES_KEY = 'ops360_setor_map';
@@ -3960,6 +3978,19 @@ function renderAtendimentos(data) {
     }
   }
 
+  // Popula setor select dinamicamente com os setores reais dos dados
+  const mapa0 = carregarMapaSetores();
+  const porAtComSetor0 = (data.por_atendente || []).map(a => ({
+    ...a, setor: mapa0[a.atendente] || a.setor || ''
+  }));
+  const setoresUnicos = [...new Set(porAtComSetor0.map(a => a.setor || 'Sem setor'))].sort();
+  const sel0 = document.getElementById('filtAtendSetor');
+  if (sel0) {
+    const valAtual = sel0.value;
+    sel0.innerHTML = '<option value="">Todos</option>' +
+      setoresUnicos.map(s => `<option value="${s}"${s === valAtual ? ' selected' : ''}>${s}</option>`).join('');
+  }
+
   renderAtendimentosFiltrado();
 }
 
@@ -3983,7 +4014,7 @@ function renderAtendimentosFiltrado() {
   const atBadge    = document.getElementById('at-atend-filtro-badge');
   if (atBadge) atBadge.style.display = _atendFiltroAt ? '' : 'none';
   let porAt = porAtComSetor;
-  if (filtSetor) porAt = porAt.filter(a => a.setor === filtSetor);
+  if (filtSetor) porAt = porAt.filter(a => (a.setor || 'Sem setor') === filtSetor);
   // Se um tipo está selecionado, mostra só quem atendeu esse tipo
   if (_atendFiltroTipo) {
     porAt = porAt.filter(a => (a.tipos || []).some(t => t.tipo === _atendFiltroTipo));
@@ -4033,9 +4064,9 @@ function renderAtendimentosFiltrado() {
     setTbl.innerHTML = porSet.length ? porSet.map((s, i) => {
       const cor     = s.pctSemOS>=60?'#22c55e':s.pctSemOS>=30?'var(--amber)':'var(--red)';
       const ativo   = filtSetor === s.setor;
-      // Quando atendente selecionado, destaca o setor dele
-      const destaque = _atendFiltroAt && atSel?.setor === s.setor;
-      return `<tr onclick="filtrarPorSetor('${s.setor.replace(/'/g,"\\'")}')" style="cursor:pointer;${ativo?'background:rgba(91,106,240,.08);outline:1px solid var(--accent);border-radius:4px':destaque?'background:rgba(34,197,94,.06);outline:1px solid rgba(34,197,94,.4);border-radius:4px':''}">
+      const atSel_setor = atSel?.setor || 'Sem setor';
+      const destaque = _atendFiltroAt && (atSel_setor === s.setor || (!atSel?.setor && s.setor === 'Sem setor'));
+      return `<tr onclick="filtrarPorSetor(${JSON.stringify(s.setor)})" style="cursor:pointer;${ativo?'background:rgba(91,106,240,.08);outline:1px solid var(--accent);border-radius:4px':destaque?'background:rgba(34,197,94,.06);outline:1px solid rgba(34,197,94,.4);border-radius:4px':''}">
         <td style="color:var(--text3)">${i+1}</td>
         <td style="font-weight:600;color:${ativo?'var(--accent)':destaque?'#22c55e':'var(--text)'}">${s.setor}${ativo?' <span style="font-size:10px">✕</span>':destaque?` <span style="font-size:10px;color:rgba(34,197,94,.7)">(selecionado)</span>`:''}</td>
         <td class="mono" style="font-weight:600">${s.total}</td>
@@ -4081,6 +4112,44 @@ function renderAtendimentosFiltrado() {
       </tr>`;
     }).join('')
     : `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Nenhum tipo no período</td></tr>`;
+  }
+
+  // ── Painel detalhe atendente ──────────────────────────────────────
+  const detPanel = document.getElementById('at-atend-detalhe');
+  if (detPanel) {
+    if (atSel) {
+      detPanel.style.display = '';
+      const setNome = document.getElementById('at-atend-detalhe-nome');
+      const setSetor = document.getElementById('at-atend-detalhe-setor');
+      const setTotal = document.getElementById('at-det-total');
+      const setSemOS = document.getElementById('at-det-semOS');
+      const setComOS = document.getElementById('at-det-comOS');
+      const setTipos = document.getElementById('at-det-tipos');
+      if (setNome)  setNome.textContent  = atSel.atendente;
+      if (setSetor) { setSetor.textContent = atSel.setor || 'Sem setor'; setSetor.className = 'badge ' + (atSel.setor ? 'b-blue' : 'b-amber'); }
+      if (setTotal) setTotal.textContent = atSel.total;
+      if (setSemOS) { const p = atSel.total > 0 ? Math.round(atSel.semOS/atSel.total*100) : 0; setSemOS.textContent = `${atSel.semOS} (${p}%)`; }
+      if (setComOS) { const p = atSel.total > 0 ? Math.round(atSel.comOS/atSel.total*100) : 0; setComOS.textContent = `${atSel.comOS} (${p}%)`; }
+      if (setTipos) {
+        const tipos = (atSel.tipos || []).sort((a,b) => b.total - a.total);
+        const maxT  = tipos[0]?.total || 1;
+        setTipos.innerHTML = tipos.length ? tipos.map(t => {
+          const pct    = Math.round(t.total / maxT * 100);
+          const pctRes = t.total > 0 ? Math.round((t.semOS || 0) / t.total * 100) : 0;
+          return `<div>
+            <div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:3px">
+              <span style="color:var(--text2);font-weight:500">${t.tipo || '(sem tipo)'}</span>
+              <span style="color:var(--text3)">${t.total} · <span style="color:#22c55e">${pctRes}% resolvido</span></span>
+            </div>
+            <div style="background:var(--border);border-radius:4px;height:4px;overflow:hidden">
+              <div style="height:100%;width:${pct}%;background:var(--accent);border-radius:4px"></div>
+            </div>
+          </div>`;
+        }).join('') : '<span style="color:var(--text3);font-size:12px">Sem tipos registrados</span>';
+      }
+    } else {
+      detPanel.style.display = 'none';
+    }
   }
 
   // Clientes recorrentes
