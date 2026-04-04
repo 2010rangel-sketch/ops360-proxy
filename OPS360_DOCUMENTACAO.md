@@ -1,7 +1,7 @@
 # OPS360 — Documentação Completa do Sistema
-> Gerado em: 02/04/2026
-> Versão: 1.0 — 247 commits
-> Repositório: `ops360-proxy` (Railway.app)
+> Atualizado em: 03/04/2026
+> Versão: 1.3 — Railway.app
+> Repositório: `ops360-proxy` (GitHub: `2010rangel-sketch/ops360-proxy`)
 
 ---
 
@@ -15,8 +15,10 @@
 | Backend | Node.js 18+ / Express 4 |
 | Deploy | Railway.app (auto-deploy via GitHub push) |
 | API integrada | Hubsoft (`api.lcvirtual.hubsoft.com.br`) |
+| IA integrada | Anthropic Claude (`claude-opus-4-5`) via RAX |
+| Clima integrado | Open-Meteo (gratuito, sem API key) |
 | Integração futura | RHiD (RH), Fiscal, Estoque |
-| Total de linhas | ~9.400 (2.710 backend + 6.690 frontend) |
+| Total de linhas | ~8.200 (backend: ~2.800 / frontend: ~8.200) |
 
 ---
 
@@ -24,7 +26,7 @@
 
 ```
 ops360-proxy/
-├── server.js              # Backend — proxy + lógica de negócio
+├── server.js              # Backend — proxy + lógica de negócio + RAX
 ├── package.json           # Dependências Node.js
 ├── railway.toml           # Configuração de deploy
 └── public/
@@ -39,7 +41,8 @@ ops360-proxy/
     "cors":        "^2.8.5",
     "express":     "^4.18.2",
     "node-cron":   "^4.2.1",
-    "nodemailer":  "^8.0.4"
+    "nodemailer":  "^8.0.4",
+    "pg":          "^8.11.3"
   },
   "engines": { "node": ">=18.0.0" }
 }
@@ -59,6 +62,7 @@ ops360-proxy/
 | `grant_type` | Tipo de grant OAuth (`password`) |
 | `APPLE_ID` | Apple ID para integração CalDAV |
 | `APPLE_APP_PASSWORD` | App password Apple CalDAV |
+| `ANTHROPIC_API_KEY` | Chave da API Anthropic para o agente RAX |
 | `PORT` | Porta do servidor (padrão: 3000) |
 | `OFFLINE_THRESHOLD` | Qtd de clientes offline para disparar alerta (padrão: 5) |
 
@@ -88,15 +92,15 @@ Funções principais:
 
 | # | Página | ID | Descrição |
 |---|---|---|---|
-| 1 | Dashboard | `dashboard` | Visão geral com abas rápidas |
+| 1 | Dashboard | `dashboard` | Visão geral com abas: Atend., Canc./Ret., Comercial, Conexões |
 | 2 | Comercial | `comercial` | Vendas, reativações, metas por vendedor |
 | 3 | Atendimento | `atendimento` | OS abertas, por setor/atendente |
-| 4 | Chamados | `chamados` | Monitoramento ao vivo de OS |
+| 4 | Chamados | `chamados` | Monitoramento ao vivo + analytics completos |
 | 5 | Cancelamento / Retenção | `retencao` | Pedidos, revertidos, remoções |
 | 6 | Financeiro | `financeiro` | MRR, suspensos, churn, LTV, adição líquida |
 | 7 | Fiscal | `fiscal` | Em desenvolvimento (integração Hubsoft) |
 | 8 | Estoque | `estoque` | Em desenvolvimento (integração Hubsoft) |
-| 9 | RH | `rh` | Em desenvolvimento (integração RHiD) |
+| 9 | RH | `rh` | Colaboradores, CNH, certificações NR, aniversários |
 | 10 | Conexões | `conexoes` | Mapa de clientes online/offline por cidade |
 | — | Tarefas | `tarefas` | Gestão de tarefas com notificações |
 | — | Integrações | `integracoes` | Configurações de integrações |
@@ -126,14 +130,28 @@ Funções principais:
 | GET | `/api/cidades` | Lista de cidades |
 | GET | `/api/usuarios-setores` | Usuários com mapeamento de setor |
 
-### 6.2 Agenda (CalDAV Apple iCloud)
+### 6.2 RAX — Agente de IA
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| POST | `/api/chat` | Envia mensagem ao agente RAX (Anthropic Claude) |
+
+**Body:** `{ messages: [{ role: 'user'|'assistant', content: string }] }`
+
+**Resposta:** `{ text: string }` ou `{ erro: string }`
+
+**Modelo:** `claude-opus-4-5` · `max_tokens: 1024`
+
+**System prompt:** RAX (Rangel Analytics X) — agente especializado em dados do OPS360.
+
+### 6.3 Agenda (CalDAV Apple iCloud)
 
 | Método | Endpoint | Descrição |
 |---|---|---|
 | GET | `/api/agenda/eventos` | Lista eventos do calendário |
 | POST | `/api/agenda/criar` | Cria novo evento |
 
-### 6.3 Tarefas (persistência local JSON)
+### 6.4 Tarefas (persistência local JSON)
 
 | Método | Endpoint | Descrição |
 |---|---|---|
@@ -143,7 +161,7 @@ Funções principais:
 | GET | `/api/notif-config` | Configuração de notificações |
 | POST | `/api/tasks/test-notif` | Testa notificação |
 
-### 6.4 Debug (uso interno)
+### 6.5 Debug (uso interno)
 
 | Endpoint | Descrição |
 |---|---|
@@ -197,22 +215,6 @@ Funções principais:
 - Canc. Passivo = cancelamentos por motivo não-inadimplência (vermelho)
 - Cancelamento Geral = total de serviços cancelados no período
 
-**Por Origem de Contato:** Detectado por texto no campo `descricao_abertura/fechamento`:
-- ChatMix → contém "chat" ou "whatsapp" ou "mix"
-- Ligação → contém "liga" ou "fone" ou "telef"
-- Presencial → contém "presencial" ou "recepc"
-
-**Remoções:** OS do tipo "removido" (motivo contém "remov"), excluindo 3 motivos especiais:
-- Desistência da Instalação
-- Habilitado o user errado
-- Troca de Titularidade
-
-**Categorias de remoção:**
-- `cancelamento` — motivo contém "cancel"
-- `cobranca` — motivo contém "cobran" ou "inadimp"
-- `spc` — motivo contém "spc" ou "protest"
-- `outro` — demais
-
 ---
 
 ### 7.3 Financeiro
@@ -223,66 +225,168 @@ Funções principais:
 - Status: `suspenso_debito`, `suspenso_pedido_cliente`, `bloqueio_temporario`, `suspenso_judicial`
 - `servico_bloqueado` **não** é contado (Hubsoft não exibe no dashboard como suspenso)
 
-**Churn (cancelamentos por mês):**
-- Usa filtro nativo da API: `tipo_data_cliente_servico=data_cancelamento` + range de datas
-- Mesmo método da aba Cancelamento/Retenção — garante consistência
-- Exclui os 3 motivos ignorados + dedup por `nome|plano|data_cancelamento`
+**Churn:** Filtro nativo da API por `tipo_data_cliente_servico=data_cancelamento` + range. Dedup por `nome|plano|data_cancelamento`.
 
 **MRR:** Soma de `valor` de todos os serviços com `status = servico_habilitado`
-
-**1ª Mensalidade em Risco:** Clientes habilitados nos últimos 60 dias que não estão `servico_habilitado`
-
-**LTV Estimado:** `meses_ativo × valor_mensalidade`
-
-**Clientes por Ano de Cadastro:**
-- Todos os clientes ativos agrupados por `data_cadastro.substring(0,4)`
-- Tabs clicáveis por ano, ordenados por LTV decrescente
-- Filtro de nome busca em **todos os anos** simultaneamente
 
 ---
 
 ### 7.4 Adição Líquida Mensal
 
-**Período:** Janeiro/2025 → mês anterior fechado (sempre)
+**Período:** Janeiro/2025 → mês anterior fechado
 
 **Cálculo por mês:**
 ```
 Adição Líquida = Novas + Reativações − Cancelamentos
 ```
 
-**Novas + Reativações:** `buildVendasFromClientes` filtrado por `data_venda` do mês
+**Cache:** 2 horas. `?force=1` ignora cache. Lotes de 3 meses em paralelo.
 
-**Cancelamentos:** Filtro por `data_cancelamento` no Hubsoft, excluindo 3 motivos especiais
-
-**Processamento:** Lotes de 3 meses em paralelo para não sobrecarregar a API
-
-**Cache:** 2 horas. `?force=1` ignora cache.
-
-**Projeção 2026:**
-- Média mensal = soma dos meses fechados de 2026 / quantidade de meses
-- Projeção anual = média × 12
-- Estimativa Dez/26 = acumulado + (média × meses restantes)
-
-**Gráfico:** SVG puro com barras coloridas:
-- Verde claro = positivo, Vermelho claro = negativo
-- Verde escuro = maior adição do período (destaque)
-- Vermelho escuro = menor adição do período (destaque)
+**Projeção 2026:** Média mensal × 12 + estimativa Dez/26.
 
 ---
 
 ### 7.5 Conexões
 
-**Endpoint Hubsoft:** `GET /api/v1/integracao/cliente/todos` (com dados de assinante/radius)
+**Cache:** `_cxCache` — renovado via cron a cada 3 minutos.
 
-**Cache:** `_cxCache` — renovado via cron a cada 3 minutos
+**Alertas automáticos:** Se ≥ 5 clientes de uma cidade ficarem offline entre dois ciclos, dispara alerta via WhatsApp.
 
-**Alertas automáticos:** Se ≥ 5 clientes de uma cidade ficarem offline entre dois ciclos, dispara alerta via WhatsApp
-
-**Mapa:** Leaflet.js com geocoding por cidade (coordenadas hardcoded por cidade conhecida)
+**Mapa:** Leaflet.js com geocoding por cidade (coordenadas hardcoded por cidade conhecida).
 
 ---
 
-## 8. MAPEAMENTO DE SETORES
+### 7.6 Chamados — Analytics
+
+A aba Chamados concentra todo o monitoramento e análise de OS. Estrutura da página:
+
+**Seção 1 — Monitoramento ao vivo**
+- Filtros: período, técnico, cidade, tipo de serviço
+- Status lanes: 5 colunas (Aguardando / Em Execução / Atrasado / Reagendado / Finalizado) — sempre mostra OS de hoje
+- Por cidade: lista de cidades com contagem ao vivo
+- Feed de eventos ao vivo
+
+**Seção 2 — Tabela completa filtrável**
+- Chips de filtro rápido por status
+- Busca por cliente, técnico ou cidade
+- Colunas: # | Cliente | Tipo | Técnico | Cidade | Agendado | Início Real | Fim Real | Status
+- Coluna "Agendado" exibe badge de previsão de chuva quando disponível (ver §7.7)
+
+**Seção 3 — Analytics (movidos do Dashboard em 03/04/2026)**
+- **Chamados por hora** | **SLA de Chamados** — lado a lado
+- **TMA por técnico** | **TMA por tipo de chamado** — lado a lado
+- **Produção por técnico** | **Chamados por cidade** — lado a lado
+
+---
+
+### 7.7 Previsão de Chuva nos Chamados
+
+**API:** [Open-Meteo](https://open-meteo.com/) — gratuita, sem API key necessária.
+
+**Funcionamento:**
+1. `_wxGetCoords(cidade)` — geocodifica a cidade via `geocoding-api.open-meteo.com`
+2. `_wxGetProb(lat, lon, isoDate)` — busca `precipitation_probability` horária para a data agendada
+3. Cache duplo: `_wxGeoCache` (coords por cidade) + `_wxForeCache` (previsão por `lat,lon,data`)
+4. Exibe badge `💧 XX%` inline na coluna Agendado e nos cards das lanes
+5. Abaixo de 15% de probabilidade não exibe nada (evita poluição visual)
+
+**Trigger:** `loadAllWeather()` chamado após cada `rebuildAll()`.
+
+**Escopo:** Apenas chamados com `dataProgramada` ≥ hoje.
+
+---
+
+## 8. RAX — AGENTE DE IA
+
+**RAX (Rangel Analytics X)** é um assistente de IA integrado ao OPS360, acessível via widget flutuante no canto inferior direito de qualquer página.
+
+### Interface
+
+| Elemento | Descrição |
+|---|---|
+| Botão flutuante | Roxo com animação de pulso — `position:fixed;bottom:24px;right:24px` |
+| Painel de chat | `380px` de largura, exibe histórico de mensagens |
+| Input de texto | Textarea com envio por Enter |
+| Botão de voz | Microfone — abre barra de gravação estilo WhatsApp |
+| Barra de voz | Inline no painel, mostra ondas animadas + timer em segundos + botão cancelar |
+
+### Voz (WhatsApp-style)
+
+Usa Web Speech API (`SpeechRecognition`):
+1. Clique no microfone → `raxVoz()` → exibe `#rax-voice-bar` com timer
+2. Reconhecimento em `pt-BR`, `interimResults: false`
+3. Ao finalizar: texto transcrito vai para o input e é enviado automaticamente
+4. Cancelar: botão ✕ chama `raxPararVoz()` → oculta barra
+
+### Fluxo de mensagem
+
+```
+Frontend: raxEnviar()
+  → POST /api/chat { messages: [...histórico...] }
+  → Backend: axios.post Anthropic API
+  → Resposta: { text: string }
+  → Frontend: renderiza markdown no chat
+```
+
+### Histórico
+
+`_raxHistory` — array em memória, mantém toda a conversa da sessão para contexto.
+
+---
+
+## 9. RH — GESTÃO DE PESSOAL
+
+A aba RH é alimentada por upload de CSV e PDFs de certificação.
+
+### Estrutura da página (3 colunas)
+
+```
+[Por Setor 220px] [Colaboradores 1fr] [Por Empresa + Tempo Médio 230px]
+```
+
+**Por Setor** (esquerda, clicável): filtra a tabela de colaboradores pelo setor selecionado.
+
+**Colaboradores** (centro): tabela com colunas Colaborador | Cargo | Admissão | Tempo | Pendências. Filtra dinamicamente por setor ou empresa selecionados. Badge de pendências indica CNH ou NR vencida/faltando.
+
+**Por Empresa + Tempo Médio** (direita): Por Empresa é clicável (filtra colaboradores). Tempo Médio por Setor ignora `Integração Relógio` (é apenas um usuário de sistema).
+
+### Linha 2 — Aniversários | CNH
+
+- **Aniversários do mês:** Colaboradores que fazem aniversário no mês corrente
+- **Controle de CNH:** Data de emissão, vencimento, status (OK / Vencida / A vencer)
+
+### Linha 3 — Certificações NR (largura total)
+
+Controle de certificados NR de colaboradores do Suporte Técnico / Fibra.
+
+**Setores obrigados:**
+```js
+NR_SETORES_OBRIGATORIOS = [
+  'suporte tecnico', 'suporte técnico',
+  'suporte tecnico fibra', 'suporte técnico fibra'
+]
+```
+
+**Colunas da tabela NR:** Colaborador | Certificação | Emissão | Vencimento | Status | (excluir)
+
+**Painel "Faltando NR":** Exibe badges dos colaboradores do Suporte Técnico que ainda não têm nenhum certificado cadastrado.
+
+**Upload de PDF:**
+- Upload único: extrai nome do colaborador do PDF (via PDF.js), pré-seleciona no select de todos os colaboradores ativos
+- Upload múltiplo: cada PDF é processado em sequência
+- Auto-preenchimento: nome extraído do texto do PDF; vencimento = emissão + 24 meses quando não encontrado
+
+**Tipos de certificação disponíveis:**
+- NR35
+- NR10
+- NR35 + NR10
+- NR33
+- NR12
+- Outro
+
+---
+
+## 10. MAPEAMENTO DE SETORES
 
 O mapeamento `ID_usuário → Setor` é definido em `SETOR_POR_ID` no início do `server.js`:
 
@@ -297,7 +401,7 @@ O mapeamento `ID_usuário → Setor` é definido em `SETOR_POR_ID` no início do
 
 ---
 
-## 9. SISTEMA DE CACHE
+## 11. SISTEMA DE CACHE
 
 | Cache | Variável | TTL | Descrição |
 |---|---|---|---|
@@ -306,17 +410,17 @@ O mapeamento `ID_usuário → Setor` é definido em `SETOR_POR_ID` no início do
 | Financeiro | `_finCache` | 30 min | MRR, suspensos, LTV |
 | Adição Líquida | `_alCache` | 2h | Histórico mensal |
 | Token OAuth | `tokenCache` | Até expiração | Renovado automaticamente |
+| Coords de clima | `_wxGeoCache` | Sessão | Cidade → {lat, lon} via Open-Meteo geocoding |
+| Previsão de chuva | `_wxForeCache` | Sessão | `lat,lon,data` → array 24h precipitation_probability |
 
 ---
 
-## 10. BUGS HISTÓRICOS RESOLVIDOS
+## 12. BUGS HISTÓRICOS RESOLVIDOS
 
 ### Timezone bleed (crítico)
 **Problema:** `.toISOString()` converte de UTC-3 para UTC, fazendo `2026-03-31T23:59` virar `2026-04-01T02:59`. Resultado: vendas/cancelamentos de abril apareciam no filtro de março.
 
 **Solução:** Todas as datas são montadas como strings `YYYY-MM-DD` puras usando helpers `_d(y,m,d)` / `pd(y,m,d)` sem qualquer conversão de timezone.
-
-**Afetou:** Comercial (`getComDates()`), Cancelamento/Retenção (`getRetDates()`), Financeiro.
 
 ---
 
@@ -328,7 +432,7 @@ O mapeamento `ID_usuário → Setor` é definido em `SETOR_POR_ID` no início do
 ---
 
 ### Revertidos classificados como cancelados
-**Problema:** `desfechoOf()` checava `sf.includes('cancel')` antes de `sf.includes('revert')`. "Reverteu cancelamento" passava pelo check de cancel.
+**Problema:** `desfechoOf()` checava `sf.includes('cancel')` antes de `sf.includes('revert')`.
 
 **Solução:** Invertida a ordem — checa `revert` primeiro.
 
@@ -342,7 +446,7 @@ O mapeamento `ID_usuário → Setor` é definido em `SETOR_POR_ID` no início do
 ---
 
 ### Remoções mostrando mês errado
-**Problema:** `renderRemocoes()` usava `chamadosDB` (sem filtro de período) e era chamada depois de `loadRemocoes()`, sobrescrevendo os dados corretos.
+**Problema:** `renderRemocoes()` usava `chamadosDB` (sem filtro de período).
 
 **Solução:** Removida a chamada de `renderRemocoes()` do fluxo de atualização de chamados.
 
@@ -356,26 +460,39 @@ O mapeamento `ID_usuário → Setor` é definido em `SETOR_POR_ID` no início do
 ---
 
 ### Churn divergindo do Hubsoft
-**Problema:** Backend buscava `cancelado=sim` sem filtro de data e paginava por data de cadastro — cancelamentos recentes ficavam nas últimas páginas e nunca eram lidos.
+**Problema:** Backend buscava `cancelado=sim` sem filtro de data e paginava por data de cadastro.
 
 **Solução:** Filtro nativo da API por `tipo_data_cliente_servico=data_cancelamento` com range de datas específico.
 
 ---
 
-## 11. FUNCIONALIDADES POR PÁGINA
+### Conteúdo sangrando no card CNH (RH)
+**Problema:** Tag `</table>` ausente fazia o conteúdo da tabela de clientes vazar para dentro do card de CNH.
+
+**Solução:** Tag de fechamento adicionada; CNH e NR separados em cards independentes.
+
+---
+
+### Vercel "Deployment Blocked" — Co-Authored-By
+**Problema:** Commits com `Co-Authored-By: Claude Sonnet 4.6` bloqueados porque o GitHub não conseguia associar o committer.
+
+**Solução:** Removido `Co-Authored-By` dos commits. Git configurado com `user.email = 2010rangel@gmail.com` / `user.name = 2010rangel-sketch`.
+
+---
+
+## 13. FUNCIONALIDADES POR PÁGINA
 
 ### Dashboard
-- Abas rápidas: Chamados, Atendimento, Comercial, Cancelamento, Conexões
+- Abas rápidas: Atendimento, Canc./Ret., Comercial, Conexões
 - Mini KPIs de cada área
 - Auto-refresh a cada 30s
+- **Nota:** aba "Chamados" foi removida do dashboard — analytics migrados para a página Chamados
 
 ### Comercial
 - Filtros: Mês atual, Mês anterior, 7 dias, Hoje, Período customizado
 - KPIs: Total vendas, Novas, Reativações, % Reativações, Ativos, Cancelados
 - Gráficos: Por cidade, Por vendedor (com barra de meta), Donut de planos, Donut de status
 - Tabela de vendas com busca por cliente
-- Detalhamento de cancelados: por motivo + lista
-- Barra de meta por vendedor (exclui cancelamentos)
 - Filtros cruzados: clicar em cidade/vendedor filtra a tabela
 
 ### Atendimento
@@ -386,62 +503,39 @@ O mapeamento `ID_usuário → Setor` é definido em `SETOR_POR_ID` no início do
 - Filtros cruzados: clicar em tipo filtra por atendente
 
 ### Chamados
-- Monitoramento ao vivo de OS abertas
-- Filtro por período, cidade, técnico, tipo
-- Prioridade por cores
-- Auto-refresh
+- Monitoramento ao vivo com status lanes (5 colunas) — sempre mostra OS de hoje
+- Previsão de chuva inline (💧 XX%) por chamado agendado — Open-Meteo
+- Filtros: período, técnico, cidade, tipo, busca livre
+- Feed de eventos ao vivo
+- Analytics completos: Chamados por hora | SLA | TMA por técnico | TMA por tipo | Produção por técnico | Chamados por cidade
 
 ### Cancelamento / Retenção
-**KPIs:** Pedidos de Cancel., Revertidos, Taxa de Retenção, Canc. Passivo (vermelho), Cancelamento Geral
+**KPIs:** Pedidos de Cancel., Revertidos, Taxa de Retenção, Canc. Passivo, Cancelamento Geral
 
-**Por Atendente:** Clicável → filtra lista de pedidos
+**Por Origem:** ChatMix / Ligação / Presencial — detectado por texto. Clicável → filtra lista.
 
-**Por Origem de Contato:** ChatMix / Ligação / Presencial — detectado por texto. Clicável → filtra lista de pedidos
-
-**Tabela de pedidos:** Todos os pedidos (sem limite), com coluna Origem
-
-**Remoções do período:**
-- 4 cards: Removido — Cancelamento, Removido — Cobrança, Removido — SPC, Removido — Outro motivo
-- Cada card mostra quantidade + % do total
-- Lista completa com scroll (sem limite de 100)
+**Remoções:** 4 categorias (Cancelamento, Cobrança, SPC, Outro)
 
 ### Financeiro
 **KPIs:** MRR Ativo, Suspensos (R$ em risco), Susp. Parcial, Churn mês atual/anterior, 1ª Mensalidade Risco
 
-**Cancelamentos:** Mês atual e mês anterior — LTV Total, LTV Médio, Tempo Médio de Vida, Por Motivo, Lista
+**Adição Líquida Mensal:** Gráfico de barras Jan/2025 → presente + projeção 2026
 
-**Suspensos / Inadimplentes:** Lista com scroll (~5 linhas visíveis)
-
-**1ª Mensalidade em Risco:** Por vendedor com % de risco
-
-**Adição Líquida Mensal (Jan/2025 → presente):**
-- Gráfico de barras com destaque do maior e menor mês
-- Tabela por ano (Novas + Reat − Cancel = Líquido)
-- Projeção 2026: acumulado, média, projeção ×12, estimativa Dez/26
-
-**Clientes por Ano de Cadastro:**
-- Tabs clicáveis por ano com contador
-- Busca por nome (todos os anos)
-- Ordenado por LTV decrescente
+**Clientes por Ano de Cadastro:** Tabs clicáveis, busca, ordenado por LTV
 
 **Saúde por Vendedor:** Ativos, Suspensos, Cancelados 60d, MRR, barra de saúde %
 
-### Fiscal
-- Em desenvolvimento
-- Diagnóstico automático de endpoints Hubsoft: `v1/titulo`, `v1/boleto`, `v1/nfe`, `v1/fatura`, `v1/nota_fiscal`, `v1/cobranca`, `v1/financeiro_titulo`
-- Renderiza dados dinamicamente se endpoint responder
-
-### Estoque
-- Em desenvolvimento
-- Diagnóstico de endpoints: `v1/item`, `v1/itens`, `v1/estoque`, `v1/produto`, `v1/material`, `v1/equipamento`
-- Filtro de texto em tempo real
-- KPIs: Total, Disponível, Em Uso, Estoque Crítico
-
 ### RH
-- Em desenvolvimento (integração RHiD pendente)
-- KPIs prontos: Headcount, Ativos, Afastados, Turnover, Absenteísmo
-- Seções: Headcount por Setor, Admissões vs Desligamentos, Férias/Aniversários, Absenteísmo, Performance, Custo de Folha, Banco de Horas
-- IDs de elementos definidos para preenchimento via API RHiD
+- Layout 3 colunas: Por Setor | Colaboradores | Por Empresa + Tempo Médio
+- Setor e Empresa clicáveis → filtram tabela de colaboradores
+- Tabela de colaboradores: Cargo, Admissão, Tempo de casa, Pendências (badge)
+- Tempo Médio por Setor (ignora "Integração Relógio")
+- Aniversários do mês
+- Controle de CNH
+- Controle de certificações NR: upload único ou múltiplo de PDF, auto-extração de nome, auto-cálculo de vencimento (+24 meses), painel "Faltando NR" para Suporte Técnico
+
+### Fiscal / Estoque
+- Em desenvolvimento — diagnóstico automático de endpoints Hubsoft
 
 ### Conexões
 - Mapa Leaflet interativo
@@ -453,17 +547,26 @@ O mapeamento `ID_usuário → Setor` é definido em `SETOR_POR_ID` no início do
 - Criação/edição de tarefas
 - Notificações por e-mail
 - Exportação para iPhone Calendar (iCal .ics)
-- Persistência local em JSON
 
 ---
 
-## 12. IDs IMPORTANTES DO FRONTEND (para integrações futuras)
+## 14. IDs IMPORTANTES DO FRONTEND
 
-### RH (aguardando RHiD)
+### RH
 ```
 rh-headcount, rh-ativos, rh-afastados, rh-turnover, rh-absenteismo
 rh-setor-list, rh-movimentacao-rows, rh-ferias-aniv
-rh-absenteismo-tbl, rh-performance-tbl, rh-folha-tbl, rh-horas-tbl
+rh-nr-faltando-wrap, rh-nr-faltando
+```
+
+### Chamados — Analytics
+```
+barChart, barLabels                    — Chamados por hora
+dch-sla-ok, dch-sla-fora, dch-sla-bar, dch-sla-tm, dch-sla-limite — SLA
+dch-filtTipo, dch-tm-tec-tbl, dch-tm-rapido, dch-tm-lento         — TMA técnico
+dch-tipo-badge, dch-tm-tipo-tbl                                    — TMA tipo
+tecChartPeriodo, tecBarChart, tecDonut, tecDonutLegend             — Produção técnico
+cidadeChartPeriodo, cidadeBarChart, cidadeDonut, cidadeDonutLegend — Por cidade
 ```
 
 ### Fiscal
@@ -478,9 +581,20 @@ esq-kpi-total, esq-kpi-disp, esq-kpi-uso, esq-kpi-crit
 esq-tbl-head, esq-tbl-body, esq-ep-list
 ```
 
+### RAX
+```
+rax-btn       — botão flutuante
+rax-panel     — painel de chat
+rax-msgs      — área de mensagens
+rax-input     — textarea de entrada
+rax-mic       — botão de microfone
+rax-voice-bar — barra de gravação estilo WhatsApp
+rax-voice-timer — contador de segundos de gravação
+```
+
 ---
 
-## 13. DEPLOY (Railway.app)
+## 15. DEPLOY (Railway.app)
 
 **Fluxo:**
 1. Editar `server.js` ou `public/index.html`
@@ -489,6 +603,12 @@ esq-tbl-head, esq-tbl-body, esq-ep-list
 4. Railway detecta o push e faz deploy automático (~1-2min)
 
 **URL produção:** `ops360-proxy-production.up.railway.app`
+
+**Git config (local):**
+```
+user.email = 2010rangel@gmail.com
+user.name  = 2010rangel-sketch
+```
 
 **railway.toml:**
 ```toml
@@ -499,11 +619,14 @@ builder = "NIXPACKS"
 startCommand = "node server.js"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
+
+[[volumes]]
+mountPath = "/app/data"
 ```
 
 ---
 
-## 14. PRÓXIMAS INTEGRAÇÕES PREVISTAS
+## 16. PRÓXIMAS INTEGRAÇÕES PREVISTAS
 
 | Sistema | Página | Status | Observações |
 |---|---|---|---|
@@ -513,20 +636,21 @@ restartPolicyMaxRetries = 3
 
 ---
 
-## 15. CONVENÇÕES DE CÓDIGO
+## 17. CONVENÇÕES DE CÓDIGO
 
 ### Backend
-- Todas as funções de busca paginada usam `fetchIntegracaoClientes(token, params, maxPag)`
+- Funções de busca paginada: `fetchIntegracaoClientes(token, params, maxPag)`
 - Cache nomeado: `_[area]Cache`, `_[area]FetchedAt`, `_[area]Fetching`
-- Datas sempre em string `YYYY-MM-DD` — nunca usar `.toISOString()` para comparação de período
+- Datas: sempre string `YYYY-MM-DD` — **nunca usar `.toISOString()`** para comparação de período
 - `parseDate(s)` — suporta formato BR `DD/MM/YYYY` e ISO `YYYY-MM-DD`
 
 ### Frontend
 - Navegação: `goPage('nomePagina', elementoNav)`
 - Render: `loadX()` busca da API, `renderX(data)` atualiza o DOM
-- IDs: prefixo da área (`com-`, `ret-`, `fin-`, `rh-`, etc.)
+- IDs: prefixo da área (`com-`, `ret-`, `fin-`, `rh-`, `dch-`, etc.)
 - Evitar `toISOString()` para datas de filtro — usar helpers `_d(y,m,d)` / `pd(y,m,d)`
+- Clima: `loadAllWeather()` após qualquer `rebuildAll()`
 
 ---
 
-*Documentação gerada automaticamente com base no código-fonte e histórico de commits do repositório ops360-proxy.*
+*Documentação mantida manualmente — atualizar a cada sessão de desenvolvimento.*
