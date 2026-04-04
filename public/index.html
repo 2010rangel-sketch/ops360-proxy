@@ -4344,6 +4344,7 @@ async function loadRetencaoAtend() {
     const data = await res.json();
     if (data.ok) {
       _retData = data;
+      try { localStorage.setItem('ops360_ret_cache', JSON.stringify({ data, ts: Date.now() })); } catch {}
       renderRetencao(data);
       renderDashRetencao();
     }
@@ -5893,7 +5894,7 @@ async function loadComercial() {
         if (titleEl) titleEl.textContent = '⏳ Carregando base de clientes...';
         if (errEl)  errEl.textContent = 'O servidor está carregando os dados do Hubsoft. Tentando novamente em 30 segundos...';
         if (badge) { badge.textContent = 'Carregando...'; badge.className = 'badge b-amber'; }
-        setTimeout(() => loadComercial(), 30000);
+        setTimeout(() => loadComercial(), 8000);
         return;
       }
       if (noEp)  noEp.style.display  = '';
@@ -5908,7 +5909,9 @@ async function loadComercial() {
     if (noEp) noEp.style.display = 'none';
 
     _comData = data;
-    _comFiltro = { type: '', val: '' }; // reset filtro ao recarregar
+    _comFiltro = { type: '', val: '' };
+    try { localStorage.setItem('ops360_com_cache', JSON.stringify({ data, ts: Date.now() })); } catch {}
+
 
     const ev = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
     ev('com-total',      data.total);
@@ -6340,6 +6343,7 @@ async function loadFinanceiro(force = false) {
       return;
     }
     _finData = d;
+    try { localStorage.setItem('ops360_fin_cache', JSON.stringify({ data: d, ts: Date.now() })); } catch {}
     renderFinanceiro(d);
     renderDashFinanceiro();
     if (badge) {
@@ -6873,7 +6877,7 @@ function filterEstoque(txt) {
 (function() {
   // Garante que o tab inicial do dash esteja visível antes de qualquer render
   showDashTab();
-  // Passo 1 — exibe cache instantaneamente
+  // Passo 1 — exibe cache instantaneamente (chamados)
   const cache = carregarCache();
   if (cache) {
     aplicarDados(cache.dados);
@@ -6881,11 +6885,33 @@ function filterEstoque(txt) {
     const t  = new Date(cache.ts).toLocaleTimeString('pt-BR');
     if(el) el.textContent = t + ' (cache)';
   }
-  // Passo 2 — busca dados frescos sem esperar o teste de conexão
+  // Passo 1b — restaura caches de outras seções do localStorage (exibição instantânea)
+  const FIN_TTL = 35 * 60 * 1000;  // 35 min (alinhado com server-side 30 min)
+  const RET_TTL = 10 * 60 * 1000;  // 10 min
+  const COM_TTL = 35 * 60 * 1000;  // 35 min
+  try {
+    const fc = JSON.parse(localStorage.getItem('ops360_fin_cache') || 'null');
+    if (fc && (Date.now() - fc.ts) < FIN_TTL) { _finData = fc.data; renderFinanceiro(fc.data); renderDashFinanceiro(); }
+  } catch {}
+  try {
+    const rc = JSON.parse(localStorage.getItem('ops360_ret_cache') || 'null');
+    if (rc && (Date.now() - rc.ts) < RET_TTL) { _retData = rc.data; renderDashRetencao(); }
+  } catch {}
+  try {
+    const cc = JSON.parse(localStorage.getItem('ops360_com_cache') || 'null');
+    if (cc && (Date.now() - cc.ts) < COM_TTL) { _comData = cc.data; renderDashComercial(); }
+  } catch {}
+  // Passo 2 — busca dados frescos (chamados)
   autoRefresh();
-  // Passo 3 — atualiza badge de status (em paralelo, não bloqueia)
+  // Passo 3 — atualiza badge de status
   testarConexaoProxy();
-  // Passo 4 — intervalo de 30s
+  // Passo 4 — prefetch paralelo de todas as seções lentas em background
+  setTimeout(() => loadComercial().catch(()=>{}), 1500);
+  setTimeout(() => loadRetencaoAtend().catch(()=>{}), 2500);
+  setTimeout(() => loadCancelServico().catch(()=>{}), 3000);
+  setTimeout(() => loadRemocoes().catch(()=>{}), 3500);
+  setTimeout(() => loadFinanceiro().catch(()=>{}), 4500);
+  // Passo 5 — intervalo de 30s
   setInterval(autoRefresh, 30000);
 })();
 

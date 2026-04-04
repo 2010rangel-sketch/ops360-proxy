@@ -865,6 +865,10 @@ app.get('/api/atendimentos', async (req, res) => {
 });
 
 
+// ── Cache Retenção (5 min por chave de período) ───────────────────
+const _retCacheMap = {};
+const RET_CACHE_TTL = 5 * 60 * 1000;
+
 // ── Retenção — pedidos de cancelamento (atendimentos) por período ─
 app.get('/api/retencao', async (req, res) => {
   try {
@@ -874,6 +878,13 @@ app.get('/api/retencao', async (req, res) => {
     const fimMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 0, 23, 59, 59, 999);
     const ini = data_inicio || iniMes.toISOString();
     const fim = data_fim    || fimMes.toISOString();
+
+    // Cache hit
+    const retKey = `${ini.slice(0,10)}-${fim.slice(0,10)}-${all||'false'}`;
+    const retCached = _retCacheMap[retKey];
+    if (retCached && (Date.now() - retCached.ts) < RET_CACHE_TTL) {
+      return res.json({ ...retCached.data, cache: true });
+    }
 
     // Fetch all atendimentos in period (parallel pagination)
     const extractAtend = d => d?.atendimentos?.data || d?.atendimento?.data || d?.data || [];
@@ -988,13 +999,15 @@ app.get('/api/retencao', async (req, res) => {
     const ultimos = [...pedidos]
       .sort((a, b) => (b.data || '') > (a.data || '') ? 1 : -1);
 
-    res.json({
+    const retResult = {
       ok: true,
       total, revertidos, cancelados, pendentes, taxa_retencao,
       cancelamento_geral, por_motivo_cancelamento_geral,
       por_atendente, por_origem, ultimos,
       sincronizado_em: new Date().toISOString(),
-    });
+    };
+    _retCacheMap[retKey] = { data: retResult, ts: Date.now() };
+    res.json(retResult);
   } catch (err) {
     console.error('Erro /api/retencao:', err.message);
     res.status(500).json({ ok: false, erro: err.message });
@@ -1093,6 +1106,9 @@ app.get('/api/cancelamentos-servico', async (req, res) => {
 });
 
 // ── Remoções de Equipamentos — OS finalizadas com motivo "removido" ──
+const _remCacheMap = {};
+const REM_CACHE_TTL = 5 * 60 * 1000;
+
 app.get('/api/remocoes', async (req, res) => {
   try {
     const { data_inicio, data_fim } = req.query;
@@ -1101,6 +1117,12 @@ app.get('/api/remocoes', async (req, res) => {
       : `${agora.getFullYear()}-${String(agora.getMonth()+1).padStart(2,'0')}-01`;
     const fimStr = data_fim ? data_fim.slice(0, 10)
       : (() => { const f = new Date(agora.getFullYear(), agora.getMonth()+1, 0); return f.toISOString().slice(0,10); })();
+
+    const remKey = `${iniStr}-${fimStr}`;
+    const remCached = _remCacheMap[remKey];
+    if (remCached && (Date.now() - remCached.ts) < REM_CACHE_TTL) {
+      return res.json({ ...remCached.data, cache: true });
+    }
 
     const iniMs = new Date(iniStr).getTime();
     const fimMs = new Date(fimStr + 'T23:59:59').getTime();
@@ -1199,13 +1221,15 @@ app.get('/api/remocoes', async (req, res) => {
     const ultimas = remocoes
       .sort((a, b) => (b.data || '') > (a.data || '') ? 1 : -1);
 
-    res.json({
+    const remResult = {
       ok: true,
       total: remocoes.length,
       tipo_canc: tipoCanc, tipo_cobr: tipoCobr, tipo_spc: tipoSpc, tipo_outro: tipoOutro,
       por_tecnico, ultimas,
       periodo: { ini: iniStr, fim: fimStr },
-    });
+    };
+    _remCacheMap[remKey] = { data: remResult, ts: Date.now() };
+    res.json(remResult);
   } catch(err) {
     console.error('/api/remocoes:', err.message);
     res.status(500).json({ ok: false, erro: err.message });
@@ -1383,6 +1407,23 @@ async function warmupComercial() {
 setTimeout(() => warmupComercial().catch(console.warn), 5000);
 // Warm-up de conexões logo após o comercial (10s delay para não sobrecarregar)
 setTimeout(() => fetchConexoesHubsoft().catch(console.warn), 10000);
+// Warm-up do financeiro (15s — espera outros warm-ups iniciarem primeiro)
+setTimeout(() => {
+  buildFinanceiro().then(r => { _finCache = r; _finFetchedAt = Date.now(); console.log('[financeiro] warm-up OK'); }).catch(e => console.warn('[financeiro] warm-up falhou:', e.message));
+}, 15000);
+// Warm-up retenção mês atual (20s)
+setTimeout(async () => {
+  try {
+    const agora = new Date();
+    const ini = new Date(agora.getFullYear(), agora.getMonth(), 1).toISOString();
+    const fim = new Date(agora.getFullYear(), agora.getMonth()+1, 0, 23, 59, 59, 999).toISOString();
+    const retKey = `${ini.slice(0,10)}-${fim.slice(0,10)}-false`;
+    if (!_retCacheMap[retKey]) {
+      const r = await fetch(`http://localhost:${process.env.PORT || 3000}/api/retencao`);
+      console.log('[retencao] warm-up OK');
+    }
+  } catch(e) { console.warn('[retencao] warm-up falhou:', e.message); }
+}, 20000);
 // Renova a cada 30 minutos
 setInterval(() => warmupComercial().catch(console.warn), 1800000);
 
