@@ -1714,38 +1714,41 @@ input[type="text"]::placeholder { color:var(--text3); }
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap">
         <div>
           <div style="font-size:16px;font-weight:700;color:var(--text)">Fiscal</div>
-          <div style="font-size:11px;color:var(--text3)">Títulos · cobranças · nota fiscal · inadimplência</div>
+          <div style="font-size:11px;color:var(--text3)" id="fisc-periodo-label">Notas fiscais · NFS-e · NFCom · NF-e · Telecom</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <span class="badge b-blue" id="fisc-sync-badge">—</span>
           <button class="btn btn-primary btn-sm" onclick="loadFiscal(true)"><i class="fas fa-sync-alt"></i> Atualizar</button>
         </div>
       </div>
-      <div id="fisc-kpi-row" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Títulos em Aberto</div><div class="kpi-mini-val" id="fisc-kpi-aberto" style="color:var(--accent)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Vencidos</div><div class="kpi-mini-val" id="fisc-kpi-vencido" style="color:var(--red)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">Pagos (mês)</div><div class="kpi-mini-val" id="fisc-kpi-pago" style="color:var(--green)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">NFe Emitidas</div><div class="kpi-mini-val" id="fisc-kpi-nfe" style="color:var(--amber)">—</div></div>
+      <!-- KPIs principais -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px">
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Total de NFs</div><div class="kpi-mini-val" id="fisc-kpi-total" style="color:var(--accent)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--cyan)"></div><div class="kpi-mini-label">Valor Total</div><div class="kpi-mini-val" id="fisc-kpi-valor" style="color:var(--cyan)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">NFS-e</div><div class="kpi-mini-val" id="fisc-kpi-nfse" style="color:var(--green)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">Telecom</div><div class="kpi-mini-val" id="fisc-kpi-telecom" style="color:var(--amber)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--purple, #9b59b6)"></div><div class="kpi-mini-label">NFCom</div><div class="kpi-mini-val" id="fisc-kpi-nfcom" style="color:var(--purple,#9b59b6)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">NF-e</div><div class="kpi-mini-val" id="fisc-kpi-nfe" style="color:var(--red)">—</div></div>
       </div>
-      <div class="tbl-card" style="margin-bottom:12px">
-        <div class="tbl-header"><span class="tbl-title">APIs Fiscais — Diagnóstico</span><span class="badge b-blue" id="fisc-ep-badge">aguardando</span></div>
-        <div id="fisc-ep-list" style="padding:10px 14px;display:flex;flex-wrap:wrap;gap:6px">
-          <span style="color:var(--text3);font-size:12px">Clique em <b>Atualizar</b> para testar os endpoints disponíveis no Hubsoft.</span>
-        </div>
+      <!-- Tabs para tipos de NF -->
+      <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap" id="fisc-tabs">
+        <button class="btn btn-sm btn-primary" onclick="fiscShowTipo('nfse',this)">NFS-e</button>
+        <button class="btn btn-sm btn-ghost" onclick="fiscShowTipo('telecom',this)">Telecom</button>
+        <button class="btn btn-sm btn-ghost" onclick="fiscShowTipo('nfcom',this)">NFCom</button>
+        <button class="btn btn-sm btn-ghost" onclick="fiscShowTipo('nfe',this)">NF-e</button>
       </div>
-      <div id="fisc-dados-wrap" style="display:none" class="tbl-card">
+      <div class="tbl-card">
         <div class="tbl-header">
-          <span class="tbl-title" id="fisc-dados-title">Dados</span>
-          <span class="badge b-blue" id="fisc-dados-count">0</span>
+          <span class="tbl-title" id="fisc-tbl-title">NFS-e</span>
+          <span class="badge b-blue" id="fisc-tbl-count">—</span>
         </div>
-        <div style="max-height:420px;overflow-y:auto">
+        <div id="fisc-empty-wrap" style="padding:40px;text-align:center;color:var(--text3)">
+          <i class="fas fa-file-invoice" style="font-size:32px;margin-bottom:12px;opacity:.3;display:block"></i>
+          <div style="font-size:14px;font-weight:600;margin-bottom:6px">Clique em Atualizar para carregar</div>
+        </div>
+        <div style="max-height:460px;overflow-y:auto;display:none" id="fisc-tbl-wrap">
           <table class="tbl"><thead><tr id="fisc-tbl-head"></tr></thead><tbody id="fisc-tbl-body"></tbody></table>
         </div>
-      </div>
-      <div id="fisc-empty-wrap" style="display:none;padding:40px;text-align:center;color:var(--text3)">
-        <i class="fas fa-file-invoice" style="font-size:32px;margin-bottom:12px;opacity:.3;display:block"></i>
-        <div style="font-size:14px;font-weight:600;margin-bottom:6px">Módulo Fiscal em desenvolvimento</div>
-        <div style="font-size:12px">Nenhum endpoint fiscal encontrado no Hubsoft desta instância.<br>Verifique se o módulo de faturamento está habilitado no contrato.</div>
       </div>
     </div>
 
@@ -1763,23 +1766,25 @@ input[type="text"]::placeholder { color:var(--text3); }
       </div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Total de Itens</div><div class="kpi-mini-val" id="esq-kpi-total" style="color:var(--accent)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">Disponível</div><div class="kpi-mini-val" id="esq-kpi-disp" style="color:var(--green)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">Em Uso / Alocado</div><div class="kpi-mini-val" id="esq-kpi-uso" style="color:var(--amber)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Estoque Crítico</div><div class="kpi-mini-val" id="esq-kpi-crit" style="color:var(--red)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">Com Estoque</div><div class="kpi-mini-val" id="esq-kpi-disp" style="color:var(--green)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">Alocado</div><div class="kpi-mini-val" id="esq-kpi-uso" style="color:var(--amber)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Crítico (abaixo mín.)</div><div class="kpi-mini-val" id="esq-kpi-crit" style="color:var(--red)">—</div></div>
       </div>
       <div class="tbl-card">
         <div class="tbl-header">
-          <span class="tbl-title" id="esq-tbl-title">Itens do Estoque</span>
+          <span class="tbl-title">Produtos</span>
           <span class="badge b-blue" id="esq-tbl-count">—</span>
           <input type="text" placeholder="Filtrar..." id="esq-search" class="search-input" style="margin-left:auto;width:180px" oninput="filterEstoque(this.value)">
         </div>
         <div id="esq-empty-msg" style="padding:40px;text-align:center;color:var(--text3)">
           <i class="fas fa-boxes" style="font-size:32px;margin-bottom:12px;opacity:.3;display:block"></i>
-          <div style="font-size:14px;font-weight:600;margin-bottom:6px">Módulo de Estoque em desenvolvimento</div>
-          <div style="font-size:12px">Clique em <b>Atualizar</b> para carregar dados do Hubsoft.</div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:6px">Clique em Atualizar para carregar dados do Hubsoft.</div>
         </div>
         <div style="max-height:500px;overflow-y:auto;display:none" id="esq-tbl-wrap">
-          <table class="tbl"><thead><tr id="esq-tbl-head"></tr></thead><tbody id="esq-tbl-body"></tbody></table>
+          <table class="tbl">
+            <thead><tr><th>Produto</th><th>Categoria</th><th>Un.</th><th style="text-align:right">Qtd.</th><th style="text-align:right">Disponível</th><th style="text-align:right">Alocado</th><th style="text-align:right">Mínimo</th><th>Status</th></tr></thead>
+            <tbody id="esq-tbl-body"></tbody>
+          </table>
         </div>
       </div>
       <div class="tbl-card" style="margin-top:12px">
@@ -6759,6 +6764,7 @@ function renderTempoMedioHist(meses) {
 
 // ─── FISCAL ──────────────────────────────────────────────────────────────────
 let _fiscData = null;
+let _fiscTipoAtivo = 'nfse';
 async function loadFiscal(force = false) {
   const badge = document.getElementById('fisc-sync-badge');
   if (badge) { badge.textContent = 'Carregando...'; badge.className = 'badge b-blue'; }
@@ -6778,45 +6784,75 @@ async function loadFiscal(force = false) {
   }
 }
 
-function renderFiscal(d) {
-  if (!d || !d.ok) return;
-  const epRes = d.endpoints_testados || {};
-  const epBadge = document.getElementById('fisc-ep-badge');
-  const epList  = document.getElementById('fisc-ep-list');
-  if (epList) {
-    const items = Object.entries(epRes);
-    if (items.length === 0) { epList.innerHTML = '<span style="color:var(--text3);font-size:12px">Nenhum endpoint testado.</span>'; }
-    else {
-      epList.innerHTML = items.map(([ep, v]) =>
-        `<span class="badge ${v.disponivel ? 'b-green' : 'b-red'}" style="font-size:11px" title="${v.erro||''}">
-          <i class="fas ${v.disponivel ? 'fa-check' : 'fa-times'}"></i> ${ep}${v.disponivel && v.total != null ? ' ('+v.total+')' : ''}
-        </span>`
-      ).join('');
-      if (epBadge) { const ok = items.filter(([,v])=>v.disponivel).length; epBadge.textContent = `${ok}/${items.length} disponíveis`; epBadge.className = ok > 0 ? 'badge b-green' : 'badge b-red'; }
-    }
-  }
-  const itens = d.dados || [];
+function fiscShowTipo(tipo, btn) {
+  _fiscTipoAtivo = tipo;
+  document.querySelectorAll('#fisc-tabs button').forEach(b => b.className = 'btn btn-sm btn-ghost');
+  if (btn) btn.className = 'btn btn-sm btn-primary';
+  if (_fiscData) _fiscRenderTipo(_fiscData);
+}
+
+function _fiscRenderTipo(d) {
+  const itens = d[_fiscTipoAtivo] || [];
+  const titleMap = { nfse: 'NFS-e', telecom: 'Telecom', nfcom: 'NFCom', nfe: 'NF-e' };
+  const title = document.getElementById('fisc-tbl-title');
+  const count = document.getElementById('fisc-tbl-count');
   const empty = document.getElementById('fisc-empty-wrap');
-  const wrap  = document.getElementById('fisc-dados-wrap');
-  if (!d.endpoint_ativo || itens.length === 0) {
-    if (empty) empty.style.display = 'block';
-    if (wrap)  wrap.style.display  = 'none';
+  const wrap  = document.getElementById('fisc-tbl-wrap');
+  if (title) title.textContent = titleMap[_fiscTipoAtivo] || _fiscTipoAtivo;
+  if (count) count.textContent = itens.length;
+  if (itens.length === 0) {
+    const tipo = d.tipos?.[_fiscTipoAtivo];
+    if (empty) { empty.style.display = 'block'; empty.querySelector('div') && (empty.querySelector('div').textContent = tipo?.erro ? `Endpoint indisponível (${tipo.erro})` : 'Nenhum registro no período'); }
+    if (wrap)  wrap.style.display = 'none';
     return;
   }
   if (empty) empty.style.display = 'none';
   if (wrap)  wrap.style.display  = 'block';
-  const title = document.getElementById('fisc-dados-title');
-  const count = document.getElementById('fisc-dados-count');
-  if (title) title.textContent = d.endpoint_ativo;
-  if (count) count.textContent = itens.length;
-  // Renderiza cabeçalho dinamicamente com as chaves do primeiro item
+  // Campos preferidos por tipo
+  const prefKeys = {
+    nfse:    ['numero', 'data_emissao', 'nome_tomador', 'valor_total', 'status', 'descricao'],
+    telecom: ['numero', 'data_emissao', 'nome_destinatario', 'valor_total', 'status', 'modelo'],
+    nfcom:   ['numero', 'data_emissao', 'nome_destinatario', 'valor_total', 'status', 'chave'],
+    nfe:     ['numero', 'data_emissao', 'nome_destinatario', 'valor_total', 'status', 'chave'],
+  };
+  const allKeys = itens.length > 0 ? Object.keys(itens[0]) : [];
+  const pref = prefKeys[_fiscTipoAtivo] || [];
+  const keys = [...pref.filter(k => allKeys.includes(k)), ...allKeys.filter(k => !pref.includes(k))].slice(0, 8);
+  const fmtVal = (k, v) => {
+    if (v == null) return '—';
+    if ((k.includes('valor') || k.includes('total')) && !isNaN(parseFloat(v)))
+      return 'R$ ' + parseFloat(v).toLocaleString('pt-BR', {minimumFractionDigits:2});
+    return String(v);
+  };
   const head = document.getElementById('fisc-tbl-head');
   const body = document.getElementById('fisc-tbl-body');
-  const keys = itens.length > 0 ? Object.keys(itens[0]).slice(0, 8) : [];
   if (head) head.innerHTML = keys.map(k => `<th>${k}</th>`).join('');
   if (body) body.innerHTML = itens.map(item =>
-    `<tr>${keys.map(k => `<td style="font-size:11px;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis" title="${item[k]??''}">${item[k]??'—'}</td>`).join('')}</tr>`
+    `<tr>${keys.map(k => `<td style="font-size:11px;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis" title="${item[k]??''}">${fmtVal(k, item[k])}</td>`).join('')}</tr>`
   ).join('');
+}
+
+function renderFiscal(d) {
+  if (!d) return;
+  if (!d.ok) {
+    const empty = document.getElementById('fisc-empty-wrap');
+    if (empty) { empty.style.display = 'block'; const div = empty.querySelector('div'); if (div) div.textContent = d.motivo || 'Erro ao carregar'; }
+    return;
+  }
+  // KPIs
+  const fmtMoeda = v => v > 0 ? 'R$ ' + v.toLocaleString('pt-BR', {minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+  const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  set('fisc-kpi-total',   d.totalNf ?? '—');
+  set('fisc-kpi-valor',   fmtMoeda(d.totalValor ?? 0));
+  set('fisc-kpi-nfse',    d.tipos?.nfse?.total ?? '—');
+  set('fisc-kpi-telecom', d.tipos?.telecom?.total ?? '—');
+  set('fisc-kpi-nfcom',   d.tipos?.nfcom?.total ?? '—');
+  set('fisc-kpi-nfe',     d.tipos?.nfe?.total ?? '—');
+  if (d.periodo) {
+    const lbl = document.getElementById('fisc-periodo-label');
+    if (lbl) lbl.textContent = `Período: ${d.periodo.dataIni} → ${d.periodo.dataFim}`;
+  }
+  _fiscRenderTipo(d);
 }
 
 // ─── ESTOQUE ─────────────────────────────────────────────────────────────────
@@ -6843,55 +6879,51 @@ async function loadEstoque(force = false) {
 
 function renderEstoque(d) {
   if (!d || !d.ok) return;
-  // Diagnóstico
-  const epList = document.getElementById('esq-ep-list');
-  if (epList) {
-    const items = Object.entries(d.endpoints_testados || {});
-    if (items.length === 0) { epList.innerHTML = '<span style="color:var(--text3);font-size:12px">Nenhum endpoint testado.</span>'; }
-    else epList.innerHTML = items.map(([ep, v]) =>
-      `<span class="badge ${v.disponivel ? 'b-green' : 'b-red'}" style="font-size:11px" title="${v.erro||''}">
-        <i class="fas ${v.disponivel ? 'fa-check' : 'fa-times'}"></i> ${ep}${v.disponivel && v.total != null ? ' ('+v.total+')' : ''}
-      </span>`
-    ).join('');
-  }
   _esqItens = d.items || [];
-  const count = _esqItens.length;
-  const title = document.getElementById('esq-tbl-title');
-  const cnt   = document.getElementById('esq-tbl-count');
-  if (title) title.textContent = d.endpoint_ativo ? `Itens — ${d.endpoint_ativo}` : 'Itens do Estoque';
-  if (cnt)   cnt.textContent   = count;
+  const kpi = d.kpi || {};
+  const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  set('esq-kpi-total', kpi.total ?? _esqItens.length);
+  set('esq-kpi-disp',  kpi.disponivel ?? '—');
+  set('esq-kpi-uso',   kpi.alocado ?? '—');
+  set('esq-kpi-crit',  kpi.criticos ?? '—');
+  const cnt      = document.getElementById('esq-tbl-count');
   const emptyMsg = document.getElementById('esq-empty-msg');
   const tblWrap  = document.getElementById('esq-tbl-wrap');
-  if (count === 0) {
+  if (cnt) cnt.textContent = _esqItens.length;
+  if (_esqItens.length === 0) {
     if (emptyMsg) emptyMsg.style.display = 'block';
     if (tblWrap)  tblWrap.style.display  = 'none';
-    // KPIs vazios
-    ['esq-kpi-total','esq-kpi-disp','esq-kpi-uso','esq-kpi-crit'].forEach(id => { const e = document.getElementById(id); if(e) e.textContent='—'; });
     return;
   }
   if (emptyMsg) emptyMsg.style.display = 'none';
   if (tblWrap)  tblWrap.style.display  = 'block';
-  // KPIs
-  const disponivel = _esqItens.filter(i => (i.quantidade_disponivel ?? i.qtd_disponivel ?? i.disponivel) > 0).length;
-  const uso        = _esqItens.filter(i => (i.quantidade_uso ?? i.qtd_uso ?? i.alocado) > 0).length;
-  const critico    = _esqItens.filter(i => { const q = i.quantidade_disponivel ?? i.qtd_disponivel ?? i.quantidade ?? 0; return Number(q) < 5; }).length;
-  const e1 = document.getElementById('esq-kpi-total'); if(e1) e1.textContent = count;
-  const e2 = document.getElementById('esq-kpi-disp');  if(e2) e2.textContent = disponivel || '—';
-  const e3 = document.getElementById('esq-kpi-uso');   if(e3) e3.textContent = uso || '—';
-  const e4 = document.getElementById('esq-kpi-crit');  if(e4) e4.textContent = critico || 0;
   renderEstoqueTbl(_esqItens);
 }
 
 function renderEstoqueTbl(itens) {
-  const head = document.getElementById('esq-tbl-head');
   const body = document.getElementById('esq-tbl-body');
-  if (!head || !body) return;
+  if (!body) return;
   if (itens.length === 0) { body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px">Nenhum item encontrado</td></tr>'; return; }
-  const keys = Object.keys(itens[0]).slice(0, 8);
-  head.innerHTML = keys.map(k => `<th>${k}</th>`).join('');
-  body.innerHTML = itens.map(item =>
-    `<tr>${keys.map(k => `<td style="font-size:11px;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis" title="${item[k]??''}">${item[k]??'—'}</td>`).join('')}</tr>`
-  ).join('');
+  const statusCor = (item) => {
+    if (item.minimo > 0 && item.disponivel < item.minimo) return 'color:var(--red)';
+    if (item.disponivel > 0) return 'color:var(--green)';
+    return 'color:var(--text3)';
+  };
+  const statusTxt = (item) => {
+    if (item.minimo > 0 && item.disponivel < item.minimo) return 'Crítico';
+    if (item.disponivel > 0) return 'OK';
+    return 'Zerado';
+  };
+  body.innerHTML = itens.map(item => `<tr>
+    <td style="font-size:12px;font-weight:500">${item.nome}</td>
+    <td style="font-size:11px;color:var(--text3)">${item.categoria}</td>
+    <td style="font-size:11px;color:var(--text3)">${item.unidade}</td>
+    <td class="mono" style="text-align:right">${item.quantidade}</td>
+    <td class="mono" style="text-align:right;color:var(--green)">${item.disponivel}</td>
+    <td class="mono" style="text-align:right;color:var(--amber)">${item.alocado || '—'}</td>
+    <td class="mono" style="text-align:right;color:var(--text3)">${item.minimo || '—'}</td>
+    <td style="font-size:11px;font-weight:600;${statusCor(item)}">${statusTxt(item)}</td>
+  </tr>`).join('');
 }
 
 function filterEstoque(txt) {

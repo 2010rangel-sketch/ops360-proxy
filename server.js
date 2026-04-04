@@ -2949,6 +2949,22 @@ cron.schedule('*/3 * * * *', async () => {
 let _fiscalCache = null; let _fiscalFetchedAt = 0;
 const FISCAL_CACHE_TTL = 30 * 60 * 1000;
 
+async function fetchNfTipo(tipo, token, dataIni, dataFim) {
+  // tipo: 'nfse' | 'telecom' | 'nfcom' | 'nfe'
+  try {
+    const params = { tipo_data: 'data_emissao', data_inicio: dataIni, data_fim: dataFim, pagina: 0, itens_por_pagina: 200 };
+    if (tipo === 'telecom') params.modelo = '21';
+    const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/nota_fiscal/${tipo}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      params, timeout: 15000,
+    });
+    const arr = Array.isArray(r.data) ? r.data : (r.data?.data || r.data?.itens || r.data?.notas || []);
+    return { ok: true, itens: arr };
+  } catch (e) {
+    return { ok: false, erro: e.response?.status || e.message, itens: [] };
+  }
+}
+
 app.get('/api/fiscal', async (req, res) => {
   try {
     const force = req.query.force === '1';
@@ -2958,33 +2974,68 @@ app.get('/api/fiscal', async (req, res) => {
       if (dbF) { _fiscalCache = dbF; _fiscalFetchedAt = Date.now(); return res.json({ ...dbF, cache: 'db' }); }
     }
     const token = await getToken();
-    const headers = { Authorization: `Bearer ${token}` };
-    const candidatos = [
-      'v1/titulo', 'v1/boleto', 'v1/nfe', 'v1/fatura',
-      'v1/nota_fiscal', 'v1/cobranca', 'v1/financeiro_titulo',
-    ];
-    const endpoints_testados = {};
-    let dados = null;
-    let endpoint_ativo = null;
-    for (const ep of candidatos) {
-      try {
-        const r = await axios.get(`${HUBSOFT_HOST}/api/${ep}`, {
-          headers, params: { limit: 50 }, timeout: 6000,
-        });
-        const arr = Array.isArray(r.data) ? r.data
-          : (r.data?.data || r.data?.titulos || r.data?.boletos || r.data?.items || []);
-        endpoints_testados[ep] = { disponivel: true, total: arr.length };
-        if (!dados) { dados = arr; endpoint_ativo = ep; }
-      } catch (e) {
-        endpoints_testados[ep] = { disponivel: false, erro: e.response?.status || 'timeout' };
+    // Período: mês atual + mês anterior (em BRT)
+    const agora = new Date();
+    const brt = (d) => new Date(d.getTime() - 3*60*60*1000);
+    const agoraBRT = brt(agora);
+    const dataFim = agoraBRT.toISOString().slice(0, 10);
+    const priDiaMesAnt = new Date(agoraBRT.getFullYear(), agoraBRT.getMonth() - 1, 1);
+    const dataIni = priDiaMesAnt.toISOString().slice(0, 10);
+
+    const [nfse, telecom, nfcom, nfe] = await Promise.all([
+      fetchNfTipo('nfse', token, dataIni, dataFim),
+      fetchNfTipo('telecom', token, dataIni, dataFim),
+      fetchNfTipo('nfcom', token, dataIni, dataFim),
+      fetchNfTipo('nfe', token, dataIni, dataFim),
+    ]);
+
+    const tipos = { nfse, telecom, nfcom, nfe };
+    let totalNf = 0;
+    let totalValor = 0;
+    for (const [, v] of Object.entries(tipos)) {
+      totalNf += v.itens.length;
+      for (const nf of v.itens) {
+        const val = parseFloat(nf.valor_total ?? nf.valor ?? nf.total ?? 0);
+        if (!isNaN(val)) totalValor += val;
       }
     }
-    const fiscalResult = { ok: true, endpoint_ativo, endpoints_testados, dados: dados || [], total: dados?.length || 0 };
+
+    // Agrupa por mês
+    const porMes = {};
+    for (const [tipo, v] of Object.entries(tipos)) {
+      for (const nf of v.itens) {
+        const dtStr = nf.data_emissao || nf.data || '';
+        const mes = dtStr.slice(0, 7); // YYYY-MM
+        if (!mes) continue;
+        if (!porMes[mes]) porMes[mes] = { total: 0, valor: 0 };
+        porMes[mes].total++;
+        const val = parseFloat(nf.valor_total ?? nf.valor ?? nf.total ?? 0);
+        if (!isNaN(val)) porMes[mes].valor += val;
+      }
+    }
+
+    const fiscalResult = {
+      ok: true, periodo: { dataIni, dataFim },
+      totalNf, totalValor,
+      tipos: {
+        nfse:   { ok: nfse.ok,   total: nfse.itens.length,   erro: nfse.erro },
+        telecom:{ ok: telecom.ok,total: telecom.itens.length, erro: telecom.erro },
+        nfcom:  { ok: nfcom.ok,  total: nfcom.itens.length,  erro: nfcom.erro },
+        nfe:    { ok: nfe.ok,    total: nfe.itens.length,    erro: nfe.erro },
+      },
+      porMes,
+      // Inclui até 100 itens de cada tipo para tabela
+      nfse:   nfse.itens.slice(0, 100),
+      telecom:telecom.itens.slice(0, 100),
+      nfcom:  nfcom.itens.slice(0, 100),
+      nfe:    nfe.itens.slice(0, 100),
+    };
     _fiscalCache = fiscalResult; _fiscalFetchedAt = Date.now();
     dbCacheSet('cache:fiscal', fiscalResult);
     res.json(fiscalResult);
   } catch (e) {
     console.error('[/api/fiscal]', e.message);
+    if (_fiscalCache) return res.json({ ..._fiscalCache, cache: true, aviso: e.message });
     res.json({ ok: false, motivo: e.message });
   }
 });
@@ -2992,6 +3043,26 @@ app.get('/api/fiscal', async (req, res) => {
 // ── ESTOQUE ─────────────────────────────────────────────────────────────────
 let _estoqueCache = null; let _estoqueFetchedAt = 0;
 const ESTOQUE_CACHE_TTL = 30 * 60 * 1000;
+
+async function fetchEstoqueProdutos(token) {
+  // Pagina até 500 produtos (5 páginas de 100)
+  let todos = [];
+  for (let p = 0; p < 5; p++) {
+    try {
+      const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/estoque/produto`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { pagina: p, itens_por_pagina: 100 },
+        timeout: 15000,
+      });
+      const arr = Array.isArray(r.data) ? r.data : (r.data?.data || r.data?.itens || r.data?.produtos || []);
+      todos = todos.concat(arr);
+      if (arr.length < 100) break; // última página
+    } catch (e) {
+      break;
+    }
+  }
+  return todos;
+}
 
 app.get('/api/estoque', async (req, res) => {
   try {
@@ -3002,33 +3073,45 @@ app.get('/api/estoque', async (req, res) => {
       if (dbE) { _estoqueCache = dbE; _estoqueFetchedAt = Date.now(); return res.json({ ...dbE, cache: 'db' }); }
     }
     const token = await getToken();
-    const headers = { Authorization: `Bearer ${token}` };
-    const candidatos = [
-      'v1/item', 'v1/itens', 'v1/estoque', 'v1/produto',
-      'v1/material', 'v1/equipamento',
-    ];
-    const endpoints_testados = {};
-    let items = null;
-    let endpoint_ativo = null;
-    for (const ep of candidatos) {
-      try {
-        const r = await axios.get(`${HUBSOFT_HOST}/api/${ep}`, {
-          headers, params: { limit: 200 }, timeout: 6000,
-        });
-        const arr = Array.isArray(r.data) ? r.data
-          : (r.data?.data || r.data?.items || r.data?.itens || r.data?.estoque || []);
-        endpoints_testados[ep] = { disponivel: true, total: arr.length };
-        if (!items) { items = arr; endpoint_ativo = ep; }
-      } catch (e) {
-        endpoints_testados[ep] = { disponivel: false, erro: e.response?.status || 'timeout' };
-      }
-    }
-    const estoqueResult = { ok: true, endpoint_ativo, endpoints_testados, items: items || [], total: items?.length || 0 };
+
+    const [produtos, locaisRaw] = await Promise.all([
+      fetchEstoqueProdutos(token),
+      axios.get(`${HUBSOFT_HOST}/api/v1/integracao/estoque/local_estoque`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { pagina: 0, itens_por_pagina: 100 },
+        timeout: 10000,
+      }).then(r => Array.isArray(r.data) ? r.data : (r.data?.data || r.data?.itens || [])).catch(() => []),
+    ]);
+
+    // Normaliza campos de quantidade
+    const items = produtos.map(p => ({
+      id:          p.id ?? p.codigo ?? '',
+      nome:        p.nome ?? p.descricao ?? p.name ?? '—',
+      categoria:   p.categoria ?? p.tipo ?? '—',
+      unidade:     p.unidade ?? p.un ?? '—',
+      quantidade:  parseFloat(p.quantidade ?? p.qtd ?? p.saldo ?? 0),
+      disponivel:  parseFloat(p.quantidade_disponivel ?? p.qtd_disponivel ?? p.disponivel ?? p.quantidade ?? p.qtd ?? 0),
+      alocado:     parseFloat(p.quantidade_alocada ?? p.qtd_alocada ?? p.em_uso ?? 0),
+      minimo:      parseFloat(p.estoque_minimo ?? p.qtd_minimo ?? p.minimo ?? 0),
+    }));
+
+    const total     = items.length;
+    const dispTotal = items.filter(i => i.disponivel > 0).length;
+    const usoTotal  = items.filter(i => i.alocado > 0).length;
+    const criticos  = items.filter(i => i.minimo > 0 && i.disponivel < i.minimo).length;
+
+    const estoqueResult = {
+      ok: true, total,
+      kpi: { total, disponivel: dispTotal, alocado: usoTotal, criticos },
+      items,
+      locais: locaisRaw.map(l => ({ id: l.id, nome: l.nome ?? l.descricao ?? '—' })),
+    };
     _estoqueCache = estoqueResult; _estoqueFetchedAt = Date.now();
     dbCacheSet('cache:estoque', estoqueResult);
     res.json(estoqueResult);
   } catch (e) {
     console.error('[/api/estoque]', e.message);
+    if (_estoqueCache) return res.json({ ..._estoqueCache, cache: true, aviso: e.message });
     res.json({ ok: false, motivo: e.message });
   }
 });
