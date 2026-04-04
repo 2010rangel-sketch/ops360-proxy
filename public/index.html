@@ -522,8 +522,7 @@ input[type="text"]::placeholder { color:var(--text3); }
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
           <span style="font-size:11px;color:var(--text3);font-weight:500;letter-spacing:.04em;text-transform:uppercase">Visão</span>
           <div style="display:flex;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:3px" id="dashTabBar">
-            <button id="dash-tab-btn-chamados"    class="dash-view-btn active" onclick="showDashTab('chamados')"><i class="fas fa-ticket-alt"></i> Chamados</button>
-            <button id="dash-tab-btn-atendimento" class="dash-view-btn" onclick="showDashTab('atendimento')"><i class="fas fa-headset"></i> Atend.</button>
+            <button id="dash-tab-btn-atendimento" class="dash-view-btn active" onclick="showDashTab('atendimento')"><i class="fas fa-headset"></i> Atend.</button>
             <button id="dash-tab-btn-retencao"    class="dash-view-btn" onclick="showDashTab('retencao')"><i class="fas fa-user-shield"></i> Canc./Ret.</button>
             <button id="dash-tab-btn-comercial"   class="dash-view-btn" onclick="showDashTab('comercial')"><i class="fas fa-briefcase"></i> Comercial</button>
             <button id="dash-tab-btn-conexoes"    class="dash-view-btn" onclick="showDashTab('conexoes')"><i class="fas fa-wifi"></i> Conexões</button>
@@ -532,24 +531,6 @@ input[type="text"]::placeholder { color:var(--text3); }
       </div>
 
 
-      <!-- ═══ DASH-CHAMADOS ═══ -->
-      <div id="dash-tab-chamados" style="display:none">
-
-        <!-- Status dos chamados (donut) -->
-        <div class="dash-grid" style="margin-bottom:14px">
-          <div class="dash-card">
-            <div class="dash-card-title">Status dos chamados <button class="more-btn">···</button></div>
-            <div class="dash-card-sub">Tempo real · Hubsoft</div>
-            <div class="donut-section">
-              <svg width="140" height="140" viewBox="0 0 140 140" id="dashDonutSvg">
-                <circle cx="70" cy="70" r="52" fill="none" stroke="var(--bg3)" stroke-width="18"/>
-              </svg>
-              <div class="donut-labels" id="dashDonutLabels"></div>
-            </div>
-          </div>
-        </div>
-
-      </div><!-- /#dash-tab-chamados -->
 
       <!-- ═══ DASH-ATENDIMENTO ═══ -->
       <div id="dash-tab-atendimento" style="display:none">
@@ -2469,7 +2450,7 @@ function goPage(id, el) {
   document.getElementById('pageTitle').textContent = titles[id]||id;
   // Restaura dados em memória ao navegar de volta para páginas com dados
   if (id === 'dashboard') {
-    showDashTab('chamados');
+    showDashTab('atendimento');
   }
   if (id === 'chamados') {
     // DOM já está atualizado pelo autoRefresh — só força rebuild se ainda sem dados
@@ -4592,7 +4573,7 @@ function renderRetencao(data) {
 }
 
 function showDashTab(name) {
-  ['chamados','atendimento','retencao','comercial','conexoes'].forEach(t => {
+  ['atendimento','retencao','comercial','conexoes'].forEach(t => {
     const el  = document.getElementById(`dash-tab-${t}`);
     const btn = document.getElementById(`dash-tab-btn-${t}`);
     if (el)  el.style.display = t === name ? '' : 'none';
@@ -6965,7 +6946,7 @@ function filterEstoque(txt) {
 // AUTO-INIT: 1) cache imediato  2) sync em background  3) status badge
 (function() {
   // Garante que o tab inicial do dash esteja visível antes de qualquer render
-  showDashTab('chamados');
+  showDashTab('atendimento');
   // Passo 1 — exibe cache instantaneamente
   const cache = carregarCache();
   if (cache) {
