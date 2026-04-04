@@ -947,7 +947,6 @@ input[type="text"]::placeholder { color:var(--text3); }
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
         <div style="display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px">
           <button class="chip active atend-chip" data-p="hoje"  onclick="setAtendPeriodo('hoje',this)">Hoje</button>
-          <button class="chip atend-chip" data-p="7dias"        onclick="setAtendPeriodo('7dias',this)">Últimos 7 dias</button>
           <button class="chip atend-chip" data-p="mes"          onclick="setAtendPeriodo('mes',this)">Este Mês</button>
           <button class="chip atend-chip" data-p="custom"       onclick="setAtendPeriodo('custom',this)">Período</button>
         </div>
@@ -1168,7 +1167,6 @@ input[type="text"]::placeholder { color:var(--text3); }
           <div style="display:flex;gap:3px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:3px">
             <button class="chip active com-chip" data-p="mes"          onclick="setComPeriodo('mes',this)">Mês atual</button>
             <button class="chip com-chip"         data-p="mes_anterior" onclick="setComPeriodo('mes_anterior',this)">Mês anterior</button>
-            <button class="chip com-chip"         data-p="7dias"        onclick="setComPeriodo('7dias',this)">7 dias</button>
             <button class="chip com-chip"         data-p="hoje"         onclick="setComPeriodo('hoje',this)">Hoje</button>
             <button class="chip com-chip"         data-p="custom"       onclick="setComPeriodo('custom',this)">Período</button>
           </div>
@@ -1344,7 +1342,6 @@ input[type="text"]::placeholder { color:var(--text3); }
         <div style="display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px">
           <button class="chip active ret-chip" data-p="mes"           onclick="setRetPeriodo('mes',this)">Mês atual</button>
           <button class="chip ret-chip"        data-p="mes_anterior"  onclick="setRetPeriodo('mes_anterior',this)">Mês anterior</button>
-          <button class="chip ret-chip"        data-p="7dias"         onclick="setRetPeriodo('7dias',this)">7 dias</button>
           <button class="chip ret-chip"        data-p="hoje"          onclick="setRetPeriodo('hoje',this)">Hoje</button>
           <button class="chip ret-chip"        data-p="custom"        onclick="setRetPeriodo('custom',this)">Período</button>
         </div>
@@ -1534,7 +1531,20 @@ input[type="text"]::placeholder { color:var(--text3); }
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px" id="fin-mrr-row">
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">MRR Perdido (churn mês)</div><div class="kpi-mini-val" id="fin-mrr-perdido" style="color:var(--red)">—</div></div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">MRR Novo (novas vendas)</div><div class="kpi-mini-val" id="fin-mrr-novo" style="color:var(--green)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--cyan)"></div><div class="kpi-mini-label">MRR Recuperado</div><div class="kpi-mini-val" id="fin-mrr-recup" style="color:var(--cyan)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--cyan)"></div><div class="kpi-mini-label">MRR Recuperado</div>
+          <div style="display:flex;flex-direction:column;gap:2px;margin-top:4px">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+              <span style="font-size:10px;color:var(--text3)">Mês atual</span>
+              <span class="kpi-mini-val" id="fin-mrr-recup-atual" style="color:var(--cyan);font-size:15px">—</span>
+              <span style="font-size:10px;color:var(--text3)" id="fin-reat-atual-n"></span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+              <span style="font-size:10px;color:var(--text3)">Mês anterior</span>
+              <span class="kpi-mini-val" id="fin-mrr-recup-ant" style="color:var(--cyan);opacity:.65;font-size:13px">—</span>
+              <span style="font-size:10px;color:var(--text3)" id="fin-reat-ant-n"></span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Cancelamentos: mês atual + anterior -->
@@ -3848,10 +3858,6 @@ function getAtendDates() {
   if (atendPeriodo === 'hoje') {
     return { ini: hoje, fim: hoje };
   }
-  if (atendPeriodo === '7dias') {
-    const d7 = new Date(agora.getTime() - 7*24*60*60*1000);
-    return { ini: fmtD(d7), fim: hoje };
-  }
   if (atendPeriodo === 'mes') {
     const ini = new Date(agora.getFullYear(), agora.getMonth(), 1);
     return { ini: fmtD(ini), fim: hoje };
@@ -4230,10 +4236,6 @@ function getRetDates() {
   if (retPeriodo === 'hoje') {
     const s = pd(a.getFullYear(), a.getMonth(), a.getDate());
     return { ini: s, fim: s };
-  }
-  if (retPeriodo === '7dias') {
-    const i7 = new Date(a.getTime() - 7*86400000);
-    return { ini: pd(i7.getFullYear(), i7.getMonth(), i7.getDate()), fim: pd(a.getFullYear(), a.getMonth(), a.getDate()) };
   }
   if (retPeriodo === 'mes') {
     return { ini: pd(a.getFullYear(), a.getMonth(), 1), fim: pd(a.getFullYear(), a.getMonth(), a.getDate()) };
@@ -5492,10 +5494,6 @@ function getComDates() {
     const fim = new Date(a.getFullYear(), a.getMonth(), 0);
     return { ini: _d(a.getFullYear(), a.getMonth()-1, 1), fim: _d(fim.getFullYear(), fim.getMonth(), fim.getDate()) };
   }
-  if (comPeriodo === '7dias') {
-    const ini7 = new Date(a.getTime()-7*86400000);
-    return { ini: _d(ini7.getFullYear(), ini7.getMonth(), ini7.getDate()), fim: _d(a.getFullYear(), a.getMonth(), a.getDate()) };
-  }
   if (comPeriodo === 'hoje') {
     return { ini: _d(a.getFullYear(), a.getMonth(), a.getDate()), fim: _d(a.getFullYear(), a.getMonth(), a.getDate()) };
   }
@@ -6382,9 +6380,12 @@ function renderFinanceiro(d) {
   fev('fin-churn-ant',   r.churn_mes_anterior || 0);
   fev('fin-prim',        r.primeira_mens_risco || 0);
   fev('fin-prim-pct',    `${r.pct_primeira_mens || 0}% dos novos`);
-  fev('fin-mrr-perdido', fmtBRLk(r.mrr_perdido));
-  fev('fin-mrr-novo',    fmtBRLk(r.mrr_novo));
-  fev('fin-mrr-recup',   '—');
+  fev('fin-mrr-perdido',    fmtBRLk(r.mrr_perdido));
+  fev('fin-mrr-novo',       fmtBRLk(r.mrr_novo));
+  fev('fin-mrr-recup-atual', r.mrr_recup_atual != null ? fmtBRLk(r.mrr_recup_atual) : '—');
+  fev('fin-mrr-recup-ant',   r.mrr_recup_anterior != null ? fmtBRLk(r.mrr_recup_anterior) : '—');
+  fev('fin-reat-atual-n',    r.reativ_mes_atual != null ? `${r.reativ_mes_atual} clientes` : '');
+  fev('fin-reat-ant-n',      r.reativ_mes_anterior != null ? `${r.reativ_mes_anterior} clientes` : '');
 
   // Cancelamentos
   renderCancelStats('ca', d.cancelamentos?.mes_atual);

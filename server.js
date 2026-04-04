@@ -2405,6 +2405,10 @@ async function buildFinanceiro() {
   const mrr           = { total: 0, suspenso: 0, parcial: 0 };
   const vendMapAtivo  = {};
   let mrrNovo         = 0;
+  let mrrRecupAtual   = 0;
+  let mrrRecupAnt     = 0;
+  let reativAtual     = 0;
+  let reativAnt       = 0;
 
   for (const cli of ativos) {
     const nome     = cli.nome_razaosocial || cli.nome_fantasia || '—';
@@ -2427,6 +2431,19 @@ async function buildFinanceiro() {
       if (isSusp && valor > 0)    mrr.suspenso += valor;
       if (isParcial && valor > 0) mrr.parcial  += valor;
       if (isOn && dataHab && dataHab >= mesAtualIni && valor > 0) mrrNovo += valor;
+
+      // Reativação = serviço ativo habilitado no mês + tinha cancelamento anterior
+      if (isOn && dataHab && valor > 0) {
+        const dataCan = parseDate(s.data_cancelamento);
+        const isReat  = dataCan && dataCan < dataHab;
+        if (isReat) {
+          if (dataHab >= mesAtualIni) {
+            mrrRecupAtual += valor; reativAtual++;
+          } else if (dataHab >= mesAnteriorIni && dataHab <= mesAnteriorFim) {
+            mrrRecupAnt += valor; reativAnt++;
+          }
+        }
+      }
 
       if (isSusp) {
         suspensos.push({ nome, plano, valor, cidade, vendedor, status, dataHab: s.data_habilitacao });
@@ -2608,6 +2625,10 @@ async function buildFinanceiro() {
       mrr_parcial:         Math.round(mrr.parcial * 100) / 100,
       mrr_novo:            Math.round(mrrNovo * 100) / 100,
       mrr_perdido:         Math.round(cancelMesAtual.reduce((s,c) => s + c.valor, 0) * 100) / 100,
+      mrr_recup_atual:     Math.round(mrrRecupAtual * 100) / 100,
+      mrr_recup_anterior:  Math.round(mrrRecupAnt * 100) / 100,
+      reativ_mes_atual:    reativAtual,
+      reativ_mes_anterior: reativAnt,
       total_ativos:        ativos.length,
       total_suspensos:     suspensos.length,
       total_parciais:      parciaisSusp.length,
