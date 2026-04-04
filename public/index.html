@@ -457,8 +457,7 @@ input[type="text"]::placeholder { color:var(--text3); }
   </div>
 
   <div class="sidebar-section">Painel</div>
-  <div class="nav-item active" onclick="goPage('dashboard',this)"><i class="fas fa-chart-pie"></i> Dashboard</div>
-  <div class="nav-item" onclick="goPage('comercial',this)"><i class="fas fa-briefcase"></i> Comercial</div>
+  <div class="nav-item active" onclick="goPage('comercial',this)"><i class="fas fa-briefcase"></i> Comercial</div>
   <div class="nav-item" onclick="goPage('atendimento',this)"><i class="fas fa-headset"></i> Atendimento</div>
   <div class="nav-item" onclick="goPage('chamados',this)"><i class="fas fa-ticket-alt"></i> Chamados</div>
   <div class="nav-item" onclick="goPage('retencao',this)"><i class="fas fa-user-shield"></i> Cancelamento / Retenção</div>
@@ -487,7 +486,7 @@ input[type="text"]::placeholder { color:var(--text3); }
   <div class="topbar">
     <div class="topbar-left">
       <button class="icon-btn" id="menuBtn" onclick="toggleSidebar()" style="display:none"><i class="fas fa-bars"></i></button>
-      <div class="topbar-breadcrumb"><span id="pageTitle">Dashboard</span></div>
+      <div class="topbar-breadcrumb"><span id="pageTitle">Comercial</span></div>
       <div class="live-pill"><div class="live-dot"></div> Ao vivo</div>
     </div>
     <div class="topbar-right">
@@ -501,7 +500,7 @@ input[type="text"]::placeholder { color:var(--text3); }
   <div class="page-content">
 
     <!-- ═══ DASHBOARD GERAL ═══ -->
-    <div class="page active" id="page-dashboard">
+    <div class="page" id="page-dashboard">
 
       <!-- Filtro de período -->
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
@@ -1157,7 +1156,7 @@ input[type="text"]::placeholder { color:var(--text3); }
     </div>
 
     <!-- ═══ COMERCIAL ═══ -->
-    <div class="page" id="page-comercial">
+    <div class="page active" id="page-comercial">
 
       <!-- Header + filtros -->
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap">
@@ -2338,12 +2337,9 @@ function goPage(id, el) {
   document.querySelectorAll('.nav-item, .space-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   if(el) el.classList.add('active');
-  const titles = {dashboard:'Dashboard',chamados:'Chamados',atendimento:'Atendimento',comercial:'Comercial',retencao:'Cancelamento / Retenção',conexoes:'Conexões',financeiro:'Financeiro',fiscal:'Fiscal',estoque:'Estoque',rh:'RH',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
+  const titles = {chamados:'Chamados',atendimento:'Atendimento',comercial:'Comercial',retencao:'Cancelamento / Retenção',conexoes:'Conexões',financeiro:'Financeiro',fiscal:'Fiscal',estoque:'Estoque',rh:'RH',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
   document.getElementById('pageTitle').textContent = titles[id]||id;
   // Restaura dados em memória ao navegar de volta para páginas com dados
-  if (id === 'dashboard') {
-    showDashTab();
-  }
   if (id === 'chamados') {
     // DOM já está atualizado pelo autoRefresh — só força rebuild se ainda sem dados
     if (chamadosDB.length === 0) buscarPeriodo();
@@ -6873,45 +6869,36 @@ function filterEstoque(txt) {
   renderEstoqueTbl(q ? _esqItens.filter(i => JSON.stringify(i).toLowerCase().includes(q)) : _esqItens);
 }
 
-// AUTO-INIT: 1) cache imediato  2) sync em background  3) status badge
+// AUTO-INIT
 (function() {
-  // Garante que o tab inicial do dash esteja visível antes de qualquer render
-  showDashTab();
-  // Passo 1 — exibe cache instantaneamente (chamados)
-  const cache = carregarCache();
-  if (cache) {
-    aplicarDados(cache.dados);
-    const el = document.getElementById('lastSync');
-    const t  = new Date(cache.ts).toLocaleTimeString('pt-BR');
-    if(el) el.textContent = t + ' (cache)';
-  }
-  // Passo 1b — restaura caches de outras seções do localStorage (exibição instantânea)
-  const FIN_TTL = 35 * 60 * 1000;  // 35 min (alinhado com server-side 30 min)
-  const RET_TTL = 10 * 60 * 1000;  // 10 min
-  const COM_TTL = 35 * 60 * 1000;  // 35 min
+  // Passo 1 — restaura caches de localStorage (exibição instantânea)
+  const FIN_TTL = 35 * 60 * 1000;
+  const RET_TTL = 10 * 60 * 1000;
+  const COM_TTL = 35 * 60 * 1000;
   try {
     const fc = JSON.parse(localStorage.getItem('ops360_fin_cache') || 'null');
-    if (fc && (Date.now() - fc.ts) < FIN_TTL) { _finData = fc.data; renderFinanceiro(fc.data); renderDashFinanceiro(); }
+    if (fc && (Date.now() - fc.ts) < FIN_TTL) { _finData = fc.data; }
   } catch {}
   try {
     const rc = JSON.parse(localStorage.getItem('ops360_ret_cache') || 'null');
-    if (rc && (Date.now() - rc.ts) < RET_TTL) { _retData = rc.data; renderDashRetencao(); }
+    if (rc && (Date.now() - rc.ts) < RET_TTL) { _retData = rc.data; }
   } catch {}
   try {
     const cc = JSON.parse(localStorage.getItem('ops360_com_cache') || 'null');
-    if (cc && (Date.now() - cc.ts) < COM_TTL) { _comData = cc.data; renderDashComercial(); }
+    if (cc && (Date.now() - cc.ts) < COM_TTL) { _comData = cc.data; renderComercialAtualiza(cc.data); }
   } catch {}
-  // Passo 2 — busca dados frescos (chamados)
+  // Passo 2 — chamados em background (para quando o usuário navegar)
   autoRefresh();
-  // Passo 3 — atualiza badge de status
+  // Passo 3 — Comercial imediato (página inicial)
+  loadComercial().catch(()=>{});
+  // Passo 4 — status badge
   testarConexaoProxy();
-  // Passo 4 — prefetch paralelo de todas as seções lentas em background
-  setTimeout(() => loadComercial().catch(()=>{}), 1500);
-  setTimeout(() => loadRetencaoAtend().catch(()=>{}), 2500);
-  setTimeout(() => loadCancelServico().catch(()=>{}), 3000);
-  setTimeout(() => loadRemocoes().catch(()=>{}), 3500);
-  setTimeout(() => loadFinanceiro().catch(()=>{}), 4500);
-  // Passo 5 — intervalo de 30s
+  // Passo 5 — prefetch das demais seções em background
+  setTimeout(() => loadRetencaoAtend().catch(()=>{}), 2000);
+  setTimeout(() => loadCancelServico().catch(()=>{}), 2500);
+  setTimeout(() => loadRemocoes().catch(()=>{}), 3000);
+  setTimeout(() => loadFinanceiro().catch(()=>{}), 4000);
+  // Passo 6 — intervalo de 30s para chamados
   setInterval(autoRefresh, 30000);
 })();
 
