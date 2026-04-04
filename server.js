@@ -3522,6 +3522,11 @@ Você tem acesso ao contexto do sistema OPS360: chamados, atendimento, comercial
   }
 });
 
+// ── Fallback SPA: qualquer rota não-API serve o index.html ───────
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 // ── Inicializa ────────────────────────────────────────────────────
 dbInit(); // cria tabela se não existir (não bloqueia)
 
