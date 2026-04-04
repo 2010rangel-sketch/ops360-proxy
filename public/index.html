@@ -1945,7 +1945,7 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
 
         <!-- Linha 1: Por Setor | Colaboradores | Por Empresa + Tempo Médio -->
-        <div style="display:grid;grid-template-columns:220px 1fr 270px;gap:12px;margin-bottom:14px">
+        <div style="display:grid;grid-template-columns:220px 1fr 230px;gap:12px;margin-bottom:14px">
 
           <!-- Coluna 1: Por Setor (clicável) -->
           <div class="tbl-card" style="margin-bottom:0">
@@ -1971,7 +1971,10 @@ input[type="text"]::placeholder { color:var(--text3); }
           <!-- Coluna 3: Por Empresa + Tempo Médio por Setor (compactos) -->
           <div style="display:flex;flex-direction:column;gap:8px">
             <div class="tbl-card" style="margin-bottom:0">
-              <div class="tbl-header" style="padding:8px 12px"><span class="tbl-title" style="font-size:11px">Por Empresa</span></div>
+              <div class="tbl-header" style="padding:8px 12px">
+                <span class="tbl-title" style="font-size:11px">Por Empresa</span>
+                <button id="rh-emp-limpar" onclick="rhFiltrarEmpresa(null)" style="display:none;background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:0">✕</button>
+              </div>
               <div style="padding:6px 12px" id="rh-por-empresa"></div>
             </div>
             <div class="tbl-card" style="margin-bottom:0">
@@ -7287,6 +7290,7 @@ function renderRhColaboradores() {
   const hoje = new Date();
   let lista = emps.filter(e => e.ativo);
   if (_rhSetorAtivo) lista = lista.filter(e => (e.depto || '') === _rhSetorAtivo);
+  if (_rhEmpresaAtiva) lista = lista.filter(e => (e.empresa || '') === _rhEmpresaAtiva);
   lista.sort((a, b) => (a.nome||'').localeCompare(b.nome||'', 'pt-BR'));
 
   // Pendências: pega certs e CNH cadastrados
@@ -7301,7 +7305,7 @@ function renderRhColaboradores() {
   };
 
   const titulo = document.getElementById('rh-col-titulo');
-  if (titulo) titulo.textContent = _rhSetorAtivo ? _rhSetorAtivo : 'Todos os Colaboradores';
+  if (titulo) titulo.textContent = _rhSetorAtivo ? _rhSetorAtivo : _rhEmpresaAtiva ? _rhEmpresaAtiva : 'Todos os Colaboradores';
   const count = document.getElementById('rh-col-count');
   if (count) count.textContent = lista.length + ' colaborador' + (lista.length !== 1 ? 'es' : '');
 
@@ -7379,6 +7383,18 @@ function renderRhDashboard(emps) {
 }
 
 let _rhSetorAtivo = null;
+let _rhEmpresaAtiva = null;
+
+function rhFiltrarEmpresa(empresa) {
+  _rhEmpresaAtiva = empresa;
+  renderRhColaboradores();
+  document.querySelectorAll('[data-rh-empresa]').forEach(el => {
+    el.style.background = el.dataset.rhEmpresa === empresa ? 'rgba(99,102,241,.15)' : '';
+    el.style.borderRadius = '6px';
+  });
+  const limpar = document.getElementById('rh-emp-limpar');
+  if (limpar) limpar.style.display = empresa ? '' : 'none';
+}
 
 function rhFiltrarSetor(setor) {
   _rhSetorAtivo = setor;
@@ -7404,9 +7420,10 @@ function renderRhEmpresa(ativos) {
   el.innerHTML = sorted.map(([nome, n], i) => {
     const pct = Math.round(n / max * 100);
     const cor = CORES[i % CORES.length];
-    return `<div style="margin-bottom:8px">
+    const ativo = _rhEmpresaAtiva === nome;
+    return `<div data-rh-empresa="${nome}" onclick="rhFiltrarEmpresa(_rhEmpresaAtiva==='${nome.replace(/'/g,"\\'")}' ? null : '${nome.replace(/'/g,"\\'")}'); document.querySelectorAll('[data-rh-empresa]').forEach(el=>{el.style.background=el.dataset.rhEmpresa==='${nome.replace(/'/g,"\\'")}' && _rhEmpresaAtiva==='${nome.replace(/'/g,"\\'")}' ? 'rgba(99,102,241,.15)' : '';el.style.borderRadius='6px';})" style="margin-bottom:6px;padding:4px 6px;cursor:pointer;border-radius:6px;background:${ativo?'rgba(99,102,241,.15)':''};transition:background .15s" onmouseenter="if(_rhEmpresaAtiva!==this.dataset.rhEmpresa)this.style.background='var(--bg3)'" onmouseleave="if(_rhEmpresaAtiva!==this.dataset.rhEmpresa)this.style.background=''">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
-        <span style="font-size:10px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px">${nome}</span>
+        <span style="font-size:10px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px">${nome}</span>
         <span style="font-size:11px;font-weight:700;color:${cor}">${n}</span>
       </div>
       <div style="height:4px;background:var(--bg3);border-radius:3px">
@@ -7444,9 +7461,11 @@ function renderRhSetor(ativos) {
 }
 
 function renderRhTempoMedioSetor(ativos, mesesTenure, fmtTempo) {
+  const IGNORAR_SETOR = /integra[çc][aã]o\s*rel[oó]gio/i;
   const map = {};
   ativos.forEach(e => {
     const k = e.depto || '(sem setor)';
+    if (IGNORAR_SETOR.test(k)) return;
     const m = mesesTenure(e);
     if (m === null) return;
     if (!map[k]) map[k] = [];
