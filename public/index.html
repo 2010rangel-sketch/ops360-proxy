@@ -7967,11 +7967,19 @@ renderRhNR();              // Renderiza localStorage imediatamente enquanto serv
 #rax-mic.listening{background:rgba(239,68,68,.15);border-color:var(--red);color:var(--red);animation:rax-mic-pulse .8s infinite alternate}
 @keyframes rax-mic-pulse{from{box-shadow:0 0 0 0 rgba(239,68,68,.4)}to{box-shadow:0 0 0 8px rgba(239,68,68,0)}}
 /* Overlay voz */
-#rax-voice-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:99999;display:none;flex-direction:column;align-items:center;justify-content:center;gap:20px}
-.rax-orb{width:120px;height:120px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:40px;box-shadow:0 0 0 0 rgba(99,102,241,.5);animation:rax-orb-pulse 1.2s infinite}
-@keyframes rax-orb-pulse{0%{box-shadow:0 0 0 0 rgba(99,102,241,.6)}70%{box-shadow:0 0 0 30px rgba(99,102,241,0)}100%{box-shadow:0 0 0 0 rgba(99,102,241,0)}}
-.rax-voice-label{color:#fff;font-size:14px;font-weight:500;font-family:'Inter',sans-serif}
-.rax-voice-stop{background:rgba(239,68,68,.2);border:1px solid var(--red);color:var(--red);border-radius:8px;padding:8px 20px;font-size:12px;cursor:pointer;font-family:'Inter',sans-serif}
+#rax-voice-bar{display:none;align-items:center;gap:8px;padding:6px 12px;background:rgba(239,68,68,.08);border-top:1px solid rgba(239,68,68,.2)}
+.rax-voice-waves{display:flex;align-items:center;gap:3px;flex:1}
+.rax-voice-waves span{display:inline-block;width:3px;border-radius:3px;background:var(--red);animation:rax-wave .6s infinite ease-in-out}
+.rax-voice-waves span:nth-child(1){height:8px;animation-delay:0s}
+.rax-voice-waves span:nth-child(2){height:16px;animation-delay:.1s}
+.rax-voice-waves span:nth-child(3){height:22px;animation-delay:.2s}
+.rax-voice-waves span:nth-child(4){height:14px;animation-delay:.3s}
+.rax-voice-waves span:nth-child(5){height:20px;animation-delay:.15s}
+.rax-voice-waves span:nth-child(6){height:10px;animation-delay:.25s}
+.rax-voice-waves span:nth-child(7){height:18px;animation-delay:.05s}
+@keyframes rax-wave{0%,100%{transform:scaleY(.4);opacity:.5}50%{transform:scaleY(1);opacity:1}}
+.rax-voice-timer{font-size:11px;color:var(--red);font-weight:600;font-family:'Inter',sans-serif;min-width:32px}
+.rax-voice-cancel{background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:0;line-height:1}
 </style>
 
 <!-- Botão flutuante -->
@@ -7993,18 +8001,19 @@ renderRhNR();              // Renderiza localStorage imediatamente enquanto serv
   <div id="rax-msgs">
     <div class="rax-msg assistant">Olá! Sou o <b>RAX</b> — Rangel Analytics X. Pergunte qualquer coisa sobre os dados do OPS360 ou qualquer outra dúvida. 🚀</div>
   </div>
+  <div id="rax-voice-bar">
+    <div style="font-size:11px;color:var(--red);font-weight:600;white-space:nowrap">🔴 Gravando</div>
+    <div class="rax-voice-waves">
+      <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <div class="rax-voice-timer" id="rax-voice-timer">0s</div>
+    <button class="rax-voice-cancel" onclick="raxPararVoz()" title="Cancelar">✕</button>
+  </div>
   <div id="rax-footer">
     <textarea id="rax-input" placeholder="Pergunte algo..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();raxEnviar()}" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px'"></textarea>
     <button id="rax-mic" onclick="raxVoz()" title="Falar"><i class="fas fa-microphone"></i></button>
     <button id="rax-send" onclick="raxEnviar()" title="Enviar"><i class="fas fa-paper-plane" style="color:#fff;font-size:13px"></i></button>
   </div>
-</div>
-
-<!-- Overlay de escuta por voz -->
-<div id="rax-voice-overlay">
-  <div class="rax-orb">🎙️</div>
-  <div class="rax-voice-label">RAX está te ouvindo...</div>
-  <button class="rax-voice-stop" onclick="raxPararVoz()">Parar</button>
 </div>
 
 <script>
@@ -8083,8 +8092,17 @@ function raxVoz() {
   _raxRecognition.interimResults = false;
   _raxRecognition.maxAlternatives = 1;
 
-  document.getElementById('rax-voice-overlay').style.display = 'flex';
+  const bar = document.getElementById('rax-voice-bar');
+  bar.style.display = 'flex';
   document.getElementById('rax-mic').classList.add('listening');
+
+  let _raxTimerSec = 0;
+  const _raxTimerEl = document.getElementById('rax-voice-timer');
+  _raxTimerEl.textContent = '0s';
+  window._raxTimerInterval = setInterval(() => {
+    _raxTimerSec++;
+    _raxTimerEl.textContent = _raxTimerSec + 's';
+  }, 1000);
 
   _raxRecognition.onresult = e => {
     const transcript = e.results[0][0].transcript;
@@ -8099,7 +8117,8 @@ function raxVoz() {
 
 function raxPararVoz() {
   if (_raxRecognition) { try { _raxRecognition.stop(); } catch(e){} _raxRecognition = null; }
-  document.getElementById('rax-voice-overlay').style.display = 'none';
+  clearInterval(window._raxTimerInterval);
+  document.getElementById('rax-voice-bar').style.display = 'none';
   document.getElementById('rax-mic').classList.remove('listening');
 }
 </script>
