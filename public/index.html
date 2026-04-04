@@ -7919,5 +7919,189 @@ _restoreRhFromStorage();   // CSV — async, busca servidor → localStorage
 _nrRestoreFromServer();    // NR certs — async, servidor → localStorage
 renderRhNR();              // Renderiza localStorage imediatamente enquanto servidor responde
 </script>
+
+<!-- ═══ RAX — Rangel Analytics X ═══ -->
+<style>
+#rax-btn {
+  position:fixed;bottom:24px;left:24px;z-index:9998;
+  width:48px;height:48px;border-radius:50%;
+  background:linear-gradient(135deg,#6366f1,#8b5cf6);
+  border:none;cursor:pointer;box-shadow:0 4px 20px rgba(99,102,241,.5);
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;transition:transform .2s,box-shadow .2s;
+}
+#rax-btn:hover{transform:scale(1.08);box-shadow:0 6px 28px rgba(99,102,241,.7)}
+#rax-btn .rax-pulse{position:absolute;width:48px;height:48px;border-radius:50%;background:rgba(99,102,241,.3);animation:rax-pulse 2s infinite}
+@keyframes rax-pulse{0%{transform:scale(1);opacity:.6}70%{transform:scale(1.5);opacity:0}100%{transform:scale(1.5);opacity:0}}
+#rax-panel {
+  position:fixed;bottom:84px;left:24px;z-index:9999;
+  width:380px;max-width:calc(100vw - 48px);
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:16px;box-shadow:0 8px 40px rgba(0,0,0,.5);
+  display:none;flex-direction:column;overflow:hidden;
+  max-height:560px;
+}
+#rax-header{
+  background:linear-gradient(135deg,#6366f1,#8b5cf6);
+  padding:12px 16px;display:flex;align-items:center;gap:10px;
+}
+#rax-header .rax-avatar{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fff;flex-shrink:0}
+#rax-header .rax-info{flex:1}
+#rax-header .rax-name{font-size:13px;font-weight:700;color:#fff}
+#rax-header .rax-sub{font-size:10px;color:rgba(255,255,255,.7)}
+#rax-header .rax-close{background:none;border:none;color:rgba(255,255,255,.7);font-size:18px;cursor:pointer;padding:0;line-height:1}
+#rax-msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;min-height:200px;max-height:380px}
+.rax-msg{max-width:85%;padding:8px 12px;border-radius:12px;font-size:12px;line-height:1.5;word-break:break-word}
+.rax-msg.user{align-self:flex-end;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border-bottom-right-radius:4px}
+.rax-msg.assistant{align-self:flex-start;background:var(--bg3);color:var(--text);border-bottom-left-radius:4px}
+.rax-msg.typing{align-self:flex-start;background:var(--bg3);padding:10px 14px}
+.rax-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--text3);animation:rax-dots .8s infinite;margin:0 2px}
+.rax-dot:nth-child(2){animation-delay:.15s}.rax-dot:nth-child(3){animation-delay:.3s}
+@keyframes rax-dots{0%,80%,100%{transform:scale(.8);opacity:.4}40%{transform:scale(1.2);opacity:1}}
+#rax-footer{padding:10px 12px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:flex-end}
+#rax-input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:8px 10px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif;resize:none;outline:none;max-height:100px;min-height:36px;line-height:1.4}
+#rax-input:focus{border-color:var(--accent)}
+#rax-send{background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;border-radius:8px;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:opacity .2s}
+#rax-send:hover{opacity:.85}
+#rax-mic{background:var(--bg3);border:1px solid var(--border);border-radius:8px;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--text2);font-size:14px;transition:all .2s}
+#rax-mic.listening{background:rgba(239,68,68,.15);border-color:var(--red);color:var(--red);animation:rax-mic-pulse .8s infinite alternate}
+@keyframes rax-mic-pulse{from{box-shadow:0 0 0 0 rgba(239,68,68,.4)}to{box-shadow:0 0 0 8px rgba(239,68,68,0)}}
+/* Overlay voz */
+#rax-voice-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:99999;display:none;flex-direction:column;align-items:center;justify-content:center;gap:20px}
+.rax-orb{width:120px;height:120px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:40px;box-shadow:0 0 0 0 rgba(99,102,241,.5);animation:rax-orb-pulse 1.2s infinite}
+@keyframes rax-orb-pulse{0%{box-shadow:0 0 0 0 rgba(99,102,241,.6)}70%{box-shadow:0 0 0 30px rgba(99,102,241,0)}100%{box-shadow:0 0 0 0 rgba(99,102,241,0)}}
+.rax-voice-label{color:#fff;font-size:14px;font-weight:500;font-family:'Inter',sans-serif}
+.rax-voice-stop{background:rgba(239,68,68,.2);border:1px solid var(--red);color:var(--red);border-radius:8px;padding:8px 20px;font-size:12px;cursor:pointer;font-family:'Inter',sans-serif}
+</style>
+
+<!-- Botão flutuante -->
+<button id="rax-btn" onclick="raxToggle()" title="RAX — Rangel Analytics X">
+  <div class="rax-pulse"></div>
+  <span style="font-size:15px;font-weight:800;color:#fff;position:relative;z-index:1">RAX</span>
+</button>
+
+<!-- Painel de chat -->
+<div id="rax-panel">
+  <div id="rax-header">
+    <div class="rax-avatar">R</div>
+    <div class="rax-info">
+      <div class="rax-name">RAX</div>
+      <div class="rax-sub">Rangel Analytics X · Pronto para ajudar</div>
+    </div>
+    <button class="rax-close" onclick="raxToggle()">✕</button>
+  </div>
+  <div id="rax-msgs">
+    <div class="rax-msg assistant">Olá! Sou o <b>RAX</b> — Rangel Analytics X. Pergunte qualquer coisa sobre os dados do OPS360 ou qualquer outra dúvida. 🚀</div>
+  </div>
+  <div id="rax-footer">
+    <textarea id="rax-input" placeholder="Pergunte algo..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();raxEnviar()}" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px'"></textarea>
+    <button id="rax-mic" onclick="raxVoz()" title="Falar"><i class="fas fa-microphone"></i></button>
+    <button id="rax-send" onclick="raxEnviar()" title="Enviar"><i class="fas fa-paper-plane" style="color:#fff;font-size:13px"></i></button>
+  </div>
+</div>
+
+<!-- Overlay de escuta por voz -->
+<div id="rax-voice-overlay">
+  <div class="rax-orb">🎙️</div>
+  <div class="rax-voice-label">RAX está te ouvindo...</div>
+  <button class="rax-voice-stop" onclick="raxPararVoz()">Parar</button>
+</div>
+
+<script>
+// ── RAX ───────────────────────────────────────────────────────────
+const _raxHistory = [];
+let _raxAberto = false;
+let _raxRecognition = null;
+
+function raxToggle() {
+  _raxAberto = !_raxAberto;
+  const p = document.getElementById('rax-panel');
+  p.style.display = _raxAberto ? 'flex' : 'none';
+  if (_raxAberto) setTimeout(() => document.getElementById('rax-input').focus(), 100);
+}
+
+function raxScroll() {
+  const msgs = document.getElementById('rax-msgs');
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function raxAddMsg(role, html) {
+  const msgs = document.getElementById('rax-msgs');
+  const div = document.createElement('div');
+  div.className = 'rax-msg ' + role;
+  div.innerHTML = html;
+  msgs.appendChild(div);
+  raxScroll();
+  return div;
+}
+
+function raxMd(text) {
+  return text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')
+    .replace(/\*(.+?)\*/g,'<i>$1</i>')
+    .replace(/`(.+?)`/g,'<code style="background:var(--bg);padding:1px 4px;border-radius:3px;font-size:11px">$1</code>')
+    .replace(/\n/g,'<br>');
+}
+
+async function raxEnviar() {
+  const inp = document.getElementById('rax-input');
+  const texto = inp.value.trim();
+  if (!texto) return;
+  inp.value = ''; inp.style.height = '36px';
+  raxAddMsg('user', raxMd(texto));
+  _raxHistory.push({ role: 'user', content: texto });
+
+  const typing = raxAddMsg('typing', '<span class="rax-dot"></span><span class="rax-dot"></span><span class="rax-dot"></span>');
+
+  try {
+    const r = await fetch(`${PROXY_URL}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: _raxHistory })
+    });
+    const data = await r.json();
+    typing.remove();
+    if (data.erro) {
+      raxAddMsg('assistant', '⚠️ ' + data.erro);
+    } else {
+      _raxHistory.push({ role: 'assistant', content: data.text });
+      raxAddMsg('assistant', raxMd(data.text));
+    }
+  } catch(e) {
+    typing.remove();
+    raxAddMsg('assistant', '⚠️ Erro de conexão. Tente novamente.');
+  }
+}
+
+function raxVoz() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) { alert('Seu navegador não suporta reconhecimento de voz.'); return; }
+
+  _raxRecognition = new SpeechRecognition();
+  _raxRecognition.lang = 'pt-BR';
+  _raxRecognition.interimResults = false;
+  _raxRecognition.maxAlternatives = 1;
+
+  document.getElementById('rax-voice-overlay').style.display = 'flex';
+  document.getElementById('rax-mic').classList.add('listening');
+
+  _raxRecognition.onresult = e => {
+    const transcript = e.results[0][0].transcript;
+    raxPararVoz();
+    document.getElementById('rax-input').value = transcript;
+    raxEnviar();
+  };
+  _raxRecognition.onerror = () => raxPararVoz();
+  _raxRecognition.onend = () => raxPararVoz();
+  _raxRecognition.start();
+}
+
+function raxPararVoz() {
+  if (_raxRecognition) { try { _raxRecognition.stop(); } catch(e){} _raxRecognition = null; }
+  document.getElementById('rax-voice-overlay').style.display = 'none';
+  document.getElementById('rax-mic').classList.remove('listening');
+}
+</script>
 </body>
 </html>

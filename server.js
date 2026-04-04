@@ -3104,6 +3104,43 @@ app.post('/api/rh/nr-certs', async (req, res) => {
   } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
+// ── RAX — Chat Agent (Claude) ─────────────────────────────────────
+app.post('/api/chat', async (req, res) => {
+  const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+  if (!ANTHROPIC_API_KEY) return res.status(500).json({ erro: 'ANTHROPIC_API_KEY não configurada' });
+
+  const { messages } = req.body;
+  if (!Array.isArray(messages) || !messages.length) return res.status(400).json({ erro: 'messages obrigatório' });
+
+  try {
+    const response = await axios.post('https://api.anthropic.com/v1/messages', {
+      model: 'claude-opus-4-5',
+      max_tokens: 1024,
+      system: `Você é RAX (Rangel Analytics X), um agente de análise inteligente integrado ao sistema OPS360 de uma empresa de internet (ISP).
+Responda sempre em português brasileiro de forma direta e objetiva.
+Por padrão, responda apenas em texto simples — não envie imagens, arquivos ou links a menos que o usuário solicite explicitamente.
+Quando precisar exibir dados estruturados, use listas ou tabelas em markdown.
+Você tem acesso ao contexto do sistema OPS360: chamados, atendimento, comercial, cancelamentos, financeiro, RH, conexões.`,
+      messages: messages.map(m => ({
+        role: m.role,
+        content: Array.isArray(m.content) ? m.content : m.content
+      }))
+    }, {
+      headers: {
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json'
+      }
+    });
+
+    const text = response.data.content?.[0]?.text || '';
+    res.json({ text });
+  } catch(e) {
+    const msg = e.response?.data?.error?.message || e.message;
+    res.status(500).json({ erro: msg });
+  }
+});
+
 // ── Inicializa ────────────────────────────────────────────────────
 dbInit(); // cria tabela se não existir (não bloqueia)
 
