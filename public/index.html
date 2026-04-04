@@ -535,8 +535,7 @@ input[type="text"]::placeholder { color:var(--text3); }
       <!-- ═══ DASH-CHAMADOS ═══ -->
       <div id="dash-tab-chamados" style="display:none">
 
-        <!-- Retrabalho analytics card -->
-        <!-- Status dos chamados + Chamados por hora -->
+        <!-- Status dos chamados (donut) -->
         <div class="dash-grid" style="margin-bottom:14px">
           <div class="dash-card">
             <div class="dash-card-title">Status dos chamados <button class="more-btn">···</button></div>
@@ -546,108 +545,6 @@ input[type="text"]::placeholder { color:var(--text3); }
                 <circle cx="70" cy="70" r="52" fill="none" stroke="var(--bg3)" stroke-width="18"/>
               </svg>
               <div class="donut-labels" id="dashDonutLabels"></div>
-            </div>
-          </div>
-          <div class="dash-card">
-            <div class="dash-card-title">Chamados por hora <button class="more-btn">···</button></div>
-            <div class="dash-card-sub">Hoje · Atualizado agora</div>
-            <div class="bar-legend">
-              <div class="bar-legend-item"><div class="bl-sq" style="background:#818cf8;border-radius:2px"></div>Abertos</div>
-              <div class="bar-legend-item"><div class="bl-sq" style="background:#22c55e;border-radius:2px"></div>Fechados</div>
-            </div>
-            <div class="bar-chart" id="barChart" style="height:170px;"></div>
-            <div style="display:flex;justify-content:space-between;padding-top:4px;" id="barLabels"></div>
-          </div>
-        </div>
-
-        <!-- SLA + TM técnico + TM por tipo -->
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px">
-          <div class="tbl-card" style="margin-bottom:0">
-            <div class="tbl-header"><span class="tbl-title">SLA de Chamados</span></div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:8px 4px">
-              <div style="text-align:center">
-                <div style="font-size:28px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--green)" id="dch-sla-ok">—</div>
-                <div style="font-size:11px;color:var(--text3);margin-top:2px">Dentro do SLA</div>
-              </div>
-              <div style="text-align:center">
-                <div style="font-size:28px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--red)" id="dch-sla-fora">—</div>
-                <div style="font-size:11px;color:var(--text3);margin-top:2px">Fora do SLA</div>
-              </div>
-            </div>
-            <div style="padding:0 4px 8px">
-              <div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden;margin-bottom:6px">
-                <div id="dch-sla-bar" style="height:100%;width:0%;background:var(--green);border-radius:4px;transition:.5s"></div>
-              </div>
-              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3)">
-                <span>TMA médio: <span id="dch-sla-tm" style="color:var(--text);font-weight:600">—</span></span>
-                <span>SLA padrão: <span id="dch-sla-limite" style="color:var(--text);font-weight:600">—</span></span>
-              </div>
-            </div>
-          </div>
-
-          <!-- TMA por técnico -->
-          <div class="tbl-card" style="margin-bottom:0">
-            <div class="tbl-header">
-              <span class="tbl-title">TMA por técnico</span>
-              <select id="dch-filtTipo" onchange="renderChamadosDash()" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:3px 8px;color:var(--text);font-size:11px">
-                <option value="">Todos os tipos</option>
-              </select>
-            </div>
-            <div style="overflow-x:auto;max-height:200px;overflow-y:auto">
-              <table><thead><tr>
-                <th>#</th><th>Técnico</th><th>OS</th>
-                <th style="color:#a78bfa">TMA</th>
-              </tr></thead>
-              <tbody id="dch-tm-tec-tbl"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">—</td></tr></tbody></table>
-            </div>
-            <div style="display:flex;justify-content:space-between;padding:8px 16px 6px;font-size:11px;color:var(--text3);border-top:1px solid var(--border)">
-              <span>🏆 Mais rápido: <span id="dch-tm-rapido" style="color:var(--green);font-weight:600">—</span></span>
-              <span>🐢 Mais lento: <span id="dch-tm-lento" style="color:var(--red);font-weight:600">—</span></span>
-            </div>
-          </div>
-
-          <!-- TMA por tipo de chamado -->
-          <div class="tbl-card" style="margin-bottom:0">
-            <div class="tbl-header">
-              <span class="tbl-title">TMA por tipo de chamado</span>
-              <span class="badge b-blue" id="dch-tipo-badge"></span>
-            </div>
-            <div style="overflow-x:auto;max-height:200px;overflow-y:auto">
-              <table><thead><tr>
-                <th>#</th><th>Tipo</th><th>OS</th>
-                <th style="color:#a78bfa">TMA</th>
-              </tr></thead>
-              <tbody id="dch-tm-tipo-tbl"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">—</td></tr></tbody></table>
-            </div>
-          </div>
-        </div>
-
-        <!-- Produção por técnico + Chamados por cidade (com donut) -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-          <div class="tbl-card" style="margin-bottom:0">
-            <div class="tbl-header">
-              <span class="tbl-title">Produção por técnico</span>
-              <span class="badge b-blue" id="tecChartPeriodo"></span>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 220px;gap:16px;padding:8px 4px 4px;align-items:start">
-              <div id="tecBarChart"></div>
-              <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
-                <svg id="tecDonut" width="160" height="160" viewBox="0 0 180 180"></svg>
-                <div id="tecDonutLegend" style="display:flex;flex-direction:column;gap:4px;width:100%"></div>
-              </div>
-            </div>
-          </div>
-          <div class="tbl-card" style="margin-bottom:0">
-            <div class="tbl-header">
-              <span class="tbl-title">Chamados por cidade</span>
-              <span class="badge b-blue" id="cidadeChartPeriodo"></span>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 220px;gap:16px;padding:8px 4px 4px;align-items:start">
-              <div id="cidadeBarChart"></div>
-              <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
-                <svg id="cidadeDonut" width="160" height="160" viewBox="0 0 180 180"></svg>
-                <div id="cidadeDonutLegend" style="display:flex;flex-direction:column;gap:4px;width:100%"></div>
-              </div>
             </div>
           </div>
         </div>
@@ -1059,6 +956,111 @@ input[type="text"]::placeholder { color:var(--text3); }
             <div style="padding:14px 18px">
               <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Por técnico</div>
               <table style="width:100%"><thead><tr><th>Técnico</th><th>Qtd</th><th>Taxa</th><th></th></tr></thead><tbody id="techRtbTbl"></tbody></table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── ANALYTICS ─────────────────────────────────────────────────── -->
+      <!-- Chamados por hora + SLA -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <span class="tbl-title">Chamados por hora</span>
+            <span class="dash-card-sub" style="font-size:11px;color:var(--text3)">Hoje · Atualizado agora</span>
+          </div>
+          <div class="bar-legend" style="padding:0 4px 4px">
+            <div class="bar-legend-item"><div class="bl-sq" style="background:#818cf8;border-radius:2px"></div>Abertos</div>
+            <div class="bar-legend-item"><div class="bl-sq" style="background:#22c55e;border-radius:2px"></div>Fechados</div>
+          </div>
+          <div class="bar-chart" id="barChart" style="height:150px;padding:0 4px"></div>
+          <div style="display:flex;justify-content:space-between;padding:4px 4px 0;" id="barLabels"></div>
+        </div>
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header"><span class="tbl-title">SLA de Chamados</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:8px 4px">
+            <div style="text-align:center">
+              <div style="font-size:28px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--green)" id="dch-sla-ok">—</div>
+              <div style="font-size:11px;color:var(--text3);margin-top:2px">Dentro do SLA</div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-size:28px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--red)" id="dch-sla-fora">—</div>
+              <div style="font-size:11px;color:var(--text3);margin-top:2px">Fora do SLA</div>
+            </div>
+          </div>
+          <div style="padding:0 4px 8px">
+            <div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden;margin-bottom:6px">
+              <div id="dch-sla-bar" style="height:100%;width:0%;background:var(--green);border-radius:4px;transition:.5s"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3)">
+              <span>TMA médio: <span id="dch-sla-tm" style="color:var(--text);font-weight:600">—</span></span>
+              <span>SLA padrão: <span id="dch-sla-limite" style="color:var(--text);font-weight:600">—</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TMA por técnico + TMA por tipo -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <span class="tbl-title">TMA por técnico</span>
+            <select id="dch-filtTipo" onchange="renderChamadosDash()" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:3px 8px;color:var(--text);font-size:11px">
+              <option value="">Todos os tipos</option>
+            </select>
+          </div>
+          <div style="overflow-x:auto;max-height:220px;overflow-y:auto">
+            <table><thead><tr>
+              <th>#</th><th>Técnico</th><th>OS</th>
+              <th style="color:#a78bfa">TMA</th>
+            </tr></thead>
+            <tbody id="dch-tm-tec-tbl"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">—</td></tr></tbody></table>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 16px 6px;font-size:11px;color:var(--text3);border-top:1px solid var(--border)">
+            <span>🏆 Mais rápido: <span id="dch-tm-rapido" style="color:var(--green);font-weight:600">—</span></span>
+            <span>🐢 Mais lento: <span id="dch-tm-lento" style="color:var(--red);font-weight:600">—</span></span>
+          </div>
+        </div>
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <span class="tbl-title">TMA por tipo de chamado</span>
+            <span class="badge b-blue" id="dch-tipo-badge"></span>
+          </div>
+          <div style="overflow-x:auto;max-height:220px;overflow-y:auto">
+            <table><thead><tr>
+              <th>#</th><th>Tipo</th><th>OS</th>
+              <th style="color:#a78bfa">TMA</th>
+            </tr></thead>
+            <tbody id="dch-tm-tipo-tbl"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">—</td></tr></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Produção por técnico + Chamados por cidade -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;margin-bottom:12px">
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <span class="tbl-title">Produção por técnico</span>
+            <span class="badge b-blue" id="tecChartPeriodo"></span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 200px;gap:16px;padding:8px 4px 4px;align-items:start">
+            <div id="tecBarChart"></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+              <svg id="tecDonut" width="160" height="160" viewBox="0 0 180 180"></svg>
+              <div id="tecDonutLegend" style="display:flex;flex-direction:column;gap:4px;width:100%"></div>
+            </div>
+          </div>
+        </div>
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <span class="tbl-title">Chamados por cidade</span>
+            <span class="badge b-blue" id="cidadeChartPeriodo"></span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 200px;gap:16px;padding:8px 4px 4px;align-items:start">
+            <div id="cidadeBarChart"></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+              <svg id="cidadeDonut" width="160" height="160" viewBox="0 0 180 180"></svg>
+              <div id="cidadeDonutLegend" style="display:flex;flex-direction:column;gap:4px;width:100%"></div>
             </div>
           </div>
         </div>
@@ -2472,6 +2474,7 @@ function goPage(id, el) {
   if (id === 'chamados') {
     // DOM já está atualizado pelo autoRefresh — só força rebuild se ainda sem dados
     if (chamadosDB.length === 0) buscarPeriodo();
+    else { renderTecChart(); renderCidadeChart(); renderChamadosDash(); }
   }
   if (id === 'atendimento') {
     if (_atendData) {
