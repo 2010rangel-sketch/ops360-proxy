@@ -7660,7 +7660,7 @@ function renderRhNR() {
     }
     const fmt = d => d ? d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit' }) : '—';
     const tipoAbrev = (c.tipo || '').split(' — ')[0];
-    const nomeAbrev = c.nome.split(' ').slice(0, 2).join(' ');
+    const nomeAbrev = c.nome;
     return `<tr>
       <td style="font-size:11px" title="${c.nome}">${nomeAbrev}</td>
       <td style="font-size:11px;font-weight:600;color:var(--amber)" title="${c.tipo}">${tipoAbrev}</td>
