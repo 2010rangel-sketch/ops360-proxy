@@ -7659,7 +7659,7 @@ function renderRhNR() {
       else                 { status = 'OK';       cor = 'var(--green)'; }
     }
     const fmt = d => d ? d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit' }) : '—';
-    const tipoAbrev = (c.tipo || '').replace('— ', '').split(' — ')[0].replace(/^(NR\d+|Outro).*/, '$1');
+    const tipoAbrev = (c.tipo || '').split(' — ')[0];
     const nomeAbrev = c.nome.split(' ').slice(0, 2).join(' ');
     return `<tr>
       <td style="font-size:11px" title="${c.nome}">${nomeAbrev}</td>
