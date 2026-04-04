@@ -3003,6 +3003,7 @@ function renderStatusLanes() {
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:3px">
             <span style="font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--text3)">${c.id}</span>
+            <span data-wx="${c.id}"></span>
             ${lane.st==='finalizado' && (c.tsFimExec || c.fimExec) ? `
               <span style="display:flex;align-items:center;gap:3px;font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--green)">
                 <i class="fas fa-check-circle" style="font-size:8px"></i>
@@ -3116,7 +3117,7 @@ function renderMainTable() {
         <span style="font-size:12px">${c.cidade}</span>
       </div>
     </td>
-    <td class="mono" style="font-size:11px;color:var(--text3)">${c.dataProgramada ? `<span style="display:block;font-size:10px;color:var(--text3);opacity:.7">${new Date(c.dataProgramada).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}</span>${c.ab||'--'}` : c.ab||'--'}</td>
+    <td class="mono" style="font-size:11px;color:var(--text3)">${c.dataProgramada ? `<span style="display:block;font-size:10px;color:var(--text3);opacity:.7">${new Date(c.dataProgramada).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}</span>${c.ab||'--'}` : c.ab||'--'} <span data-wx="${c.id}"></span></td>
     <td class="mono" style="font-size:11px;color:${c.inicioExec?'var(--accent)':'var(--text3)'}">${c.inicioExec||'--'}</td>
     <td class="mono" style="font-size:11px;color:${c.fimExec?'var(--green)':c.st==='atrasado'?'var(--red)':'var(--text3)'};font-weight:${c.fimExec||c.st==='atrasado'?'600':'400'}">${c.fimExec||'--'}</td>
     <td>${stBadge[c.st]||''}</td>
@@ -3651,6 +3652,7 @@ function rebuildAll() {
   renderTmMensalChart();
   renderRtbInsight();
   renderChamadosDash();
+  loadAllWeather();
   const el = document.getElementById('lastSync');
   if(el) el.textContent = new Date().toLocaleTimeString('pt-BR');
   // Atualiza contadores da nav lateral
@@ -3788,6 +3790,63 @@ function aplicarDados(dados) {
   buildTiposConfig();
   populateDropdowns();
   applyFilters();
+}
+
+// ── WEATHER — Open-Meteo (gratuito, sem API key) ────────────────────────────
+const _wxGeoCache  = {};  // cidade → {lat, lon}
+const _wxForeCache = {};  // `lat,lon,YYYY-MM-DD` → array 24h de precipitation_probability
+
+async function _wxGetCoords(cidade) {
+  if (_wxGeoCache[cidade] !== undefined) return _wxGeoCache[cidade];
+  try {
+    const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cidade)}&count=1&language=pt&format=json`);
+    const d = await r.json();
+    if (d.results?.length) {
+      const {latitude:lat, longitude:lon} = d.results[0];
+      return (_wxGeoCache[cidade] = {lat, lon});
+    }
+  } catch(e) {}
+  return (_wxGeoCache[cidade] = null);
+}
+
+async function _wxGetProb(lat, lon, isoDate) {
+  const d = new Date(isoDate);
+  const dateStr = d.toISOString().slice(0,10);
+  const hour    = d.getHours();
+  const key     = `${lat.toFixed(3)},${lon.toFixed(3)},${dateStr}`;
+  if (_wxForeCache[key]) return _wxForeCache[key][hour] ?? null;
+  try {
+    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=precipitation_probability&timezone=America%2FSao_Paulo&start_date=${dateStr}&end_date=${dateStr}`);
+    const data = await r.json();
+    if (data.hourly?.precipitation_probability) {
+      _wxForeCache[key] = data.hourly.precipitation_probability;
+      return _wxForeCache[key][hour] ?? null;
+    }
+  } catch(e) {}
+  return null;
+}
+
+function _wxBadge(prob) {
+  if (prob === null || prob === undefined) return '';
+  if (prob < 15) return '';
+  const color = prob >= 60 ? '#60a5fa' : '#93c5fd';
+  return `<span title="Chance de chuva: ${prob}%" style="display:inline-flex;align-items:center;gap:2px;font-size:9px;background:${color}22;color:${color};padding:1px 4px;border-radius:3px;font-weight:600;vertical-align:middle">💧${prob}%</span>`;
+}
+
+async function _wxLoadOne(c) {
+  if (!c.dataProgramada || !c.cidade) return;
+  const coords = await _wxGetCoords(c.cidade);
+  if (!coords) return;
+  const prob = await _wxGetProb(coords.lat, coords.lon, c.dataProgramada);
+  document.querySelectorAll(`[data-wx="${c.id}"]`).forEach(el => { el.innerHTML = _wxBadge(prob); });
+}
+
+function loadAllWeather() {
+  if (!chamadosDB.length) return;
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  chamadosDB
+    .filter(c => c.dataProgramada && c.cidade && new Date(c.dataProgramada) >= hoje)
+    .forEach(c => _wxLoadOne(c));
 }
 
 // ── AUTO-REFRESH A CADA 30s — busca dados reais do Hubsoft ────────
