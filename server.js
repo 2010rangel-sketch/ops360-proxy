@@ -1057,6 +1057,9 @@ app.get('/api/retencao', async (req, res) => {
 
 
 // ── Cancelamentos de Serviço — por motivo, com lista de clientes ──
+const _cancelServCache = {};
+const CANCEL_SERV_TTL  = 5 * 60 * 1000; // 5 min
+
 app.get('/api/cancelamentos-servico', async (req, res) => {
   try {
     const { data_inicio, data_fim } = req.query;
@@ -1066,6 +1069,13 @@ app.get('/api/cancelamentos-servico', async (req, res) => {
     const fimStr = data_fim ? data_fim.slice(0, 10)
       : (() => { const fim = new Date(agora.getFullYear(), agora.getMonth()+1, 0); return fim.toISOString().slice(0,10); })();
 
+    // Cache por chave de período
+    const cacheKey = `${iniStr}-${fimStr}`;
+    const cached = _cancelServCache[cacheKey];
+    if (cached && (Date.now() - cached.ts) < CANCEL_SERV_TTL) {
+      return res.json({ ...cached.data, cache: true });
+    }
+
     // Busca clientes com data_cancelamento no período via filtro nativo da API
     const token = await getToken();
     const params = {
@@ -1074,9 +1084,10 @@ app.get('/api/cancelamentos-servico', async (req, res) => {
       data_inicio_cliente_servico: iniStr,
       data_fim_cliente_servico: fimStr,
     };
+    // maxPag=15: filtro por data já limita bastante os resultados (1-5 páginas normalmente)
     const [ativos, cancelados] = await Promise.all([
-      fetchIntegracaoClientes(token, { ...params, cancelado: 'nao' }, 50),
-      fetchIntegracaoClientes(token, { ...params, cancelado: 'sim' }, 50),
+      fetchIntegracaoClientes(token, { ...params, cancelado: 'nao' }, 15),
+      fetchIntegracaoClientes(token, { ...params, cancelado: 'sim' }, 15),
     ]);
     const todos = [...ativos, ...cancelados];
 
@@ -1137,9 +1148,14 @@ app.get('/api/cancelamentos-servico', async (req, res) => {
       .sort((a, b) => b.total - a.total)
       .map(m => ({ ...m, clientes: m.clientes.sort((a,b) => (b.data||'') > (a.data||'') ? 1 : -1) }));
 
-    res.json({ ok: true, total, total_ativo, total_passivo, por_motivo, periodo: { ini: iniStr, fim: fimStr } });
+    const result = { ok: true, total, total_ativo, total_passivo, por_motivo, periodo: { ini: iniStr, fim: fimStr } };
+    _cancelServCache[cacheKey] = { data: result, ts: Date.now() };
+    res.json(result);
   } catch(err) {
     console.error('/api/cancelamentos-servico:', err.message);
+    // Se tem cache antigo para este período, retorna stale
+    const stale = _cancelServCache[`${iniStr}-${fimStr}`];
+    if (stale) return res.json({ ...stale.data, cache: 'stale' });
     res.status(500).json({ ok: false, erro: err.message });
   }
 });

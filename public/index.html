@@ -4274,7 +4274,8 @@ async function loadCancelServico() {
 
     const badge = document.getElementById('ret-cancel-geral-badge');
     if (!data.ok) {
-      if (tbl) tbl.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Erro ao carregar</td></tr>';
+      if (tbl) tbl.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Erro ao carregar — tentando em 15s</td></tr>';
+      setTimeout(() => loadCancelServico(), 15000);
       return;
     }
     if (badge) badge.textContent = data.total ?? '—';
