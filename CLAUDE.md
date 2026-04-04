@@ -1,28 +1,31 @@
 # OPS360 — Mapa do projeto para Claude (NÃO LER OS ARQUIVOS INTEIROS)
 
 > **INSTRUÇÃO**: Antes de ler qualquer arquivo, consulte as linhas exatas aqui.
-> `server.js` = 3.410 linhas / ~160 KB (~40k tokens se lido inteiro)
-> `public/index.html` = 8.123 linhas / ~480 KB (~121k tokens se lido inteiro)
+> `server.js` = 3.454 linhas / ~162 KB (~41k tokens se lido inteiro)
+> `public/index.html` = 8.135 linhas / ~482 KB (~121k tokens se lido inteiro)
 > Use `Read` com `offset` + `limit` para ler só o trecho necessário.
 
 ---
 
 ## Stack
-- **Backend**: Node.js/Express — `server.js` — deploy no Railway + Vercel
-- **Frontend**: Vanilla JS SPA — `public/index.html` (CSS + HTML + JS em arquivo único)
+- **Backend**: Node.js/Express — `server.js` — deploy no **Railway** (processo persistente, cache em RAM)
+- **Frontend**: Vanilla JS SPA — `public/index.html` (CSS + HTML + JS em arquivo único) — deploy no **Vercel** (estático)
 - **DB**: PostgreSQL (`kv_store`) para cache persistente; helpers `kvGet/kvSet/dbCacheGet/dbCacheSet`
 - **API externa**: Hubsoft (ERP ISP) — token Bearer renovado automaticamente
+- **Arquitetura**: Vercel serve só `public/index.html`; todas as chamadas `/api/*` são proxied para Railway
 
 ---
 
 ## Arquivos relevantes
 | Arquivo | Linhas | Descrição |
 |---|---|---|
-| `server.js` | 3.410 | Proxy/API backend completo |
-| `public/index.html` | 8.123 | SPA completo (CSS + HTML + JS) |
+| `server.js` | 3.454 | Proxy/API backend completo |
+| `public/index.html` | 8.135 | SPA completo (CSS + HTML + JS) |
 | `package.json` | ~20 | dependências |
+| `package-lock.json` | — | lock file (necessário para Railway build) |
 | `railway.toml` | ~5 | config deploy Railway |
-| `vercel.json` | ~10 | config deploy Vercel |
+| `nixpacks.toml` | ~8 | força `npm install` no build (Railway usa nixpacks) |
+| `vercel.json` | ~12 | serve HTML estático + proxy `/api/*` → Railway |
 | `data/tasks.json` | variável | tarefas (JSON) |
 
 ---
@@ -43,23 +46,24 @@
 | 1059–1165 | **Cancelamentos de Serviço**: cache `_cancelServCache` (5min por período), endpoint `/api/cancelamentos-servico` |
 | 1166–1307 | **Remoções**: cache `_remCacheMap` (5min + DB), endpoint `/api/remocoes` |
 | 1308–1448 | **Comercial**: `fetchIntegracaoClientes`, `buildVendasFromClientes`, `buildComResult` |
-| 1449–1468 | `warmupComercial()` — aquece cache de clientes no boot |
-| 1469–1560 | **Boot restore + warm-ups**: restaura todos os caches do PostgreSQL no startup; financeiro warm-up 120s; cron financeiro 25min |
-| 1561–1720 | Endpoints debug (raramente modificados) |
-| 1721–1743 | `/api/resumo` — KPIs do dia |
-| 1744–1900 | **Financeiro helper**: `normalizarStatus`, `normalizarTipo`, endpoint `/api/financeiro` |
-| 1901–1965 | **Tarefas CRUD**: `loadTasks`, `saveTasks`, endpoints GET/POST/PUT/DELETE |
-| 1966–2110 | **Notificações**: `getNotifConfig`, `sendEmail`, `sendWhatsApp` |
-| 2158–2305 | **Conexões**: `getClienteAssinante`, `buildCidadeMap`, `fetchConexoesHubsoft`, endpoint `/api/conexoes` |
-| 2306–2610 | **Financeiro `buildFinanceiro()`**: análise completa de clientes ativos + cancelados |
-| 2611–2860 | **Adição Líquida**: `buildAdicaoLiquida`, endpoint `/api/financeiro/adicao-liquida` |
-| 2861–2910 | **Fiscal**: cache `_fiscalCache` (30min), endpoint `/api/fiscal` |
-| 2911–2955 | **Estoque**: cache `_estoqueCache` (30min), endpoint `/api/estoque` |
-| 2956–3160 | **RH (RHiD)**: `rhidLogin`, `rhidGet`, `buildRh`, endpoint `/api/rh` |
-| 3161–3210 | Fallback arquivo (sem Postgres), storage RH endpoints |
-| 3211–3324 | **PostgreSQL**: `getPool`, `dbInit`, `kvGet`, `kvSet`, `dbCacheGet`, `dbCacheSet`, `dbCacheRestore` |
-| 3325–3400 | **RAX (chat agent Claude)**: endpoint `/api/rax` |
-| 3403–3410 | `app.listen` / inicialização |
+| 1449–1468 | `warmupComercial()` — aquece cache de clientes ativos no boot (não persiste no DB — array grande) |
+| 1469–1570 | **Boot restore + warm-ups**: restaura caches do PostgreSQL; warm-up comercial 5s; financeiro 65s; cancelados-geral 90s; cron financeiro 25min |
+| 1552–1565 | `warmupCanceladosGeral()` — cancelados históricos em background (6h TTL, não persiste no DB) |
+| 1571–1730 | Endpoints debug (raramente modificados) |
+| 1731–1753 | `/api/resumo` — KPIs do dia |
+| 1754–1910 | **Financeiro helper**: `normalizarStatus`, `normalizarTipo`, endpoint `/api/financeiro` |
+| 1911–1975 | **Tarefas CRUD**: `loadTasks`, `saveTasks`, endpoints GET/POST/PUT/DELETE |
+| 1976–2120 | **Notificações**: `getNotifConfig`, `sendEmail`, `sendWhatsApp` |
+| 2168–2315 | **Conexões**: `getClienteAssinante`, `buildCidadeMap`, `fetchConexoesHubsoft`, endpoint `/api/conexoes` |
+| 2316–2650 | **Financeiro `buildFinanceiro()`**: análise completa; LTV usa `s.data_habilitacao` (ISO) do serviço ativo; MRR recuperado por mês |
+| 2651–2870 | **Adição Líquida**: `buildAdicaoLiquida`, endpoint `/api/financeiro/adicao-liquida` |
+| 2871–2920 | **Fiscal**: cache `_fiscalCache` (30min), endpoint `/api/fiscal` |
+| 2921–2965 | **Estoque**: cache `_estoqueCache` (30min), endpoint `/api/estoque` |
+| 2966–3170 | **RH (RHiD)**: `rhidLogin`, `rhidGet`, `buildRh`, endpoint `/api/rh` |
+| 3171–3220 | Fallback arquivo (sem Postgres), storage RH endpoints |
+| 3221–3340 | **PostgreSQL**: `getPool`, `dbInit`, `kvGet`, `kvSet`, `dbCacheGet`, `dbCacheSet`, `dbCacheRestore` |
+| 3341–3410 | **RAX (chat agent Claude)**: endpoint `/api/rax` |
+| 3413–3454 | `app.listen` / inicialização |
 
 ### Cache TTLs (server.js)
 | Cache | TTL RAM | Persiste DB? |
@@ -71,8 +75,9 @@
 | Cancelamentos serviço | 5min por período | não |
 | Financeiro | 30min | sim |
 | Fiscal / Estoque | 30min | não |
-| Comercial (clientes) | 30min | sim |
-| Conexões | ~5min | sim |
+| Comercial (clientes ativos) | 30min | **não** — array 15k+ estoura cota KV |
+| Cancelados históricos | 6h | **não** — array grande |
+| Conexões | ~5min | sim (só cidades, sem clientes raw) |
 
 ---
 
@@ -98,12 +103,12 @@
 
 ## MAPA index.html — funções JS por linha
 
-### Navegação (2311–2400)
+### Navegação (2311–2410)
 | Linha | Função |
 |---|---|
-| 2327 | `goPage(id, el)` — troca de página; guarda stale de atendimentos só se do dia atual |
+| 2327 | `goPage(id, el)` — troca de página; reseta live-pill para "Ao vivo" ao sair do Comercial |
 
-### Chamados (2401–3540)
+### Chamados (2411–3545)
 | Linha | Função |
 |---|---|
 | 2477 | `setPeriodo(p, el)` |
@@ -134,7 +139,7 @@
 | Linha | Função |
 |---|---|
 | 4470 | `showDashTab()` — chama render*, incluindo `renderDashFinanceiro`, `renderDashRh` |
-| 4986 | `renderDashFinanceiro()` |
+| 4986 | `renderDashFinanceiro()` — exibe `mrr_recup_atual`, `mrr_recup_anterior` |
 | 5003 | `renderDashRh()` |
 | 5026 | `renderDashConexoes()` |
 
@@ -144,7 +149,7 @@
 | 4340 | `loadRetencaoAtend()` — badge: `ret-atend-sync` |
 | 4362 | `renderRetencao(data)` |
 
-### Comercial (5485–5930)
+### Comercial (5485–5945)
 | Linha | Função |
 |---|---|
 | 5485 | `getComDates()` |
@@ -153,7 +158,7 @@
 | 5570 | `renderComercialAtualiza(data)` |
 | 5666 | `renderComBarras(...)` |
 | 5828 | `renderComUltimas(ultimas)` |
-| 5882 | `loadComercial()` — badge: `com-sync-badge`; retry automático em 30s em caso de erro não-403 |
+| 5882 | `loadComercial()` — badge: `com-sync-badge`; escreve horário na live-pill do topbar; retry em 30s em erro não-403 |
 
 ### Remoções (6030–6155)
 | Linha | Função |
@@ -166,14 +171,14 @@
 | 6156 | `initConexoesMap()` |
 | 6268 | `loadConexoes()` |
 
-### Financeiro (6342–6750)
+### Financeiro (6342–6755)
 | Linha | Função |
 |---|---|
 | 6342 | `loadFinanceiro(force)` — badge: `fin-sync-badge`; retry em 20s se `motivo==='carregando'` |
-| 6372 | `renderFinanceiro(d)` |
+| 6372 | `renderFinanceiro(d)` — preenche `fin-mrr-recup-atual`, `fin-mrr-recup-ant`, `fin-reat-atual-n`, `fin-reat-ant-n` |
 | 6582 | `loadAdicaoLiquida(force)` |
 
-### Fiscal / Estoque / RH (6750–8020)
+### Fiscal / Estoque / RH (6755–8020)
 | Linha | Função |
 |---|---|
 | 6750 | `loadFiscal(force)` |
@@ -182,7 +187,7 @@
 | 7141 | `_aplicarRhDados(employees, nome)` — chama `renderRhDashboard()` + `renderDashRh()` |
 | 7346 | `renderRhDashboard(emps)` |
 
-### RAX + Init (~7910–8123)
+### RAX + Init (~7910–8135)
 | Linha | O que faz |
 |---|---|
 | ~7914 | `_restoreRhFromStorage()`, `_nrRestoreFromServer()`, `renderRhNR()` — init RH |
@@ -201,6 +206,7 @@
 | `fin-sync-badge` | Página Financeiro | `loadFinanceiro()` |
 | `lastSyncChamados` | Chamados (AO VIVO) | `rebuildAll()`, `autoRefresh()` |
 | `lastSync` | Dashboard | `rebuildAll()`, `autoRefresh()` |
+| `live-pill-text` | Topbar (span dentro da pill) | `loadComercial()` escreve horário; `goPage()` reseta para "Ao vivo" |
 
 > ⚠️ NUNCA duplicar `id=` no HTML. Antes de criar um id, grep para confirmar que não existe.
 
@@ -232,13 +238,19 @@ _comFiltro          // { type: 'cidade'|'vendedor'|'plano', val: string }
 3. **`autoRefresh` a cada 10s**: só busca chamados se período = "hoje"
 4. **Background refresh chamados**: servidor faz `_refreshChamadosHoje` a cada 15s, independente do frontend
 5. **Hubsoft paginação**: `fetchIntegracaoClientes` percorre até 30 páginas de 500 clientes
-6. **Fuso horário BRT (UTC-3)**: NUNCA usar `.setHours()` no servidor — o servidor Railway roda em UTC. Sempre ancorar datas BRT como `new Date(dataStr + 'T03:00:00.000Z')` (= meia-noite BRT). Frontend envia datas como `YYYY-MM-DD` (sem hora).
-7. **Financeiro stale-while-revalidate**: se cache expirado, retorna dado antigo imediatamente e recalcula em background. Frontend detecta `motivo==='carregando'` e tenta de novo em 20s.
-8. **Comercial cancelados em try-catch**: `fetchIntegracaoClientes` para cancelados pode falhar — está em try-catch com fallback de array vazio. Frontend faz retry em 30s para erros não-403.
-9. **Cancelamentos-serviço cache por período**: `_cancelServCache[iniStr-fimStr]` com TTL 5min. Em erro, retorna stale se disponível.
+6. **Fuso horário BRT (UTC-3)**: NUNCA usar `.setHours()` no servidor — o servidor Railway roda em UTC. Sempre ancorar datas BRT como `new Date(dataStr + 'T03:00:00.000Z')`. Frontend envia datas como `YYYY-MM-DD` (sem hora).
+7. **Financeiro NUNCA síncrono**: `buildFinanceiro()` demora 90-120s. NUNCA fazer `await buildFinanceiro()` inline em request handler — sempre disparar em background e responder imediatamente.
+8. **Não persistir arrays brutos no DB**: `_comAllClientes` (15k+) e `_comAllCancelados` nunca são salvos no DB — estouram a cota de transferência do Vercel KV. Apenas dados computados (pequenos) são persistidos.
+9. **LTV usa `s.data_habilitacao` do serviço ativo**: não usar `cli.data_cadastro` (pode refletir data de atualização do cadastro). Converter para ISO `YYYY-MM-DD` antes de salvar em `dataCad` (Hubsoft retorna em `DD/MM/YYYY`). Serviços reativados têm `data_cancelamento` preenchida mas status ativo — não filtrar por `!isCan`.
+10. **Comercial cancelados em try-catch**: fetch de cancelados pode falhar — fallback de array vazio. Frontend faz retry em 30s para erros não-403.
+11. **Railway build**: usa Nixpacks com `nixpacks.toml` forçando `npm install` (não `npm ci`). `package-lock.json` deve estar no repo para evitar falha de build.
+12. **Vercel é só estático**: `server.js` NÃO roda no Vercel. Vercel serve `public/index.html` e faz proxy de `/api/*` para Railway. Qualquer lógica de servidor deve estar no Railway.
 
 ---
 
 ## Deploy
-- Push `main` → Railway (backend) + Vercel (frontend static) deploy automático
+- Push `main` → Railway (backend, processo persistente) + Vercel (frontend estático) deploy automático
 - Railway reinicia servidor: caches RAM perdidos, PostgreSQL restaura em ~2s
+- Boot sequence: 2s (dbInit) → 5s (warmup comercial ~55s) → 65s (warmup financeiro) → 90s (warmup cancelados-geral)
+- URL Railway: `ops360-proxy-production.up.railway.app`
+- URL Vercel: `ops360-proxy.vercel.app`
