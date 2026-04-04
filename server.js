@@ -1498,14 +1498,27 @@ async function warmupComercial() {
 setTimeout(() => warmupComercial().catch(console.warn), 5000);
 // Warm-up de conexões logo após o comercial (10s delay para não sobrecarregar)
 setTimeout(() => fetchConexoesHubsoft().catch(console.warn), 10000);
-// Warm-up do financeiro (15s — espera outros warm-ups iniciarem primeiro)
+// Warm-up do financeiro (120s — espera comercial terminar de carregar ~15k clientes)
 setTimeout(() => {
+  // Só executa se cache está ausente ou vencido, e não há rebuild em andamento
+  if (_finFetching || (_finCache && (Date.now() - _finFetchedAt) < FIN_CACHE_TTL)) return;
+  _finFetching = true;
   buildFinanceiro().then(r => {
-    _finCache = r; _finFetchedAt = Date.now();
+    _finCache = r; _finFetchedAt = Date.now(); _finFetching = false;
     dbCacheSet('cache:financeiro', r);
     console.log('[financeiro] warm-up OK + salvo no banco');
-  }).catch(e => console.warn('[financeiro] warm-up falhou:', e.message));
-}, 15000);
+  }).catch(e => { _finFetching = false; console.warn('[financeiro] warm-up falhou:', e.message); });
+}, 120000);
+// Cron: renova cache do financeiro a cada 25min (antes do TTL de 30min expirar)
+setInterval(() => {
+  if (_finFetching || !_finCache) return; // não duplica rebuild
+  _finFetching = true;
+  buildFinanceiro().then(r => {
+    _finCache = r; _finFetchedAt = Date.now(); _finFetching = false;
+    dbCacheSet('cache:financeiro', r);
+    console.log('[financeiro] cron 25min OK');
+  }).catch(e => { _finFetching = false; console.warn('[financeiro] cron falhou:', e.message); });
+}, 25 * 60 * 1000);
 // Warm-up retenção mês atual (20s)
 setTimeout(async () => {
   try {
@@ -2773,12 +2786,13 @@ app.get('/api/financeiro', async (req, res) => {
   try {
     const agora = Date.now();
     const force = req.query.force === '1';
-    // 1) Cache em memória (mais rápido)
+    if (force) { _finCache = null; _finFetchedAt = 0; }
+
+    // 1) Cache em memória fresco → retorna imediatamente
     if (!force && _finCache && (agora - _finFetchedAt) < FIN_CACHE_TTL) {
       return res.json(_finCache);
     }
-    if (force) { _finCache = null; _finFetchedAt = 0; }
-    // 2) Cache no PostgreSQL (sobrevive a redeploys)
+    // 2) Cache no PostgreSQL fresco → retorna imediatamente
     if (!force) {
       const dbCached = await dbCacheGet('cache:financeiro', FIN_CACHE_TTL);
       if (dbCached) {
@@ -2786,16 +2800,27 @@ app.get('/api/financeiro', async (req, res) => {
         return res.json({ ...dbCached, cache: 'db' });
       }
     }
+    // 3) Cache expirado mas existe → retorna stale + rebuild em background (sem bloquear)
+    if (_finCache && !_finFetching) {
+      _finFetching = true;
+      buildFinanceiro().then(r => {
+        _finCache = r; _finFetchedAt = Date.now(); _finFetching = false;
+        dbCacheSet('cache:financeiro', r);
+        console.log('[financeiro] refresh em background OK');
+      }).catch(e => { _finFetching = false; console.warn('[financeiro] bg refresh falhou:', e.message); });
+      return res.json({ ..._finCache, cache: 'stale' });
+    }
+    // 4) Rebuild em andamento e tem cache antigo → retorna stale
+    if (_finFetching && _finCache) return res.json({ ..._finCache, cache: 'stale' });
+    // 5) Rebuild em andamento sem cache → aguarda
     if (_finFetching) {
-      if (_finCache) return res.json({ ..._finCache, cache: true });
       return res.json({ ok: false, motivo: 'carregando', info: 'Análise financeira em andamento. Aguarde ~30s.' });
     }
+    // 6) Sem cache nenhum → rebuild síncrono (primeira vez)
     _finFetching = true;
-    const result      = await buildFinanceiro();
-    _finCache         = result;
-    _finFetchedAt     = agora;
-    _finFetching      = false;
-    dbCacheSet('cache:financeiro', result); // salva no banco sem bloquear
+    const result  = await buildFinanceiro();
+    _finCache     = result; _finFetchedAt = agora; _finFetching = false;
+    dbCacheSet('cache:financeiro', result);
     res.json(result);
   } catch (e) {
     _finFetching = false;

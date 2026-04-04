@@ -6337,6 +6337,11 @@ async function loadFinanceiro(force = false) {
     const r   = await fetch(url);
     const d   = await r.json();
     if (!d.ok) {
+      if (d.motivo === 'carregando') {
+        if (badge) { badge.textContent = 'Preparando... tentando em 20s'; badge.className = 'badge b-amber'; }
+        setTimeout(() => loadFinanceiro(), 20000);
+        return;
+      }
       if (badge) { badge.textContent = d.info || d.motivo || 'Erro'; badge.className = 'badge b-red'; }
       return;
     }
