@@ -487,7 +487,7 @@ input[type="text"]::placeholder { color:var(--text3); }
     <div class="topbar-left">
       <button class="icon-btn" id="menuBtn" onclick="toggleSidebar()" style="display:none"><i class="fas fa-bars"></i></button>
       <div class="topbar-breadcrumb"><span id="pageTitle">Comercial</span></div>
-      <div class="live-pill"><div class="live-dot"></div> Ao vivo</div>
+      <div class="live-pill"><div class="live-dot"></div> <span id="live-pill-text">Ao vivo</span></div>
     </div>
     <div class="topbar-right">
       <div class="topbar-clock" id="clock">--:--:--</div>
@@ -2349,6 +2349,9 @@ function goPage(id, el) {
   if(el) el.classList.add('active');
   const titles = {chamados:'Chamados',atendimento:'Atendimento',comercial:'Comercial',retencao:'Cancelamento / Retenção',conexoes:'Conexões',financeiro:'Financeiro',fiscal:'Fiscal',estoque:'Estoque',rh:'RH',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
   document.getElementById('pageTitle').textContent = titles[id]||id;
+  // Reseta pill para "Ao vivo" ao trocar de página (comercial escreve o horário quando carrega)
+  const pill = document.getElementById('live-pill-text');
+  if (pill && id !== 'comercial') pill.textContent = 'Ao vivo';
   // Restaura dados em memória ao navegar de volta para páginas com dados
   if (id === 'chamados') {
     // DOM já está atualizado pelo autoRefresh — só força rebuild se ainda sem dados
@@ -2372,6 +2375,12 @@ function goPage(id, el) {
     loadRemocoes();
   }
   if (id === 'comercial') {
+    // Se já tem dados em cache, mostra o horário da última sincronização imediatamente
+    const badge = document.getElementById('com-sync-badge');
+    if (badge && badge.className.includes('b-green')) {
+      const p = document.getElementById('live-pill-text');
+      if (p) p.textContent = badge.textContent.replace('Atualizado ', '');
+    }
     loadComercial();
   }
   if (id === 'conexoes') {
@@ -5932,8 +5941,10 @@ async function loadComercial() {
     renderComercialAtualiza(data);
     renderComCanceladosDetalhe(data);
 
-    const hora = new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+    const hora = new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
     if (badge) { badge.textContent = `Atualizado ${hora}`; badge.className = 'badge b-green'; }
+    const pill = document.getElementById('live-pill-text');
+    if (pill) pill.textContent = hora;
   } catch(e) {
     if (badge) { badge.textContent = 'Erro'; badge.className = 'badge b-red'; }
     console.warn('Comercial:', e.message);
