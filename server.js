@@ -2463,11 +2463,13 @@ async function buildFinanceiro() {
         parciaisSusp.push({ nome, plano, valor, cidade, vendedor, status, dataHab: s.data_habilitacao });
       }
 
-      if ((isOn || isSusp || isParcial) && dataCadCli && !isCan) {
-        const m = mesesEntre(dataCadCli, agora);
+      // LTV: usa data_habilitacao do serviço ativo (não data_cadastro do cliente)
+      // Evita puxar data de serviço cancelado ou data_cadastro desatualizada
+      if ((isOn || isSusp || isParcial) && dataHab && !isCan) {
+        const m = mesesEntre(dataHab, agora);
         ltvCandidates.push({
           nome, cidade, plano, valor,
-          dataCad:    cli.data_cadastro,
+          dataCad:    s.data_habilitacao,
           mesesAtivo: Math.round(m * 10) / 10,
           ltvDinheiro: Math.round(m * valor),
           tempoFmt:    fmtTempoFin(m),
@@ -2489,7 +2491,16 @@ async function buildFinanceiro() {
     }
   }
 
+  // Ordena por data mais antiga primeiro, depois deduplica por cliente — mantém só o serviço ativo mais antigo
   ltvCandidates.sort((a, b) => new Date(a.dataCad) - new Date(b.dataCad));
+  const ltvSeen = new Set();
+  const ltvDedup = ltvCandidates.filter(c => {
+    if (ltvSeen.has(c.nome)) return false;
+    ltvSeen.add(c.nome);
+    return true;
+  });
+  ltvCandidates.length = 0;
+  ltvCandidates.push(...ltvDedup);
 
   // Primeira mensalidade por vendedor
   const primMap = {};
