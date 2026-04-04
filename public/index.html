@@ -4029,7 +4029,7 @@ function renderAtendimentosFiltrado() {
         : a.total;
       const pctRes = a.total > 0 ? Math.round(a.semOS / a.total * 100) : 0;
       const pctOS  = a.total > 0 ? Math.round(a.comOS / a.total * 100) : 0;
-      return `<tr onclick="setAtendFiltroAt(${JSON.stringify(a.atendente)})" style="cursor:pointer;${ativo?'background:var(--surface3,rgba(255,255,255,.06));outline:1px solid var(--accent)':''}">
+      return `<tr onclick='setAtendFiltroAt(${JSON.stringify(a.atendente)})' style="cursor:pointer;${ativo?'background:var(--surface3,rgba(255,255,255,.06));outline:1px solid var(--accent)':''}">
       <td style="color:var(--text3)">${i+1}</td>
       <td style="font-weight:500;color:${ativo?'var(--accent)':'var(--text)'}">${a.atendente}${a.setor ? `<br><span style="font-size:10px;color:var(--text3)">${a.setor}</span>` : ''}</td>
       <td class="mono" style="font-weight:600">${totalExib}${_atendFiltroTipo&&totalExib!==a.total?`<span style="font-size:9px;color:var(--text3);display:block">${a.total} total</span>`:''}</td>
@@ -4066,7 +4066,7 @@ function renderAtendimentosFiltrado() {
       const ativo   = filtSetor === s.setor;
       const atSel_setor = atSel?.setor || 'Sem setor';
       const destaque = _atendFiltroAt && (atSel_setor === s.setor || (!atSel?.setor && s.setor === 'Sem setor'));
-      return `<tr onclick="filtrarPorSetor(${JSON.stringify(s.setor)})" style="cursor:pointer;${ativo?'background:rgba(91,106,240,.08);outline:1px solid var(--accent);border-radius:4px':destaque?'background:rgba(34,197,94,.06);outline:1px solid rgba(34,197,94,.4);border-radius:4px':''}">
+      return `<tr onclick='filtrarPorSetor(${JSON.stringify(s.setor)})' style="cursor:pointer;${ativo?'background:rgba(91,106,240,.08);outline:1px solid var(--accent);border-radius:4px':destaque?'background:rgba(34,197,94,.06);outline:1px solid rgba(34,197,94,.4);border-radius:4px':''}">
         <td style="color:var(--text3)">${i+1}</td>
         <td style="font-weight:600;color:${ativo?'var(--accent)':destaque?'#22c55e':'var(--text)'}">${s.setor}${ativo?' <span style="font-size:10px">✕</span>':destaque?` <span style="font-size:10px;color:rgba(34,197,94,.7)">(selecionado)</span>`:''}</td>
         <td class="mono" style="font-weight:600">${s.total}</td>
