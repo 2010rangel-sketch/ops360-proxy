@@ -879,11 +879,18 @@ app.get('/api/retencao', async (req, res) => {
     const ini = data_inicio || iniMes.toISOString();
     const fim = data_fim    || fimMes.toISOString();
 
-    // Cache hit
+    // 1) Cache em memória
     const retKey = `${ini.slice(0,10)}-${fim.slice(0,10)}-${all||'false'}`;
     const retCached = _retCacheMap[retKey];
     if (retCached && (Date.now() - retCached.ts) < RET_CACHE_TTL) {
       return res.json({ ...retCached.data, cache: true });
+    }
+    // 2) Cache no PostgreSQL
+    const dbRetKey = `cache:retencao:${retKey}`;
+    const dbRetCached = await dbCacheGet(dbRetKey, RET_CACHE_TTL);
+    if (dbRetCached) {
+      _retCacheMap[retKey] = { data: dbRetCached, ts: Date.now() };
+      return res.json({ ...dbRetCached, cache: 'db' });
     }
 
     // Fetch all atendimentos in period (parallel pagination)
@@ -1007,6 +1014,7 @@ app.get('/api/retencao', async (req, res) => {
       sincronizado_em: new Date().toISOString(),
     };
     _retCacheMap[retKey] = { data: retResult, ts: Date.now() };
+    dbCacheSet(dbRetKey, retResult); // salva no banco sem bloquear
     res.json(retResult);
   } catch (err) {
     console.error('Erro /api/retencao:', err.message);
@@ -1119,9 +1127,17 @@ app.get('/api/remocoes', async (req, res) => {
       : (() => { const f = new Date(agora.getFullYear(), agora.getMonth()+1, 0); return f.toISOString().slice(0,10); })();
 
     const remKey = `${iniStr}-${fimStr}`;
+    // 1) Cache em memória
     const remCached = _remCacheMap[remKey];
     if (remCached && (Date.now() - remCached.ts) < REM_CACHE_TTL) {
       return res.json({ ...remCached.data, cache: true });
+    }
+    // 2) Cache no PostgreSQL
+    const dbRemKey = `cache:remocoes:${remKey}`;
+    const dbRemCached = await dbCacheGet(dbRemKey, REM_CACHE_TTL);
+    if (dbRemCached) {
+      _remCacheMap[remKey] = { data: dbRemCached, ts: Date.now() };
+      return res.json({ ...dbRemCached, cache: 'db' });
     }
 
     const iniMs = new Date(iniStr).getTime();
@@ -1229,6 +1245,7 @@ app.get('/api/remocoes', async (req, res) => {
       periodo: { ini: iniStr, fim: fimStr },
     };
     _remCacheMap[remKey] = { data: remResult, ts: Date.now() };
+    dbCacheSet(dbRemKey, remResult); // salva no banco sem bloquear
     res.json(remResult);
   } catch(err) {
     console.error('/api/remocoes:', err.message);
@@ -1403,13 +1420,39 @@ async function warmupComercial() {
   _comFetching = false;
 }
 
+// ── Restaura caches do banco no boot (instantâneo para todos os usuários) ──
+(async () => {
+  try {
+    // Aguarda dbInit criar a tabela antes de tentar ler
+    await new Promise(r => setTimeout(r, 2000));
+    // Financeiro
+    const fin = await dbCacheRestore('cache:financeiro');
+    if (fin) { _finCache = fin; _finFetchedAt = Date.now(); console.log('[boot] financeiro restaurado do banco'); }
+    // Retenção mês atual
+    const agora = new Date();
+    const retIni = new Date(agora.getFullYear(), agora.getMonth(), 1).toISOString().slice(0,10);
+    const retFim = new Date(agora.getFullYear(), agora.getMonth()+1, 0, 23, 59, 59).toISOString().slice(0,10);
+    const retKeyBoot = `${retIni}-${retFim}-false`;
+    const ret = await dbCacheRestore(`cache:retencao:${retKeyBoot}`);
+    if (ret) { _retCacheMap[retKeyBoot] = { data: ret, ts: Date.now() }; console.log('[boot] retencao restaurada do banco'); }
+    // Remoções mês atual
+    const remKeyBoot = `${retIni}-${retFim}`;
+    const rem = await dbCacheRestore(`cache:remocoes:${remKeyBoot}`);
+    if (rem) { _remCacheMap[remKeyBoot] = { data: rem, ts: Date.now() }; console.log('[boot] remocoes restauradas do banco'); }
+  } catch(e) { console.warn('[boot] restauração do banco falhou:', e.message); }
+})();
+
 // Inicia warm-up assim que o servidor sobe (sem await — não bloqueia)
 setTimeout(() => warmupComercial().catch(console.warn), 5000);
 // Warm-up de conexões logo após o comercial (10s delay para não sobrecarregar)
 setTimeout(() => fetchConexoesHubsoft().catch(console.warn), 10000);
 // Warm-up do financeiro (15s — espera outros warm-ups iniciarem primeiro)
 setTimeout(() => {
-  buildFinanceiro().then(r => { _finCache = r; _finFetchedAt = Date.now(); console.log('[financeiro] warm-up OK'); }).catch(e => console.warn('[financeiro] warm-up falhou:', e.message));
+  buildFinanceiro().then(r => {
+    _finCache = r; _finFetchedAt = Date.now();
+    dbCacheSet('cache:financeiro', r);
+    console.log('[financeiro] warm-up OK + salvo no banco');
+  }).catch(e => console.warn('[financeiro] warm-up falhou:', e.message));
 }, 15000);
 // Warm-up retenção mês atual (20s)
 setTimeout(async () => {
@@ -2677,10 +2720,19 @@ app.get('/api/financeiro', async (req, res) => {
   try {
     const agora = Date.now();
     const force = req.query.force === '1';
+    // 1) Cache em memória (mais rápido)
     if (!force && _finCache && (agora - _finFetchedAt) < FIN_CACHE_TTL) {
       return res.json(_finCache);
     }
     if (force) { _finCache = null; _finFetchedAt = 0; }
+    // 2) Cache no PostgreSQL (sobrevive a redeploys)
+    if (!force) {
+      const dbCached = await dbCacheGet('cache:financeiro', FIN_CACHE_TTL);
+      if (dbCached) {
+        _finCache = dbCached; _finFetchedAt = agora;
+        return res.json({ ...dbCached, cache: 'db' });
+      }
+    }
     if (_finFetching) {
       if (_finCache) return res.json({ ..._finCache, cache: true });
       return res.json({ ok: false, motivo: 'carregando', info: 'Análise financeira em andamento. Aguarde ~30s.' });
@@ -2690,6 +2742,7 @@ app.get('/api/financeiro', async (req, res) => {
     _finCache         = result;
     _finFetchedAt     = agora;
     _finFetching      = false;
+    dbCacheSet('cache:financeiro', result); // salva no banco sem bloquear
     res.json(result);
   } catch (e) {
     _finFetching = false;
@@ -3080,6 +3133,39 @@ async function kvSet(key, value) {
     console.error('[kvSet]', e.message);
     return false;
   }
+}
+
+// ── Cache persistente com TTL (PostgreSQL) ────────────────────────
+// dbCacheGet: retorna dados se chave existir e não estiver expirada
+async function dbCacheGet(key, ttlMs) {
+  try {
+    const pool = getPool(); if (!pool) return null;
+    const r = await pool.query(
+      'SELECT value, updated_at FROM kv_store WHERE key=$1', [key]
+    );
+    if (!r.rows[0]) return null;
+    const age = Date.now() - new Date(r.rows[0].updated_at).getTime();
+    if (age > ttlMs) return null;
+    return JSON.parse(r.rows[0].value);
+  } catch { return null; }
+}
+
+// dbCacheSet: salva dados no PostgreSQL
+async function dbCacheSet(key, data) {
+  try {
+    await kvSet(key, JSON.stringify(data));
+  } catch(e) { console.warn('[dbCacheSet]', key, e.message); }
+}
+
+// dbCacheRestore: carrega cache do banco para memória sem verificar TTL
+// (usado no boot para reaquecer variáveis de memória — mesmo dado "expirado"
+//  é melhor que nada enquanto o warm-up real acontece em background)
+async function dbCacheRestore(key) {
+  try {
+    const pool = getPool(); if (!pool) return null;
+    const r = await pool.query('SELECT value FROM kv_store WHERE key=$1', [key]);
+    return r.rows[0] ? JSON.parse(r.rows[0].value) : null;
+  } catch { return null; }
 }
 
 // ── Fallback arquivo (Railway sem Postgres, dev local) ────────────
