@@ -495,119 +495,137 @@ app.get('/api/debug-servico-campos', async (req, res) => {
   } catch(err) { res.status(500).json({ erro: err.message }); }
 });
 
+// ── Cache de Chamados (em memória + DB) ──────────────────────────
+const _chamadosCache = new Map(); // key → { data, ts }
+const CHAMADOS_HOJE_TTL   = 20 * 1000;   // 20s para "hoje" (ao vivo)
+const CHAMADOS_HIST_TTL   = 5 * 60 * 1000; // 5min para períodos históricos
+let   _chamadosRefreshing = false;
+
+// Extrai a lista de OS da resposta do Hubsoft e normaliza
+async function _fetchChamadosHubsoft(data_inicio, data_fim, all) {
+  let lista = [];
+  if (all) {
+    const PAGE_SIZE = 500; const MAX_PAGES = 50;
+    const body1 = bodyConsultaOS({ data_inicio, data_fim });
+    const data1 = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=1`, body1);
+    const page1Lista = extrairLista(data1);
+    lista.push(...page1Lista);
+    const { lastPage, total, perPage } = extrairPaginacao(data1);
+    let totalPages = lastPage || (total && perPage ? Math.ceil(total / perPage) : null);
+    const knowsTotal = !!totalPages;
+    if (!totalPages) totalPages = page1Lista.length >= PAGE_SIZE ? MAX_PAGES : 1;
+    totalPages = Math.min(totalPages, MAX_PAGES);
+    if (totalPages > 1) {
+      if (knowsTotal) {
+        const pages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+        const results = await Promise.all(pages.map(async pg => {
+          const d = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=${pg}`, bodyConsultaOS({ data_inicio, data_fim }));
+          return extrairLista(d);
+        }));
+        for (const r of results) lista.push(...r);
+      } else {
+        let pg = 2;
+        while (pg <= MAX_PAGES) {
+          const d = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=${pg}`, bodyConsultaOS({ data_inicio, data_fim }));
+          const r = extrairLista(d);
+          lista.push(...r);
+          if (r.length < PAGE_SIZE) break;
+          pg++;
+        }
+      }
+    }
+  } else {
+    const body = bodyConsultaOS({ data_inicio, data_fim, limit: 200, page: 1 });
+    lista = extrairLista(await hubsoftPost(`v1/ordem_servico/consultar/paginado/200?page=1`, body));
+  }
+  return lista;
+}
+
+function _normalizarChamados(lista) {
+  return lista.map(os => {
+    const tipo  = os.tipo_ordem_servico?.descricao || os.tipo_os?.nome || 'Sem tipo';
+    const tecs  = os.tecnicos || [];
+    const tec   = tecs.map(t => t.name || t.nome || t.display).filter(Boolean).join(', ') || 'Sem técnico';
+    const cs    = os.atendimento?.cliente_servico;
+    const end   = cs?.endereco_instalacao;
+    const coords = end?.endereco_numero?.coordenadas?.coordinates || end?.coordenadas?.coordinates;
+    const cidade = end?.endereco_numero?.cidade?.nome || end?.cidade?.nome || end?.cidade?.display || cs?.cliente?.cidade?.nome || 'Sem cidade';
+    const cidId  = end?.endereco_numero?.id_cidade || end?.id_cidade || end?.cidade?.id_cidade || null;
+    const cli    = cs?.display || cs?.cliente?.nome_razaosocial || cs?.cliente?.display || 'Cliente';
+    const stBase = normalizarStatus(os.status || '');
+    const execAtiva = stBase === 'aguardando' && (os.executando === true || (Array.isArray(os.reservas) && os.reservas.some(r => r.servico_iniciado && !r.desreservada)));
+    const stVal = execAtiva ? 'em_execucao' : (os.status || '');
+    return {
+      id: `#${os.id_ordem_servico || os.id}`, cli,
+      cat: normalizarTipo(tipo), tipo, tec, cidade, cidadeId: cidId,
+      ab: (os.hora_inicio_programado || '').slice(0, 5) || formatarHora(os.data_inicio_programado || os.data_cadastro),
+      dataProgramada: os.data_inicio_programado || os.data_cadastro || null,
+      slaMin: os.tipo_ordem_servico?.prazo_execucao || 240,
+      inicioExec: (os.hora_inicio_executado || '').slice(0, 5) || null,
+      fimExec:    (os.hora_termino_executado || '').slice(0, 5) || null,
+      tsInicioExec: os.data_inicio_executado || null,
+      tsFimExec:    os.data_termino_executado || null,
+      st: normalizarStatus(stVal), rtb: tipo.toLowerCase().includes('retrabalho'),
+      rtbOrig: os.id_ordem_servico_origem ? `#${os.id_ordem_servico_origem}` : null,
+      rtbMotivo: os.descricao_retrabalho || null,
+      reagMotivo: normalizarStatus(stVal) === 'reagendado' ? (os.motivo_reagendamento || 'Reagendado') : null,
+      lat: coords ? parseFloat(coords[1]) || null : null,
+      lng: coords ? parseFloat(coords[0]) || null : null,
+      motivoFech: (() => { const mf = os.motivo_fechamento; if (!mf) return ''; if (typeof mf === 'string') return mf; if (Array.isArray(mf)) return mf.map(m => m?.descricao || m?.nome || '').filter(Boolean).join(', '); return mf?.descricao || mf?.nome || ''; })(),
+      raw: os,
+    };
+  });
+}
+
+// Refresh proativo do cache "hoje" — chamado pelo cron a cada 15s
+async function _refreshChamadosHoje() {
+  if (_chamadosRefreshing) return;
+  _chamadosRefreshing = true;
+  try {
+    const hoje  = new Date().toISOString().slice(0, 10);
+    const amanha = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const lista = await _fetchChamadosHubsoft(hoje, amanha, true);
+    const chamados = _normalizarChamados(lista);
+    const result = { ok: true, total: chamados.length, chamados, sincronizado_em: new Date().toISOString() };
+    _chamadosCache.set('hoje', { data: result, ts: Date.now() });
+    dbCacheSet('cache:chamados:hoje', result); // persiste no banco
+    console.log(`[chamados] cache atualizado: ${chamados.length} OS`);
+  } catch(e) { console.warn('[chamados] refresh falhou:', e.message); }
+  _chamadosRefreshing = false;
+}
+
 // ── Ordens de Serviço (Chamados) ─────────────────────────────────
 app.get('/api/chamados', async (req, res) => {
   try {
     const { data_inicio, data_fim, limit = 200, page = 1, all } = req.query;
 
-    let lista = [];
-    if (all === 'true') {
-      const PAGE_SIZE = 500;
-      const MAX_PAGES = 50;
-      // Fetch page 1 to discover total pages
-      const body1 = bodyConsultaOS({ data_inicio, data_fim });
-      const data1 = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=1`, body1);
-      const page1Lista = extrairLista(data1);
-      lista.push(...page1Lista);
-      const { lastPage, total, perPage } = extrairPaginacao(data1);
-      // Determine total pages from metadata
-      let totalPages = lastPage || (total && perPage ? Math.ceil(total / perPage) : null);
-      const knowsTotal = !!totalPages;
-      if (!totalPages) totalPages = page1Lista.length >= PAGE_SIZE ? MAX_PAGES : 1;
-      totalPages = Math.min(totalPages, MAX_PAGES);
-      console.log(`[chamados] page 1: ${page1Lista.length} | totalPages=${totalPages} | total=${total} | knowsTotal=${knowsTotal}`);
+    // Determina chave de cache
+    const hoje  = new Date().toISOString().slice(0, 10);
+    const isHoje = !data_inicio || data_inicio.slice(0, 10) === hoje;
+    const cacheKey = isHoje && all === 'true' ? 'hoje'
+      : `${(data_inicio||'').slice(0,10)}-${(data_fim||'').slice(0,10)}-${all||'false'}`;
+    const ttl = isHoje ? CHAMADOS_HOJE_TTL : CHAMADOS_HIST_TTL;
 
-      if (totalPages > 1) {
-        if (knowsTotal) {
-          // Todas as páginas restantes em paralelo (máxima velocidade)
-          const pages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
-          const results = await Promise.all(pages.map(async pg => {
-            const body = bodyConsultaOS({ data_inicio, data_fim });
-            const d = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=${pg}`, body);
-            return extrairLista(d);
-          }));
-          for (const r of results) lista.push(...r);
-          console.log(`[chamados] parallel ${pages.length} pages: total ${lista.length}`);
-        } else {
-          // Sequential fallback — stop as soon as a page returns < PAGE_SIZE
-          let pg = 2;
-          while (pg <= MAX_PAGES) {
-            const body = bodyConsultaOS({ data_inicio, data_fim });
-            const d = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=${pg}`, body);
-            const r = extrairLista(d);
-            lista.push(...r);
-            console.log(`[chamados] seq page ${pg}: ${r.length} records`);
-            if (r.length < PAGE_SIZE) break;
-            pg++;
-          }
-        }
-      }
-    } else {
-      const body = bodyConsultaOS({ data_inicio, data_fim, limit, page });
-      const data = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${limit}?page=${page}`, body);
-      lista = extrairLista(data);
+    // 1) Cache em memória
+    const mem = _chamadosCache.get(cacheKey);
+    if (mem && (Date.now() - mem.ts) < ttl) {
+      return res.json({ ...mem.data, cache: 'mem' });
+    }
+    // 2) Cache no PostgreSQL (sobrevive redeploy)
+    const dbC = await dbCacheGet(`cache:chamados:${cacheKey}`, ttl);
+    if (dbC) {
+      _chamadosCache.set(cacheKey, { data: dbC, ts: Date.now() });
+      return res.json({ ...dbC, cache: 'db' });
     }
 
-    const chamados = lista.map(os => {
-      const tipo  = os.tipo_ordem_servico?.descricao || os.tipo_os?.nome || 'Sem tipo';
-      const tecs  = os.tecnicos || [];
-      const tec   = tecs.map(t => t.name || t.nome || t.display).filter(Boolean).join(', ') || 'Sem técnico';
-      const cs     = os.atendimento?.cliente_servico;
-      const end    = cs?.endereco_instalacao;
-      const coords = end?.endereco_numero?.coordenadas?.coordinates || end?.coordenadas?.coordinates;
-      const cidade = end?.endereco_numero?.cidade?.nome
-                  || end?.cidade?.nome
-                  || end?.cidade?.display
-                  || cs?.cliente?.cidade?.nome
-                  || 'Sem cidade';
-      const cidId  = end?.endereco_numero?.id_cidade
-                  || end?.id_cidade
-                  || end?.cidade?.id_cidade
-                  || null;
-      const cli    = cs?.display || cs?.cliente?.nome_razaosocial || cs?.cliente?.display || 'Cliente';
-      const statusBase = os.status || '';
-      // Hubsoft mobile: status fica "pendente" mas reserva tem servico_iniciado=true,desreservada=false
-      // Só eleva para execucao se ainda NÃO finalizado (evita reclassificar finalizados com reservas antigas)
-      const stBase = normalizarStatus(statusBase);
-      const execAtiva = stBase === 'aguardando' && (
-        os.executando === true ||
-        (Array.isArray(os.reservas) && os.reservas.some(r => r.servico_iniciado && !r.desreservada))
-      );
-      const stVal = execAtiva ? 'em_execucao' : statusBase;
-      return {
-        id:         `#${os.id_ordem_servico || os.id}`,
-        cli,
-        cat:        normalizarTipo(tipo),
-        tipo,
-        tec,
-        cidade,
-        cidadeId:   cidId,
-        ab:             (os.hora_inicio_programado||'').slice(0,5) || formatarHora(os.data_inicio_programado || os.data_cadastro),
-        dataProgramada: os.data_inicio_programado || os.data_cadastro || null,
-        slaMin:         os.tipo_ordem_servico?.prazo_execucao || 240,
-        inicioExec:     (os.hora_inicio_executado||'').slice(0,5) || null,
-        fimExec:        (os.hora_termino_executado||'').slice(0,5) || null,
-        tsInicioExec:   os.data_inicio_executado || null,
-        tsFimExec:      os.data_termino_executado || null,
-        st:         normalizarStatus(stVal),
-        rtb:        tipo.toLowerCase().includes('retrabalho'),
-        rtbOrig:    os.id_ordem_servico_origem ? `#${os.id_ordem_servico_origem}` : null,
-        rtbMotivo:  os.descricao_retrabalho || null,
-        reagMotivo: normalizarStatus(stVal) === 'reagendado' ? (os.motivo_reagendamento || 'Reagendado') : null,
-        lat:        coords ? parseFloat(coords[1]) || null : null,
-        lng:        coords ? parseFloat(coords[0]) || null : null,
-        motivoFech: (() => {
-          const mf = os.motivo_fechamento;
-          if (!mf) return '';
-          if (typeof mf === 'string') return mf;
-          if (Array.isArray(mf)) return mf.map(m => m?.descricao || m?.nome || '').filter(Boolean).join(', ');
-          return mf?.descricao || mf?.nome || '';
-        })(),
-        raw:        os,
-      };
-    });
+    // 3) Busca no Hubsoft
+    const lista    = await _fetchChamadosHubsoft(data_inicio, data_fim, all === 'true');
+    const chamados = _normalizarChamados(lista);
+    const result   = { ok: true, total: chamados.length, chamados, sincronizado_em: new Date().toISOString() };
+    _chamadosCache.set(cacheKey, { data: result, ts: Date.now() });
+    dbCacheSet(`cache:chamados:${cacheKey}`, result);
 
-    res.json({ ok: true, total: chamados.length, chamados, sincronizado_em: new Date().toISOString() });
+    res.json(result);
   } catch (err) {
     console.error('Erro /api/chamados:', err.message);
     res.status(500).json({ ok: false, erro: err.message });
@@ -663,6 +681,10 @@ app.get('/api/tipos-os', async (req, res) => {
   }
 });
 
+// ── Cache Atendimentos ────────────────────────────────────────────
+const _atendCacheMap = {};
+const ATEND_CACHE_TTL = 5 * 60 * 1000; // 5 min
+
 // ── Atendimentos — por período, agrupado por atendente/setor/tipo ─
 app.get('/api/atendimentos', async (req, res) => {
   try {
@@ -679,6 +701,13 @@ app.get('/api/atendimentos', async (req, res) => {
       ini = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
       fim = new Date(ini.getTime() + 24*60*60*1000);
     }
+
+    // Cache key
+    const atendKey = `${ini.toISOString().slice(0,10)}-${fim.toISOString().slice(0,10)}-${all||'false'}`;
+    const atendMem = _atendCacheMap[atendKey];
+    if (atendMem && (Date.now() - atendMem.ts) < ATEND_CACHE_TTL) return res.json({ ...atendMem.data, cache: 'mem' });
+    const atendDb = await dbCacheGet(`cache:atendimentos:${atendKey}`, ATEND_CACHE_TTL);
+    if (atendDb) { _atendCacheMap[atendKey] = { data: atendDb, ts: Date.now() }; return res.json({ ...atendDb, cache: 'db' }); }
 
     // Período fixo 7 dias para recorrência (usado em fetchAtendPages abaixo)
 
@@ -852,12 +881,14 @@ app.get('/api/atendimentos', async (req, res) => {
     };
 
     const periodo = req.query.periodo || 'custom';
-    res.json({
-      ok: true,
-      total: parsed.length,
+    const atendResult = {
+      ok: true, total: parsed.length,
       por_atendente, por_setor, por_tipo, clientes_recorrentes, lc_virtual, noc, periodo,
       sincronizado_em: new Date().toISOString(),
-    });
+    };
+    _atendCacheMap[atendKey] = { data: atendResult, ts: Date.now() };
+    dbCacheSet(`cache:atendimentos:${atendKey}`, atendResult);
+    res.json(atendResult);
   } catch (err) {
     console.error('Erro /api/atendimentos:', err.message);
     res.status(500).json({ ok: false, erro: err.message });
@@ -1411,8 +1442,9 @@ async function warmupComercial() {
       { cancelado: 'nao', relacoes: 'endereco_instalacao' }, 999);
     // Só atualiza cache quando a busca completa (evita race condition)
     _comAllClientes = clientes;
-    _comCancelados  = null; // limpa — será buscado por período em cada query
+    _comCancelados  = null;
     _comFetchedAt   = Date.now();
+    dbCacheSet('cache:com_clientes', clientes); // persiste no banco — sobrevive redeploy
     console.log(`[comercial] Cache populado: ${clientes.length} ativos`);
   } catch(e) {
     console.warn('[comercial] Warm-up falhou:', e.message);
@@ -1420,25 +1452,45 @@ async function warmupComercial() {
   _comFetching = false;
 }
 
-// ── Restaura caches do banco no boot (instantâneo para todos os usuários) ──
+// ── Restaura TODOS os caches do banco no boot ────────────────────
 (async () => {
   try {
-    // Aguarda dbInit criar a tabela antes de tentar ler
-    await new Promise(r => setTimeout(r, 2000));
+    await new Promise(r => setTimeout(r, 2000)); // aguarda dbInit
+    const agora = new Date();
+    const hoje  = agora.toISOString().slice(0,10);
+    const mesIni = new Date(agora.getFullYear(), agora.getMonth(), 1).toISOString().slice(0,10);
+    const mesFim = new Date(agora.getFullYear(), agora.getMonth()+1, 0, 23,59,59).toISOString().slice(0,10);
+
+    // Chamados hoje
+    const ch = await dbCacheRestore('cache:chamados:hoje');
+    if (ch) { _chamadosCache.set('hoje', { data: ch, ts: Date.now() }); console.log('[boot] chamados restaurados do banco'); }
     // Financeiro
     const fin = await dbCacheRestore('cache:financeiro');
-    if (fin) { _finCache = fin; _finFetchedAt = Date.now(); console.log('[boot] financeiro restaurado do banco'); }
-    // Retenção mês atual
-    const agora = new Date();
-    const retIni = new Date(agora.getFullYear(), agora.getMonth(), 1).toISOString().slice(0,10);
-    const retFim = new Date(agora.getFullYear(), agora.getMonth()+1, 0, 23, 59, 59).toISOString().slice(0,10);
-    const retKeyBoot = `${retIni}-${retFim}-false`;
-    const ret = await dbCacheRestore(`cache:retencao:${retKeyBoot}`);
-    if (ret) { _retCacheMap[retKeyBoot] = { data: ret, ts: Date.now() }; console.log('[boot] retencao restaurada do banco'); }
-    // Remoções mês atual
-    const remKeyBoot = `${retIni}-${retFim}`;
-    const rem = await dbCacheRestore(`cache:remocoes:${remKeyBoot}`);
-    if (rem) { _remCacheMap[remKeyBoot] = { data: rem, ts: Date.now() }; console.log('[boot] remocoes restauradas do banco'); }
+    if (fin) { _finCache = fin; _finFetchedAt = Date.now(); console.log('[boot] financeiro restaurado'); }
+    // Retenção
+    const retKey = `${mesIni}-${mesFim}-false`;
+    const ret = await dbCacheRestore(`cache:retencao:${retKey}`);
+    if (ret) { _retCacheMap[retKey] = { data: ret, ts: Date.now() }; console.log('[boot] retencao restaurada'); }
+    // Remoções
+    const remKey = `${mesIni}-${mesFim}`;
+    const rem = await dbCacheRestore(`cache:remocoes:${remKey}`);
+    if (rem) { _remCacheMap[remKey] = { data: rem, ts: Date.now() }; console.log('[boot] remocoes restauradas'); }
+    // Atendimentos hoje
+    const atKey = `${hoje}-${hoje}-false`;
+    const at = await dbCacheRestore(`cache:atendimentos:${atKey}`);
+    if (at) { _atendCacheMap[atKey] = { data: at, ts: Date.now() }; console.log('[boot] atendimentos restaurados'); }
+    // Fiscal
+    const fsc = await dbCacheRestore('cache:fiscal');
+    if (fsc) { _fiscalCache = fsc; _fiscalFetchedAt = Date.now(); console.log('[boot] fiscal restaurado'); }
+    // Estoque
+    const esq = await dbCacheRestore('cache:estoque');
+    if (esq) { _estoqueCache = esq; _estoqueFetchedAt = Date.now(); console.log('[boot] estoque restaurado'); }
+    // Comercial (clientes ativos — grande, mas crítico para performance)
+    const com = await dbCacheRestore('cache:com_clientes');
+    if (com && com.length) { _comAllClientes = com; _comFetchedAt = Date.now(); console.log(`[boot] comercial restaurado: ${com.length} clientes`); }
+    // Conexões
+    const cx = await dbCacheRestore('cache:conexoes');
+    if (cx?.cidades) { _cxCache = { clientes: [], cidades: cx.cidades, ts: cx.ts }; console.log('[boot] conexoes restauradas'); }
   } catch(e) { console.warn('[boot] restauração do banco falhou:', e.message); }
 })();
 
@@ -2211,6 +2263,7 @@ async function fetchConexoesHubsoft() {
 
     const cidades = buildCidadeMap(resultado);
     _cxCache = { clientes: resultado, cidades, ts: new Date().toISOString() };
+    dbCacheSet('cache:conexoes', { cidades, ts: _cxCache.ts }); // persiste resumo no banco (sem clientes raw)
     console.log(`[conexoes] Cache atualizado: ${resultado.length} clientes, ${cidades.length} cidades`);
     _cxFetching = false;
     return resultado;
@@ -2752,6 +2805,11 @@ app.get('/api/financeiro', async (req, res) => {
   }
 });
 
+// Cron: refresh chamados "hoje" a cada 15s (ao vivo)
+setInterval(() => _refreshChamadosHoje().catch(console.warn), 15000);
+// Dispara o primeiro refresh após 3s (após boot restore)
+setTimeout(() => _refreshChamadosHoje().catch(console.warn), 3000);
+
 // Cron: atualiza cache e detecta quedas (a cada 3 minutos)
 const OFFLINE_THRESHOLD = parseInt(process.env.OFFLINE_THRESHOLD || '5');
 cron.schedule('*/3 * * * *', async () => {
@@ -2799,8 +2857,17 @@ cron.schedule('*/3 * * * *', async () => {
 });
 
 // ── FISCAL ─────────────────────────────────────────────────────────────────
+let _fiscalCache = null; let _fiscalFetchedAt = 0;
+const FISCAL_CACHE_TTL = 30 * 60 * 1000;
+
 app.get('/api/fiscal', async (req, res) => {
   try {
+    const force = req.query.force === '1';
+    if (!force && _fiscalCache && (Date.now() - _fiscalFetchedAt) < FISCAL_CACHE_TTL) return res.json(_fiscalCache);
+    if (!force) {
+      const dbF = await dbCacheGet('cache:fiscal', FISCAL_CACHE_TTL);
+      if (dbF) { _fiscalCache = dbF; _fiscalFetchedAt = Date.now(); return res.json({ ...dbF, cache: 'db' }); }
+    }
     const token = await getToken();
     const headers = { Authorization: `Bearer ${token}` };
     const candidatos = [
@@ -2823,7 +2890,10 @@ app.get('/api/fiscal', async (req, res) => {
         endpoints_testados[ep] = { disponivel: false, erro: e.response?.status || 'timeout' };
       }
     }
-    res.json({ ok: true, endpoint_ativo, endpoints_testados, dados: dados || [], total: dados?.length || 0 });
+    const fiscalResult = { ok: true, endpoint_ativo, endpoints_testados, dados: dados || [], total: dados?.length || 0 };
+    _fiscalCache = fiscalResult; _fiscalFetchedAt = Date.now();
+    dbCacheSet('cache:fiscal', fiscalResult);
+    res.json(fiscalResult);
   } catch (e) {
     console.error('[/api/fiscal]', e.message);
     res.json({ ok: false, motivo: e.message });
@@ -2831,8 +2901,17 @@ app.get('/api/fiscal', async (req, res) => {
 });
 
 // ── ESTOQUE ─────────────────────────────────────────────────────────────────
+let _estoqueCache = null; let _estoqueFetchedAt = 0;
+const ESTOQUE_CACHE_TTL = 30 * 60 * 1000;
+
 app.get('/api/estoque', async (req, res) => {
   try {
+    const force = req.query.force === '1';
+    if (!force && _estoqueCache && (Date.now() - _estoqueFetchedAt) < ESTOQUE_CACHE_TTL) return res.json(_estoqueCache);
+    if (!force) {
+      const dbE = await dbCacheGet('cache:estoque', ESTOQUE_CACHE_TTL);
+      if (dbE) { _estoqueCache = dbE; _estoqueFetchedAt = Date.now(); return res.json({ ...dbE, cache: 'db' }); }
+    }
     const token = await getToken();
     const headers = { Authorization: `Bearer ${token}` };
     const candidatos = [
@@ -2855,7 +2934,10 @@ app.get('/api/estoque', async (req, res) => {
         endpoints_testados[ep] = { disponivel: false, erro: e.response?.status || 'timeout' };
       }
     }
-    res.json({ ok: true, endpoint_ativo, endpoints_testados, items: items || [], total: items?.length || 0 });
+    const estoqueResult = { ok: true, endpoint_ativo, endpoints_testados, items: items || [], total: items?.length || 0 };
+    _estoqueCache = estoqueResult; _estoqueFetchedAt = Date.now();
+    dbCacheSet('cache:estoque', estoqueResult);
+    res.json(estoqueResult);
   } catch (e) {
     console.error('[/api/estoque]', e.message);
     res.json({ ok: false, motivo: e.message });

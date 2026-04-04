@@ -3889,8 +3889,10 @@ async function loadAtendimentos() {
     const qs = `data_inicio=${encodeURIComponent(ini)}&data_fim=${encodeURIComponent(fim)}${useAll ? '&all=true' : ''}&periodo=${encodeURIComponent(atendPeriodo)}`;
     const res  = await fetch(`${PROXY_URL}/api/atendimentos?${qs}`);
     const data = await res.json();
-    if (data.ok) renderAtendimentos(data);
-    else { if (badge) { badge.textContent = 'Erro'; badge.className = 'badge b-red'; } }
+    if (data.ok) {
+      try { localStorage.setItem('ops360_atend_cache', JSON.stringify({ data, ts: Date.now() })); } catch {}
+      renderAtendimentos(data);
+    } else { if (badge) { badge.textContent = 'Erro'; badge.className = 'badge b-red'; } }
   } catch(e) {
     console.warn('Erro ao buscar atendimentos:', e.message);
     if (badge) { badge.textContent = 'Erro'; badge.className = 'badge b-red'; }
@@ -6737,6 +6739,7 @@ async function loadFiscal(force = false) {
     const r = await fetch(`${PROXY_URL}/api/fiscal${force ? '?force=1' : ''}`);
     const d = await r.json();
     _fiscData = d;
+    if (d.ok) { try { localStorage.setItem('ops360_fisc_cache', JSON.stringify({ data: d, ts: Date.now() })); } catch {} }
     renderFiscal(d);
     if (badge) {
       const hora = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
@@ -6799,6 +6802,7 @@ async function loadEstoque(force = false) {
     const r = await fetch(`${PROXY_URL}/api/estoque${force ? '?force=1' : ''}`);
     const d = await r.json();
     _esqData = d;
+    if (d.ok) { try { localStorage.setItem('ops360_esq_cache', JSON.stringify({ data: d, ts: Date.now() })); } catch {} }
     renderEstoque(d);
     if (badge) {
       const hora = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
@@ -6871,35 +6875,30 @@ function filterEstoque(txt) {
 
 // AUTO-INIT
 (function() {
-  // Passo 1 — restaura caches de localStorage (exibição instantânea)
-  const FIN_TTL = 35 * 60 * 1000;
-  const RET_TTL = 10 * 60 * 1000;
-  const COM_TTL = 35 * 60 * 1000;
-  try {
-    const fc = JSON.parse(localStorage.getItem('ops360_fin_cache') || 'null');
-    if (fc && (Date.now() - fc.ts) < FIN_TTL) { _finData = fc.data; }
-  } catch {}
-  try {
-    const rc = JSON.parse(localStorage.getItem('ops360_ret_cache') || 'null');
-    if (rc && (Date.now() - rc.ts) < RET_TTL) { _retData = rc.data; }
-  } catch {}
-  try {
-    const cc = JSON.parse(localStorage.getItem('ops360_com_cache') || 'null');
-    if (cc && (Date.now() - cc.ts) < COM_TTL) { _comData = cc.data; renderComercialAtualiza(cc.data); }
-  } catch {}
+  // Passo 1 — restaura todos os caches do localStorage (exibição instantânea)
+  const _lcGet = (key, ttl) => { try { const v = JSON.parse(localStorage.getItem(key)||'null'); return v && (Date.now()-v.ts)<ttl ? v.data : null; } catch { return null; } };
+  const _fin = _lcGet('ops360_fin_cache', 35*60*1000); if (_fin) { _finData = _fin; }
+  const _ret = _lcGet('ops360_ret_cache', 10*60*1000); if (_ret) { _retData = _ret; }
+  const _com = _lcGet('ops360_com_cache', 35*60*1000); if (_com) { _comData = _com; renderComercialAtualiza(_com); }
+  const _atd = _lcGet('ops360_atend_cache', 10*60*1000); if (_atd) { _atendData = _atd; }
+  const _fsc = _lcGet('ops360_fisc_cache', 35*60*1000); if (_fsc) { _fiscData = _fsc; }
+  const _esq = _lcGet('ops360_esq_cache', 35*60*1000);  if (_esq) { _esqData = _esq; renderEstoque(_esq); }
   // Passo 2 — chamados em background (para quando o usuário navegar)
   autoRefresh();
   // Passo 3 — Comercial imediato (página inicial)
   loadComercial().catch(()=>{});
   // Passo 4 — status badge
   testarConexaoProxy();
-  // Passo 5 — prefetch das demais seções em background
-  setTimeout(() => loadRetencaoAtend().catch(()=>{}), 2000);
-  setTimeout(() => loadCancelServico().catch(()=>{}), 2500);
-  setTimeout(() => loadRemocoes().catch(()=>{}), 3000);
-  setTimeout(() => loadFinanceiro().catch(()=>{}), 4000);
-  // Passo 6 — intervalo de 30s para chamados
-  setInterval(autoRefresh, 30000);
+  // Passo 5 — prefetch de todas as seções em background
+  setTimeout(() => loadRetencaoAtend().catch(()=>{}),  2000);
+  setTimeout(() => loadCancelServico().catch(()=>{}),  2500);
+  setTimeout(() => loadRemocoes().catch(()=>{}),       3000);
+  setTimeout(() => loadAtendimentos().catch(()=>{}),   3500);
+  setTimeout(() => loadFinanceiro().catch(()=>{}),     4000);
+  setTimeout(() => loadFiscal().catch(()=>{}),         5000);
+  setTimeout(() => loadEstoque().catch(()=>{}),        6000);
+  // Passo 6 — intervalo de 10s para chamados (servidor já tem cache, resposta rápida)
+  setInterval(autoRefresh, 10000);
 })();
 
 // ── RH / RHiD ──────────────────────────────────────────────────────
