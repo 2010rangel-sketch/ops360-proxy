@@ -2491,16 +2491,7 @@ async function buildFinanceiro() {
     }
   }
 
-  // Ordena por data mais antiga primeiro, depois deduplica por cliente — mantém só o serviço ativo mais antigo
   ltvCandidates.sort((a, b) => new Date(a.dataCad) - new Date(b.dataCad));
-  const ltvSeen = new Set();
-  const ltvDedup = ltvCandidates.filter(c => {
-    if (ltvSeen.has(c.nome)) return false;
-    ltvSeen.add(c.nome);
-    return true;
-  });
-  ltvCandidates.length = 0;
-  ltvCandidates.push(...ltvDedup);
 
   // Primeira mensalidade por vendedor
   const primMap = {};
