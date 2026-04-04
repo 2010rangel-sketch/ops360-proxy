@@ -3485,6 +3485,21 @@ app.post('/api/rh/nr-certs', async (req, res) => {
   } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
+// Migra NR certs de fonte externa (Vercel → Railway)
+app.post('/api/rh/nr-certs/migrate', async (req, res) => {
+  try {
+    const { source_url } = req.body;
+    if (!source_url) return res.status(400).json({ erro: 'source_url obrigatório' });
+    const r = await axios.get(source_url, { timeout: 10000 });
+    const lista = Array.isArray(r.data) ? r.data : [];
+    if (lista.length === 0) return res.json({ ok: false, motivo: 'Fonte retornou lista vazia' });
+    await storeSet('rh_nr_certs', JSON.stringify(lista));
+    res.json({ ok: true, total: lista.length, migrated: lista.map(c => c.nome) });
+  } catch(e) {
+    res.status(500).json({ erro: e.message });
+  }
+});
+
 // ── RAX — Chat Agent (Claude) ─────────────────────────────────────
 app.post('/api/chat', async (req, res) => {
   const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
