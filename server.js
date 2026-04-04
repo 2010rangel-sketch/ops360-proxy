@@ -1554,7 +1554,7 @@ function warmupCanceladosGeral() {
   if (_comAllCancelados && (Date.now() - _comAllCanceladosAt) < 6 * 60 * 60 * 1000) return;
   _comAllCanceladosFetching = true;
   getToken().then(tk => fetchIntegracaoClientes(tk, { cancelado: 'sim' }, 200))
-    .then(r => { _comAllCancelados = r; _comAllCanceladosAt = Date.now(); _comAllCanceladosFetching = false; // não persiste cancelados brutos no DB (array grande, estoura cota) console.log(`[cancelados-geral] warm-up OK: ${r.length}`); })
+    .then(r => { _comAllCancelados = r; _comAllCanceladosAt = Date.now(); _comAllCanceladosFetching = false; console.log(`[cancelados-geral] warm-up OK: ${r.length}`); })
     .catch(e => { _comAllCanceladosFetching = false; console.warn('[cancelados-geral] falhou:', e.message); });
 }
 setTimeout(() => warmupCanceladosGeral(), 90000);
@@ -2520,7 +2520,7 @@ async function buildFinanceiro() {
   if (!_comAllCancelados && !_comAllCanceladosFetching) {
     _comAllCanceladosFetching = true;
     getToken().then(tk => fetchIntegracaoClientes(tk, { cancelado: 'sim' }, 200))
-      .then(r => { _comAllCancelados = r; _comAllCanceladosAt = Date.now(); _comAllCanceladosFetching = false; // não persiste cancelados brutos no DB (array grande, estoura cota) })
+      .then(r => { _comAllCancelados = r; _comAllCanceladosAt = Date.now(); _comAllCanceladosFetching = false; })
       .catch(e => { _comAllCanceladosFetching = false; console.warn('[cancelados-geral] warm-up falhou:', e.message); });
   }
 
