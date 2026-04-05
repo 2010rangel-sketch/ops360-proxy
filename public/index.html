@@ -6575,6 +6575,61 @@ function renderFinanceiro(d) {
   }
 }
 
+const _cancelFiltro = { ca: null, cb: null };
+const _cancelLista  = { ca: [],   cb: [] };
+
+function filtrarCancelMotivo(pfx, motivo) {
+  _cancelFiltro[pfx] = _cancelFiltro[pfx] === motivo ? null : motivo;
+  _renderCancelLista(pfx);
+  _renderCancelMotivos(pfx);
+}
+
+function _renderCancelLista(pfx) {
+  const listaEl = document.getElementById(`fin-${pfx}-lista`);
+  if (!listaEl) return;
+  const filtro  = _cancelFiltro[pfx];
+  const lista   = filtro ? _cancelLista[pfx].filter(c => c.motivo === filtro) : _cancelLista[pfx];
+  listaEl.innerHTML = lista.length ? lista.map(c => `<tr>
+    <td style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.nome}">${c.nome}</td>
+    <td style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.plano}</td>
+    <td style="font-size:11px;color:var(--accent);white-space:nowrap">${c.tempoFmt}</td>
+    <td class="mono" style="color:#22c55e;font-size:11px;white-space:nowrap">${fmtBRLk(c.ltvDinheiro)}</td>
+    <td style="font-size:10px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.motivo}">${c.motivo}</td>
+  </tr>`).join('') : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Nenhum cancelamento</td></tr>`;
+}
+
+function _renderCancelMotivos(pfx) {
+  const motivoEl = document.getElementById(`fin-${pfx}-motivo`);
+  if (!motivoEl) return;
+  const stats  = motivoEl._stats;
+  if (!stats) return;
+  const motivos = (stats.por_motivo || []).slice(0, 8);
+  const maxN    = motivos.length ? motivos[0].n : 1;
+  const totalN  = motivos.reduce((s, m) => s + m.n, 0);
+  const CORES   = ['#ef4444','#f97316','#eab308','#22c55e','#06b6d4','#8b5cf6','#ec4899','#94a3b8'];
+  const filtro  = _cancelFiltro[pfx];
+  motivoEl.innerHTML = (filtro ? `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:10px;color:var(--text3)">Filtrado: <strong style="color:var(--text)">${filtro}</strong> <span onclick='filtrarCancelMotivo("${pfx}",null)' style="cursor:pointer;color:var(--red);margin-left:4px">✕ limpar</span></div>` : '') +
+    `<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px 12px">` +
+    motivos.map((m, i) => {
+      const pct    = totalN > 0 ? Math.round(m.n / totalN * 100) : 0;
+      const barW   = Math.round(m.n / maxN * 100);
+      const cor    = CORES[i % CORES.length];
+      const ativo  = filtro === m.motivo;
+      const opac   = filtro && !ativo ? 'opacity:.4;' : '';
+      return `<div style="min-width:0;${opac}cursor:pointer" onclick='filtrarCancelMotivo("${pfx}",${JSON.stringify(m.motivo)})'>
+        <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;${ativo?'background:rgba(255,255,255,.05);border-radius:4px;padding:2px 3px':''}">
+          <div style="width:6px;height:6px;border-radius:50%;background:${cor};flex-shrink:0"></div>
+          <div style="flex:1;font-size:10px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${m.motivo}">${m.motivo}</div>
+          <span style="font-size:11px;font-weight:700;color:${cor};flex-shrink:0">${m.n}</span>
+          <span style="font-size:10px;color:var(--text3);flex-shrink:0">${pct}%</span>
+        </div>
+        <div style="height:4px;background:rgba(255,255,255,.07);border-radius:2px">
+          <div style="width:${barW}%;height:100%;background:${cor};border-radius:2px"></div>
+        </div>
+      </div>`;
+    }).join('') + `</div>`;
+}
+
 function renderCancelStats(pfx, stats) {
   if (!stats) return;
   const totalEl = document.getElementById(`fin-${pfx}-total`);
@@ -6583,42 +6638,12 @@ function renderCancelStats(pfx, stats) {
   fev(`fin-${pfx}-ltv-med`, fmtBRLk(stats.ltv_medio_dinheiro));
   fev(`fin-${pfx}-tempo`,   stats.ltv_medio_tempo || '—');
 
+  // Salva lista completa e stats para filtragem
+  _cancelLista[pfx]  = stats.lista || [];
+  _cancelFiltro[pfx] = null;
   const motivoEl = document.getElementById(`fin-${pfx}-motivo`);
-  if (motivoEl) {
-    const motivos = (stats.por_motivo || []).slice(0, 8);
-    const maxN    = motivos.length ? motivos[0].n : 1;
-    const totalN  = motivos.reduce((s, m) => s + m.n, 0);
-    const CORES   = ['#ef4444','#f97316','#eab308','#22c55e','#06b6d4','#8b5cf6','#ec4899','#94a3b8'];
-    motivoEl.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px 12px">` +
-      motivos.map((m, i) => {
-        const pct  = totalN > 0 ? Math.round(m.n / totalN * 100) : 0;
-        const barW = Math.round(m.n / maxN * 100);
-        const cor  = CORES[i % CORES.length];
-        return `<div style="min-width:0">
-          <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">
-            <div style="width:6px;height:6px;border-radius:50%;background:${cor};flex-shrink:0"></div>
-            <div style="flex:1;font-size:10px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${m.motivo}">${m.motivo}</div>
-            <span style="font-size:11px;font-weight:700;color:${cor};flex-shrink:0">${m.n}</span>
-            <span style="font-size:10px;color:var(--text3);flex-shrink:0">${pct}%</span>
-          </div>
-          <div style="height:4px;background:rgba(255,255,255,.07);border-radius:2px">
-            <div style="width:${barW}%;height:100%;background:${cor};border-radius:2px"></div>
-          </div>
-        </div>`;
-      }).join('') + `</div>`;
-  }
-
-  const listaEl = document.getElementById(`fin-${pfx}-lista`);
-  if (listaEl) {
-    const lista = stats.lista || [];
-    listaEl.innerHTML = lista.length ? lista.map(c => `<tr>
-      <td style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.nome}">${c.nome}</td>
-      <td style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.plano}</td>
-      <td style="font-size:11px;color:var(--accent);white-space:nowrap">${c.tempoFmt}</td>
-      <td class="mono" style="color:#22c55e;font-size:11px;white-space:nowrap">${fmtBRLk(c.ltvDinheiro)}</td>
-      <td style="font-size:10px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.motivo}">${c.motivo}</td>
-    </tr>`).join('') : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Nenhum cancelamento</td></tr>`;
-  }
+  if (motivoEl) { motivoEl._stats = stats; _renderCancelMotivos(pfx); }
+  _renderCancelLista(pfx);
 }
 
 let _ltvAnoAtivo = null;
