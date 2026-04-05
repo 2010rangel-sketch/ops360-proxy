@@ -2457,26 +2457,20 @@ async function buildFinanceiro() {
       if (isSusp && valor > 0)    mrr.suspenso += valor;
       if (isParcial && valor > 0) mrr.parcial  += valor;
 
-      // Usa data_venda para classificação de mês (mais precisa que data_habilitacao)
-      const dataVenda   = parseDate(s.data_venda || null);
-      const dataHabMs   = dataHab  ? dataHab.getTime()   : 0;
-      const dataVendaMs = dataVenda ? dataVenda.getTime() : 0;
-      const dataCan     = parseDate(s.data_cancelamento);
-      // Reativação: data_cancelamento anterior à habilitacao OU data_venda >30d após data_habilitacao
-      const isReatByCan  = !!(dataCan && dataHab && dataCan < dataHab);
-      const isReatByVend = !!(dataHabMs && dataVendaMs && (dataVendaMs - dataHabMs) > 30 * 86400 * 1000);
-      const isReat       = isReatByCan || isReatByVend;
-      // Referência de mês: data_venda só quando >= data_habilitacao (evita datas antigas no lugar de hab recente)
-      const dataRef = (dataVenda && dataVendaMs >= dataHabMs) ? dataVenda : dataHab;
+      // MRR Novo: serviços habilitados no mês atual ou anterior
+      if (isOn && dataHab && valor > 0) {
+        if (dataHab >= mesAtualIni)                                      { mrrNovo    += valor; novoAtual++; }
+        else if (dataHab >= mesAnteriorIni && dataHab <= mesAnteriorFim) { mrrNovoAnt += valor; novoAnt++;   }
+      }
 
-      if (isOn && dataRef && valor > 0) {
-        if (!isReat) {
-          if (dataRef >= mesAtualIni)                                       { mrrNovo    += valor; novoAtual++; }
-          else if (dataRef >= mesAnteriorIni && dataRef <= mesAnteriorFim)  { mrrNovoAnt += valor; novoAnt++;   }
-        } else {
-          if (dataRef >= mesAtualIni) {
+      // Reativação = serviço ativo habilitado no mês + tinha cancelamento anterior
+      if (isOn && dataHab && valor > 0) {
+        const dataCan = parseDate(s.data_cancelamento);
+        const isReat  = dataCan && dataCan < dataHab;
+        if (isReat) {
+          if (dataHab >= mesAtualIni) {
             mrrRecupAtual += valor; reativAtual++;
-          } else if (dataRef >= mesAnteriorIni && dataRef <= mesAnteriorFim) {
+          } else if (dataHab >= mesAnteriorIni && dataHab <= mesAnteriorFim) {
             mrrRecupAnt += valor; reativAnt++;
           }
         }
