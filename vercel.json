@@ -2,6 +2,7 @@
   "version": 2,
   "builds": [{ "src": "public/index.html", "use": "@vercel/static" }],
   "routes": [
+    { "src": "/api/nr-export", "dest": "/api/nr-export.js" },
     {
       "src": "/api/(.*)",
       "dest": "https://ops360-proxy-production.up.railway.app/api/$1",

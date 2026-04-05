@@ -3491,7 +3491,9 @@ app.post('/api/rh/nr-certs/migrate', async (req, res) => {
     const { source_url } = req.body;
     if (!source_url) return res.status(400).json({ erro: 'source_url obrigatório' });
     const r = await axios.get(source_url, { timeout: 10000 });
-    const lista = Array.isArray(r.data) ? r.data : [];
+    // Suporta { ok, data: [...] } (nr-export) ou array direto
+    const lista = Array.isArray(r.data) ? r.data : (Array.isArray(r.data?.data) ? r.data.data : []);
+    if (!r.data?.ok && !Array.isArray(r.data)) return res.json({ ok: false, motivo: r.data?.motivo || 'Fonte retornou erro' });
     if (lista.length === 0) return res.json({ ok: false, motivo: 'Fonte retornou lista vazia' });
     await storeSet('rh_nr_certs', JSON.stringify(lista));
     res.json({ ok: true, total: lista.length, migrated: lista.map(c => c.nome) });

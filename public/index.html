@@ -7762,12 +7762,13 @@ async function importarNRBackup(event) {
 
 async function migrarNRCertsVercel() {
   const btn = document.getElementById('nr-migrate-btn');
-  if (btn) { btn.textContent = '⏳ Buscando...'; btn.disabled = true; }
+  if (btn) { btn.innerHTML = '⏳ Buscando...'; btn.disabled = true; }
   try {
+    // Lê direto do Neon via função serverless temporária no Vercel
     const r = await fetch(`${PROXY_URL}/api/rh/nr-certs/migrate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ source_url: 'https://ops360-proxy.vercel.app/api/rh/nr-certs' }),
+      body: JSON.stringify({ source_url: 'https://ops360-proxy.vercel.app/api/nr-export' }),
     });
     const d = await r.json();
     if (d.ok) {
@@ -7775,7 +7776,7 @@ async function migrarNRCertsVercel() {
       if (btn) btn.style.display = 'none';
       await _nrRestoreFromServer();
     } else {
-      alert('⚠️ ' + (d.motivo || d.erro || 'Nenhum dado encontrado na fonte.'));
+      alert('⚠️ ' + (d.motivo || d.erro || 'Nenhum dado encontrado.'));
       if (btn) { btn.innerHTML = '<i class="fas fa-cloud-download-alt"></i> Recuperar'; btn.disabled = false; }
     }
   } catch(e) {
