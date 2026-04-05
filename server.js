@@ -2457,32 +2457,6 @@ async function buildFinanceiro() {
       if (isSusp && valor > 0)    mrr.suspenso += valor;
       if (isParcial && valor > 0) mrr.parcial  += valor;
 
-      // MRR Novo: usa data_venda como referência (igual ao comercial), fallback data_habilitacao
-      // Não exclui reativações — conta todas as habilitações do mês
-      const dataVenda    = parseDate(s.data_venda || null);
-      const dataHabMs    = dataHab  ? dataHab.getTime()  : 0;
-      const dataVendaMs  = dataVenda ? dataVenda.getTime() : 0;
-      const dataRefNovo  = dataVenda || dataHab;
-      if (isOn && dataRefNovo && valor > 0) {
-        if (dataRefNovo >= mesAtualIni)                                         { mrrNovo    += valor; novoAtual++; }
-        else if (dataRefNovo >= mesAnteriorIni && dataRefNovo <= mesAnteriorFim) { mrrNovoAnt += valor; novoAnt++;   }
-      }
-
-      // MRR Recuperado: calculado independente — reativação via data_cancelamento anterior
-      // OU data_venda muito posterior à data_habilitacao (>30d = venda nova sobre hab antiga)
-      if (isOn && dataHab && valor > 0) {
-        const dataCan      = parseDate(s.data_cancelamento);
-        const isReatByCan  = !!(dataCan && dataCan < dataHab);
-        const isReatByVend = !!(dataHabMs && dataVendaMs && (dataVendaMs - dataHabMs) > 30 * 86400 * 1000);
-        if (isReatByCan || isReatByVend) {
-          const dataRefReat = (dataVenda && dataVendaMs >= dataHabMs) ? dataVenda : dataHab;
-          if (dataRefReat >= mesAtualIni) {
-            mrrRecupAtual += valor; reativAtual++;
-          } else if (dataRefReat >= mesAnteriorIni && dataRefReat <= mesAnteriorFim) {
-            mrrRecupAnt += valor; reativAnt++;
-          }
-        }
-      }
 
       if (isSusp) {
         suspensos.push({ nome, plano, valor, cidade, vendedor, status, dataHab: s.data_habilitacao });
@@ -2524,6 +2498,40 @@ async function buildFinanceiro() {
   }
 
   ltvCandidates.sort((a, b) => new Date(a.dataCad) - new Date(b.dataCad));
+
+  // MRR Novo e Recuperado — mesma lógica do comercial (data_venda como referência, sem filtro isOn)
+  // Garante que os números batem exatamente com a aba Comercial
+  {
+    const _iniAtMs  = mesAtualIni.getTime();
+    const _iniAntMs = mesAnteriorIni.getTime();
+    const _fimAntMs = mesAnteriorFim.getTime();
+    const _seenMrr  = new Set();
+    for (const cli of ativos) {
+      const _nome = cli.nome_razaosocial || cli.nome_fantasia || '—';
+      for (const s of (cli.servicos || [])) {
+        const _rawVenda = s.data_venda || null;
+        const _venda    = _rawVenda ? parseDate(_rawVenda) : null;
+        const _vendaMs  = _venda ? _venda.getTime() : 0;
+        if (!_vendaMs) continue; // sem data_venda, não conta (igual ao comercial)
+        const _chave = `${_nome}|${s.nome||''}|${_rawVenda}`;
+        if (_seenMrr.has(_chave)) continue;
+        _seenMrr.add(_chave);
+        const _hab    = parseDate(s.data_habilitacao || null);
+        const _habMs  = _hab ? _hab.getTime() : 0;
+        const _valor  = parseFloat(s.valor) || 0;
+        const _isCan  = !!(s.data_cancelamento || (s.status_prefixo||'').includes('cancelad') || (s.status_prefixo||'').includes('rescind'));
+        const _isReat = !!(_habMs && _vendaMs && (_vendaMs - _habMs) > 30 * 86400 * 1000);
+        if (_isCan) continue; // desistência — não conta em novo nem recuperado
+        if (_vendaMs >= _iniAtMs) {
+          if (_isReat) { mrrRecupAtual += _valor; reativAtual++; }
+          else         { mrrNovo       += _valor; novoAtual++;   }
+        } else if (_vendaMs >= _iniAntMs && _vendaMs <= _fimAntMs) {
+          if (_isReat) { mrrRecupAnt += _valor; reativAnt++; }
+          else         { mrrNovoAnt  += _valor; novoAnt++;   }
+        }
+      }
+    }
+  }
 
   // Primeira mensalidade por vendedor
   const primMap = {};
