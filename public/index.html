@@ -1531,16 +1531,12 @@ input[type="text"]::placeholder { color:var(--text3); }
       </div>
 
       <!-- KPI row -->
-      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:10px" id="fin-kpi-row">
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px" id="fin-kpi-row">
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">MRR (Receita Recorrente Mensal)</div><div class="kpi-mini-val" id="fin-mrr" style="color:var(--accent)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">MRR Perdido (Churn Mês)</div><div class="kpi-mini-val" id="fin-mrr-perdido" style="color:var(--red)">—</div></div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Churn Mês Atual</div><div class="kpi-mini-val" id="fin-churn-atual" style="color:var(--red)">—</div></div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--text3)"></div><div class="kpi-mini-label">Churn Mês Anterior</div><div class="kpi-mini-val" id="fin-churn-ant" style="color:var(--text3)">—</div></div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:#ef4444"></div><div class="kpi-mini-label">1ª Mensalidade Risco</div><div class="kpi-mini-val" id="fin-prim" style="color:#ef4444">—</div><div style="font-size:10px;color:var(--text3);text-align:center" id="fin-prim-pct">—</div></div>
-      </div>
-
-      <!-- MRR breakdown row -->
-      <div style="display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:16px" id="fin-mrr-row">
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">MRR Perdido (churn mês)</div><div class="kpi-mini-val" id="fin-mrr-perdido" style="color:var(--red)">—</div></div>
       </div>
 
       <!-- Cancelamentos: mês atual + anterior -->
