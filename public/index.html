@@ -2380,7 +2380,9 @@ function toggleTheme() {
 }
 
 // NAV
-function goPage(id, el) {
+function goPage(id, el, skipHistory) {
+  // Atualiza URL para permitir voltar/avançar e favoritar
+  if (!skipHistory) history.pushState({ page: id }, '', '/' + id);
   // Fecha modais globais ao trocar de página
   ['modalRiscoVendedor','modalNRCert','modalNRLote'].forEach(mid => {
     const m = document.getElementById(mid); if (m) m.style.display = 'none';
@@ -2392,7 +2394,9 @@ function goPage(id, el) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item, .space-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
-  if(el) el.classList.add('active');
+  // Marca o nav-item correspondente como ativo
+  const navEl = el || document.querySelector(`.nav-item[onclick*="'${id}'"], .space-item[onclick*="'${id}'"]`);
+  if(navEl) navEl.classList.add('active');
   const titles = {chamados:'Chamados',atendimento:'Atendimento',comercial:'Comercial',retencao:'Cancelamento / Retenção',conexoes:'Conexões',financeiro:'Financeiro',fiscal:'Fiscal',estoque:'Estoque',rh:'RH',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
   document.getElementById('pageTitle').textContent = titles[id]||id;
   // Reseta pill para "Ao vivo" ao trocar de página (comercial escreve o horário quando carrega)
@@ -2451,6 +2455,19 @@ function goPage(id, el) {
     loadRh();
     if (!window._rhEmployees) _restoreRhFromStorage();
   }
+}
+
+// Botão voltar/avançar do navegador
+window.addEventListener('popstate', e => {
+  const id = (e.state?.page) || _pageFromPath();
+  if (id && document.getElementById('page-' + id)) goPage(id, null, true);
+});
+
+// Ao abrir link direto (ex: /financeiro), navega para a página correta
+function _pageFromPath() {
+  const seg = window.location.pathname.replace(/^\//, '').split('/')[0];
+  const valid = ['comercial','chamados','atendimento','retencao','conexoes','financeiro','fiscal','estoque','rh','tarefas','integracoes'];
+  return valid.includes(seg) ? seg : 'comercial';
 }
 
 // NOTIF
@@ -7043,13 +7060,17 @@ function filterEstoque(txt) {
   const _atd = _lcGet('ops360_atend_cache', 10*60*1000); if (_atd) { _atendData = _atd; }
   const _fsc = _lcGet('ops360_fisc_cache', 35*60*1000); if (_fsc) { _fiscData = _fsc; }
   const _esq = _lcGet('ops360_esq_cache', 35*60*1000);  if (_esq) { _esqData = _esq; renderEstoque(_esq); }
-  // Passo 2 — chamados em background (para quando o usuário navegar)
+  // Passo 2 — navega para a página da URL (ou comercial por padrão)
+  const _initPage = _pageFromPath();
+  history.replaceState({ page: _initPage }, '', '/' + _initPage);
+  if (_initPage !== 'comercial') goPage(_initPage, null, true);
+  // Passo 3 — chamados em background
   autoRefresh();
-  // Passo 3 — Comercial imediato (página inicial)
+  // Passo 4 — Comercial imediato (página inicial ou se vier de /comercial)
   loadComercial().catch(()=>{});
-  // Passo 4 — status badge
+  // Passo 5 — status badge
   testarConexaoProxy();
-  // Passo 5 — prefetch das seções em background, escalonado para não sobrecarregar Railway no boot
+  // Passo 6 — prefetch das seções em background, escalonado para não sobrecarregar Railway no boot
   // Se cache localStorage ainda está fresco (<metade do TTL), pula o prefetch daquela seção
   const _prefetch = (key, freshTtl, fn, delay) => setTimeout(() => {
     if (_lcFresh(key, freshTtl)) return; // cache fresco — não precisa buscar agora
@@ -7062,7 +7083,7 @@ function filterEstoque(txt) {
   _prefetch('ops360_fin_cache',   15*60*1000, loadFinanceiro,     30000);
   _prefetch('ops360_fisc_cache',  15*60*1000, loadFiscal,         45000);
   _prefetch('ops360_esq_cache',   15*60*1000, loadEstoque,        60000);
-  // Passo 6 — intervalo de 10s para chamados (servidor já tem cache, resposta rápida)
+  // Passo 7 — intervalo de 10s para chamados (servidor já tem cache, resposta rápida)
   setInterval(autoRefresh, 10000);
 })();
 
