@@ -1941,7 +1941,8 @@ input[type="text"]::placeholder { color:var(--text3); }
             <label class="btn btn-sm" for="nr-pdf-input" style="cursor:pointer;margin:0"><i class="fas fa-file-pdf" style="margin-right:4px"></i>Subir PDFs</label>
             <input type="file" id="nr-pdf-input" accept=".pdf" multiple style="display:none" onchange="lerPdfNR(event)">
             <button class="btn btn-sm" onclick="abrirModalNR()"><i class="fas fa-plus"></i> Manual</button>
-            <button class="btn btn-sm" id="nr-migrate-btn" onclick="migrarNRCertsVercel()" style="background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);color:var(--amber)" title="Recuperar NRs que estavam no Vercel"><i class="fas fa-cloud-download-alt"></i> Recuperar</button>
+            <label class="btn btn-sm" for="nr-import-input" style="cursor:pointer;margin:0;background:rgba(91,106,240,.15);border:1px solid rgba(91,106,240,.4);color:var(--accent)" title="Importar backup JSON"><i class="fas fa-file-import"></i> Importar</label>
+            <input type="file" id="nr-import-input" accept=".json" style="display:none" onchange="importarNRBackup(event)">
           </div>
           <!-- Faltando NR -->
           <div id="rh-nr-faltando-wrap" style="display:none;padding:8px 14px;border-bottom:1px solid var(--border);background:rgba(239,68,68,.06)">
@@ -7730,6 +7731,33 @@ async function _nrRestoreFromServer() {
       if (btn) btn.style.display = 'none';
     }
   } catch {}
+}
+
+async function importarNRBackup(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const lista = JSON.parse(text);
+    if (!Array.isArray(lista) || lista.length === 0) { alert('Arquivo inválido ou vazio.'); return; }
+    // Salva no servidor
+    const r = await fetch(`${PROXY_URL}/api/rh/nr-certs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(lista),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      localStorage.setItem('rhNRCerts', JSON.stringify(lista));
+      renderRhNR();
+      alert(`✅ ${lista.length} certificações importadas e salvas no servidor!`);
+    } else {
+      alert('Erro ao salvar: ' + (d.erro || 'desconhecido'));
+    }
+  } catch(e) {
+    alert('Erro ao ler arquivo: ' + e.message);
+  }
+  event.target.value = '';
 }
 
 async function migrarNRCertsVercel() {
