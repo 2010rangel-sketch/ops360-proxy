@@ -1543,7 +1543,18 @@ input[type="text"]::placeholder { color:var(--text3); }
       <!-- MRR breakdown row -->
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px" id="fin-mrr-row">
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">MRR Perdido (churn mês)</div><div class="kpi-mini-val" id="fin-mrr-perdido" style="color:var(--red)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">MRR Novo (novas vendas)</div><div class="kpi-mini-val" id="fin-mrr-novo" style="color:var(--green)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">MRR Novo (novas vendas)</div>
+          <div style="display:flex;flex-direction:column;gap:2px;margin-top:4px">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+              <span style="font-size:10px;color:var(--text3)">Mês atual</span>
+              <span class="kpi-mini-val" id="fin-mrr-novo" style="color:var(--green);font-size:15px">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+              <span style="font-size:10px;color:var(--text3)">Mês anterior</span>
+              <span class="kpi-mini-val" id="fin-mrr-novo-ant" style="color:var(--green);opacity:.65;font-size:13px">—</span>
+            </div>
+          </div>
+        </div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--cyan)"></div><div class="kpi-mini-label">MRR Recuperado</div>
           <div style="display:flex;flex-direction:column;gap:2px;margin-top:4px">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
@@ -1704,8 +1715,20 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
         <!-- Tabela -->
         <div style="max-height:380px;overflow-y:auto">
-          <table class="tbl"><thead><tr><th>#</th><th>Cliente</th><th>Cidade</th><th>Plano</th><th>Mensalidade</th><th>Cliente desde</th><th>Tempo ativo</th><th>LTV Est.</th></tr></thead>
-          <tbody id="fin-ltv-lista"></tbody></table>
+          <table class="tbl" style="table-layout:fixed;width:100%">
+            <colgroup>
+              <col style="width:32px">
+              <col style="width:28%">
+              <col style="width:14%">
+              <col style="width:22%">
+              <col style="width:10%">
+              <col style="width:9%">
+              <col style="width:9%">
+              <col style="width:10%">
+            </colgroup>
+            <thead><tr><th>#</th><th>Cliente</th><th>Cidade</th><th>Plano</th><th>Mensalidade</th><th>Desde</th><th>Tempo</th><th>LTV Est.</th></tr></thead>
+            <tbody id="fin-ltv-lista"></tbody>
+          </table>
         </div>
       </div>
 
@@ -5993,8 +6016,8 @@ async function loadComercial() {
         if (badge) { badge.textContent = 'Sem acesso'; badge.className = 'badge b-red'; }
       } else {
         if (titleEl) titleEl.textContent = 'Integração de cadastros pendente';
-        if (badge) { badge.textContent = 'Tentando em 30s...'; badge.className = 'badge b-amber'; }
-        setTimeout(() => loadComercial(), 30000);
+        if (badge) { badge.textContent = 'Tentando em 12s...'; badge.className = 'badge b-amber'; }
+        setTimeout(() => loadComercial(), 12000);
       }
       return;
     }
@@ -6470,6 +6493,7 @@ function renderFinanceiro(d) {
   fev('fin-prim-pct',    `${r.pct_primeira_mens || 0}% dos novos`);
   fev('fin-mrr-perdido',    fmtBRLk(r.mrr_perdido));
   fev('fin-mrr-novo',       fmtBRLk(r.mrr_novo));
+  fev('fin-mrr-novo-ant',   r.mrr_novo_anterior != null ? fmtBRLk(r.mrr_novo_anterior) : '—');
   fev('fin-mrr-recup-atual', r.mrr_recup_atual != null ? fmtBRLk(r.mrr_recup_atual) : '—');
   fev('fin-mrr-recup-ant',   r.mrr_recup_anterior != null ? fmtBRLk(r.mrr_recup_anterior) : '—');
   fev('fin-reat-atual-n',    r.reativ_mes_atual != null ? `${r.reativ_mes_atual} clientes` : '');
@@ -6654,9 +6678,9 @@ function renderLtvTabela(lista, q) {
                  : '';
     return `<tr style="background:${rowBg}">
       <td class="mono" style="color:var(--text3)">${i+1}</td>
-      <td style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${nomeCor}" title="${c.nome}">${c.nome}${badge}</td>
-      <td style="font-size:11px">${c.cidade}</td>
-      <td style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.plano}</td>
+      <td style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${nomeCor}" title="${c.nome}">${c.nome.length>30?c.nome.substring(0,28)+'…':c.nome}${badge}</td>
+      <td style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.cidade}">${c.cidade}</td>
+      <td style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.plano}">${c.plano}</td>
       <td class="mono">${fmtBRL(c.valor)}</td>
       <td style="font-size:11px;color:var(--text3)">${c.dataCad ? c.dataCad.substring(0,10) : '—'}</td>
       <td style="font-size:11px;color:var(--accent);white-space:nowrap">${c.tempoFmt}</td>
@@ -7007,7 +7031,8 @@ function filterEstoque(txt) {
 // AUTO-INIT
 (function() {
   // Passo 1 — restaura todos os caches do localStorage (exibição instantânea)
-  const _lcGet = (key, ttl) => { try { const v = JSON.parse(localStorage.getItem(key)||'null'); return v && (Date.now()-v.ts)<ttl ? v.data : null; } catch { return null; } };
+  const _lcGet  = (key, ttl) => { try { const v = JSON.parse(localStorage.getItem(key)||'null'); return v && (Date.now()-v.ts)<ttl ? v.data : null; } catch { return null; } };
+  const _lcFresh = (key, ttl) => { try { const v = JSON.parse(localStorage.getItem(key)||'null'); return !!(v && (Date.now()-v.ts)<ttl); } catch { return false; } };
   const _fin = _lcGet('ops360_fin_cache', 35*60*1000); if (_fin) { _finData = _fin; }
   const _ret = _lcGet('ops360_ret_cache', 10*60*1000); if (_ret) { _retData = _ret; }
   const _com = _lcGet('ops360_com_cache', 35*60*1000); if (_com) { _comData = _com; renderComercialAtualiza(_com); }
@@ -7020,14 +7045,19 @@ function filterEstoque(txt) {
   loadComercial().catch(()=>{});
   // Passo 4 — status badge
   testarConexaoProxy();
-  // Passo 5 — prefetch de todas as seções em background
-  setTimeout(() => loadRetencaoAtend().catch(()=>{}),  2000);
-  setTimeout(() => loadCancelServico().catch(()=>{}),  2500);
-  setTimeout(() => loadRemocoes().catch(()=>{}),       3000);
-  setTimeout(() => loadAtendimentos().catch(()=>{}),   3500);
-  setTimeout(() => loadFinanceiro().catch(()=>{}),     4000);
-  setTimeout(() => loadFiscal().catch(()=>{}),         5000);
-  setTimeout(() => loadEstoque().catch(()=>{}),        6000);
+  // Passo 5 — prefetch das seções em background, escalonado para não sobrecarregar Railway no boot
+  // Se cache localStorage ainda está fresco (<metade do TTL), pula o prefetch daquela seção
+  const _prefetch = (key, freshTtl, fn, delay) => setTimeout(() => {
+    if (_lcFresh(key, freshTtl)) return; // cache fresco — não precisa buscar agora
+    fn().catch(()=>{});
+  }, delay);
+  _prefetch('ops360_ret_cache',    4*60*1000, loadRetencaoAtend,  5000);
+  setTimeout(() => loadCancelServico().catch(()=>{}),             10000);
+  setTimeout(() => loadRemocoes().catch(()=>{}),                  15000);
+  _prefetch('ops360_atend_cache',  4*60*1000, loadAtendimentos,   20000);
+  _prefetch('ops360_fin_cache',   15*60*1000, loadFinanceiro,     30000);
+  _prefetch('ops360_fisc_cache',  15*60*1000, loadFiscal,         45000);
+  _prefetch('ops360_esq_cache',   15*60*1000, loadEstoque,        60000);
   // Passo 6 — intervalo de 10s para chamados (servidor já tem cache, resposta rápida)
   setInterval(autoRefresh, 10000);
 })();

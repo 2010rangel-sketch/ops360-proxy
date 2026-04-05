@@ -1554,7 +1554,19 @@ function warmupCanceladosGeral() {
   if (_comAllCancelados && (Date.now() - _comAllCanceladosAt) < 6 * 60 * 60 * 1000) return;
   _comAllCanceladosFetching = true;
   getToken().then(tk => fetchIntegracaoClientes(tk, { cancelado: 'sim' }, 200))
-    .then(r => { _comAllCancelados = r; _comAllCanceladosAt = Date.now(); _comAllCanceladosFetching = false; console.log(`[cancelados-geral] warm-up OK: ${r.length}`); })
+    .then(r => {
+      _comAllCancelados = r; _comAllCanceladosAt = Date.now(); _comAllCanceladosFetching = false;
+      console.log(`[cancelados-geral] warm-up OK: ${r.length}`);
+      // Rebuild financeiro para incluir cancelados_geral na saúde por vendedor
+      if (_finCache && !_finFetching) {
+        _finFetching = true;
+        buildFinanceiro().then(result => {
+          _finCache = result; _finFetchedAt = Date.now(); _finFetching = false;
+          dbCacheSet('cache:financeiro', result);
+          console.log('[financeiro] rebuild pós cancelados-geral OK');
+        }).catch(e => { _finFetching = false; console.warn('[financeiro] rebuild pós cancelados-geral falhou:', e.message); });
+      }
+    })
     .catch(e => { _comAllCanceladosFetching = false; console.warn('[cancelados-geral] falhou:', e.message); });
 }
 setTimeout(() => warmupCanceladosGeral(), 90000);
@@ -2416,6 +2428,7 @@ async function buildFinanceiro() {
   const mrr           = { total: 0, suspenso: 0, parcial: 0 };
   const vendMapAtivo  = {};
   let mrrNovo         = 0;
+  let mrrNovoAnt      = 0;
   let mrrRecupAtual   = 0;
   let mrrRecupAnt     = 0;
   let reativAtual     = 0;
@@ -2441,16 +2454,27 @@ async function buildFinanceiro() {
       if (isOn && valor > 0)      mrr.total   += valor;
       if (isSusp && valor > 0)    mrr.suspenso += valor;
       if (isParcial && valor > 0) mrr.parcial  += valor;
-      if (isOn && dataHab && dataHab >= mesAtualIni && valor > 0) mrrNovo += valor;
 
-      // Reativação = serviço ativo habilitado no mês + tinha cancelamento anterior
-      if (isOn && dataHab && valor > 0) {
-        const dataCan = parseDate(s.data_cancelamento);
-        const isReat  = dataCan && dataCan < dataHab;
-        if (isReat) {
-          if (dataHab >= mesAtualIni) {
+      // Usa data_venda para classificação de mês (mais precisa que data_habilitacao)
+      const dataVenda   = parseDate(s.data_venda || null);
+      const dataHabMs   = dataHab  ? dataHab.getTime()   : 0;
+      const dataVendaMs = dataVenda ? dataVenda.getTime() : 0;
+      const dataCan     = parseDate(s.data_cancelamento);
+      // Reativação: data_cancelamento anterior à habilitacao OU data_venda >30d após data_habilitacao
+      const isReatByCan  = !!(dataCan && dataHab && dataCan < dataHab);
+      const isReatByVend = !!(dataHabMs && dataVendaMs && (dataVendaMs - dataHabMs) > 30 * 86400 * 1000);
+      const isReat       = isReatByCan || isReatByVend;
+      // Referência de mês: data_venda se disponível, senão data_habilitacao
+      const dataRef = dataVenda || dataHab;
+
+      if (isOn && dataRef && valor > 0) {
+        if (!isReat) {
+          if (dataRef >= mesAtualIni)                                       mrrNovo    += valor;
+          else if (dataRef >= mesAnteriorIni && dataRef <= mesAnteriorFim)  mrrNovoAnt += valor;
+        } else {
+          if (dataRef >= mesAtualIni) {
             mrrRecupAtual += valor; reativAtual++;
-          } else if (dataHab >= mesAnteriorIni && dataHab <= mesAnteriorFim) {
+          } else if (dataRef >= mesAnteriorIni && dataRef <= mesAnteriorFim) {
             mrrRecupAnt += valor; reativAnt++;
           }
         }
@@ -2644,6 +2668,7 @@ async function buildFinanceiro() {
       mrr_suspenso:        Math.round(mrr.suspenso * 100) / 100,
       mrr_parcial:         Math.round(mrr.parcial * 100) / 100,
       mrr_novo:            Math.round(mrrNovo * 100) / 100,
+      mrr_novo_anterior:   Math.round(mrrNovoAnt * 100) / 100,
       mrr_perdido:         Math.round(cancelMesAtual.reduce((s,c) => s + c.valor, 0) * 100) / 100,
       mrr_recup_atual:     Math.round(mrrRecupAtual * 100) / 100,
       mrr_recup_anterior:  Math.round(mrrRecupAnt * 100) / 100,
