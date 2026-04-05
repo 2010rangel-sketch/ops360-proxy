@@ -2431,6 +2431,8 @@ async function buildFinanceiro() {
   let mrrNovoAnt      = 0;
   let mrrRecupAtual   = 0;
   let mrrRecupAnt     = 0;
+  let novoAtual       = 0;
+  let novoAnt         = 0;
   let reativAtual     = 0;
   let reativAnt       = 0;
 
@@ -2464,13 +2466,13 @@ async function buildFinanceiro() {
       const isReatByCan  = !!(dataCan && dataHab && dataCan < dataHab);
       const isReatByVend = !!(dataHabMs && dataVendaMs && (dataVendaMs - dataHabMs) > 30 * 86400 * 1000);
       const isReat       = isReatByCan || isReatByVend;
-      // Referência de mês: data_venda se disponível, senão data_habilitacao
-      const dataRef = dataVenda || dataHab;
+      // Referência de mês: data_venda só quando >= data_habilitacao (evita datas antigas no lugar de hab recente)
+      const dataRef = (dataVenda && dataVendaMs >= dataHabMs) ? dataVenda : dataHab;
 
       if (isOn && dataRef && valor > 0) {
         if (!isReat) {
-          if (dataRef >= mesAtualIni)                                       mrrNovo    += valor;
-          else if (dataRef >= mesAnteriorIni && dataRef <= mesAnteriorFim)  mrrNovoAnt += valor;
+          if (dataRef >= mesAtualIni)                                       { mrrNovo    += valor; novoAtual++; }
+          else if (dataRef >= mesAnteriorIni && dataRef <= mesAnteriorFim)  { mrrNovoAnt += valor; novoAnt++;   }
         } else {
           if (dataRef >= mesAtualIni) {
             mrrRecupAtual += valor; reativAtual++;
@@ -2669,6 +2671,8 @@ async function buildFinanceiro() {
       mrr_parcial:         Math.round(mrr.parcial * 100) / 100,
       mrr_novo:            Math.round(mrrNovo * 100) / 100,
       mrr_novo_anterior:   Math.round(mrrNovoAnt * 100) / 100,
+      novo_mes_atual:      novoAtual,
+      novo_mes_anterior:   novoAnt,
       mrr_perdido:         Math.round(cancelMesAtual.reduce((s,c) => s + c.valor, 0) * 100) / 100,
       mrr_recup_atual:     Math.round(mrrRecupAtual * 100) / 100,
       mrr_recup_anterior:  Math.round(mrrRecupAnt * 100) / 100,

@@ -1548,10 +1548,12 @@ input[type="text"]::placeholder { color:var(--text3); }
             <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
               <span style="font-size:10px;color:var(--text3)">Mês atual</span>
               <span class="kpi-mini-val" id="fin-mrr-novo" style="color:var(--green);font-size:15px">—</span>
+              <span style="font-size:10px;color:var(--text3)" id="fin-novo-atual-n"></span>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
               <span style="font-size:10px;color:var(--text3)">Mês anterior</span>
               <span class="kpi-mini-val" id="fin-mrr-novo-ant" style="color:var(--green);opacity:.65;font-size:13px">—</span>
+              <span style="font-size:10px;color:var(--text3)" id="fin-novo-ant-n"></span>
             </div>
           </div>
         </div>
@@ -6494,6 +6496,8 @@ function renderFinanceiro(d) {
   fev('fin-mrr-perdido',    fmtBRLk(r.mrr_perdido));
   fev('fin-mrr-novo',       fmtBRLk(r.mrr_novo));
   fev('fin-mrr-novo-ant',   r.mrr_novo_anterior != null ? fmtBRLk(r.mrr_novo_anterior) : '—');
+  fev('fin-novo-atual-n',   r.novo_mes_atual != null ? `${r.novo_mes_atual} clientes` : '');
+  fev('fin-novo-ant-n',     r.novo_mes_anterior != null ? `${r.novo_mes_anterior} clientes` : '');
   fev('fin-mrr-recup-atual', r.mrr_recup_atual != null ? fmtBRLk(r.mrr_recup_atual) : '—');
   fev('fin-mrr-recup-ant',   r.mrr_recup_anterior != null ? fmtBRLk(r.mrr_recup_anterior) : '—');
   fev('fin-reat-atual-n',    r.reativ_mes_atual != null ? `${r.reativ_mes_atual} clientes` : '');
