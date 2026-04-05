@@ -1541,36 +1541,8 @@ input[type="text"]::placeholder { color:var(--text3); }
       </div>
 
       <!-- MRR breakdown row -->
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px" id="fin-mrr-row">
+      <div style="display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:16px" id="fin-mrr-row">
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">MRR Perdido (churn mês)</div><div class="kpi-mini-val" id="fin-mrr-perdido" style="color:var(--red)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">MRR Novo (novas vendas)</div>
-          <div style="display:flex;flex-direction:column;gap:2px;margin-top:4px">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-              <span style="font-size:10px;color:var(--text3)">Mês atual</span>
-              <span class="kpi-mini-val" id="fin-mrr-novo" style="color:var(--green);font-size:15px">—</span>
-              <span style="font-size:10px;color:var(--text3)" id="fin-novo-atual-n"></span>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-              <span style="font-size:10px;color:var(--text3)">Mês anterior</span>
-              <span class="kpi-mini-val" id="fin-mrr-novo-ant" style="color:var(--green);opacity:.65;font-size:13px">—</span>
-              <span style="font-size:10px;color:var(--text3)" id="fin-novo-ant-n"></span>
-            </div>
-          </div>
-        </div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--cyan)"></div><div class="kpi-mini-label">MRR Recuperado</div>
-          <div style="display:flex;flex-direction:column;gap:2px;margin-top:4px">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-              <span style="font-size:10px;color:var(--text3)">Mês atual</span>
-              <span class="kpi-mini-val" id="fin-mrr-recup-atual" style="color:var(--cyan);font-size:15px">—</span>
-              <span style="font-size:10px;color:var(--text3)" id="fin-reat-atual-n"></span>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-              <span style="font-size:10px;color:var(--text3)">Mês anterior</span>
-              <span class="kpi-mini-val" id="fin-mrr-recup-ant" style="color:var(--cyan);opacity:.65;font-size:13px">—</span>
-              <span style="font-size:10px;color:var(--text3)" id="fin-reat-ant-n"></span>
-            </div>
-          </div>
-        </div>
       </div>
 
       <!-- Cancelamentos: mês atual + anterior -->
