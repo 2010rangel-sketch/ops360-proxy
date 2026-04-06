@@ -8,6 +8,14 @@ const axios    = require('axios');
 const cors     = require('cors');
 const path     = require('path');
 
+// ── Handlers globais: evita que erros async não capturados matem o processo ──
+process.on('uncaughtException', (err) => {
+  console.error('[UNCAUGHT EXCEPTION]', err.message, err.stack);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[UNHANDLED REJECTION]', reason?.message || reason);
+});
+
 // ── Mapeamento definitivo: ID do usuário → Setor ──────────────────
 // Fonte: planilha de usuários do Hubsoft (atualizar aqui se mudar)
 const SETOR_POR_ID = {
@@ -3238,22 +3246,25 @@ async function fetchEstoqueProdutos(token) {
   return todos;
 }
 
-async function fetchEstoqueSaldos(token, pagina = 0) {
-  // Tenta endpoints conhecidos de saldo de estoque no Hubsoft
+async function fetchEstoqueSaldos(token) {
   const endpointsS = ['estoque/saldo','estoque/saldo_produto','estoque/inventario','estoque/produto_saldo'];
-  for (const ep of endpointsS) {
-    try {
-      const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/${ep}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        params: { pagina: 0, itens_por_pagina: 500 },
-        timeout: 15000,
-      });
-      const arr = r.data?.saldos || r.data?.data || r.data?.itens || r.data?.produtos || (Array.isArray(r.data) ? r.data : []);
-      if (arr.length > 0) {
-        console.log(`[estoque] saldos via /${ep}: ${arr.length} itens`);
-        return { arr, ep };
-      }
-    } catch {}
+  try {
+    for (const ep of endpointsS) {
+      try {
+        const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/${ep}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { pagina: 0, itens_por_pagina: 500 },
+          timeout: 10000,
+        });
+        const arr = r.data?.saldos || r.data?.data || r.data?.itens || r.data?.produtos || (Array.isArray(r.data) ? r.data : []);
+        if (Array.isArray(arr) && arr.length > 0) {
+          console.log(`[estoque] saldos via /${ep}: ${arr.length} itens`);
+          return { arr, ep };
+        }
+      } catch { /* endpoint não existe — tenta próximo */ }
+    }
+  } catch(e) {
+    console.warn('[estoque/saldos] erro geral:', e.message);
   }
   return { arr: [], ep: null };
 }
