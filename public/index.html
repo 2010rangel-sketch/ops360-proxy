@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OPS360</title>
+<title>Meu Provedor 360</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -449,10 +449,8 @@ input[type="text"]::placeholder { color:var(--text3); }
 <!-- SIDEBAR -->
 <nav class="sidebar">
   <div class="sidebar-top">
-    <div class="workspace">
-      <div class="ws-icon">⚡</div>
-      <span class="ws-name">OPS360</span>
-      <span class="ws-chevron">⌄</span>
+    <div class="workspace" style="padding:10px 12px">
+      <img src="/logo.png" alt="Meu Provedor 360" style="height:38px;object-fit:contain;max-width:180px;display:block">
     </div>
   </div>
 
@@ -466,6 +464,7 @@ input[type="text"]::placeholder { color:var(--text3); }
   <div class="nav-item" onclick="goPage('estoque',this)"><i class="fas fa-boxes"></i> Estoque</div>
   <div class="nav-item" onclick="goPage('rh',this)"><i class="fas fa-users"></i> RH</div>
   <div class="nav-item" onclick="goPage('conexoes',this)"><i class="fas fa-wifi"></i> Conexões</div>
+  <div class="nav-item" onclick="goPage('saude',this)"><i class="fas fa-heartbeat"></i> Saúde da Base</div>
 
   <div class="sidebar-section">Spaces</div>
   <div class="space-item" onclick="goPage('tarefas',this)"><div class="space-dot" style="background:#5b6af0">T</div> Tarefas</div>
@@ -1535,7 +1534,7 @@ input[type="text"]::placeholder { color:var(--text3); }
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">MRR Perdido (Churn Mês)</div><div class="kpi-mini-val" id="fin-mrr-perdido" style="color:var(--red)">—</div></div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Churn Mês Atual</div><div class="kpi-mini-val" id="fin-churn-atual" style="color:var(--red)">—</div></div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--text3)"></div><div class="kpi-mini-label">Churn Mês Anterior</div><div class="kpi-mini-val" id="fin-churn-ant" style="color:var(--text3)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:#ef4444"></div><div class="kpi-mini-label">1ª Mensalidade Risco</div><div class="kpi-mini-val" id="fin-prim" style="color:#ef4444">—</div><div style="font-size:10px;color:var(--text3);text-align:center" id="fin-prim-pct">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:#ef4444"></div><div class="kpi-mini-label">1ª Mens. Cheia em Risco</div><div class="kpi-mini-val" id="fin-prim" style="color:#ef4444">—</div><div style="font-size:10px;color:var(--text3);text-align:center" id="fin-prim-pct">—</div></div>
       </div>
 
       <!-- Cancelamentos: mês atual + anterior -->
@@ -1624,10 +1623,10 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
       </div>
 
-      <!-- 1ª Mensalidade -->
+      <!-- 1ª Mensalidade Cheia em Risco -->
       <div class="tbl-card" style="margin-bottom:14px" id="fin-mid-grid">
         <div class="tbl-header">
-          <span class="tbl-title">1ª Mensalidade em Risco</span>
+          <span class="tbl-title">1ª Mensalidade Cheia em Risco</span>
           <span class="badge b-red" id="fin-prim-count">—</span>
         </div>
         <!-- KPIs -->
@@ -1778,6 +1777,100 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
         <div style="max-height:460px;overflow-y:auto;display:none" id="fisc-tbl-wrap">
           <table class="tbl"><thead><tr id="fisc-tbl-head"></tr></thead><tbody id="fisc-tbl-body"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ SAÚDE DA BASE ═══ -->
+    <div class="page" id="page-saude">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:16px;font-weight:700;color:var(--text)">Saúde da Base</div>
+          <div style="font-size:11px;color:var(--text3)" id="saude-periodo-label">Análise inteligente por cliente</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <span class="badge b-blue" id="saude-sync-badge">—</span>
+          <button class="btn btn-primary btn-sm" onclick="loadSaudeBase(true)"><i class="fas fa-sync-alt"></i> Atualizar</button>
+        </div>
+      </div>
+
+      <!-- Filtros de período -->
+      <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+        <span style="font-size:11px;color:var(--text3);margin-right:2px">Período:</span>
+        <button class="btn btn-sm btn-primary" data-saude-dias="7"   onclick="saudeFiltrarDias(7,this)">7 dias</button>
+        <button class="btn btn-sm btn-ghost"   data-saude-dias="15"  onclick="saudeFiltrarDias(15,this)">15 dias</button>
+        <button class="btn btn-sm btn-ghost"   data-saude-dias="30"  onclick="saudeFiltrarDias(30,this)">30 dias</button>
+        <button class="btn btn-sm btn-ghost"   data-saude-dias="90"  onclick="saudeFiltrarDias(90,this)">90 dias</button>
+        <button class="btn btn-sm btn-ghost"   data-saude-dias="120" onclick="saudeFiltrarDias(120,this)">120 dias</button>
+        <button class="btn btn-sm btn-ghost"   data-saude-dias="180" onclick="saudeFiltrarDias(180,this)">180 dias</button>
+        <div style="display:flex;gap:4px;align-items:center;margin-left:8px;border-left:1px solid var(--border);padding-left:12px">
+          <span style="font-size:11px;color:var(--text3)">De:</span>
+          <input type="date" id="saude-data-ini" class="search-input" style="width:130px;font-size:11px">
+          <span style="font-size:11px;color:var(--text3)">Até:</span>
+          <input type="date" id="saude-data-fim" class="search-input" style="width:130px;font-size:11px">
+          <button class="btn btn-sm btn-ghost" onclick="saudeFiltrarCustom()">Buscar</button>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
+        <div class="kpi-mini" style="cursor:pointer" onclick="saudeFiltrarStatus(null)">
+          <div class="kpi-mini-bar" style="background:var(--accent)"></div>
+          <div class="kpi-mini-label">Total Clientes</div>
+          <div class="kpi-mini-val" id="saude-kpi-total" style="color:var(--accent)">—</div>
+        </div>
+        <div class="kpi-mini" style="cursor:pointer" onclick="saudeFiltrarStatus('critico')">
+          <div class="kpi-mini-bar" style="background:var(--red)"></div>
+          <div class="kpi-mini-label">Crítico</div>
+          <div class="kpi-mini-val" id="saude-kpi-crit" style="color:var(--red)">—</div>
+        </div>
+        <div class="kpi-mini" style="cursor:pointer" onclick="saudeFiltrarStatus('atencao')">
+          <div class="kpi-mini-bar" style="background:var(--amber)"></div>
+          <div class="kpi-mini-label">Atenção</div>
+          <div class="kpi-mini-val" id="saude-kpi-atenc" style="color:var(--amber)">—</div>
+        </div>
+        <div class="kpi-mini" style="cursor:pointer" onclick="saudeFiltrarStatus('normal')">
+          <div class="kpi-mini-bar" style="background:var(--green)"></div>
+          <div class="kpi-mini-label">Normal</div>
+          <div class="kpi-mini-val" id="saude-kpi-norm" style="color:var(--green)">—</div>
+        </div>
+      </div>
+
+      <!-- Filtros de visualização -->
+      <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
+        <span style="font-size:11px;color:var(--text3)">Ver:</span>
+        <button class="btn btn-sm btn-primary" id="saude-f-todos"  onclick="saudeFiltrarVista('todos',this)">Todos</button>
+        <button class="btn btn-sm btn-ghost"   id="saude-f-offline" onclick="saudeFiltrarVista('offline',this)">Offline</button>
+        <button class="btn btn-sm btn-ghost"   id="saude-f-pend"   onclick="saudeFiltrarVista('pend',this)">Com OS pendente</button>
+        <button class="btn btn-sm btn-ghost"   id="saude-f-semOS"  onclick="saudeFiltrarVista('semOS',this)">Sem OS no período</button>
+        <input type="text" placeholder="Buscar cliente..." id="saude-search" class="search-input" style="margin-left:auto;width:200px" oninput="saudeSearch(this.value)">
+      </div>
+
+      <!-- Tabela -->
+      <div class="tbl-card">
+        <div class="tbl-header">
+          <span class="tbl-title" id="saude-tbl-titulo">Clientes</span>
+          <span class="badge b-blue" id="saude-tbl-count">—</span>
+        </div>
+        <div id="saude-empty-msg" style="padding:40px;text-align:center;color:var(--text3)">
+          <i class="fas fa-heartbeat" style="font-size:32px;margin-bottom:12px;opacity:.3;display:block"></i>
+          <div style="font-size:14px;font-weight:600;margin-bottom:6px">Selecione um período e clique em Atualizar</div>
+          <div style="font-size:12px;color:var(--text3)">Analisa OS, conexão e alertas para gerar o score de saúde de cada cliente</div>
+        </div>
+        <div style="overflow-x:auto;max-height:600px;overflow-y:auto;display:none" id="saude-tbl-wrap">
+          <table class="tbl" style="table-layout:fixed;min-width:820px">
+            <thead><tr>
+              <th style="width:220px">Cliente</th>
+              <th style="width:120px">Cidade</th>
+              <th style="text-align:center;width:80px">Conexão</th>
+              <th style="text-align:center;width:75px">OS Pend.</th>
+              <th style="text-align:center;width:75px">OS Fech.</th>
+              <th style="width:130px">Técnico</th>
+              <th style="text-align:center;width:110px">Saúde</th>
+              <th style="text-align:center;width:90px">Status</th>
+            </tr></thead>
+            <tbody id="saude-tbl-body"></tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -2403,7 +2496,7 @@ function goPage(id, el, skipHistory) {
   // Marca o nav-item correspondente como ativo
   const navEl = el || document.querySelector(`.nav-item[onclick*="'${id}'"], .space-item[onclick*="'${id}'"]`);
   if(navEl) navEl.classList.add('active');
-  const titles = {chamados:'Chamados',atendimento:'Atendimento',comercial:'Comercial',retencao:'Cancelamento / Retenção',conexoes:'Conexões',financeiro:'Financeiro',fiscal:'Fiscal',estoque:'Estoque',rh:'RH',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
+  const titles = {chamados:'Chamados',atendimento:'Atendimento',comercial:'Comercial',retencao:'Cancelamento / Retenção',conexoes:'Conexões',financeiro:'Financeiro',fiscal:'Fiscal',estoque:'Estoque',rh:'RH',saude:'Saúde da Base',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
   document.getElementById('pageTitle').textContent = titles[id]||id;
   // Reseta pill para "Ao vivo" ao trocar de página (comercial escreve o horário quando carrega)
   const pill = document.getElementById('live-pill-text');
@@ -2454,6 +2547,9 @@ function goPage(id, el, skipHistory) {
   if (id === 'fiscal') {
     loadFiscal();
   }
+  if (id === 'saude') {
+    loadSaudeBase();
+  }
   if (id === 'estoque') {
     loadEstoque();
   }
@@ -2472,7 +2568,7 @@ window.addEventListener('popstate', e => {
 // Ao abrir link direto (ex: /financeiro), navega para a página correta
 function _pageFromPath() {
   const seg = window.location.pathname.replace(/^\//, '').split('/')[0];
-  const valid = ['comercial','chamados','atendimento','retencao','conexoes','financeiro','fiscal','estoque','rh','tarefas','integracoes'];
+  const valid = ['comercial','chamados','atendimento','retencao','conexoes','financeiro','fiscal','estoque','rh','saude','tarefas','integracoes'];
   return valid.includes(seg) ? seg : 'comercial';
 }
 
@@ -7047,6 +7143,137 @@ function renderFiscal(d) {
     }
   }
   _fiscRenderTipo(d);
+}
+
+// ─── SAÚDE DA BASE ───────────────────────────────────────────────────────────
+let _saudeData = null;
+let _saudeDias = 7;
+let _saudeFiltroStatus = null;
+let _saudeFiltroVista = 'todos';
+let _saudeSearchTxt = '';
+
+async function loadSaudeBase(force = false) {
+  const badge = document.getElementById('saude-sync-badge');
+  if (badge) { badge.textContent = 'Carregando...'; badge.className = 'badge b-blue'; }
+  try {
+    const r = await fetch(`${PROXY_URL}/api/saude-base?dias=${_saudeDias}${force ? '&force=1' : ''}`);
+    const d = await r.json();
+    _saudeData = d;
+    renderSaudeBase(d);
+    if (badge) {
+      const hora = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+      badge.textContent = `Atualizado ${hora}`;
+      badge.className = d.ok ? 'badge b-green' : 'badge b-red';
+    }
+  } catch(e) {
+    if (badge) { badge.textContent = 'Erro de conexão'; badge.className = 'badge b-red'; }
+  }
+}
+
+function renderSaudeBase(d) {
+  if (!d || !d.ok) return;
+  const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  const clientes = d.clientes || [];
+  set('saude-kpi-total', clientes.length);
+  set('saude-kpi-crit',  clientes.filter(c => c.status === 'critico').length);
+  set('saude-kpi-atenc', clientes.filter(c => c.status === 'atencao').length);
+  set('saude-kpi-norm',  clientes.filter(c => c.status === 'normal').length);
+  if (d.periodo) {
+    const lbl = document.getElementById('saude-periodo-label');
+    if (lbl) lbl.textContent = `Últimos ${d.periodo.dias} dias · ${d.periodo.dataIni} → ${d.periodo.dataFim}`;
+  }
+  _saudeFiltroStatus = null;
+  _saudeFiltroVista  = 'todos';
+  _saudeSearchTxt    = '';
+  const si = document.getElementById('saude-search');
+  if (si) si.value = '';
+  document.querySelectorAll('[id^="saude-f-"]').forEach(b => b.className = 'btn btn-sm btn-ghost');
+  const todos = document.getElementById('saude-f-todos');
+  if (todos) todos.className = 'btn btn-sm btn-primary';
+  renderSaudeTbl();
+}
+
+function _saudeFiltrado() {
+  if (!_saudeData?.clientes) return [];
+  let lista = _saudeData.clientes;
+  if (_saudeFiltroStatus) lista = lista.filter(c => c.status === _saudeFiltroStatus);
+  if (_saudeFiltroVista === 'offline') lista = lista.filter(c => !c.online);
+  if (_saudeFiltroVista === 'pend')    lista = lista.filter(c => c.osPend > 0);
+  if (_saudeFiltroVista === 'semOS')   lista = lista.filter(c => c.osPend === 0 && c.osFech === 0);
+  if (_saudeSearchTxt) {
+    const q = _saudeSearchTxt.toLowerCase();
+    lista = lista.filter(c => c.nome.toLowerCase().includes(q) || (c.cidade||'').toLowerCase().includes(q));
+  }
+  return lista;
+}
+
+function renderSaudeTbl() {
+  const lista = _saudeFiltrado();
+  const cnt   = document.getElementById('saude-tbl-count');
+  if (cnt) cnt.textContent = lista.length + ' cliente' + (lista.length !== 1 ? 's' : '');
+  const empty = document.getElementById('saude-empty-msg');
+  const wrap  = document.getElementById('saude-tbl-wrap');
+  if (!_saudeData) { if (empty) empty.style.display = 'block'; if (wrap) wrap.style.display = 'none'; return; }
+  if (empty) empty.style.display = 'none';
+  if (wrap)  wrap.style.display  = 'block';
+  const body = document.getElementById('saude-tbl-body');
+  if (!body) return;
+  const COR    = { critico: 'var(--red)', atencao: 'var(--amber)', normal: 'var(--green)' };
+  const LABEL  = { critico: 'CRÍTICO', atencao: 'ATENÇÃO', normal: 'NORMAL' };
+  body.innerHTML = lista.map(c => {
+    const cor = COR[c.status] || 'var(--text3)';
+    const pct = c.score;
+    return `<tr>
+      <td style="font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.nome}">${c.nome}</td>
+      <td style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.cidade}</td>
+      <td style="text-align:center"><span style="font-size:10px;font-weight:700;color:${c.online ? 'var(--green)' : 'var(--red)'}">${c.online ? '● Online' : '● Offline'}</span></td>
+      <td class="mono" style="text-align:center;font-weight:${c.osPend > 0 ? '700' : '400'};color:${c.osPend > 0 ? 'var(--red)' : 'var(--text3)'}">${c.osPend || '—'}</td>
+      <td class="mono" style="text-align:center;color:var(--text3)">${c.osFech || '—'}</td>
+      <td style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.tec}">${c.tec}</td>
+      <td style="text-align:center;padding:6px 8px">
+        <span style="font-size:13px;font-weight:700;color:${cor}">${pct}%</span>
+        <div style="width:100%;height:4px;background:var(--bg3);border-radius:3px;margin-top:3px">
+          <div style="height:4px;width:${Math.max(3,pct)}%;background:${cor};border-radius:3px"></div>
+        </div>
+      </td>
+      <td style="text-align:center">
+        <span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:700;background:${cor}22;color:${cor}">${LABEL[c.status]}</span>
+      </td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Nenhum cliente encontrado</td></tr>';
+}
+
+function saudeFiltrarDias(dias, el) {
+  _saudeDias = dias;
+  document.querySelectorAll('[data-saude-dias]').forEach(b => b.className = 'btn btn-sm btn-ghost');
+  if (el) el.className = 'btn btn-sm btn-primary';
+  loadSaudeBase();
+}
+
+function saudeFiltrarCustom() {
+  const ini = document.getElementById('saude-data-ini')?.value;
+  const fim = document.getElementById('saude-data-fim')?.value;
+  if (!ini || !fim) return;
+  _saudeDias = Math.max(1, Math.ceil((new Date(fim) - new Date(ini)) / 86400000));
+  document.querySelectorAll('[data-saude-dias]').forEach(b => b.className = 'btn btn-sm btn-ghost');
+  loadSaudeBase();
+}
+
+function saudeFiltrarStatus(status) {
+  _saudeFiltroStatus = status;
+  renderSaudeTbl();
+}
+
+function saudeFiltrarVista(vista, el) {
+  _saudeFiltroVista = vista;
+  document.querySelectorAll('[id^="saude-f-"]').forEach(b => b.className = 'btn btn-sm btn-ghost');
+  if (el) el.className = 'btn btn-sm btn-primary';
+  renderSaudeTbl();
+}
+
+function saudeSearch(txt) {
+  _saudeSearchTxt = txt;
+  renderSaudeTbl();
 }
 
 // ─── ESTOQUE ─────────────────────────────────────────────────────────────────

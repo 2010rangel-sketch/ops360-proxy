@@ -2984,6 +2984,76 @@ cron.schedule('*/3 * * * *', async () => {
   }
 });
 
+// ── SAÚDE DA BASE ────────────────────────────────────────────────────────────
+app.get('/api/saude-base', async (req, res) => {
+  try {
+    const dias = parseInt(req.query.dias) || 30;
+    const agora = new Date();
+    const agoraBRT = new Date(agora.getTime() - 3*60*60*1000);
+    const dataFim = agoraBRT.toISOString().slice(0, 10);
+    const dataIni = new Date(agoraBRT.getTime() - dias * 86400000).toISOString().slice(0, 10);
+
+    // Busca OS do período (aproveita cache se existir)
+    const lista = await _fetchChamadosHubsoft(dataIni, dataFim, true);
+
+    // Agrupa OS por cliente
+    const porCliente = {};
+    for (const os of lista) {
+      const cs     = os.atendimento?.cliente_servico;
+      const idCli  = cs?.cliente?.id_cliente || cs?.id_cliente;
+      if (!idCli) continue;
+      const nome   = cs?.display || cs?.cliente?.nome_razaosocial || cs?.nome_razaosocial || '—';
+      const end    = cs?.endereco_instalacao;
+      const cidade = end?.endereco_numero?.cidade?.nome || end?.cidade?.nome || end?.cidade?.display || cs?.cliente?.cidade?.nome || '—';
+      const st     = normalizarStatus(os.status || '');
+      const tecs   = os.tecnicos || [];
+      const tec    = tecs.map(t => t.name || t.nome || t.display).filter(Boolean).join(', ') || '—';
+      if (!porCliente[idCli]) porCliente[idCli] = { id: idCli, nome, cidade, tec, osPend: 0, osFech: 0 };
+      if (st === 'finalizado') porCliente[idCli].osFech++;
+      else porCliente[idCli].osPend++;
+      // Mantém técnico da OS mais recente (pendente tem prioridade)
+      if (st !== 'finalizado' && tec !== '—') porCliente[idCli].tec = tec;
+    }
+
+    // Mapa de status de conexão
+    const cxClientes = _cxCache?.clientes || [];
+    const cxMap = {};
+    for (const c of cxClientes) cxMap[c.id] = c;
+
+    // Inclui clientes offline ou com alerta que não tiveram OS no período
+    for (const cx of cxClientes) {
+      if (!porCliente[cx.id] && (!cx.online || cx.alerta)) {
+        porCliente[cx.id] = { id: cx.id, nome: cx.nome, cidade: cx.cidade, tec: '—', osPend: 0, osFech: 0 };
+      }
+    }
+
+    // Calcula score de saúde (0–100)
+    const resultado = Object.values(porCliente).map(cli => {
+      const cx  = cxMap[cli.id] || {};
+      const online     = cx.online ?? true;
+      const alerta     = cx.alerta || false;
+      const alertaMsgs = cx.alertaMsgs || [];
+
+      let score = 100;
+      score -= Math.min(cli.osPend * 20, 50);                               // -20 por OS pendente (máx -50)
+      if (cli.osFech > 3) score -= Math.min((cli.osFech - 3) * 5, 15);     // recorrência: -5 acima de 3 fechadas
+      if (!online) score -= 20;                                              // offline: -20
+      if (alerta)  score -= 10;                                              // alerta Hubsoft: -10
+      score = Math.max(0, Math.min(100, score));
+
+      const status = score >= 80 ? 'normal' : score >= 50 ? 'atencao' : 'critico';
+      return { ...cli, online, alerta, alertaMsgs, score, status };
+    });
+
+    resultado.sort((a, b) => a.score - b.score); // piores primeiro
+
+    res.json({ ok: true, periodo: { dataIni, dataFim, dias }, total: resultado.length, clientes: resultado });
+  } catch(e) {
+    console.error('[/api/saude-base]', e.message);
+    res.json({ ok: false, motivo: e.message });
+  }
+});
+
 // ── FISCAL ─────────────────────────────────────────────────────────────────
 let _fiscalCache = null; let _fiscalFetchedAt = 0;
 const FISCAL_CACHE_TTL = 2 * 60 * 60 * 1000; // 2h — dados históricos
