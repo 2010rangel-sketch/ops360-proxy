@@ -3258,9 +3258,9 @@ app.get('/api/estoque', async (req, res) => {
       const saldosQtd  = _somaSaldos(p, 'quantidade');
       const saldosDisp = _somaSaldos(p, 'quantidade_disponivel') ?? _somaSaldos(p, 'disponivel');
       const saldosAloc = _somaSaldos(p, 'quantidade_alocada') ?? _somaSaldos(p, 'alocado');
-      const qtd  = saldosQtd  ?? _pf(p,'quantidade','qtd','qtde','saldo','saldo_atual','estoque_atual','quantidade_total','qtd_total','total','estoque','amount');
-      const disp = saldosDisp ?? _pf(p,'quantidade_disponivel','qtd_disponivel','disponivel','estoque_disponivel','saldo_disponivel','qtd_livre','livre') || qtd;
-      const aloc = saldosAloc ?? _pf(p,'quantidade_alocada','qtd_alocada','alocado','em_uso','reservado','quantidade_reservada','qtd_reservada');
+      const qtd  = (saldosQtd  !== null ? saldosQtd  : _pf(p,'quantidade','qtd','qtde','saldo','saldo_atual','estoque_atual','quantidade_total','qtd_total','total','estoque','amount'));
+      const disp = (saldosDisp !== null ? saldosDisp : (_pf(p,'quantidade_disponivel','qtd_disponivel','disponivel','estoque_disponivel','saldo_disponivel','qtd_livre','livre') || qtd));
+      const aloc = (saldosAloc !== null ? saldosAloc : _pf(p,'quantidade_alocada','qtd_alocada','alocado','em_uso','reservado','quantidade_reservada','qtd_reservada'));
       const min  = _pf(p,'estoque_minimo','qtd_minimo','minimo','ponto_pedido','qtd_minima','quantidade_minima');
       const cat  = p.categoria?.nome ?? p.categoria ?? p.grupo?.nome ?? p.grupo ?? p.tipo ?? '—';
       const un   = p.unidade?.sigla ?? p.unidade?.nome ?? p.unidade ?? p.un ?? '—';
