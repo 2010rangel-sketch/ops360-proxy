@@ -1733,7 +1733,33 @@ input[type="text"]::placeholder { color:var(--text3); }
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--purple, #9b59b6)"></div><div class="kpi-mini-label">NFCom</div><div class="kpi-mini-val" id="fisc-kpi-nfcom" style="color:var(--purple,#9b59b6)">—</div></div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">NF-e</div><div class="kpi-mini-val" id="fisc-kpi-nfe" style="color:var(--red)">—</div></div>
       </div>
-      <!-- Tabs para tipos de NF -->
+      <!-- Tabela mês a mês -->
+      <div class="tbl-card" style="margin-bottom:14px">
+        <div class="tbl-header">
+          <span class="tbl-title">Notas por Mês</span>
+          <span class="badge b-blue" id="fisc-mes-badge">Jan 2025 → hoje</span>
+        </div>
+        <div id="fisc-mes-empty" style="padding:40px;text-align:center;color:var(--text3)">
+          <i class="fas fa-file-invoice" style="font-size:32px;margin-bottom:12px;opacity:.3;display:block"></i>
+          <div style="font-size:14px;font-weight:600;margin-bottom:6px">Clique em Atualizar para carregar</div>
+        </div>
+        <div style="overflow-x:auto;display:none" id="fisc-mes-wrap">
+          <table class="tbl" style="table-layout:fixed;min-width:620px">
+            <thead><tr>
+              <th style="width:110px">Mês</th>
+              <th style="text-align:right;width:80px">NFS-e</th>
+              <th style="text-align:right;width:80px">Telecom</th>
+              <th style="text-align:right;width:80px">NFCom</th>
+              <th style="text-align:right;width:80px">NF-e</th>
+              <th style="text-align:right;width:90px">Total NFs</th>
+              <th style="text-align:right">Valor Total</th>
+            </tr></thead>
+            <tbody id="fisc-mes-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tabs para detalhe de NFs (mês atual + anterior) -->
       <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap" id="fisc-tabs">
         <button class="btn btn-sm btn-primary" onclick="fiscShowTipo('nfse',this)">NFS-e</button>
         <button class="btn btn-sm btn-ghost" onclick="fiscShowTipo('telecom',this)">Telecom</button>
@@ -1744,6 +1770,7 @@ input[type="text"]::placeholder { color:var(--text3); }
         <div class="tbl-header">
           <span class="tbl-title" id="fisc-tbl-title">NFS-e</span>
           <span class="badge b-blue" id="fisc-tbl-count">—</span>
+          <span style="font-size:10px;color:var(--text3);margin-left:6px">(mês atual e anterior)</span>
         </div>
         <div id="fisc-empty-wrap" style="padding:40px;text-align:center;color:var(--text3)">
           <i class="fas fa-file-invoice" style="font-size:32px;margin-bottom:12px;opacity:.3;display:block"></i>
@@ -6960,18 +6987,64 @@ function renderFiscal(d) {
     if (empty) { empty.style.display = 'block'; const div = empty.querySelector('div'); if (div) div.textContent = d.motivo || 'Erro ao carregar'; }
     return;
   }
-  // KPIs
   const fmtMoeda = v => v > 0 ? 'R$ ' + v.toLocaleString('pt-BR', {minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
   const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  // KPIs
   set('fisc-kpi-total',   d.totalNf ?? '—');
   set('fisc-kpi-valor',   fmtMoeda(d.totalValor ?? 0));
   set('fisc-kpi-nfse',    d.tipos?.nfse?.total ?? '—');
   set('fisc-kpi-telecom', d.tipos?.telecom?.total ?? '—');
   set('fisc-kpi-nfcom',   d.tipos?.nfcom?.total ?? '—');
   set('fisc-kpi-nfe',     d.tipos?.nfe?.total ?? '—');
-  if (d.periodo) {
-    const lbl = document.getElementById('fisc-periodo-label');
-    if (lbl) lbl.textContent = `Período: ${d.periodo.dataIni} → ${d.periodo.dataFim}`;
+  // Período label
+  const lbl = document.getElementById('fisc-periodo-label');
+  if (lbl) lbl.textContent = 'Notas fiscais · NFS-e · NFCom · NF-e · Telecom · Jan 2025 → hoje';
+  // Tabela mês a mês
+  const mesEmpty = document.getElementById('fisc-mes-empty');
+  const mesWrap  = document.getElementById('fisc-mes-wrap');
+  const mesBadge = document.getElementById('fisc-mes-badge');
+  const porMes = d.porMes || {};
+  const meses = Object.keys(porMes).sort().reverse(); // mais recente primeiro
+  if (meses.length === 0) {
+    if (mesEmpty) mesEmpty.style.display = 'block';
+    if (mesWrap)  mesWrap.style.display  = 'none';
+  } else {
+    if (mesEmpty) mesEmpty.style.display = 'none';
+    if (mesWrap)  mesWrap.style.display  = 'block';
+    if (mesBadge) mesBadge.textContent   = meses.length + ' meses';
+    const MESES_PT = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    let totalGeral = 0, valorGeral = 0;
+    const body = document.getElementById('fisc-mes-body');
+    if (body) {
+      const rows = meses.map(mes => {
+        const m = porMes[mes];
+        totalGeral += m.total;
+        valorGeral += m.valor;
+        const [ano, mm] = mes.split('-');
+        const mesLabel = (MESES_PT[parseInt(mm)] || mm) + '/' + ano;
+        const destacar = mes === new Date().toISOString().slice(0,7) ? 'font-weight:700;color:var(--accent)' : '';
+        return `<tr>
+          <td style="font-size:12px;${destacar}">${mesLabel}</td>
+          <td class="mono" style="text-align:right;color:var(--green)">${m.nfse || '—'}</td>
+          <td class="mono" style="text-align:right;color:var(--amber)">${m.telecom || '—'}</td>
+          <td class="mono" style="text-align:right;color:var(--purple,#9b59b6)">${m.nfcom || '—'}</td>
+          <td class="mono" style="text-align:right;color:var(--red)">${m.nfe || '—'}</td>
+          <td class="mono" style="text-align:right;font-weight:600">${m.total}</td>
+          <td class="mono" style="text-align:right;color:var(--cyan)">${fmtMoeda(m.valor)}</td>
+        </tr>`;
+      });
+      // Linha de total
+      rows.push(`<tr style="border-top:2px solid var(--border);background:var(--bg3)">
+        <td style="font-size:12px;font-weight:700">Total</td>
+        <td class="mono" style="text-align:right;font-weight:700;color:var(--green)">${meses.reduce((a,m)=>a+(porMes[m].nfse||0),0)||'—'}</td>
+        <td class="mono" style="text-align:right;font-weight:700;color:var(--amber)">${meses.reduce((a,m)=>a+(porMes[m].telecom||0),0)||'—'}</td>
+        <td class="mono" style="text-align:right;font-weight:700;color:var(--purple,#9b59b6)">${meses.reduce((a,m)=>a+(porMes[m].nfcom||0),0)||'—'}</td>
+        <td class="mono" style="text-align:right;font-weight:700;color:var(--red)">${meses.reduce((a,m)=>a+(porMes[m].nfe||0),0)||'—'}</td>
+        <td class="mono" style="text-align:right;font-weight:700">${totalGeral}</td>
+        <td class="mono" style="text-align:right;font-weight:700;color:var(--cyan)">${fmtMoeda(valorGeral)}</td>
+      </tr>`);
+      body.innerHTML = rows.join('');
+    }
   }
   _fiscRenderTipo(d);
 }

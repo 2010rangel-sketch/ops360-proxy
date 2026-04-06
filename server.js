@@ -2986,19 +2986,24 @@ cron.schedule('*/3 * * * *', async () => {
 
 // ── FISCAL ─────────────────────────────────────────────────────────────────
 let _fiscalCache = null; let _fiscalFetchedAt = 0;
-const FISCAL_CACHE_TTL = 30 * 60 * 1000;
+const FISCAL_CACHE_TTL = 2 * 60 * 60 * 1000; // 2h — dados históricos
 
 async function fetchNfTipo(tipo, token, dataIni, dataFim) {
-  // tipo: 'nfse' | 'telecom' | 'nfcom' | 'nfe'
+  // tipo: 'nfse' | 'telecom' | 'nfcom' | 'nfe' — pagina até 20 páginas (4000 itens)
   try {
-    const params = { tipo_data: 'data_emissao', data_inicio: dataIni, data_fim: dataFim, pagina: 0, itens_por_pagina: 200 };
-    if (tipo === 'telecom') params.modelo = '21';
-    const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/nota_fiscal/${tipo}`, {
-      headers: { Authorization: `Bearer ${token}` },
-      params, timeout: 15000,
-    });
-    const arr = Array.isArray(r.data) ? r.data : (r.data?.data || r.data?.itens || r.data?.notas || []);
-    return { ok: true, itens: arr };
+    let todos = [];
+    for (let p = 0; p < 20; p++) {
+      const params = { tipo_data: 'data_emissao', data_inicio: dataIni, data_fim: dataFim, pagina: p, itens_por_pagina: 200 };
+      if (tipo === 'telecom') params.modelo = '21';
+      const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/nota_fiscal/${tipo}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params, timeout: 20000,
+      });
+      const arr = Array.isArray(r.data) ? r.data : (r.data?.data || r.data?.itens || r.data?.notas || []);
+      todos = todos.concat(arr);
+      if (arr.length < 200) break;
+    }
+    return { ok: true, itens: todos };
   } catch (e) {
     return { ok: false, erro: e.response?.status || e.message, itens: [] };
   }
@@ -3013,13 +3018,11 @@ app.get('/api/fiscal', async (req, res) => {
       if (dbF) { _fiscalCache = dbF; _fiscalFetchedAt = Date.now(); return res.json({ ...dbF, cache: 'db' }); }
     }
     const token = await getToken();
-    // Período: mês atual + mês anterior (em BRT)
+    // Período: Jan 2025 → hoje (BRT)
     const agora = new Date();
-    const brt = (d) => new Date(d.getTime() - 3*60*60*1000);
-    const agoraBRT = brt(agora);
+    const agoraBRT = new Date(agora.getTime() - 3*60*60*1000);
     const dataFim = agoraBRT.toISOString().slice(0, 10);
-    const priDiaMesAnt = new Date(agoraBRT.getFullYear(), agoraBRT.getMonth() - 1, 1);
-    const dataIni = priDiaMesAnt.toISOString().slice(0, 10);
+    const dataIni = '2025-01-01';
 
     const [nfse, telecom, nfcom, nfe] = await Promise.all([
       fetchNfTipo('nfse', token, dataIni, dataFim),
@@ -3039,20 +3042,24 @@ app.get('/api/fiscal', async (req, res) => {
       }
     }
 
-    // Agrupa por mês
+    // Agrupa por mês — breakdown por tipo de NF
     const porMes = {};
     for (const [tipo, v] of Object.entries(tipos)) {
       for (const nf of v.itens) {
         const dtStr = nf.data_emissao || nf.data || '';
         const mes = dtStr.slice(0, 7); // YYYY-MM
         if (!mes) continue;
-        if (!porMes[mes]) porMes[mes] = { total: 0, valor: 0 };
+        if (!porMes[mes]) porMes[mes] = { total: 0, valor: 0, nfse: 0, telecom: 0, nfcom: 0, nfe: 0 };
         porMes[mes].total++;
+        porMes[mes][tipo] = (porMes[mes][tipo] || 0) + 1;
         const val = parseFloat(nf.valor_total ?? nf.valor ?? nf.total ?? 0);
         if (!isNaN(val)) porMes[mes].valor += val;
       }
     }
 
+    // Meses mais recentes para a tabela de detalhe
+    const mesAtual = agoraBRT.toISOString().slice(0, 7);
+    const mesAnt = new Date(agoraBRT.getFullYear(), agoraBRT.getMonth() - 1, 1).toISOString().slice(0, 7);
     const fiscalResult = {
       ok: true, periodo: { dataIni, dataFim },
       totalNf, totalValor,
@@ -3063,11 +3070,11 @@ app.get('/api/fiscal', async (req, res) => {
         nfe:    { ok: nfe.ok,    total: nfe.itens.length,    erro: nfe.erro },
       },
       porMes,
-      // Inclui até 100 itens de cada tipo para tabela
-      nfse:   nfse.itens.slice(0, 100),
-      telecom:telecom.itens.slice(0, 100),
-      nfcom:  nfcom.itens.slice(0, 100),
-      nfe:    nfe.itens.slice(0, 100),
+      // Detalhe: apenas mês atual e anterior
+      nfse:   nfse.itens.filter(n => { const m = (n.data_emissao||n.data||'').slice(0,7); return m===mesAtual||m===mesAnt; }).slice(0, 200),
+      telecom:telecom.itens.filter(n => { const m = (n.data_emissao||n.data||'').slice(0,7); return m===mesAtual||m===mesAnt; }).slice(0, 200),
+      nfcom:  nfcom.itens.filter(n => { const m = (n.data_emissao||n.data||'').slice(0,7); return m===mesAtual||m===mesAnt; }).slice(0, 200),
+      nfe:    nfe.itens.filter(n => { const m = (n.data_emissao||n.data||'').slice(0,7); return m===mesAtual||m===mesAnt; }).slice(0, 200),
     };
     _fiscalCache = fiscalResult; _fiscalFetchedAt = Date.now();
     dbCacheSet('cache:fiscal', fiscalResult);
@@ -3122,17 +3129,23 @@ app.get('/api/estoque', async (req, res) => {
       }).then(r => Array.isArray(r.data) ? r.data : (r.data?.data || r.data?.itens || [])).catch(() => []),
     ]);
 
-    // Normaliza campos de quantidade
-    const items = produtos.map(p => ({
-      id:          p.id ?? p.codigo ?? '',
-      nome:        p.nome ?? p.descricao ?? p.name ?? '—',
-      categoria:   p.categoria ?? p.tipo ?? '—',
-      unidade:     p.unidade ?? p.un ?? '—',
-      quantidade:  parseFloat(p.quantidade ?? p.qtd ?? p.saldo ?? 0),
-      disponivel:  parseFloat(p.quantidade_disponivel ?? p.qtd_disponivel ?? p.disponivel ?? p.quantidade ?? p.qtd ?? 0),
-      alocado:     parseFloat(p.quantidade_alocada ?? p.qtd_alocada ?? p.em_uso ?? 0),
-      minimo:      parseFloat(p.estoque_minimo ?? p.qtd_minimo ?? p.minimo ?? 0),
-    }));
+    // Normaliza campos de quantidade — cobre variações de nomes do Hubsoft
+    const _pf = (p, ...keys) => { for (const k of keys) { const v = parseFloat(p[k]); if (!isNaN(v)) return v; } return 0; };
+    const items = produtos.map(p => {
+      const qtd  = _pf(p,'quantidade','qtd','qtde','saldo','saldo_atual','estoque_atual','quantidade_total','qtd_total','total');
+      const disp = _pf(p,'quantidade_disponivel','qtd_disponivel','disponivel','estoque_disponivel','saldo_disponivel','qtd_livre','livre') || qtd;
+      const aloc = _pf(p,'quantidade_alocada','qtd_alocada','alocado','em_uso','reservado','quantidade_reservada','qtd_reservada');
+      const min  = _pf(p,'estoque_minimo','qtd_minimo','minimo','ponto_pedido','qtd_minima','quantidade_minima');
+      const cat  = p.categoria?.nome ?? p.categoria ?? p.grupo?.nome ?? p.grupo ?? p.tipo ?? '—';
+      const un   = p.unidade?.sigla ?? p.unidade?.nome ?? p.unidade ?? p.un ?? '—';
+      return {
+        id:        p.id ?? p.codigo ?? '',
+        nome:      p.nome ?? p.descricao ?? p.name ?? '—',
+        categoria: typeof cat === 'string' ? cat : String(cat),
+        unidade:   typeof un  === 'string' ? un  : String(un),
+        quantidade: qtd, disponivel: disp, alocado: aloc, minimo: min,
+      };
+    });
 
     const total     = items.length;
     const dispTotal = items.filter(i => i.disponivel > 0).length;
