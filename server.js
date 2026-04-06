@@ -2258,6 +2258,7 @@ app.get('/api/integracao/raw', async (req, res) => {
 // ── Cache de conexões (evita timeout: endpoint devolve cache instantâneo) ──
 let _cxCache      = null;  // { clientes, cidades, ts }
 let _cxFetching   = false; // lock para evitar fetch paralelo
+const _offlineInicioMap = new Map(); // id_cliente -> timestamp quando detectado offline pela primeira vez
 
 const CIDADES_EXCLUIDAS = ['SANTO ANTÔNIO DO MONTE'];
 
@@ -2315,6 +2316,16 @@ async function fetchConexoesHubsoft() {
         if (ip !== '' && ip !== '0.0.0.0') online = true;
       }
       resultado.push({ id: cli.id_cliente, nome, cidade, lat, lng, online, alerta, alertaMsgs });
+    }
+
+    // Atualiza mapa de tempo offline
+    const agora_cx = Date.now();
+    for (const c of resultado) {
+      if (!c.online) {
+        if (!_offlineInicioMap.has(c.id)) _offlineInicioMap.set(c.id, agora_cx);
+      } else {
+        _offlineInicioMap.delete(c.id);
+      }
     }
 
     const cidades = buildCidadeMap(resultado);
@@ -2985,6 +2996,9 @@ cron.schedule('*/3 * * * *', async () => {
 });
 
 // ── SAÚDE DA BASE ────────────────────────────────────────────────────────────
+const STATUS_CONTRATO_SUSPENSO = new Set(['suspenso_debito','suspenso_pedido_cliente','bloqueio_temporario','suspenso_judicial']);
+const STATUS_CONTRATO_PARCIAL  = new Set(['suspenso_parcialmente','suspenso_parcial','bloqueio_parcial']);
+
 app.get('/api/saude-base', async (req, res) => {
   try {
     const dias = parseInt(req.query.dias) || 30;
@@ -2993,59 +3007,84 @@ app.get('/api/saude-base', async (req, res) => {
     const dataFim = agoraBRT.toISOString().slice(0, 10);
     const dataIni = new Date(agoraBRT.getTime() - dias * 86400000).toISOString().slice(0, 10);
 
-    // Busca OS do período (aproveita cache se existir)
+    // Busca OS do período
     const lista = await _fetchChamadosHubsoft(dataIni, dataFim, true);
 
-    // Agrupa OS por cliente
+    // Mapa de status de contrato (de _comAllClientes se disponível)
+    const statusContratoMap = {};
+    if (_comAllClientes) {
+      for (const cli of _comAllClientes) {
+        let sc = 'ativo';
+        for (const s of (cli.servicos || [])) {
+          const st = (s.status_servico || '').toLowerCase();
+          if (STATUS_CONTRATO_SUSPENSO.has(st)) { sc = 'suspenso'; break; }
+          if (STATUS_CONTRATO_PARCIAL.has(st))  { sc = 'parcial'; }
+        }
+        statusContratoMap[cli.id_cliente] = sc;
+      }
+    }
+
+    // Agrupa OS por cliente com breakdown de categoria
+    const LC_VIRTUAL = /^lc\s*virtual\s*net/i;
     const porCliente = {};
     for (const os of lista) {
-      const cs     = os.atendimento?.cliente_servico;
-      const idCli  = cs?.cliente?.id_cliente || cs?.id_cliente;
+      const cs    = os.atendimento?.cliente_servico;
+      const idCli = cs?.cliente?.id_cliente || cs?.id_cliente;
       if (!idCli) continue;
-      const nome   = cs?.display || cs?.cliente?.nome_razaosocial || cs?.nome_razaosocial || '—';
+      const nome  = cs?.display || cs?.cliente?.nome_razaosocial || cs?.nome_razaosocial || '—';
+      if (LC_VIRTUAL.test(nome)) continue; // exclui LC Virtual Net (reparos de rede)
       const end    = cs?.endereco_instalacao;
       const cidade = end?.endereco_numero?.cidade?.nome || end?.cidade?.nome || end?.cidade?.display || cs?.cliente?.cidade?.nome || '—';
       const st     = normalizarStatus(os.status || '');
-      const tecs   = os.tecnicos || [];
-      const tec    = tecs.map(t => t.name || t.nome || t.display).filter(Boolean).join(', ') || '—';
-      if (!porCliente[idCli]) porCliente[idCli] = { id: idCli, nome, cidade, tec, osPend: 0, osFech: 0 };
+      const tipo   = os.tipo_ordem_servico?.descricao || '—';
+      const cat    = normalizarTipo(tipo) || tipo;
+
+      if (!porCliente[idCli]) porCliente[idCli] = { id: idCli, nome, cidade, osPend: 0, osFech: 0, categorias: {} };
       if (st === 'finalizado') porCliente[idCli].osFech++;
       else porCliente[idCli].osPend++;
-      // Mantém técnico da OS mais recente (pendente tem prioridade)
-      if (st !== 'finalizado' && tec !== '—') porCliente[idCli].tec = tec;
+      porCliente[idCli].categorias[cat] = (porCliente[idCli].categorias[cat] || 0) + 1;
     }
 
-    // Mapa de status de conexão
+    // Status de conexão + tempo offline
     const cxClientes = _cxCache?.clientes || [];
     const cxMap = {};
     for (const c of cxClientes) cxMap[c.id] = c;
 
-    // Inclui clientes offline ou com alerta que não tiveram OS no período
+    // Inclui clientes offline/alerta sem OS
     for (const cx of cxClientes) {
+      if (LC_VIRTUAL.test(cx.nome || '')) continue;
       if (!porCliente[cx.id] && (!cx.online || cx.alerta)) {
-        porCliente[cx.id] = { id: cx.id, nome: cx.nome, cidade: cx.cidade, tec: '—', osPend: 0, osFech: 0 };
+        porCliente[cx.id] = { id: cx.id, nome: cx.nome, cidade: cx.cidade, osPend: 0, osFech: 0, categorias: {} };
       }
     }
 
-    // Calcula score de saúde (0–100)
+    const agora_ms = Date.now();
     const resultado = Object.values(porCliente).map(cli => {
-      const cx  = cxMap[cli.id] || {};
+      const cx         = cxMap[cli.id] || {};
       const online     = cx.online ?? true;
       const alerta     = cx.alerta || false;
-      const alertaMsgs = cx.alertaMsgs || [];
+      const desconexoes = (cx.alertaMsgs || []).length; // proxy para desconexões recentes
+      const statusContrato = statusContratoMap[cli.id] || 'ativo';
 
+      // Tempo offline em horas
+      const offlineTs  = _offlineInicioMap.get(cli.id);
+      const offlineHoras = (offlineTs && !online) ? Math.floor((agora_ms - offlineTs) / 3600000) : 0;
+
+      // Score de saúde (0–100)
       let score = 100;
-      score -= Math.min(cli.osPend * 20, 50);                               // -20 por OS pendente (máx -50)
-      if (cli.osFech > 3) score -= Math.min((cli.osFech - 3) * 5, 15);     // recorrência: -5 acima de 3 fechadas
-      if (!online) score -= 20;                                              // offline: -20
-      if (alerta)  score -= 10;                                              // alerta Hubsoft: -10
+      score -= Math.min(cli.osPend * 20, 50);
+      if (cli.osFech > 3) score -= Math.min((cli.osFech - 3) * 5, 15);
+      if (!online) score -= 20;
+      if (alerta)  score -= 10;
+      if (desconexoes > 2) score -= Math.min((desconexoes - 2) * 5, 15);
       score = Math.max(0, Math.min(100, score));
 
       const status = score >= 80 ? 'normal' : score >= 50 ? 'atencao' : 'critico';
-      return { ...cli, online, alerta, alertaMsgs, score, status };
+      return { ...cli, online, alerta, desconexoes, offlineHoras, statusContrato, score, status };
     });
 
-    resultado.sort((a, b) => a.score - b.score); // piores primeiro
+    // Padrão: mais OS fechadas primeiro
+    resultado.sort((a, b) => b.osFech - a.osFech);
 
     res.json({ ok: true, periodo: { dataIni, dataFim, dias }, total: resultado.length, clientes: resultado });
   } catch(e) {
@@ -3085,7 +3124,15 @@ app.get('/api/fiscal', async (req, res) => {
     if (!force && _fiscalCache && (Date.now() - _fiscalFetchedAt) < FISCAL_CACHE_TTL) return res.json(_fiscalCache);
     if (!force) {
       const dbF = await dbCacheGet('cache:fiscal', FISCAL_CACHE_TTL);
-      if (dbF) { _fiscalCache = dbF; _fiscalFetchedAt = Date.now(); return res.json({ ...dbF, cache: 'db' }); }
+      if (dbF) {
+        // Verifica formato novo (porMes com breakdown por tipo)
+        const firstMes = Object.values(dbF.porMes || {})[0];
+        if (firstMes && firstMes.nfse !== undefined) {
+          _fiscalCache = dbF; _fiscalFetchedAt = Date.now(); return res.json({ ...dbF, cache: 'db' });
+        }
+        // Cache antigo sem breakdown — ignora e reconstrói
+        console.log('[fiscal] cache antigo detectado, reconstruindo...');
+      }
     }
     const token = await getToken();
     // Período: Jan 2025 → hoje (BRT)
@@ -3199,12 +3246,21 @@ app.get('/api/estoque', async (req, res) => {
       }).then(r => Array.isArray(r.data) ? r.data : (r.data?.data || r.data?.itens || [])).catch(() => []),
     ]);
 
-    // Normaliza campos de quantidade — cobre variações de nomes do Hubsoft
-    const _pf = (p, ...keys) => { for (const k of keys) { const v = parseFloat(p[k]); if (!isNaN(v)) return v; } return 0; };
+    // Normaliza campos de quantidade — cobre variações de nomes do Hubsoft + saldos[]
+    const _pf = (p, ...keys) => { for (const k of keys) { const v = parseFloat(p[k]); if (!isNaN(v) && v > 0) return v; } return 0; };
+    const _somaSaldos = (p, campo) => {
+      const saldos = p.saldos || p.locais || p.local_estoques || [];
+      if (!Array.isArray(saldos) || !saldos.length) return null;
+      return saldos.reduce((s, l) => s + (parseFloat(l[campo] || l.quantidade || l.qtd || 0) || 0), 0);
+    };
     const items = produtos.map(p => {
-      const qtd  = _pf(p,'quantidade','qtd','qtde','saldo','saldo_atual','estoque_atual','quantidade_total','qtd_total','total');
-      const disp = _pf(p,'quantidade_disponivel','qtd_disponivel','disponivel','estoque_disponivel','saldo_disponivel','qtd_livre','livre') || qtd;
-      const aloc = _pf(p,'quantidade_alocada','qtd_alocada','alocado','em_uso','reservado','quantidade_reservada','qtd_reservada');
+      // Tenta saldos[] primeiro (estrutura mais comum no Hubsoft)
+      const saldosQtd  = _somaSaldos(p, 'quantidade');
+      const saldosDisp = _somaSaldos(p, 'quantidade_disponivel') ?? _somaSaldos(p, 'disponivel');
+      const saldosAloc = _somaSaldos(p, 'quantidade_alocada') ?? _somaSaldos(p, 'alocado');
+      const qtd  = saldosQtd  ?? _pf(p,'quantidade','qtd','qtde','saldo','saldo_atual','estoque_atual','quantidade_total','qtd_total','total','estoque','amount');
+      const disp = saldosDisp ?? _pf(p,'quantidade_disponivel','qtd_disponivel','disponivel','estoque_disponivel','saldo_disponivel','qtd_livre','livre') || qtd;
+      const aloc = saldosAloc ?? _pf(p,'quantidade_alocada','qtd_alocada','alocado','em_uso','reservado','quantidade_reservada','qtd_reservada');
       const min  = _pf(p,'estoque_minimo','qtd_minimo','minimo','ponto_pedido','qtd_minima','quantidade_minima');
       const cat  = p.categoria?.nome ?? p.categoria ?? p.grupo?.nome ?? p.grupo ?? p.tipo ?? '—';
       const un   = p.unidade?.sigla ?? p.unidade?.nome ?? p.unidade ?? p.un ?? '—';
@@ -3234,6 +3290,77 @@ app.get('/api/estoque', async (req, res) => {
   } catch (e) {
     console.error('[/api/estoque]', e.message);
     if (_estoqueCache) return res.json({ ..._estoqueCache, cache: true, aviso: e.message });
+    res.json({ ok: false, motivo: e.message });
+  }
+});
+
+// Debug: ver campos reais do produto Hubsoft
+app.get('/api/estoque/debug-raw', async (req, res) => {
+  try {
+    const token = await getToken();
+    const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/estoque/produto`, {
+      headers: { Authorization: `Bearer ${token}` },
+      params: { pagina: 0, itens_por_pagina: 3 },
+      timeout: 15000,
+    });
+    res.json({ raw: r.data, keys_primeiro: Object.keys((Array.isArray(r.data) ? r.data[0] : r.data?.data?.[0]) || {}) });
+  } catch(e) { res.json({ erro: e.message }); }
+});
+
+// Movimentos de estoque (entradas/saídas)
+app.get('/api/estoque/movimentos', async (req, res) => {
+  try {
+    const token = await getToken();
+    const agora = new Date();
+    const agoraBRT = new Date(agora.getTime() - 3*60*60*1000);
+    const dataFim = req.query.dataFim || agoraBRT.toISOString().slice(0, 10);
+    const dias    = parseInt(req.query.dias) || 30;
+    const dataIni = req.query.dataIni || new Date(agoraBRT.getTime() - dias * 86400000).toISOString().slice(0, 10);
+
+    // Tenta endpoints conhecidos do Hubsoft para movimentação
+    const endpoints = [
+      'estoque/movimentacao', 'estoque/movimento', 'estoque/historico_movimentacao',
+      'estoque/historico', 'estoque/movimentacoes',
+    ];
+    let dados = null;
+    let endpointUsado = null;
+    for (const ep of endpoints) {
+      try {
+        const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/${ep}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { data_inicio: dataIni, data_fim: dataFim, pagina: 0, itens_por_pagina: 200 },
+          timeout: 10000,
+        });
+        const arr = Array.isArray(r.data) ? r.data : (r.data?.data || r.data?.itens || r.data?.movimentos || []);
+        if (arr.length > 0) { dados = arr; endpointUsado = ep; break; }
+      } catch { continue; }
+    }
+
+    if (!dados) return res.json({ ok: false, motivo: 'Endpoint de movimentação não encontrado no Hubsoft', tentativas: endpoints });
+
+    // Agrupa por dia e por semana
+    const porDia = {}, porSemana = {}, porMes = {};
+    for (const mv of dados) {
+      const dt  = mv.data_movimento || mv.data || mv.created_at || '';
+      const dia = dt.slice(0, 10);
+      if (!dia) continue;
+      const [ano, mes, d] = dia.split('-');
+      const semAno = `${ano}-S${Math.ceil(parseInt(d)/7)}`;
+      const mesAno = `${ano}-${mes}`;
+      const val   = parseFloat(mv.quantidade || mv.qtd || 0);
+      const tipo  = (mv.tipo || mv.tipo_movimento || '').toLowerCase().includes('entrada') ? 'entrada' : 'saida';
+
+      [porDia, porSemana, porMes].forEach((obj, i) => {
+        const key = [dia, semAno, mesAno][i];
+        if (!obj[key]) obj[key] = { entrada: 0, saida: 0, total: 0 };
+        obj[key][tipo] += val; obj[key].total += val;
+      });
+    }
+
+    res.json({ ok: true, endpoint: endpointUsado, periodo: { dataIni, dataFim, dias },
+      total: dados.length, porDia, porSemana, porMes, itens: dados.slice(0, 100) });
+  } catch(e) {
+    console.error('[/api/estoque/movimentos]', e.message);
     res.json({ ok: false, motivo: e.message });
   }
 });
