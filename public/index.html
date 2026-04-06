@@ -1860,7 +1860,7 @@ input[type="text"]::placeholder { color:var(--text3); }
             </div>
           </div>
 
-          <!-- Coluna 3: Por Empresa + Tempo Médio por Setor (compactos) -->
+          <!-- Coluna 3: Por Empresa + Por Cidade + Tempo Médio por Setor (compactos) -->
           <div style="display:flex;flex-direction:column;gap:8px">
             <div class="tbl-card" style="margin-bottom:0">
               <div class="tbl-header" style="padding:8px 12px">
@@ -1868,6 +1868,13 @@ input[type="text"]::placeholder { color:var(--text3); }
                 <button id="rh-emp-limpar" onclick="rhFiltrarEmpresa(null)" style="display:none;background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:0">✕</button>
               </div>
               <div style="padding:6px 12px" id="rh-por-empresa"></div>
+            </div>
+            <div class="tbl-card" style="margin-bottom:0" id="rh-cidade-card">
+              <div class="tbl-header" style="padding:8px 12px">
+                <span class="tbl-title" style="font-size:11px">Por Cidade</span>
+                <button id="rh-cid-limpar" onclick="rhFiltrarCidade(null)" style="display:none;background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:0">✕</button>
+              </div>
+              <div style="padding:6px 12px;max-height:180px;overflow-y:auto" id="rh-por-cidade"></div>
             </div>
             <div class="tbl-card" style="margin-bottom:0">
               <div class="tbl-header" style="padding:8px 12px"><span class="tbl-title" style="font-size:11px">Tempo Médio / Setor</span></div>
@@ -7394,6 +7401,7 @@ function parseRhCsv(text) {
   const iCNHVenc    = idx('vencimento da cnh');
   const iAtivo      = idx('ativo');
   const iMotivo     = idx('motivo de demissao');
+  const iCidade     = idx('cidade') >= 0 ? idx('cidade') : idx('municipio');
 
   function parseDate(str) {
     if (!str || !str.trim() || str.trim() === '""') return null;
@@ -7424,6 +7432,7 @@ function parseRhCsv(text) {
       cnhCat:    iCNHCat  >= 0 ? (f[iCNHCat]  || '').replace(/"/g, '').trim() : '',
       cnhVenc:   parseDate(iCNHVenc >= 0 ? f[iCNHVenc] : null),
       motivo:    iMotivo  >= 0 ? (f[iMotivo]  || '').replace(/"/g, '').trim() : '',
+      cidade:    iCidade  >= 0 ? (f[iCidade]  || '').replace(/"/g, '').trim() : '',
       ativo,
     });
   }
@@ -7449,6 +7458,7 @@ function renderRhColaboradores() {
   let lista = emps.filter(e => e.ativo);
   if (_rhSetorAtivo) lista = lista.filter(e => (e.depto || '') === _rhSetorAtivo);
   if (_rhEmpresaAtiva) lista = lista.filter(e => (e.empresa || '') === _rhEmpresaAtiva);
+  if (_rhCidadeAtiva) lista = lista.filter(e => (e.cidade || '(sem cidade)') === _rhCidadeAtiva);
   lista.sort((a, b) => (a.nome||'').localeCompare(b.nome||'', 'pt-BR'));
 
   // Pendências: pega certs e CNH cadastrados
@@ -7463,7 +7473,7 @@ function renderRhColaboradores() {
   };
 
   const titulo = document.getElementById('rh-col-titulo');
-  if (titulo) titulo.textContent = _rhSetorAtivo ? _rhSetorAtivo : _rhEmpresaAtiva ? _rhEmpresaAtiva : 'Todos os Colaboradores';
+  if (titulo) titulo.textContent = _rhSetorAtivo ? _rhSetorAtivo : _rhEmpresaAtiva ? _rhEmpresaAtiva : _rhCidadeAtiva ? _rhCidadeAtiva : 'Todos os Colaboradores';
   const count = document.getElementById('rh-col-count');
   if (count) count.textContent = lista.length + ' colaborador' + (lista.length !== 1 ? 'es' : '');
 
@@ -7531,6 +7541,7 @@ function renderRhDashboard(emps) {
   set('rh-kpi-empresas',  empresas.length);
 
   renderRhEmpresa(ativos);
+  renderRhCidade(ativos);
   renderRhSetor(ativos);
   renderRhTempoMedioSetor(ativos, mesesTenure, fmtTempo);
   renderRhMovimentacao(emps);
@@ -7542,6 +7553,18 @@ function renderRhDashboard(emps) {
 
 let _rhSetorAtivo = null;
 let _rhEmpresaAtiva = null;
+let _rhCidadeAtiva = null;
+
+function rhFiltrarCidade(cidade) {
+  _rhCidadeAtiva = cidade;
+  renderRhColaboradores();
+  document.querySelectorAll('[data-rh-cidade]').forEach(el => {
+    el.style.background = el.dataset.rhCidade === cidade ? 'rgba(99,102,241,.15)' : '';
+    el.style.borderRadius = '6px';
+  });
+  const limpar = document.getElementById('rh-cid-limpar');
+  if (limpar) limpar.style.display = cidade ? '' : 'none';
+}
 
 function rhFiltrarEmpresa(empresa) {
   _rhEmpresaAtiva = empresa;
@@ -7582,6 +7605,38 @@ function renderRhEmpresa(ativos) {
     return `<div data-rh-empresa="${nome}" onclick="rhFiltrarEmpresa(_rhEmpresaAtiva==='${nome.replace(/'/g,"\\'")}' ? null : '${nome.replace(/'/g,"\\'")}'); document.querySelectorAll('[data-rh-empresa]').forEach(el=>{el.style.background=el.dataset.rhEmpresa==='${nome.replace(/'/g,"\\'")}' && _rhEmpresaAtiva==='${nome.replace(/'/g,"\\'")}' ? 'rgba(99,102,241,.15)' : '';el.style.borderRadius='6px';})" style="margin-bottom:6px;padding:4px 6px;cursor:pointer;border-radius:6px;background:${ativo?'rgba(99,102,241,.15)':''};transition:background .15s" onmouseenter="if(_rhEmpresaAtiva!==this.dataset.rhEmpresa)this.style.background='var(--bg3)'" onmouseleave="if(_rhEmpresaAtiva!==this.dataset.rhEmpresa)this.style.background=''">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
         <span style="font-size:10px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px">${nome}</span>
+        <span style="font-size:11px;font-weight:700;color:${cor}">${n}</span>
+      </div>
+      <div style="height:4px;background:var(--bg3);border-radius:3px">
+        <div style="height:4px;width:${pct}%;background:${cor};border-radius:3px"></div>
+      </div>
+    </div>`;
+  }).join('') || '<div style="color:var(--text3);font-size:11px;padding:4px 0">Sem dados</div>';
+}
+
+function renderRhCidade(ativos) {
+  const map = {};
+  ativos.forEach(e => { const k = e.cidade || '(sem cidade)'; map[k] = (map[k] || 0) + 1; });
+  const sorted = Object.entries(map).sort((a, b) => b[1] - a[1]);
+  if (sorted.length <= 1 && sorted[0]?.[0] === '(sem cidade)') {
+    // CSV sem campo cidade — esconde o painel
+    const card = document.getElementById('rh-cidade-card');
+    if (card) card.style.display = 'none';
+    return;
+  }
+  const card = document.getElementById('rh-cidade-card');
+  if (card) card.style.display = '';
+  const max = sorted[0] ? sorted[0][1] : 1;
+  const CORES = ['#6366f1','#06b6d4','#22c55e','#f97316','#ec4899','#eab308','#8b5cf6','#94a3b8'];
+  const el = document.getElementById('rh-por-cidade');
+  if (!el) return;
+  el.innerHTML = sorted.map(([nome, n], i) => {
+    const pct  = Math.round(n / max * 100);
+    const cor  = CORES[i % CORES.length];
+    const ativo = _rhCidadeAtiva === nome;
+    return `<div data-rh-cidade="${nome}" onclick="rhFiltrarCidade(_rhCidadeAtiva===${JSON.stringify(nome)}?null:${JSON.stringify(nome)})" style="margin-bottom:6px;padding:4px 6px;cursor:pointer;border-radius:6px;background:${ativo?'rgba(99,102,241,.15)':''};transition:background .15s" onmouseenter="if(_rhCidadeAtiva!==this.dataset.rhCidade)this.style.background='var(--bg3)'" onmouseleave="if(_rhCidadeAtiva!==this.dataset.rhCidade)this.style.background=''">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+        <span style="font-size:10px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px">${nome}</span>
         <span style="font-size:11px;font-weight:700;color:${cor}">${n}</span>
       </div>
       <div style="height:4px;background:var(--bg3);border-radius:3px">
