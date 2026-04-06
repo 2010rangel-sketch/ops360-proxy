@@ -3208,23 +3208,54 @@ let _estoqueCache = null; let _estoqueFetchedAt = 0;
 const ESTOQUE_CACHE_TTL = 30 * 60 * 1000;
 
 async function fetchEstoqueProdutos(token) {
-  // Pagina até 500 produtos (5 páginas de 100)
+  // Descobre total de páginas na primeira chamada, depois pagina tudo
+  const POR_PAG = 100;
   let todos = [];
-  for (let p = 0; p < 5; p++) {
+  let ultimaPag = 0;
+  try {
+    const r0 = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/estoque/produto`, {
+      headers: { Authorization: `Bearer ${token}` },
+      params: { pagina: 0, itens_por_pagina: POR_PAG },
+      timeout: 15000,
+    });
+    const arr0 = r0.data?.produtos || r0.data?.data || r0.data?.itens || (Array.isArray(r0.data) ? r0.data : []);
+    todos = todos.concat(arr0);
+    ultimaPag = r0.data?.paginacao?.ultima_pagina ?? (arr0.length >= POR_PAG ? 9 : 0);
+  } catch(e) { return todos; }
+
+  for (let p = 1; p <= Math.min(ultimaPag, 20); p++) {
     try {
       const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/estoque/produto`, {
         headers: { Authorization: `Bearer ${token}` },
-        params: { pagina: p, itens_por_pagina: 100 },
+        params: { pagina: p, itens_por_pagina: POR_PAG },
         timeout: 15000,
       });
-      const arr = Array.isArray(r.data) ? r.data : (r.data?.data || r.data?.itens || r.data?.produtos || []);
+      const arr = r.data?.produtos || r.data?.data || r.data?.itens || (Array.isArray(r.data) ? r.data : []);
       todos = todos.concat(arr);
-      if (arr.length < 100) break; // última página
-    } catch (e) {
-      break;
-    }
+      if (arr.length < POR_PAG) break;
+    } catch(e) { break; }
   }
   return todos;
+}
+
+async function fetchEstoqueSaldos(token, pagina = 0) {
+  // Tenta endpoints conhecidos de saldo de estoque no Hubsoft
+  const endpointsS = ['estoque/saldo','estoque/saldo_produto','estoque/inventario','estoque/produto_saldo'];
+  for (const ep of endpointsS) {
+    try {
+      const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/${ep}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { pagina: 0, itens_por_pagina: 500 },
+        timeout: 15000,
+      });
+      const arr = r.data?.saldos || r.data?.data || r.data?.itens || r.data?.produtos || (Array.isArray(r.data) ? r.data : []);
+      if (arr.length > 0) {
+        console.log(`[estoque] saldos via /${ep}: ${arr.length} itens`);
+        return { arr, ep };
+      }
+    } catch {}
+  }
+  return { arr: [], ep: null };
 }
 
 app.get('/api/estoque', async (req, res) => {
@@ -3237,38 +3268,44 @@ app.get('/api/estoque', async (req, res) => {
     }
     const token = await getToken();
 
-    const [produtos, locaisRaw] = await Promise.all([
+    const [produtos, locaisRaw, saldosResult] = await Promise.all([
       fetchEstoqueProdutos(token),
       axios.get(`${HUBSOFT_HOST}/api/v1/integracao/estoque/local_estoque`, {
         headers: { Authorization: `Bearer ${token}` },
         params: { pagina: 0, itens_por_pagina: 100 },
         timeout: 10000,
-      }).then(r => Array.isArray(r.data) ? r.data : (r.data?.data || r.data?.itens || [])).catch(() => []),
+      }).then(r => Array.isArray(r.data) ? r.data : (r.data?.data || r.data?.itens || r.data?.locais || [])).catch(() => []),
+      fetchEstoqueSaldos(token),
     ]);
 
-    // Normaliza campos de quantidade — cobre variações de nomes do Hubsoft + saldos[]
+    // Mapa de saldo por id_produto (se endpoint de saldo existir)
     const _pf = (p, ...keys) => { for (const k of keys) { const v = parseFloat(p[k]); if (!isNaN(v) && v > 0) return v; } return 0; };
-    const _somaSaldos = (p, campo) => {
-      const saldos = p.saldos || p.locais || p.local_estoques || [];
-      if (!Array.isArray(saldos) || !saldos.length) return null;
-      return saldos.reduce((s, l) => s + (parseFloat(l[campo] || l.quantidade || l.qtd || 0) || 0), 0);
-    };
+    const saldoMap = {};
+    for (const s of (saldosResult.arr || [])) {
+      const idP = s.id_produto || s.produto?.id_produto || s.id;
+      if (!idP) continue;
+      if (!saldoMap[idP]) saldoMap[idP] = { qtd: 0, disp: 0, aloc: 0, min: 0 };
+      saldoMap[idP].qtd  += _pf(s,'quantidade','qtd','saldo','amount');
+      saldoMap[idP].disp += _pf(s,'quantidade_disponivel','disponivel','qtd_disponivel','livre');
+      saldoMap[idP].aloc += _pf(s,'quantidade_alocada','alocado','reservado','em_uso');
+      saldoMap[idP].min   = Math.max(saldoMap[idP].min, _pf(s,'estoque_minimo','minimo','ponto_pedido'));
+    }
+
     const items = produtos.map(p => {
-      // Tenta saldos[] primeiro (estrutura mais comum no Hubsoft)
-      const saldosQtd  = _somaSaldos(p, 'quantidade');
-      const saldosDisp = _somaSaldos(p, 'quantidade_disponivel') ?? _somaSaldos(p, 'disponivel');
-      const saldosAloc = _somaSaldos(p, 'quantidade_alocada') ?? _somaSaldos(p, 'alocado');
-      const qtd  = (saldosQtd  !== null ? saldosQtd  : _pf(p,'quantidade','qtd','qtde','saldo','saldo_atual','estoque_atual','quantidade_total','qtd_total','total','estoque','amount'));
-      const disp = (saldosDisp !== null ? saldosDisp : (_pf(p,'quantidade_disponivel','qtd_disponivel','disponivel','estoque_disponivel','saldo_disponivel','qtd_livre','livre') || qtd));
-      const aloc = (saldosAloc !== null ? saldosAloc : _pf(p,'quantidade_alocada','qtd_alocada','alocado','em_uso','reservado','quantidade_reservada','qtd_reservada'));
-      const min  = _pf(p,'estoque_minimo','qtd_minimo','minimo','ponto_pedido','qtd_minima','quantidade_minima');
-      const cat  = p.categoria?.nome ?? p.categoria ?? p.grupo?.nome ?? p.grupo ?? p.tipo ?? '—';
-      const un   = p.unidade?.sigla ?? p.unidade?.nome ?? p.unidade ?? p.un ?? '—';
+      const idP  = p.id_produto ?? p.id ?? p.codigo ?? '';
+      const sal  = saldoMap[idP] || null;
+      // Campos reais do Hubsoft: produto_categoria[], unidade_medida
+      const cat  = p.produto_categoria?.[0]?.descricao ?? p.categoria?.nome ?? p.categoria ?? '—';
+      const un   = p.unidade_medida?.abreviacao ?? p.unidade_medida?.nome ?? p.unidade?.sigla ?? p.unidade?.nome ?? '—';
+      const qtd  = sal ? sal.qtd  : _pf(p,'quantidade','qtd','saldo','estoque_atual','total');
+      const disp = sal ? (sal.disp || sal.qtd) : (_pf(p,'quantidade_disponivel','disponivel') || qtd);
+      const aloc = sal ? sal.aloc : _pf(p,'quantidade_alocada','alocado','reservado');
+      const min  = sal ? sal.min  : _pf(p,'estoque_minimo','minimo','ponto_pedido');
       return {
-        id:        p.id ?? p.codigo ?? '',
-        nome:      p.nome ?? p.descricao ?? p.name ?? '—',
-        categoria: typeof cat === 'string' ? cat : String(cat),
-        unidade:   typeof un  === 'string' ? un  : String(un),
+        id:        idP,
+        nome:      p.nome ?? p.descricao ?? '—',
+        categoria: typeof cat === 'string' ? cat : '—',
+        unidade:   typeof un  === 'string' ? un  : '—',
         quantidade: qtd, disponivel: disp, alocado: aloc, minimo: min,
       };
     });

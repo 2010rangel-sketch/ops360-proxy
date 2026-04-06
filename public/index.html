@@ -7934,15 +7934,18 @@ let _rhSetorAtivo = null;
 let _rhEmpresaAtiva = null;
 let _rhCidadeAtiva = null;
 
-function rhFiltrarCidade(cidade) {
-  _rhCidadeAtiva = cidade;
+function rhFiltrarCidade(el_ou_cidade) {
+  // Aceita elemento DOM (vem do onclick(this)), string ou null (botão limpar)
+  const cidade = !el_ou_cidade ? null : (typeof el_ou_cidade === 'string') ? el_ou_cidade : el_ou_cidade?.dataset?.rhCidade;
+  _rhCidadeAtiva = _rhCidadeAtiva === cidade ? null : cidade;
   renderRhColaboradores();
   document.querySelectorAll('[data-rh-cidade]').forEach(el => {
-    el.style.background = el.dataset.rhCidade === cidade ? 'rgba(99,102,241,.15)' : '';
+    const ativo = el.dataset.rhCidade === _rhCidadeAtiva;
+    el.style.background   = ativo ? 'rgba(99,102,241,.15)' : '';
     el.style.borderRadius = '6px';
   });
   const limpar = document.getElementById('rh-cid-limpar');
-  if (limpar) limpar.style.display = cidade ? '' : 'none';
+  if (limpar) limpar.style.display = _rhCidadeAtiva ? '' : 'none';
 }
 
 function rhFiltrarEmpresa(empresa) {
@@ -8013,7 +8016,7 @@ function renderRhCidade(ativos) {
     const pct  = Math.round(n / max * 100);
     const cor  = CORES[i % CORES.length];
     const ativo = _rhCidadeAtiva === nome;
-    return `<div data-rh-cidade="${nome}" onclick="rhFiltrarCidade(_rhCidadeAtiva===${JSON.stringify(nome)}?null:${JSON.stringify(nome)})" style="margin-bottom:6px;padding:4px 6px;cursor:pointer;border-radius:6px;background:${ativo?'rgba(99,102,241,.15)':''};transition:background .15s" onmouseenter="if(_rhCidadeAtiva!==this.dataset.rhCidade)this.style.background='var(--bg3)'" onmouseleave="if(_rhCidadeAtiva!==this.dataset.rhCidade)this.style.background=''">
+    return `<div data-rh-cidade="${nome.replace(/"/g,'&quot;')}" onclick="rhFiltrarCidade(this)" style="margin-bottom:6px;padding:4px 6px;cursor:pointer;border-radius:6px;background:${ativo?'rgba(99,102,241,.15)':''};transition:background .15s" onmouseenter="if(_rhCidadeAtiva!==this.dataset.rhCidade)this.style.background='var(--bg3)'" onmouseleave="if(_rhCidadeAtiva!==this.dataset.rhCidade)this.style.background=''">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
         <span style="font-size:10px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px">${nome}</span>
         <span style="font-size:11px;font-weight:700;color:${cor}">${n}</span>
