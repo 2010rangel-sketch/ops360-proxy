@@ -1768,15 +1768,20 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Total de Itens</div><div class="kpi-mini-val" id="esq-kpi-total" style="color:var(--accent)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">Com Estoque</div><div class="kpi-mini-val" id="esq-kpi-disp" style="color:var(--green)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">Alocado</div><div class="kpi-mini-val" id="esq-kpi-uso" style="color:var(--amber)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Crítico (abaixo mín.)</div><div class="kpi-mini-val" id="esq-kpi-crit" style="color:var(--red)">—</div></div>
+        <div class="kpi-mini" id="esq-kpi-card-todos" onclick="esqFiltrarKpi('todos')" style="cursor:pointer;transition:box-shadow .15s" onmouseenter="this.style.boxShadow='0 0 0 2px var(--accent)'" onmouseleave="if(_esqFiltroKpi!=='todos')this.style.boxShadow=''"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Total de Itens</div><div class="kpi-mini-val" id="esq-kpi-total" style="color:var(--accent)">—</div></div>
+        <div class="kpi-mini" id="esq-kpi-card-com" onclick="esqFiltrarKpi('com_estoque')" style="cursor:pointer;transition:box-shadow .15s" onmouseenter="this.style.boxShadow='0 0 0 2px var(--green)'" onmouseleave="if(_esqFiltroKpi!=='com_estoque')this.style.boxShadow=''"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">Com Estoque</div><div class="kpi-mini-val" id="esq-kpi-disp" style="color:var(--green)">—</div></div>
+        <div class="kpi-mini" id="esq-kpi-card-aloc" onclick="esqFiltrarKpi('alocado')" style="cursor:pointer;transition:box-shadow .15s" onmouseenter="this.style.boxShadow='0 0 0 2px var(--amber)'" onmouseleave="if(_esqFiltroKpi!=='alocado')this.style.boxShadow=''"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">Alocado</div><div class="kpi-mini-val" id="esq-kpi-uso" style="color:var(--amber)">—</div></div>
+        <div class="kpi-mini" id="esq-kpi-card-crit" onclick="esqFiltrarKpi('criticos')" style="cursor:pointer;transition:box-shadow .15s" onmouseenter="this.style.boxShadow='0 0 0 2px var(--red)'" onmouseleave="if(_esqFiltroKpi!=='criticos')this.style.boxShadow=''"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Crítico (abaixo mín.)</div><div class="kpi-mini-val" id="esq-kpi-crit" style="color:var(--red)">—</div></div>
       </div>
       <div class="tbl-card">
         <div class="tbl-header">
           <span class="tbl-title">Produtos</span>
           <span class="badge b-blue" id="esq-tbl-count">—</span>
+          <div style="display:flex;gap:4px;margin-left:8px">
+            <button id="esq-btn-com" onclick="esqFiltrarKpi('com_estoque')" class="btn btn-sm" style="font-size:10px;padding:2px 8px;background:var(--green);color:#fff;border:none">Com Estoque</button>
+            <button id="esq-btn-zerado" onclick="esqFiltrarKpi('zerados')" class="btn btn-sm" style="font-size:10px;padding:2px 8px">Zerados</button>
+            <button id="esq-btn-todos" onclick="esqFiltrarKpi('todos')" class="btn btn-sm" style="font-size:10px;padding:2px 8px">Todos</button>
+          </div>
           <input type="text" placeholder="Filtrar..." id="esq-search" class="search-input" style="margin-left:auto;width:180px" oninput="filterEstoque(this.value)">
         </div>
         <div id="esq-empty-msg" style="padding:40px;text-align:center;color:var(--text3)">
@@ -1836,16 +1841,25 @@ input[type="text"]::placeholder { color:var(--text3); }
           <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--purple)"></div><div class="kpi-mini-label">Empresas</div><div class="kpi-mini-val" id="rh-kpi-empresas" style="color:var(--purple)">—</div></div>
         </div>
 
-        <!-- Linha 1: Por Setor | Colaboradores | Por Empresa + Tempo Médio -->
+        <!-- Linha 1: Por Cidade + Por Setor | Colaboradores | Por Empresa + Tempo Médio -->
         <div style="display:grid;grid-template-columns:220px 1fr 230px;gap:12px;margin-bottom:14px">
 
-          <!-- Coluna 1: Por Setor (clicável) -->
-          <div class="tbl-card" style="margin-bottom:0">
-            <div class="tbl-header"><span class="tbl-title">Por Setor</span><span class="badge b-blue" id="rh-setor-badge">ativos</span></div>
-            <div style="padding:6px 0;overflow-y:auto;max-height:320px" id="rh-por-setor"></div>
+          <!-- Coluna 1: Por Cidade (clicável) + Por Setor (clicável) -->
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div class="tbl-card" style="margin-bottom:0" id="rh-cidade-card">
+              <div class="tbl-header">
+                <span class="tbl-title">Por Cidade</span>
+                <button id="rh-cid-limpar" onclick="rhFiltrarCidade(null)" style="display:none;background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:0">✕</button>
+              </div>
+              <div style="padding:6px 0;overflow-y:auto;max-height:200px" id="rh-por-cidade"></div>
+            </div>
+            <div class="tbl-card" style="margin-bottom:0">
+              <div class="tbl-header"><span class="tbl-title">Por Setor</span><span class="badge b-blue" id="rh-setor-badge">ativos</span></div>
+              <div style="padding:6px 0;overflow-y:auto;max-height:260px" id="rh-por-setor"></div>
+            </div>
           </div>
 
-          <!-- Coluna 2: Colaboradores (dinâmico por setor) -->
+          <!-- Coluna 2: Colaboradores (dinâmico por setor/cidade) -->
           <div class="tbl-card" style="margin-bottom:0">
             <div class="tbl-header">
               <span class="tbl-title" id="rh-col-titulo">Todos os Colaboradores</span>
@@ -1860,7 +1874,7 @@ input[type="text"]::placeholder { color:var(--text3); }
             </div>
           </div>
 
-          <!-- Coluna 3: Por Empresa + Por Cidade + Tempo Médio por Setor (compactos) -->
+          <!-- Coluna 3: Por Empresa + Tempo Médio por Setor (compactos) -->
           <div style="display:flex;flex-direction:column;gap:8px">
             <div class="tbl-card" style="margin-bottom:0">
               <div class="tbl-header" style="padding:8px 12px">
@@ -1868,13 +1882,6 @@ input[type="text"]::placeholder { color:var(--text3); }
                 <button id="rh-emp-limpar" onclick="rhFiltrarEmpresa(null)" style="display:none;background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:0">✕</button>
               </div>
               <div style="padding:6px 12px" id="rh-por-empresa"></div>
-            </div>
-            <div class="tbl-card" style="margin-bottom:0" id="rh-cidade-card">
-              <div class="tbl-header" style="padding:8px 12px">
-                <span class="tbl-title" style="font-size:11px">Por Cidade</span>
-                <button id="rh-cid-limpar" onclick="rhFiltrarCidade(null)" style="display:none;background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:0">✕</button>
-              </div>
-              <div style="padding:6px 12px;max-height:180px;overflow-y:auto" id="rh-por-cidade"></div>
             </div>
             <div class="tbl-card" style="margin-bottom:0">
               <div class="tbl-header" style="padding:8px 12px"><span class="tbl-title" style="font-size:11px">Tempo Médio / Setor</span></div>
