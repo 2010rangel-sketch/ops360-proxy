@@ -3160,12 +3160,15 @@ async function fetchNfAggPorMes(token, dataIni) {
   const TIPOS = ['nfse', 'telecom', 'nfcom', 'nfe'];
 
   // Gera lista de meses de dataIni até hoje
+  // dataIni é 'YYYY-MM-DD' — extrai só YYYY-MM para iterar meses
+  const [iniAno, iniMm] = dataIni.split('-');
   const meses = [];
-  let d = new Date(dataIni + '-01T12:00:00Z');
+  let d = new Date(Date.UTC(parseInt(iniAno), parseInt(iniMm) - 1, 1));
   while (d <= agoraBRT) {
     meses.push(d.toISOString().slice(0, 7));
-    d = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+    d = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1));
   }
+  console.log(`[fiscal] meses a buscar: ${meses.length} (${meses[0]} → ${meses[meses.length-1]})`);
 
   const porMes = {};
   let totalNf = 0;
@@ -3178,24 +3181,32 @@ async function fetchNfAggPorMes(token, dataIni) {
       const mesIni = `${ano}-${mm}-01`;
       const ultimoDia = new Date(parseInt(ano), parseInt(mm), 0).getDate();
       const mesFim = `${ano}-${mm}-${String(ultimoDia).padStart(2, '0')}`;
-      if (!porMes[mes]) porMes[mes] = { total: 0, nfse: 0, telecom: 0, nfcom: 0, nfe: 0 };
+      if (!porMes[mes]) porMes[mes] = { total: 0, nfse: 0, telecom: 0, nfcom: 0, nfe: 0, filiais: {} };
 
       // Todos tipo × cnpj em paralelo para este mês
       const tarefas = TIPOS.flatMap(tipo => LC_CNPJS.map(cnpj => ({ tipo, cnpj })));
-      for (let i = 0; i < tarefas.length; i += 12) {
-        const lote = tarefas.slice(i, i + 12);
+      for (let i = 0; i < tarefas.length; i += 18) {
+        const lote = tarefas.slice(i, i + 18);
         await Promise.all(lote.map(async ({ tipo, cnpj }) => {
           try {
             const params = { tipo_data: 'data_emissao', data_inicio: mesIni, data_fim: mesFim, pagina: 0, itens_por_pagina: 1, documento: cnpj };
             if (tipo === 'telecom') params.modelo = '21';
             const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/nota_fiscal/${tipo}`, {
-              headers: { Authorization: `Bearer ${token}` }, params, timeout: 12000,
+              headers: { Authorization: `Bearer ${token}` }, params, timeout: 15000,
             });
             const totalReg = r.data?.paginacao?.total_registros ?? 0;
-            porMes[mes][tipo] += totalReg;
-            porMes[mes].total += totalReg;
-            totalNf += totalReg;
-          } catch { /* ignora falha de filial individual */ }
+            if (totalReg > 0) {
+              porMes[mes][tipo] += totalReg;
+              porMes[mes].total += totalReg;
+              totalNf += totalReg;
+              // Breakdown por filial
+              if (!porMes[mes].filiais[cnpj]) porMes[mes].filiais[cnpj] = { total: 0, nfse: 0, telecom: 0, nfcom: 0, nfe: 0 };
+              porMes[mes].filiais[cnpj][tipo] += totalReg;
+              porMes[mes].filiais[cnpj].total += totalReg;
+            }
+          } catch (e) {
+            console.error(`[fiscal] mes=${mes} tipo=${tipo} cnpj=${cnpj}: ${e.response?.data?.msg || e.message}`);
+          }
         }));
       }
       console.log(`[fiscal] mes=${mes} total=${porMes[mes].total}`);

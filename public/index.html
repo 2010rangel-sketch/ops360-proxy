@@ -7312,23 +7312,45 @@ function renderFiscal(d) {
     if (mesWrap)  mesWrap.style.display  = 'block';
     if (mesBadge) mesBadge.textContent   = meses.length + ' meses';
     const MESES_PT = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const CNPJ_NOME = {
+      '08407644000100': 'Matriz', '08407644000291': 'Concordia', '08407644000372': 'Ipixuna',
+      '08407644000453': 'Acará', '08407644000534': 'Aurora', '08407644000615': 'S.Miguel',
+      '08407644000704': 'Salinópolis', '08407644000887': 'N.Esperança', '08407644000968': 'Garrafão',
+    };
     let totalGeral = 0;
     const body = document.getElementById('fisc-mes-body');
     if (body) {
-      const rows = meses.map(mes => {
+      const rows = [];
+      meses.forEach(mes => {
         const m = porMes[mes];
         totalGeral += m.total;
         const [ano, mm] = mes.split('-');
         const mesLabel = (MESES_PT[parseInt(mm)] || mm) + '/' + ano;
-        const destacar = mes === new Date().toISOString().slice(0,7) ? 'font-weight:700;color:var(--accent)' : '';
-        return `<tr>
-          <td style="font-size:12px;${destacar}">${mesLabel}</td>
+        const mesAtualStyle = mes === new Date().toISOString().slice(0,7) ? 'font-weight:700;color:var(--accent)' : '';
+        // Linha do mês (clicável para expandir filiais)
+        const temFiliais = m.filiais && Object.keys(m.filiais).length > 0;
+        rows.push(`<tr style="cursor:${temFiliais?'pointer':'default'}" onclick="${temFiliais?`fiscToggleFiliais('${mes}')`:''}">
+          <td style="font-size:12px;${mesAtualStyle}">${mesLabel}${temFiliais?` <span style="font-size:9px;color:var(--text3)">▶</span>`:''}</td>
           <td class="mono" style="text-align:right;color:var(--green)">${m.nfse || '—'}</td>
           <td class="mono" style="text-align:right;color:var(--amber)">${m.telecom || '—'}</td>
           <td class="mono" style="text-align:right;color:var(--purple,#9b59b6)">${m.nfcom || '—'}</td>
           <td class="mono" style="text-align:right;color:var(--red)">${m.nfe || '—'}</td>
           <td class="mono" style="text-align:right;font-weight:600">${m.total}</td>
-        </tr>`;
+        </tr>`);
+        // Linhas de filiais (ocultas por padrão)
+        if (temFiliais) {
+          const filiaisHtml = Object.entries(m.filiais).sort((a,b)=>b[1].total-a[1].total).map(([cnpj, f]) =>
+            `<tr class="fisc-filial-row fisc-filial-${mes}" style="display:none;background:var(--bg3)">
+              <td style="font-size:11px;color:var(--text2);padding-left:20px">${CNPJ_NOME[cnpj]||cnpj.slice(-4)}</td>
+              <td class="mono" style="text-align:right;font-size:11px;color:var(--green)">${f.nfse||'—'}</td>
+              <td class="mono" style="text-align:right;font-size:11px;color:var(--amber)">${f.telecom||'—'}</td>
+              <td class="mono" style="text-align:right;font-size:11px;color:var(--purple,#9b59b6)">${f.nfcom||'—'}</td>
+              <td class="mono" style="text-align:right;font-size:11px;color:var(--red)">${f.nfe||'—'}</td>
+              <td class="mono" style="text-align:right;font-size:11px">${f.total}</td>
+            </tr>`
+          ).join('');
+          rows.push(filiaisHtml);
+        }
       });
       rows.push(`<tr style="border-top:2px solid var(--border);background:var(--bg3)">
         <td style="font-size:12px;font-weight:700">Total</td>
@@ -7342,6 +7364,18 @@ function renderFiscal(d) {
     }
   }
   _fiscRenderTipo(d);
+}
+
+function fiscToggleFiliais(mes) {
+  const rows = document.querySelectorAll(`.fisc-filial-${mes}`);
+  const aberto = rows.length > 0 && rows[0].style.display !== 'none';
+  rows.forEach(r => r.style.display = aberto ? 'none' : '');
+  // Atualiza ícone
+  const trMes = document.querySelector(`[onclick="fiscToggleFiliais('${mes}')"]`);
+  if (trMes) {
+    const ico = trMes.querySelector('span');
+    if (ico) ico.textContent = aberto ? '▶' : '▼';
+  }
 }
 
 // ─── SAÚDE DA BASE ───────────────────────────────────────────────────────────
