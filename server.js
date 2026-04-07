@@ -3152,45 +3152,62 @@ const LC_CNPJS = [
   '08407644000968', // GARRAFAO DO NORTE
 ];
 
-async function fetchNfTipoFilial(tipo, token, cnpj, dataIni, dataFim) {
-  function extrairArr(data, tipo) {
-    if (Array.isArray(data)) return data;
-    // Hubsoft retorna array no campo plural do tipo: nfses, telecoms, nfcoms, nfes
-    const plural = tipo + 's';
-    return data?.[plural] || data?.data || data?.dados || data?.itens || data?.notas || data?.resultado || [];
+// Estratégia: 1 chamada por (mês × tipo × cnpj), lê total_registros da paginação
+// = apenas contagens precisas sem baixar todos os itens (viável mesmo com 25k+ NFs/mês)
+async function fetchNfAggPorMes(token, dataIni) {
+  const agora = new Date();
+  const agoraBRT = new Date(agora.getTime() - 3*60*60*1000);
+  const TIPOS = ['nfse', 'telecom', 'nfcom', 'nfe'];
+
+  // Gera lista de meses de dataIni até hoje
+  const meses = [];
+  let d = new Date(dataIni + '-01T12:00:00Z');
+  while (d <= agoraBRT) {
+    meses.push(d.toISOString().slice(0, 7));
+    d = new Date(d.getFullYear(), d.getMonth() + 1, 1);
   }
-  try {
-    let todos = [];
-    let ultimaPag = null;
-    for (let p = 0; p < 30; p++) {
-      const params = { tipo_data: 'data_emissao', data_inicio: dataIni, data_fim: dataFim, pagina: p, itens_por_pagina: 200, documento: cnpj };
-      if (tipo === 'telecom') params.modelo = '21';
-      const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/nota_fiscal/${tipo}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        params, timeout: 25000,
-      });
-      const arr = extrairArr(r.data, tipo);
-      if (p === 0 && r.data?.paginacao?.ultima_pagina !== undefined) {
-        ultimaPag = r.data.paginacao.ultima_pagina;
+
+  const porMes = {};
+  let totalNf = 0;
+
+  // Processa meses em paralelo (lotes de 3 meses ao mesmo tempo)
+  for (let mi = 0; mi < meses.length; mi += 3) {
+    const loteMeses = meses.slice(mi, mi + 3);
+    await Promise.all(loteMeses.map(async mes => {
+      const [ano, mm] = mes.split('-');
+      const mesIni = `${ano}-${mm}-01`;
+      const ultimoDia = new Date(parseInt(ano), parseInt(mm), 0).getDate();
+      const mesFim = `${ano}-${mm}-${String(ultimoDia).padStart(2, '0')}`;
+      if (!porMes[mes]) porMes[mes] = { total: 0, nfse: 0, telecom: 0, nfcom: 0, nfe: 0 };
+
+      // Todos tipo × cnpj em paralelo para este mês
+      const tarefas = TIPOS.flatMap(tipo => LC_CNPJS.map(cnpj => ({ tipo, cnpj })));
+      for (let i = 0; i < tarefas.length; i += 12) {
+        const lote = tarefas.slice(i, i + 12);
+        await Promise.all(lote.map(async ({ tipo, cnpj }) => {
+          try {
+            const params = { tipo_data: 'data_emissao', data_inicio: mesIni, data_fim: mesFim, pagina: 0, itens_por_pagina: 1, documento: cnpj };
+            if (tipo === 'telecom') params.modelo = '21';
+            const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/nota_fiscal/${tipo}`, {
+              headers: { Authorization: `Bearer ${token}` }, params, timeout: 12000,
+            });
+            const totalReg = r.data?.paginacao?.total_registros ?? 0;
+            porMes[mes][tipo] += totalReg;
+            porMes[mes].total += totalReg;
+            totalNf += totalReg;
+          } catch { /* ignora falha de filial individual */ }
+        }));
       }
-      todos = todos.concat(arr);
-      if (ultimaPag !== null && p >= ultimaPag) break;
-      if (arr.length < 200) break;
-    }
-    console.log(`[fiscal/${tipo}] cnpj=${cnpj} total=${todos.length}`);
-    return todos;
-  } catch (e) {
-    console.error(`[fiscal/${tipo}] cnpj=${cnpj} erro:`, e.response?.status, e.response?.data?.msg || e.message);
-    return [];
+      console.log(`[fiscal] mes=${mes} total=${porMes[mes].total}`);
+    }));
   }
+
+  return { porMes, totalNf };
 }
 
+// Mantém fetchNfTipo vazio (não usamos mais itens individuais)
 async function fetchNfTipo(tipo, token, dataIni, dataFim) {
-  // Busca para cada filial e agrega
-  const resultados = await Promise.all(LC_CNPJS.map(cnpj => fetchNfTipoFilial(tipo, token, cnpj, dataIni, dataFim)));
-  const itens = resultados.flat();
-  console.log(`[fiscal/${tipo}] total geral=${itens.length}`);
-  return { ok: true, itens };
+  return { ok: true, itens: [] };
 }
 
 app.get('/api/fiscal', async (req, res) => {
@@ -3200,79 +3217,41 @@ app.get('/api/fiscal', async (req, res) => {
     if (!force) {
       const dbF = await dbCacheGet('cache:fiscal', FISCAL_CACHE_TTL);
       if (dbF) {
-        // Verifica formato novo (porMes com breakdown por tipo + imposto)
+        // Verifica formato novo (porMes com breakdown por tipo via fetchNfAggPorMes)
         const firstMes = Object.values(dbF.porMes || {})[0];
-        if (firstMes && firstMes.nfse !== undefined && firstMes.imposto !== undefined) {
+        if (firstMes && firstMes.nfse !== undefined && dbF._versao === 'v3') {
           _fiscalCache = dbF; _fiscalFetchedAt = Date.now(); return res.json({ ...dbF, cache: 'db' });
         }
-        // Cache antigo sem breakdown/imposto — ignora e reconstrói
-        console.log('[fiscal] cache antigo detectado (sem imposto), reconstruindo...');
+        console.log('[fiscal] cache antigo, reconstruindo com nova estratégia...');
       }
     }
     const token = await getToken();
-    // Período: Jan 2025 → hoje (BRT)
+    const dataIni = '2025-01-01';
     const agora = new Date();
     const agoraBRT = new Date(agora.getTime() - 3*60*60*1000);
     const dataFim = agoraBRT.toISOString().slice(0, 10);
-    const dataIni = '2025-01-01';
 
-    const [nfse, telecom, nfcom, nfe] = await Promise.all([
-      fetchNfTipo('nfse', token, dataIni, dataFim),
-      fetchNfTipo('telecom', token, dataIni, dataFim),
-      fetchNfTipo('nfcom', token, dataIni, dataFim),
-      fetchNfTipo('nfe', token, dataIni, dataFim),
-    ]);
+    // Abordagem eficiente: 1 chamada por (mês × tipo × cnpj), sem baixar itens individuais
+    const { porMes, totalNf } = await fetchNfAggPorMes(token, dataIni);
 
-    const tipos = { nfse, telecom, nfcom, nfe };
-    let totalNf = 0;
-    let totalValor = 0;
-    for (const [, v] of Object.entries(tipos)) {
-      totalNf += v.itens.length;
-      for (const nf of v.itens) {
-        const val = parseFloat(nf.valor_total ?? nf.valor ?? nf.total ?? 0);
-        if (!isNaN(val)) totalValor += val;
-      }
+    // Totais por tipo (soma de todos os meses)
+    let totalNfse = 0, totalTelecom = 0, totalNfcom = 0, totalNfe = 0;
+    for (const m of Object.values(porMes)) {
+      totalNfse += m.nfse; totalTelecom += m.telecom; totalNfcom += m.nfcom; totalNfe += m.nfe;
     }
 
-    // Agrupa por mês — breakdown por tipo de NF
-    const porMes = {};
-    for (const [tipo, v] of Object.entries(tipos)) {
-      for (const nf of v.itens) {
-        const dtStr = nf.data_emissao || nf.data || '';
-        const mes = dtStr.slice(0, 7); // YYYY-MM
-        if (!mes) continue;
-        if (!porMes[mes]) porMes[mes] = { total: 0, valor: 0, imposto: 0, nfse: 0, telecom: 0, nfcom: 0, nfe: 0 };
-        porMes[mes].total++;
-        porMes[mes][tipo] = (porMes[mes][tipo] || 0) + 1;
-        const val = parseFloat(nf.valor_total ?? nf.valor ?? nf.total ?? 0);
-        if (!isNaN(val)) porMes[mes].valor += val;
-        // Soma impostos: ISS, PIS, COFINS, IR, CSLL etc.
-        const imp = parseFloat(
-          nf.valor_imposto ?? nf.valor_impostos ?? nf.impostos ?? nf.iss ??
-          nf.valor_iss ?? nf.valor_pis_cofins ?? 0
-        );
-        if (!isNaN(imp)) porMes[mes].imposto += imp;
-      }
-    }
-
-    // Meses mais recentes para a tabela de detalhe
-    const mesAtual = agoraBRT.toISOString().slice(0, 7);
-    const mesAnt = new Date(agoraBRT.getFullYear(), agoraBRT.getMonth() - 1, 1).toISOString().slice(0, 7);
     const fiscalResult = {
       ok: true, periodo: { dataIni, dataFim },
-      totalNf, totalValor,
+      totalNf, totalValor: 0, // valor requer download de itens — mostrado como 0 intencionalmente
       tipos: {
-        nfse:   { ok: nfse.ok,   total: nfse.itens.length,   erro: nfse.erro },
-        telecom:{ ok: telecom.ok,total: telecom.itens.length, erro: telecom.erro },
-        nfcom:  { ok: nfcom.ok,  total: nfcom.itens.length,  erro: nfcom.erro },
-        nfe:    { ok: nfe.ok,    total: nfe.itens.length,    erro: nfe.erro },
+        nfse:   { ok: true, total: totalNfse },
+        telecom:{ ok: true, total: totalTelecom },
+        nfcom:  { ok: true, total: totalNfcom },
+        nfe:    { ok: true, total: totalNfe },
       },
       porMes,
-      // Detalhe: apenas mês atual e anterior
-      nfse:   nfse.itens.filter(n => { const m = (n.data_emissao||n.data||'').slice(0,7); return m===mesAtual||m===mesAnt; }).slice(0, 200),
-      telecom:telecom.itens.filter(n => { const m = (n.data_emissao||n.data||'').slice(0,7); return m===mesAtual||m===mesAnt; }).slice(0, 200),
-      nfcom:  nfcom.itens.filter(n => { const m = (n.data_emissao||n.data||'').slice(0,7); return m===mesAtual||m===mesAnt; }).slice(0, 200),
-      nfe:    nfe.itens.filter(n => { const m = (n.data_emissao||n.data||'').slice(0,7); return m===mesAtual||m===mesAnt; }).slice(0, 200),
+      nfse: [], telecom: [], nfcom: [], nfe: [], // sem detalhe individual (apenas totais)
+      _versao: 'v3',
     };
     _fiscalCache = fiscalResult; _fiscalFetchedAt = Date.now();
     dbCacheSet('cache:fiscal', fiscalResult);
