@@ -3154,13 +3154,13 @@ const LC_CNPJS = [
 
 // Estratégia: 1 chamada por (mês × tipo × cnpj), lê total_registros da paginação
 // = apenas contagens precisas sem baixar todos os itens (viável mesmo com 25k+ NFs/mês)
+const MESES_COM_VALOR = 6; // últimos N meses buscam valor total paginando itens
+
 async function fetchNfAggPorMes(token, dataIni) {
   const agora = new Date();
   const agoraBRT = new Date(agora.getTime() - 3*60*60*1000);
   const TIPOS = ['nfse', 'telecom', 'nfcom', 'nfe'];
 
-  // Gera lista de meses de dataIni até hoje
-  // dataIni é 'YYYY-MM-DD' — extrai só YYYY-MM para iterar meses
   const [iniAno, iniMm] = dataIni.split('-');
   const meses = [];
   let d = new Date(Date.UTC(parseInt(iniAno), parseInt(iniMm) - 1, 1));
@@ -3168,48 +3168,83 @@ async function fetchNfAggPorMes(token, dataIni) {
     meses.push(d.toISOString().slice(0, 7));
     d = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1));
   }
-  console.log(`[fiscal] meses a buscar: ${meses.length} (${meses[0]} → ${meses[meses.length-1]})`);
+  const mesesComValor = new Set(meses.slice(-MESES_COM_VALOR));
+  console.log(`[fiscal] meses a buscar: ${meses.length} (${meses[0]} → ${meses[meses.length-1]}), com valor: últimos ${mesesComValor.size}`);
 
   const porMes = {};
   let totalNf = 0;
 
-  // Processa meses em paralelo (lotes de 3 meses ao mesmo tempo)
-  for (let mi = 0; mi < meses.length; mi += 3) {
-    const loteMeses = meses.slice(mi, mi + 3);
+  function somarValorItem(nf) {
+    const _pf = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+    return _pf(nf.valor_nota ?? nf.valor_total ?? nf.valor ?? nf.total);
+  }
+  function extrairArr(data, tipo) {
+    if (Array.isArray(data)) return data;
+    return data?.[tipo + 's'] || data?.data || data?.dados || data?.itens || data?.notas || data?.resultado || [];
+  }
+
+  // Processa meses em lotes de 2 (mantém paralelismo sem sobrecarregar)
+  for (let mi = 0; mi < meses.length; mi += 2) {
+    const loteMeses = meses.slice(mi, mi + 2);
     await Promise.all(loteMeses.map(async mes => {
       const [ano, mm] = mes.split('-');
       const mesIni = `${ano}-${mm}-01`;
       const ultimoDia = new Date(parseInt(ano), parseInt(mm), 0).getDate();
       const mesFim = `${ano}-${mm}-${String(ultimoDia).padStart(2, '0')}`;
-      if (!porMes[mes]) porMes[mes] = { total: 0, nfse: 0, telecom: 0, nfcom: 0, nfe: 0, filiais: {} };
+      const buscarValor = mesesComValor.has(mes);
+      if (!porMes[mes]) porMes[mes] = { total: 0, nfse: 0, telecom: 0, nfcom: 0, nfe: 0, valor: 0, temValor: buscarValor, filiais: {} };
 
-      // Todos tipo × cnpj em paralelo para este mês
       const tarefas = TIPOS.flatMap(tipo => LC_CNPJS.map(cnpj => ({ tipo, cnpj })));
       for (let i = 0; i < tarefas.length; i += 18) {
-        const lote = tarefas.slice(i, i + 18);
-        await Promise.all(lote.map(async ({ tipo, cnpj }) => {
+        await Promise.all(tarefas.slice(i, i + 18).map(async ({ tipo, cnpj }) => {
           try {
-            const params = { tipo_data: 'data_emissao', data_inicio: mesIni, data_fim: mesFim, pagina: 0, itens_por_pagina: 1, documento: cnpj };
-            if (tipo === 'telecom') params.modelo = '21';
-            const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/nota_fiscal/${tipo}`, {
-              headers: { Authorization: `Bearer ${token}` }, params, timeout: 15000,
+            // Fase 1: contagem (itens_por_pagina=1 → rápido)
+            const p0 = { tipo_data: 'data_emissao', data_inicio: mesIni, data_fim: mesFim, pagina: 0, itens_por_pagina: buscarValor ? 200 : 1, documento: cnpj };
+            if (tipo === 'telecom') p0.modelo = '21';
+            const r0 = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/nota_fiscal/${tipo}`, {
+              headers: { Authorization: `Bearer ${token}` }, params: p0, timeout: 15000,
             });
-            const totalReg = r.data?.paginacao?.total_registros ?? 0;
+            const totalReg = r0.data?.paginacao?.total_registros ?? 0;
+            const ultimaPag = r0.data?.paginacao?.ultima_pagina ?? 0;
             if (totalReg > 0) {
               porMes[mes][tipo] += totalReg;
               porMes[mes].total += totalReg;
               totalNf += totalReg;
-              // Breakdown por filial
-              if (!porMes[mes].filiais[cnpj]) porMes[mes].filiais[cnpj] = { total: 0, nfse: 0, telecom: 0, nfcom: 0, nfe: 0 };
+              if (!porMes[mes].filiais[cnpj]) porMes[mes].filiais[cnpj] = { total: 0, nfse: 0, telecom: 0, nfcom: 0, nfe: 0, valor: 0 };
               porMes[mes].filiais[cnpj][tipo] += totalReg;
               porMes[mes].filiais[cnpj].total += totalReg;
+            }
+            // Fase 2: soma valores (só para meses recentes)
+            if (buscarValor) {
+              const arr0 = extrairArr(r0.data, tipo);
+              for (const nf of arr0) {
+                const v = somarValorItem(nf);
+                porMes[mes].valor += v;
+                if (porMes[mes].filiais[cnpj]) porMes[mes].filiais[cnpj].valor += v;
+              }
+              // Demais páginas (cap 100 páginas por segurança)
+              for (let p = 1; p <= Math.min(ultimaPag, 100); p++) {
+                try {
+                  const rp = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/nota_fiscal/${tipo}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                    params: { ...p0, pagina: p }, timeout: 15000,
+                  });
+                  const arrP = extrairArr(rp.data, tipo);
+                  for (const nf of arrP) {
+                    const v = somarValorItem(nf);
+                    porMes[mes].valor += v;
+                    if (porMes[mes].filiais[cnpj]) porMes[mes].filiais[cnpj].valor += v;
+                  }
+                  if (arrP.length < 200) break;
+                } catch { break; }
+              }
             }
           } catch (e) {
             console.error(`[fiscal] mes=${mes} tipo=${tipo} cnpj=${cnpj}: ${e.response?.data?.msg || e.message}`);
           }
         }));
       }
-      console.log(`[fiscal] mes=${mes} total=${porMes[mes].total}`);
+      console.log(`[fiscal] mes=${mes} total=${porMes[mes].total} valor=${porMes[mes].valor.toFixed(2)}`);
     }));
   }
 
