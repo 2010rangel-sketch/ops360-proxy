@@ -2494,7 +2494,18 @@ input[type="text"]::placeholder { color:var(--text3); }
       <div>
         <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:8px">PÁGINAS PERMITIDAS</label>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px" id="user-modal-paginas">
-          ${[['comercial','Comercial'],['atendimento','Atendimento'],['chamados','Chamados'],['retencao','Cancelamento'],['financeiro','Financeiro'],['fiscal','Fiscal'],['estoque','Estoque'],['rh','RH'],['saude','Saúde da Base'],['conexoes','Conexões'],['tarefas','Tarefas'],['integracoes','Integrações']].map(([k,v])=>`<label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="${k}" style="cursor:pointer"> <span style="font-size:12px">${v}</span></label>`).join('')}
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="comercial" style="cursor:pointer"> <span style="font-size:12px">Comercial</span></label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="atendimento" style="cursor:pointer"> <span style="font-size:12px">Atendimento</span></label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="chamados" style="cursor:pointer"> <span style="font-size:12px">Chamados</span></label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="retencao" style="cursor:pointer"> <span style="font-size:12px">Cancelamento</span></label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="financeiro" style="cursor:pointer"> <span style="font-size:12px">Financeiro</span></label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="fiscal" style="cursor:pointer"> <span style="font-size:12px">Fiscal</span></label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="estoque" style="cursor:pointer"> <span style="font-size:12px">Estoque</span></label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="rh" style="cursor:pointer"> <span style="font-size:12px">RH</span></label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="saude" style="cursor:pointer"> <span style="font-size:12px">Saúde da Base</span></label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="conexoes" style="cursor:pointer"> <span style="font-size:12px">Conexões</span></label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="tarefas" style="cursor:pointer"> <span style="font-size:12px">Tarefas</span></label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="integracoes" style="cursor:pointer"> <span style="font-size:12px">Integrações</span></label>
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
