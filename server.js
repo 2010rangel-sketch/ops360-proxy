@@ -3139,40 +3139,56 @@ app.get('/api/saude-base', async (req, res) => {
 let _fiscalCache = null; let _fiscalFetchedAt = 0;
 const FISCAL_CACHE_TTL = 2 * 60 * 60 * 1000; // 2h — dados históricos
 
-async function fetchNfTipo(tipo, token, dataIni, dataFim) {
-  // tipo: 'nfse' | 'telecom' | 'nfcom' | 'nfe' — pagina até 30 páginas (6000 itens)
+// CNPJs de todas as filiais LC Virtual Net
+const LC_CNPJS = [
+  '08407644000100', // MATRIZ
+  '08407644000291', // CONCORDIA DO PARA
+  '08407644000372', // IPIXUNA DO PARA
+  '08407644000453', // ACARA
+  '08407644000534', // AURORA DO PARA
+  '08407644000615', // SAO MIGUEL DO GUAMA
+  '08407644000704', // SALINOPOLIS
+  '08407644000887', // NOVA ESPERANCA DO PIRIA
+  '08407644000968', // GARRAFAO DO NORTE
+];
+
+async function fetchNfTipoFilial(tipo, token, cnpj, dataIni, dataFim) {
   function extrairArr(data) {
     if (Array.isArray(data)) return data;
-    // Tenta campos comuns do Hubsoft
     return data?.data || data?.dados || data?.itens || data?.notas || data?.resultado || [];
   }
   try {
     let todos = [];
     let ultimaPag = null;
     for (let p = 0; p < 30; p++) {
-      const params = { tipo_data: 'data_emissao', data_inicio: dataIni, data_fim: dataFim, pagina: p, itens_por_pagina: 200 };
+      const params = { tipo_data: 'data_emissao', data_inicio: dataIni, data_fim: dataFim, pagina: p, itens_por_pagina: 200, documento: cnpj };
       if (tipo === 'telecom') params.modelo = '21';
       const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/nota_fiscal/${tipo}`, {
         headers: { Authorization: `Bearer ${token}` },
-        params, timeout: 20000,
+        params, timeout: 25000,
       });
       const arr = extrairArr(r.data);
-      // Captura ultima_pagina na 1ª resposta
       if (p === 0 && r.data?.paginacao?.ultima_pagina !== undefined) {
         ultimaPag = r.data.paginacao.ultima_pagina;
-        console.log(`[fiscal/${tipo}] paginacao.ultima_pagina=${ultimaPag}`);
       }
-      console.log(`[fiscal/${tipo}] p=${p} arr=${arr.length} ultimaPag=${ultimaPag}`);
       todos = todos.concat(arr);
-      // Para quando: atingiu ultima_pagina OU array menor que máximo solicitado
       if (ultimaPag !== null && p >= ultimaPag) break;
       if (arr.length < 200) break;
     }
-    return { ok: true, itens: todos };
+    console.log(`[fiscal/${tipo}] cnpj=${cnpj} total=${todos.length}`);
+    return todos;
   } catch (e) {
-    console.error(`[fiscal/${tipo}] erro:`, e.response?.status, e.response?.data || e.message);
-    return { ok: false, erro: e.response?.status || e.message, itens: [] };
+    console.error(`[fiscal/${tipo}] cnpj=${cnpj} erro:`, e.response?.status, e.response?.data?.msg || e.message);
+    return [];
   }
+}
+
+async function fetchNfTipo(tipo, token, dataIni, dataFim) {
+  // Busca para cada filial e agrega
+  const resultados = await Promise.all(LC_CNPJS.map(cnpj => fetchNfTipoFilial(tipo, token, cnpj, dataIni, dataFim)));
+  const itens = resultados.flat();
+  console.log(`[fiscal/${tipo}] total geral=${itens.length}`);
+  return { ok: true, itens };
 }
 
 app.get('/api/fiscal', async (req, res) => {
@@ -3275,12 +3291,13 @@ app.get('/api/fiscal-debug', async (req, res) => {
     const agora = new Date(); const agoraBRT = new Date(agora.getTime() - 3*60*60*1000);
     const dataFim = req.query.fim || agoraBRT.toISOString().slice(0, 10);
     const pagina = parseInt(req.query.pagina || '0');
-    const params = { tipo_data: 'data_emissao', data_inicio: dataIni, data_fim: dataFim, pagina, itens_por_pagina: 5 };
+    const cnpj = req.query.cnpj || LC_CNPJS[0];
+    const params = { tipo_data: 'data_emissao', data_inicio: dataIni, data_fim: dataFim, pagina, itens_por_pagina: 5, documento: cnpj };
     if (tipo === 'telecom') params.modelo = '21';
     const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/nota_fiscal/${tipo}`, {
       headers: { Authorization: `Bearer ${token}` }, params, timeout: 20000,
     });
-    res.json({ status: r.status, tipo, params, dataKeys: Object.keys(r.data || {}), paginacao: r.data?.paginacao, primeiroItem: Array.isArray(r.data) ? r.data[0] : (r.data?.data?.[0] || r.data?.itens?.[0] || r.data?.notas?.[0]), totalItems: Array.isArray(r.data) ? r.data.length : (r.data?.data?.length ?? r.data?.itens?.length ?? r.data?.notas?.length ?? '?'), raw: r.data });
+    res.json({ status: r.status, tipo, cnpj, params, dataKeys: Object.keys(r.data || {}), paginacao: r.data?.paginacao, primeiroItem: Array.isArray(r.data) ? r.data[0] : (r.data?.data?.[0] || r.data?.itens?.[0] || r.data?.notas?.[0]), totalItems: Array.isArray(r.data) ? r.data.length : (r.data?.data?.length ?? r.data?.itens?.length ?? r.data?.notas?.length ?? '?'), raw: r.data });
   } catch (e) {
     res.json({ erro: e.message, status: e.response?.status, data: e.response?.data });
   }
