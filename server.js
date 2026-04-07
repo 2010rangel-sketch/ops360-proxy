@@ -3153,9 +3153,11 @@ const LC_CNPJS = [
 ];
 
 async function fetchNfTipoFilial(tipo, token, cnpj, dataIni, dataFim) {
-  function extrairArr(data) {
+  function extrairArr(data, tipo) {
     if (Array.isArray(data)) return data;
-    return data?.data || data?.dados || data?.itens || data?.notas || data?.resultado || [];
+    // Hubsoft retorna array no campo plural do tipo: nfses, telecoms, nfcoms, nfes
+    const plural = tipo + 's';
+    return data?.[plural] || data?.data || data?.dados || data?.itens || data?.notas || data?.resultado || [];
   }
   try {
     let todos = [];
@@ -3167,7 +3169,7 @@ async function fetchNfTipoFilial(tipo, token, cnpj, dataIni, dataFim) {
         headers: { Authorization: `Bearer ${token}` },
         params, timeout: 25000,
       });
-      const arr = extrairArr(r.data);
+      const arr = extrairArr(r.data, tipo);
       if (p === 0 && r.data?.paginacao?.ultima_pagina !== undefined) {
         ultimaPag = r.data.paginacao.ultima_pagina;
       }
@@ -3297,7 +3299,9 @@ app.get('/api/fiscal-debug', async (req, res) => {
     const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/nota_fiscal/${tipo}`, {
       headers: { Authorization: `Bearer ${token}` }, params, timeout: 20000,
     });
-    res.json({ status: r.status, tipo, cnpj, params, dataKeys: Object.keys(r.data || {}), paginacao: r.data?.paginacao, primeiroItem: Array.isArray(r.data) ? r.data[0] : (r.data?.data?.[0] || r.data?.itens?.[0] || r.data?.notas?.[0]), totalItems: Array.isArray(r.data) ? r.data.length : (r.data?.data?.length ?? r.data?.itens?.length ?? r.data?.notas?.length ?? '?'), raw: r.data });
+    const plural = tipo + 's';
+    const arr = Array.isArray(r.data) ? r.data : (r.data?.[plural] || r.data?.data || r.data?.dados || r.data?.itens || r.data?.notas || r.data?.resultado || []);
+    res.json({ status: r.status, tipo, cnpj, params, dataKeys: Object.keys(r.data || {}), paginacao: r.data?.paginacao, totalRegistros: r.data?.paginacao?.total_registros, campoArray: Array.isArray(r.data) ? 'root' : (r.data?.[plural] ? plural : 'data/outros'), totalItems: arr.length, primeiroItem: arr[0] || null, raw: r.data });
   } catch (e) {
     res.json({ erro: e.message, status: e.response?.status, data: e.response?.data });
   }
