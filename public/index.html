@@ -445,7 +445,7 @@ input[type="text"]::placeholder { color:var(--text3); }
 <body>
 
 <!-- ═══ LOGIN OVERLAY ═══ -->
-<div id="login-overlay" style="position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center">
+<div id="login-overlay" style="position:fixed;inset:0;background:var(--bg);z-index:9999;display:none;align-items:center;justify-content:center">
   <div style="width:380px;max-width:95vw">
     <div style="text-align:center;margin-bottom:32px">
       <div style="display:inline-flex;align-items:center;gap:12px">
@@ -482,7 +482,7 @@ input[type="text"]::placeholder { color:var(--text3); }
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
 <!-- SIDEBAR -->
-<nav class="sidebar">
+<nav class="sidebar" id="app-sidebar" style="display:none">
   <div class="sidebar-top">
     <div style="display:flex;align-items:center;gap:10px;padding:6px 4px">
       <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#5b6af0,#a78bfa);display:grid;place-items:center;flex-shrink:0;box-shadow:0 4px 12px rgba(91,106,240,.35)">
@@ -522,7 +522,7 @@ input[type="text"]::placeholder { color:var(--text3); }
 </nav>
 
 <!-- MAIN -->
-<div class="main">
+<div class="main" id="app-main" style="display:none">
   <!-- TOPBAR -->
   <div class="topbar">
     <div class="topbar-left">
@@ -3898,15 +3898,15 @@ async function authInit() {
 
 function _showLogin() {
   document.getElementById('login-overlay').style.display = 'flex';
-  document.querySelector('.sidebar')?.style && (document.querySelector('.sidebar').style.display = 'none');
-  document.querySelector('.main')?.style && (document.querySelector('.main').style.display = 'none');
+  document.getElementById('app-sidebar').style.display = 'none';
+  document.getElementById('app-main').style.display = 'none';
   setTimeout(() => document.getElementById('login-email')?.focus(), 100);
 }
 
 function _hideLogin() {
   document.getElementById('login-overlay').style.display = 'none';
-  document.querySelector('.sidebar')?.style && (document.querySelector('.sidebar').style.display = '');
-  document.querySelector('.main')?.style && (document.querySelector('.main').style.display = '');
+  document.getElementById('app-sidebar').style.display = '';
+  document.getElementById('app-main').style.display = '';
 }
 
 function _afterLogin() {
