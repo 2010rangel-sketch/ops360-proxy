@@ -1785,15 +1785,16 @@ input[type="text"]::placeholder { color:var(--text3); }
           <div style="font-size:14px;font-weight:600;margin-bottom:6px">Clique em Atualizar para carregar</div>
         </div>
         <div style="overflow-x:auto;display:none" id="fisc-mes-wrap">
-          <table class="tbl" style="table-layout:fixed;min-width:620px">
+          <table class="tbl" style="table-layout:fixed;min-width:720px">
             <thead><tr>
               <th style="width:110px">Mês</th>
-              <th style="text-align:right;width:80px">NFS-e</th>
-              <th style="text-align:right;width:80px">Telecom</th>
-              <th style="text-align:right;width:80px">NFCom</th>
-              <th style="text-align:right;width:80px">NF-e</th>
-              <th style="text-align:right;width:90px">Total NFs</th>
+              <th style="text-align:right;width:70px">NFS-e</th>
+              <th style="text-align:right;width:70px">Telecom</th>
+              <th style="text-align:right;width:70px">NFCom</th>
+              <th style="text-align:right;width:70px">NF-e</th>
+              <th style="text-align:right;width:80px">Total NFs</th>
               <th style="text-align:right">Valor Total</th>
+              <th style="text-align:right;color:var(--amber)">Imposto</th>
             </tr></thead>
             <tbody id="fisc-mes-body"></tbody>
           </table>
@@ -7313,16 +7314,18 @@ function renderFiscal(d) {
     if (mesWrap)  mesWrap.style.display  = 'block';
     if (mesBadge) mesBadge.textContent   = meses.length + ' meses';
     const MESES_PT = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-    let totalGeral = 0, valorGeral = 0;
+    let totalGeral = 0, valorGeral = 0, impostoGeral = 0;
     const body = document.getElementById('fisc-mes-body');
     if (body) {
       const rows = meses.map(mes => {
         const m = porMes[mes];
         totalGeral += m.total;
         valorGeral += m.valor;
+        impostoGeral += (m.imposto || 0);
         const [ano, mm] = mes.split('-');
         const mesLabel = (MESES_PT[parseInt(mm)] || mm) + '/' + ano;
         const destacar = mes === new Date().toISOString().slice(0,7) ? 'font-weight:700;color:var(--accent)' : '';
+        const impStr = m.imposto > 0 ? fmtMoeda(m.imposto) : '—';
         return `<tr>
           <td style="font-size:12px;${destacar}">${mesLabel}</td>
           <td class="mono" style="text-align:right;color:var(--green)">${m.nfse || '—'}</td>
@@ -7331,6 +7334,7 @@ function renderFiscal(d) {
           <td class="mono" style="text-align:right;color:var(--red)">${m.nfe || '—'}</td>
           <td class="mono" style="text-align:right;font-weight:600">${m.total}</td>
           <td class="mono" style="text-align:right;color:var(--cyan)">${fmtMoeda(m.valor)}</td>
+          <td class="mono" style="text-align:right;color:var(--amber)">${impStr}</td>
         </tr>`;
       });
       // Linha de total
@@ -7342,6 +7346,7 @@ function renderFiscal(d) {
         <td class="mono" style="text-align:right;font-weight:700;color:var(--red)">${meses.reduce((a,m)=>a+(porMes[m].nfe||0),0)||'—'}</td>
         <td class="mono" style="text-align:right;font-weight:700">${totalGeral}</td>
         <td class="mono" style="text-align:right;font-weight:700;color:var(--cyan)">${fmtMoeda(valorGeral)}</td>
+        <td class="mono" style="text-align:right;font-weight:700;color:var(--amber)">${impostoGeral > 0 ? fmtMoeda(impostoGeral) : '—'}</td>
       </tr>`);
       body.innerHTML = rows.join('');
     }
@@ -8164,8 +8169,9 @@ function renderRhColaboradores() {
       if (!certs.length) {
         badges += `<span style="background:rgba(239,68,68,.15);color:var(--red);border-radius:3px;padding:1px 5px;font-size:10px;white-space:nowrap">NR falta</span> `;
       } else {
-        const vencida = certs.some(c => { const d = c.vencimento ? new Date(c.vencimento) : null; return d && d < hoje; });
-        if (vencida) badges += `<span style="background:rgba(239,68,68,.15);color:var(--red);border-radius:3px;padding:1px 5px;font-size:10px;white-space:nowrap">NR vencida</span> `;
+        // Só mostra "NR vencida" se nenhuma cert ainda é válida (evita falso positivo quando tem cert nova + antiga vencida)
+        const temValida = certs.some(c => { const d = c.vencimento ? new Date(c.vencimento) : null; return d && d >= hoje; });
+        if (!temValida) badges += `<span style="background:rgba(239,68,68,.15);color:var(--red);border-radius:3px;padding:1px 5px;font-size:10px;white-space:nowrap">NR vencida</span> `;
       }
     }
     if (e.cnhVenc) {

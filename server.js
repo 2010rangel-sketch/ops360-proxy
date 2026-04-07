@@ -3140,22 +3140,37 @@ let _fiscalCache = null; let _fiscalFetchedAt = 0;
 const FISCAL_CACHE_TTL = 2 * 60 * 60 * 1000; // 2h — dados históricos
 
 async function fetchNfTipo(tipo, token, dataIni, dataFim) {
-  // tipo: 'nfse' | 'telecom' | 'nfcom' | 'nfe' — pagina até 20 páginas (4000 itens)
+  // tipo: 'nfse' | 'telecom' | 'nfcom' | 'nfe' — pagina até 30 páginas (6000 itens)
+  function extrairArr(data) {
+    if (Array.isArray(data)) return data;
+    // Tenta campos comuns do Hubsoft
+    return data?.data || data?.dados || data?.itens || data?.notas || data?.resultado || [];
+  }
   try {
     let todos = [];
-    for (let p = 0; p < 20; p++) {
+    let ultimaPag = null;
+    for (let p = 0; p < 30; p++) {
       const params = { tipo_data: 'data_emissao', data_inicio: dataIni, data_fim: dataFim, pagina: p, itens_por_pagina: 200 };
       if (tipo === 'telecom') params.modelo = '21';
       const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/nota_fiscal/${tipo}`, {
         headers: { Authorization: `Bearer ${token}` },
         params, timeout: 20000,
       });
-      const arr = Array.isArray(r.data) ? r.data : (r.data?.data || r.data?.itens || r.data?.notas || []);
+      const arr = extrairArr(r.data);
+      // Captura ultima_pagina na 1ª resposta
+      if (p === 0 && r.data?.paginacao?.ultima_pagina !== undefined) {
+        ultimaPag = r.data.paginacao.ultima_pagina;
+        console.log(`[fiscal/${tipo}] paginacao.ultima_pagina=${ultimaPag}`);
+      }
+      console.log(`[fiscal/${tipo}] p=${p} arr=${arr.length} ultimaPag=${ultimaPag}`);
       todos = todos.concat(arr);
+      // Para quando: atingiu ultima_pagina OU array menor que máximo solicitado
+      if (ultimaPag !== null && p >= ultimaPag) break;
       if (arr.length < 200) break;
     }
     return { ok: true, itens: todos };
   } catch (e) {
+    console.error(`[fiscal/${tipo}] erro:`, e.response?.status, e.response?.data || e.message);
     return { ok: false, erro: e.response?.status || e.message, itens: [] };
   }
 }
@@ -3167,13 +3182,13 @@ app.get('/api/fiscal', async (req, res) => {
     if (!force) {
       const dbF = await dbCacheGet('cache:fiscal', FISCAL_CACHE_TTL);
       if (dbF) {
-        // Verifica formato novo (porMes com breakdown por tipo)
+        // Verifica formato novo (porMes com breakdown por tipo + imposto)
         const firstMes = Object.values(dbF.porMes || {})[0];
-        if (firstMes && firstMes.nfse !== undefined) {
+        if (firstMes && firstMes.nfse !== undefined && firstMes.imposto !== undefined) {
           _fiscalCache = dbF; _fiscalFetchedAt = Date.now(); return res.json({ ...dbF, cache: 'db' });
         }
-        // Cache antigo sem breakdown — ignora e reconstrói
-        console.log('[fiscal] cache antigo detectado, reconstruindo...');
+        // Cache antigo sem breakdown/imposto — ignora e reconstrói
+        console.log('[fiscal] cache antigo detectado (sem imposto), reconstruindo...');
       }
     }
     const token = await getToken();
@@ -3208,11 +3223,17 @@ app.get('/api/fiscal', async (req, res) => {
         const dtStr = nf.data_emissao || nf.data || '';
         const mes = dtStr.slice(0, 7); // YYYY-MM
         if (!mes) continue;
-        if (!porMes[mes]) porMes[mes] = { total: 0, valor: 0, nfse: 0, telecom: 0, nfcom: 0, nfe: 0 };
+        if (!porMes[mes]) porMes[mes] = { total: 0, valor: 0, imposto: 0, nfse: 0, telecom: 0, nfcom: 0, nfe: 0 };
         porMes[mes].total++;
         porMes[mes][tipo] = (porMes[mes][tipo] || 0) + 1;
         const val = parseFloat(nf.valor_total ?? nf.valor ?? nf.total ?? 0);
         if (!isNaN(val)) porMes[mes].valor += val;
+        // Soma impostos: ISS, PIS, COFINS, IR, CSLL etc.
+        const imp = parseFloat(
+          nf.valor_imposto ?? nf.valor_impostos ?? nf.impostos ?? nf.iss ??
+          nf.valor_iss ?? nf.valor_pis_cofins ?? 0
+        );
+        if (!isNaN(imp)) porMes[mes].imposto += imp;
       }
     }
 
@@ -3242,6 +3263,26 @@ app.get('/api/fiscal', async (req, res) => {
     console.error('[/api/fiscal]', e.message);
     if (_fiscalCache) return res.json({ ..._fiscalCache, cache: true, aviso: e.message });
     res.json({ ok: false, motivo: e.message });
+  }
+});
+
+// Debug: vê resposta bruta da API de NF do Hubsoft
+app.get('/api/fiscal-debug', async (req, res) => {
+  try {
+    const token = await getToken();
+    const tipo = req.query.tipo || 'nfse';
+    const dataIni = req.query.ini || '2025-01-01';
+    const agora = new Date(); const agoraBRT = new Date(agora.getTime() - 3*60*60*1000);
+    const dataFim = req.query.fim || agoraBRT.toISOString().slice(0, 10);
+    const pagina = parseInt(req.query.pagina || '0');
+    const params = { tipo_data: 'data_emissao', data_inicio: dataIni, data_fim: dataFim, pagina, itens_por_pagina: 5 };
+    if (tipo === 'telecom') params.modelo = '21';
+    const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/nota_fiscal/${tipo}`, {
+      headers: { Authorization: `Bearer ${token}` }, params, timeout: 20000,
+    });
+    res.json({ status: r.status, tipo, params, dataKeys: Object.keys(r.data || {}), paginacao: r.data?.paginacao, primeiroItem: Array.isArray(r.data) ? r.data[0] : (r.data?.data?.[0] || r.data?.itens?.[0] || r.data?.notas?.[0]), totalItems: Array.isArray(r.data) ? r.data.length : (r.data?.data?.length ?? r.data?.itens?.length ?? r.data?.notas?.length ?? '?'), raw: r.data });
+  } catch (e) {
+    res.json({ erro: e.message, status: e.response?.status, data: e.response?.data });
   }
 });
 
