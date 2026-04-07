@@ -7337,13 +7337,16 @@ function renderFiscal(d) {
       '08407644000704': 'Salinópolis', '08407644000887': 'N.Esperança', '08407644000968': 'Garrafão',
     };
 
-    // ── Gráfico de barras empilhadas por tipo ──
+    // ── Gráfico de barras lado a lado por tipo ──
     const mesOrdem = [...meses].sort(); // cronológico
-    const maxTotal = Math.max(...mesOrdem.map(m => porMes[m].total), 1);
+    const TIPOS_GRAF = ['nfcom','nfse','telecom','nfe'];
+    const TIPO_COR = { nfcom: '#9b59b6', nfse: '#22c55e', telecom: '#f59e0b', nfe: '#ef4444' };
+    // Máximo individual por tipo (para escalar cada barra independentemente)
+    const maxPorTipo = {};
+    TIPOS_GRAF.forEach(t => { maxPorTipo[t] = Math.max(...mesOrdem.map(m => porMes[m][t]||0), 1); });
+    const maxGlobal = Math.max(...TIPOS_GRAF.map(t => maxPorTipo[t]), 1);
     const ALTURA = 120;
     const mesHoje = new Date().toISOString().slice(0, 7);
-    // Cores por tipo
-    const TIPO_COR = { nfcom: '#9b59b6', nfse: '#22c55e', telecom: '#f59e0b', nfe: '#ef4444' };
     const chart = document.getElementById('fisc-mes-chart');
     if (chart) {
       chart.innerHTML = mesOrdem.map((mes, i) => {
@@ -7351,27 +7354,25 @@ function renderFiscal(d) {
         const [ano, mm] = mes.split('-');
         const label = (MESES_PT[parseInt(mm)] || mm) + '/' + ano.slice(2);
         const isParcial = mes === mesHoje;
-        const isMax = m.total === maxTotal && !isParcial;
-        const hTotal = Math.max(Math.round((m.total / maxTotal) * ALTURA), 4);
-        const corTxt = isParcial ? '#60a5fa' : (isMax ? '#22c55e' : '#4ade80');
         const anoLbl = (i === 0 || mesOrdem[i-1].slice(0,4) !== ano)
-          ? `<div style="font-size:9px;color:var(--text3);margin-bottom:2px;font-weight:600">${ano}</div>`
+          ? `<div style="font-size:9px;color:var(--text3);margin-bottom:2px;font-weight:600;text-align:center">${ano}</div>`
           : '<div style="font-size:9px;color:transparent">·</div>';
         const tooltip = `${label}: NFCom ${m.nfcom||0} · NFS-e ${m.nfse||0} · Telecom ${m.telecom||0} · NF-e ${m.nfe||0} · Total ${m.total}`;
-        // Segmentos empilhados (de baixo pra cima: NFCom, NFS-e, Telecom, NF-e)
-        const segs = ['nfcom','nfse','telecom','nfe'].map(t => {
+        // Barras lado a lado — uma por tipo
+        const barras = TIPOS_GRAF.map(t => {
           const cnt = m[t] || 0;
-          if (!cnt) return '';
-          const hSeg = Math.max(Math.round((cnt / maxTotal) * ALTURA), 1);
+          if (!cnt) return `<div style="flex:1"></div>`;
+          const h = Math.max(Math.round((cnt / maxGlobal) * ALTURA), 3);
           const opac = isParcial ? 'opacity:.7;' : '';
-          const borda = isParcial ? 'border:1px dashed rgba(147,197,253,.5);box-sizing:border-box;' : '';
-          return `<div style="width:100%;height:${hSeg}px;background:${TIPO_COR[t]};${opac}${borda}" title="${t}: ${cnt}"></div>`;
+          return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end" title="${t}: ${cnt.toLocaleString('pt-BR')}">
+            <div style="font-size:7px;color:${TIPO_COR[t]};font-weight:700;line-height:1.1;margin-bottom:1px">${cnt >= 100 ? cnt.toLocaleString('pt-BR') : cnt}</div>
+            <div style="width:80%;height:${h}px;background:${TIPO_COR[t]};border-radius:2px 2px 0 0;${opac}"></div>
+          </div>`;
         }).join('');
-        return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:28px;max-width:52px" title="${tooltip}">
+        return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:60px;max-width:110px" title="${tooltip}">
           ${anoLbl}
-          <div style="font-size:9px;color:${corTxt};font-weight:700;line-height:1.2">${m.total.toLocaleString('pt-BR')}</div>
-          <div style="width:100%;display:flex;flex-direction:column;justify-content:flex-end;border-radius:3px 3px 0 0;overflow:hidden;${isMax?'box-shadow:0 0 0 2px rgba(255,255,255,.2)':''}">${segs}</div>
-          <div style="font-size:9px;color:var(--text3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center">${label}</div>
+          <div style="width:100%;display:flex;align-items:flex-end;gap:1px;height:${ALTURA}px">${barras}</div>
+          <div style="font-size:9px;color:var(--text3);margin-top:3px;text-align:center;white-space:nowrap">${label}</div>
           ${isParcial ? '<div style="font-size:8px;color:#60a5fa;font-weight:600">parcial</div>' : ''}
         </div>`;
       }).join('');
