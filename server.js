@@ -8,6 +8,40 @@ const axios    = require('axios');
 const cors     = require('cors');
 const path     = require('path');
 
+const crypto = require('crypto');
+const AUTH_SECRET = process.env.AUTH_SECRET || 'ops360-secret-2025';
+
+// ── Auth helpers ──────────────────────────────────────────────────
+function _hashSenha(senha) {
+  return crypto.createHash('sha256').update(senha + AUTH_SECRET).digest('hex');
+}
+function _gerarToken(userId) {
+  const payload = `${userId}:${Date.now()}`;
+  const sig = crypto.createHmac('sha256', AUTH_SECRET).update(payload).digest('hex');
+  return Buffer.from(`${payload}:${sig}`).toString('base64');
+}
+function _validarToken(token) {
+  try {
+    const decoded = Buffer.from(token, 'base64').toString();
+    const parts = decoded.split(':');
+    if (parts.length !== 3) return null;
+    const [userId, ts, sig] = parts;
+    const payload = `${userId}:${ts}`;
+    const expected = crypto.createHmac('sha256', AUTH_SECRET).update(payload).digest('hex');
+    if (sig !== expected) return null;
+    // Token expira em 30 dias
+    if (Date.now() - parseInt(ts) > 30 * 24 * 60 * 60 * 1000) return null;
+    return parseInt(userId);
+  } catch { return null; }
+}
+async function _getUser(id) {
+  try {
+    const pool = getPool(); if (!pool) return null;
+    const r = await pool.query('SELECT * FROM ops360_users WHERE id=$1 AND ativo=TRUE', [id]);
+    return r.rows[0] || null;
+  } catch { return null; }
+}
+
 // ── Handlers globais: evita que erros async não capturados matem o processo ──
 process.on('uncaughtException', (err) => {
   console.error('[UNCAUGHT EXCEPTION]', err.message, err.stack);
@@ -3650,16 +3684,43 @@ function getPool() {
 
 async function dbInit() {
   try {
-    await getPool().query(`
+    const pool = getPool(); if (!pool) return;
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS kv_store (
         key        TEXT PRIMARY KEY,
         value      TEXT NOT NULL,
         updated_at TIMESTAMPTZ DEFAULT NOW()
       )
     `);
-    console.log('[db] kv_store pronta');
+    // Tabela de usuários para controle de acesso
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS ops360_users (
+        id         SERIAL PRIMARY KEY,
+        nome       TEXT NOT NULL,
+        email      TEXT UNIQUE NOT NULL,
+        senha_hash TEXT NOT NULL,
+        paginas    TEXT NOT NULL DEFAULT 'comercial',
+        admin      BOOLEAN NOT NULL DEFAULT FALSE,
+        ativo      BOOLEAN NOT NULL DEFAULT TRUE,
+        criado_em  TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    // Cria admin padrão se não existir nenhum usuário
+    const { rows } = await pool.query('SELECT COUNT(*) as n FROM ops360_users');
+    if (parseInt(rows[0].n) === 0) {
+      const crypto = require('crypto');
+      const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@meuprovedor360.com';
+      const ADMIN_PASS  = process.env.ADMIN_PASS  || 'admin360';
+      const hash = crypto.createHash('sha256').update(ADMIN_PASS + AUTH_SECRET).digest('hex');
+      await pool.query(
+        `INSERT INTO ops360_users(nome,email,senha_hash,paginas,admin) VALUES($1,$2,$3,$4,TRUE)`,
+        ['Administrador', ADMIN_EMAIL, hash, 'comercial,atendimento,chamados,retencao,financeiro,fiscal,estoque,rh,saude,conexoes,tarefas,integracoes']
+      );
+      console.log(`[auth] Admin criado: ${ADMIN_EMAIL} / ${ADMIN_PASS}`);
+    }
+    console.log('[db] tabelas prontas');
   } catch(e) {
-    console.warn('[db] sem banco PostgreSQL disponível — usando fallback arquivo:', e.message);
+    console.warn('[db] sem banco PostgreSQL disponível:', e.message);
   }
 }
 
@@ -3837,6 +3898,101 @@ Você tem acesso ao contexto do sistema OPS360: chamados, atendimento, comercial
 });
 
 // ── Fallback SPA: qualquer rota não-API serve o index.html ───────
+// ── AUTH ──────────────────────────────────────────────────────────
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, senha } = req.body || {};
+    if (!email || !senha) return res.json({ ok: false, motivo: 'Email e senha obrigatórios' });
+    const pool = getPool();
+    if (!pool) return res.json({ ok: false, motivo: 'Banco indisponível' });
+    const r = await pool.query('SELECT * FROM ops360_users WHERE email=$1 AND ativo=TRUE', [email.trim().toLowerCase()]);
+    const user = r.rows[0];
+    if (!user) return res.json({ ok: false, motivo: 'Usuário não encontrado' });
+    const hash = _hashSenha(senha);
+    if (hash !== user.senha_hash) return res.json({ ok: false, motivo: 'Senha incorreta' });
+    const token = _gerarToken(user.id);
+    res.json({ ok: true, token, user: { id: user.id, nome: user.nome, email: user.email, paginas: user.paginas, admin: user.admin } });
+  } catch(e) {
+    res.json({ ok: false, motivo: e.message });
+  }
+});
+
+app.get('/api/auth/me', async (req, res) => {
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
+  const uid = _validarToken(token);
+  if (!uid) return res.json({ ok: false, motivo: 'Token inválido' });
+  const user = await _getUser(uid);
+  if (!user) return res.json({ ok: false, motivo: 'Usuário não encontrado' });
+  res.json({ ok: true, user: { id: user.id, nome: user.nome, email: user.email, paginas: user.paginas, admin: user.admin } });
+});
+
+// ── GESTÃO DE USUÁRIOS (admin only) ──────────────────────────────
+async function _authAdmin(req) {
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
+  const uid = _validarToken(token);
+  if (!uid) return null;
+  const user = await _getUser(uid);
+  return (user && user.admin) ? user : null;
+}
+
+app.get('/api/auth/users', async (req, res) => {
+  const admin = await _authAdmin(req);
+  if (!admin) return res.status(403).json({ ok: false, motivo: 'Acesso negado' });
+  try {
+    const pool = getPool();
+    const r = await pool.query('SELECT id,nome,email,paginas,admin,ativo,criado_em FROM ops360_users ORDER BY nome');
+    res.json({ ok: true, users: r.rows });
+  } catch(e) { res.json({ ok: false, motivo: e.message }); }
+});
+
+app.post('/api/auth/users', async (req, res) => {
+  const admin = await _authAdmin(req);
+  if (!admin) return res.status(403).json({ ok: false, motivo: 'Acesso negado' });
+  try {
+    const { nome, email, senha, paginas, is_admin } = req.body || {};
+    if (!nome || !email || !senha) return res.json({ ok: false, motivo: 'Nome, email e senha obrigatórios' });
+    const hash = _hashSenha(senha);
+    const pool = getPool();
+    const r = await pool.query(
+      `INSERT INTO ops360_users(nome,email,senha_hash,paginas,admin) VALUES($1,$2,$3,$4,$5) RETURNING id`,
+      [nome.trim(), email.trim().toLowerCase(), hash, (paginas||'comercial'), !!is_admin]
+    );
+    res.json({ ok: true, id: r.rows[0].id });
+  } catch(e) { res.json({ ok: false, motivo: e.message }); }
+});
+
+app.put('/api/auth/users/:id', async (req, res) => {
+  const admin = await _authAdmin(req);
+  if (!admin) return res.status(403).json({ ok: false, motivo: 'Acesso negado' });
+  try {
+    const { nome, email, senha, paginas, is_admin, ativo } = req.body || {};
+    const pool = getPool();
+    if (senha) {
+      const hash = _hashSenha(senha);
+      await pool.query(
+        `UPDATE ops360_users SET nome=$1,email=$2,senha_hash=$3,paginas=$4,admin=$5,ativo=$6 WHERE id=$7`,
+        [nome, email?.toLowerCase(), hash, paginas, !!is_admin, ativo !== false, req.params.id]
+      );
+    } else {
+      await pool.query(
+        `UPDATE ops360_users SET nome=$1,email=$2,paginas=$3,admin=$4,ativo=$5 WHERE id=$6`,
+        [nome, email?.toLowerCase(), paginas, !!is_admin, ativo !== false, req.params.id]
+      );
+    }
+    res.json({ ok: true });
+  } catch(e) { res.json({ ok: false, motivo: e.message }); }
+});
+
+app.delete('/api/auth/users/:id', async (req, res) => {
+  const admin = await _authAdmin(req);
+  if (!admin) return res.status(403).json({ ok: false, motivo: 'Acesso negado' });
+  try {
+    if (parseInt(req.params.id) === admin.id) return res.json({ ok: false, motivo: 'Não pode excluir a si mesmo' });
+    await getPool().query('DELETE FROM ops360_users WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch(e) { res.json({ ok: false, motivo: e.message }); }
+});
+
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });

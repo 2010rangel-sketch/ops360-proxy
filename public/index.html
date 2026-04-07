@@ -444,6 +444,41 @@ input[type="text"]::placeholder { color:var(--text3); }
 </head>
 <body>
 
+<!-- ═══ LOGIN OVERLAY ═══ -->
+<div id="login-overlay" style="position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center">
+  <div style="width:380px;max-width:95vw">
+    <div style="text-align:center;margin-bottom:32px">
+      <div style="display:inline-flex;align-items:center;gap:12px">
+        <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#5b6af0,#a78bfa);display:grid;place-items:center;box-shadow:0 4px 20px rgba(91,106,240,.4)">
+          <i class="fas fa-globe-americas" style="color:#fff;font-size:18px"></i>
+        </div>
+        <div style="line-height:1.1;text-align:left">
+          <div style="font-size:11px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase">Meu Provedor</div>
+          <div style="font-size:26px;font-weight:800;background:linear-gradient(90deg,#5b6af0,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent">360</div>
+        </div>
+      </div>
+      <div style="font-size:13px;color:var(--text3);margin-top:12px">Painel de Gestão · Faça login para continuar</div>
+    </div>
+    <div class="tbl-card" style="padding:28px">
+      <div style="margin-bottom:16px">
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:6px;font-weight:500">EMAIL</label>
+        <input id="login-email" type="email" placeholder="seu@email.com" class="search-input" style="width:100%;font-size:13px;padding:10px 12px"
+          onkeydown="if(event.key==='Enter')document.getElementById('login-senha').focus()">
+      </div>
+      <div style="margin-bottom:20px">
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:6px;font-weight:500">SENHA</label>
+        <div style="position:relative">
+          <input id="login-senha" type="password" placeholder="••••••••" class="search-input" style="width:100%;font-size:13px;padding:10px 12px;padding-right:40px"
+            onkeydown="if(event.key==='Enter')doLogin()">
+          <button onclick="const i=document.getElementById('login-senha');i.type=i.type==='password'?'text':'password'" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text3);cursor:pointer"><i class="fas fa-eye"></i></button>
+        </div>
+      </div>
+      <div id="login-erro" style="display:none;color:var(--red);font-size:12px;margin-bottom:12px;padding:8px 12px;background:var(--red-light);border-radius:6px"></div>
+      <button onclick="doLogin()" id="login-btn" class="btn btn-primary" style="width:100%;padding:11px;font-size:14px;font-weight:600">Entrar</button>
+    </div>
+  </div>
+</div>
+
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
 <!-- SIDEBAR -->
@@ -478,9 +513,10 @@ input[type="text"]::placeholder { color:var(--text3); }
 
   <div class="sidebar-bottom">
     <div class="user-row">
-      <div class="user-avatar">DO</div>
-      <span class="user-name">Dir. Operações</span>
+      <div class="user-avatar" id="sidebar-avatar">?</div>
+      <span class="user-name" id="sidebar-nome">—</span>
       <button class="icon-btn" onclick="toggleTheme()" style="border:none;background:none;width:22px;height:22px;font-size:11px" title="Tema"><i class="fas fa-circle-half-stroke" id="themeIcon"></i></button>
+      <button class="icon-btn" onclick="doLogout()" style="border:none;background:none;width:22px;height:22px;font-size:11px;color:var(--text3)" title="Sair"><i class="fas fa-sign-out-alt"></i></button>
     </div>
   </div>
 </nav>
@@ -2419,10 +2455,64 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
 
       </div>
+
+      <!-- Gestão de Usuários (visível apenas para admin) -->
+      <div id="users-admin-section" style="display:none;margin-top:20px">
+        <div class="tbl-card">
+          <div class="tbl-header">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:32px;height:32px;border-radius:8px;background:var(--accent-light);color:var(--accent);display:grid;place-items:center;font-size:13px"><i class="fas fa-users-cog"></i></div>
+              <div class="tbl-title">Gestão de Usuários</div>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="usersAbrirModal()"><i class="fas fa-plus"></i> Novo Usuário</button>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="tbl">
+              <thead><tr><th>Nome</th><th>Email</th><th>Páginas Permitidas</th><th>Admin</th><th>Ativo</th><th style="text-align:center">Ações</th></tr></thead>
+              <tbody id="users-tbl-body"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
 
   </div><!-- /page-content -->
 </div><!-- /main -->
+
+<!-- Modal Novo/Editar Usuário -->
+<div id="user-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;display:none;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border-radius:12px;padding:24px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div style="font-size:15px;font-weight:700" id="user-modal-titulo">Novo Usuário</div>
+      <button onclick="usersFecharModal()" style="background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer"><i class="fas fa-times"></i></button>
+    </div>
+    <input type="hidden" id="user-modal-id">
+    <div style="display:grid;gap:12px">
+      <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">NOME</label><input id="user-modal-nome" class="search-input" style="width:100%" placeholder="Nome completo"></div>
+      <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">EMAIL</label><input id="user-modal-email" type="email" class="search-input" style="width:100%" placeholder="email@empresa.com"></div>
+      <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">SENHA <span id="user-modal-senha-obs" style="color:var(--text3)">(deixe em branco para não alterar)</span></label><input id="user-modal-senha" type="password" class="search-input" style="width:100%" placeholder="Nova senha"></div>
+      <div>
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:8px">PÁGINAS PERMITIDAS</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px" id="user-modal-paginas">
+          ${[['comercial','Comercial'],['atendimento','Atendimento'],['chamados','Chamados'],['retencao','Cancelamento'],['financeiro','Financeiro'],['fiscal','Fiscal'],['estoque','Estoque'],['rh','RH'],['saude','Saúde da Base'],['conexoes','Conexões'],['tarefas','Tarefas'],['integracoes','Integrações']].map(([k,v])=>`<label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="${k}" style="cursor:pointer"> <span style="font-size:12px">${v}</span></label>`).join('')}
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="user-modal-admin" style="cursor:pointer">
+        <label for="user-modal-admin" style="font-size:12px;cursor:pointer">Administrador (acesso total + gestão de usuários)</label>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px" id="user-modal-ativo-row">
+        <input type="checkbox" id="user-modal-ativo" checked style="cursor:pointer">
+        <label for="user-modal-ativo" style="font-size:12px;cursor:pointer">Usuário ativo</label>
+      </div>
+    </div>
+    <div id="user-modal-erro" style="display:none;color:var(--red);font-size:12px;margin-top:12px;padding:8px;background:var(--red-light);border-radius:6px"></div>
+    <div style="display:flex;gap:8px;margin-top:20px;justify-content:flex-end">
+      <button onclick="usersFecharModal()" class="btn btn-ghost btn-sm">Cancelar</button>
+      <button onclick="usersSalvar()" class="btn btn-primary btn-sm" id="user-modal-save-btn">Salvar</button>
+    </div>
+  </div>
+</div>
 
 <!-- NOTIF OVERLAY -->
 <div class="notif-overlay" id="notifOverlay" onclick="toggleNotif()">
@@ -2541,6 +2631,9 @@ function goPage(id, el, skipHistory) {
       if (p) p.textContent = badge.textContent.replace('Atualizado ', '');
     }
     loadComercial();
+  }
+  if (id === 'integracoes') {
+    usersCarregar();
   }
   if (id === 'conexoes') {
     initConexoesMap();
@@ -3775,6 +3868,101 @@ function syncHubsoft() {
     rebuildAll();
   }, 800);
 }
+
+// ── AUTH / LOGIN ─────────────────────────────────────────────────
+let _authUser = null;
+
+function _authToken() { return localStorage.getItem('ops360_auth_token') || ''; }
+
+async function authInit() {
+  const token = _authToken();
+  if (!token) { _showLogin(); return; }
+  try {
+    const r = await fetch(`${window.location.origin}/api/auth/me`, { headers: { Authorization: 'Bearer ' + token } });
+    const d = await r.json();
+    if (d.ok) { _authUser = d.user; _afterLogin(); }
+    else       { _showLogin(); }
+  } catch { _showLogin(); }
+}
+
+function _showLogin() {
+  document.getElementById('login-overlay').style.display = 'flex';
+  document.querySelector('.sidebar')?.style && (document.querySelector('.sidebar').style.display = 'none');
+  document.querySelector('.main')?.style && (document.querySelector('.main').style.display = 'none');
+  setTimeout(() => document.getElementById('login-email')?.focus(), 100);
+}
+
+function _hideLogin() {
+  document.getElementById('login-overlay').style.display = 'none';
+  document.querySelector('.sidebar')?.style && (document.querySelector('.sidebar').style.display = '');
+  document.querySelector('.main')?.style && (document.querySelector('.main').style.display = '');
+}
+
+function _afterLogin() {
+  _hideLogin();
+  // Atualiza rodapé da sidebar
+  const nome = _authUser.nome || 'Usuário';
+  const sigla = nome.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+  const av = document.getElementById('sidebar-avatar');
+  const nm = document.getElementById('sidebar-nome');
+  if (av) av.textContent = sigla;
+  if (nm) nm.textContent = nome;
+  // Filtra sidebar pelas páginas permitidas
+  _aplicarPermissoes();
+  // Inicia o app normalmente
+  _appStart();
+}
+
+function _aplicarPermissoes() {
+  if (!_authUser) return;
+  const permitidas = new Set((_authUser.paginas || '').split(',').map(p => p.trim()));
+  // Esconde nav-items sem permissão
+  document.querySelectorAll('.nav-item[onclick*="goPage"], .space-item[onclick*="goPage"]').forEach(el => {
+    const m = el.getAttribute('onclick').match(/'([^']+)'/);
+    if (!m) return;
+    const pg = m[1];
+    el.style.display = permitidas.has(pg) ? '' : 'none';
+  });
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const senha = document.getElementById('login-senha').value;
+  const btn   = document.getElementById('login-btn');
+  const erro  = document.getElementById('login-erro');
+  if (!email || !senha) { _loginErro('Preencha email e senha'); return; }
+  btn.disabled = true; btn.textContent = 'Entrando...';
+  erro.style.display = 'none';
+  try {
+    const r = await fetch(`${window.location.origin}/api/auth/login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, senha })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      localStorage.setItem('ops360_auth_token', d.token);
+      _authUser = d.user;
+      _afterLogin();
+    } else {
+      _loginErro(d.motivo || 'Erro ao fazer login');
+    }
+  } catch(e) { _loginErro('Erro de conexão'); }
+  finally { btn.disabled = false; btn.textContent = 'Entrar'; }
+}
+
+function _loginErro(msg) {
+  const e = document.getElementById('login-erro');
+  if (e) { e.textContent = msg; e.style.display = 'block'; }
+}
+
+function doLogout() {
+  localStorage.removeItem('ops360_auth_token');
+  _authUser = null;
+  location.reload();
+}
+
+// goPage com verificação de permissão
+const _goPageOriginal = typeof goPage !== 'undefined' ? goPage : null;
 
 // ── CONFIGURAÇÃO DO PROXY ────────────────────────────────────────
 // Após deploy no Railway, substitua pelo sua URL:
@@ -5688,12 +5876,7 @@ async function deletarEvento(uid,key) {
   } catch(e) { alert(`Erro: ${e.message}`); }
 }
 
-// Carrega ao abrir a aba
-const _origGoPage = typeof goPage === 'function' ? goPage : null;
-document.addEventListener('DOMContentLoaded',()=>{
-  renderCal();
-  carregarEventos();
-});
+// Calendário — inicializado pelo _appStart via DOMContentLoaded geral
 
 // INTEGRATIONS
 const ints = [
@@ -7425,8 +7608,99 @@ function filterEstoque(txt) {
   renderEstoqueTbl(q ? _esqItens.filter(i => JSON.stringify(i).toLowerCase().includes(q)) : _esqItens);
 }
 
-// AUTO-INIT
-(function() {
+// ── GESTÃO DE USUÁRIOS (frontend) ────────────────────────────────
+const TODAS_PAGINAS = ['comercial','atendimento','chamados','retencao','financeiro','fiscal','estoque','rh','saude','conexoes','tarefas','integracoes'];
+
+async function usersCarregar() {
+  if (!_authUser?.admin) return;
+  document.getElementById('users-admin-section').style.display = '';
+  const token = _authToken();
+  try {
+    const r = await fetch(`${PROXY_URL}/api/auth/users`, { headers: { Authorization: 'Bearer ' + token } });
+    const d = await r.json();
+    if (!d.ok) return;
+    const body = document.getElementById('users-tbl-body');
+    if (!body) return;
+    const LABEL_PG = { comercial:'Comercial',atendimento:'Atendimento',chamados:'Chamados',retencao:'Cancelamento',financeiro:'Financeiro',fiscal:'Fiscal',estoque:'Estoque',rh:'RH',saude:'Saúde',conexoes:'Conexões',tarefas:'Tarefas',integracoes:'Integrações' };
+    body.innerHTML = d.users.map(u => {
+      const pgs = u.paginas.split(',').map(p => `<span style="font-size:10px;padding:1px 6px;border-radius:8px;background:var(--accent-light);color:var(--accent);margin:1px;display:inline-block">${LABEL_PG[p.trim()]||p}</span>`).join('');
+      return `<tr>
+        <td style="font-size:12px;font-weight:500">${u.nome}</td>
+        <td style="font-size:11px;color:var(--text3)">${u.email}</td>
+        <td style="line-height:1.8">${pgs}</td>
+        <td style="text-align:center">${u.admin ? '<i class="fas fa-check" style="color:var(--accent)"></i>' : '—'}</td>
+        <td style="text-align:center"><span style="font-size:10px;font-weight:700;color:${u.ativo?'var(--green)':'var(--red)'}">${u.ativo?'Sim':'Não'}</span></td>
+        <td style="text-align:center">
+          <button onclick="usersAbrirModal(${JSON.stringify(u).replace(/"/g,'&quot;')})" class="btn btn-sm btn-ghost" style="font-size:10px;margin-right:4px"><i class="fas fa-edit"></i></button>
+          <button onclick="usersExcluir(${u.id},'${u.nome.replace(/'/g,"\\'")}',this)" class="btn btn-sm" style="font-size:10px;background:var(--red-light);color:var(--red);border:none"><i class="fas fa-trash"></i></button>
+        </td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Nenhum usuário</td></tr>';
+  } catch(e) { console.error(e); }
+}
+
+function usersAbrirModal(user) {
+  const modal = document.getElementById('user-modal');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  document.getElementById('user-modal-id').value = user?.id || '';
+  document.getElementById('user-modal-nome').value = user?.nome || '';
+  document.getElementById('user-modal-email').value = user?.email || '';
+  document.getElementById('user-modal-senha').value = '';
+  document.getElementById('user-modal-admin').checked = user?.admin || false;
+  document.getElementById('user-modal-ativo').checked = user ? (user.ativo !== false) : true;
+  document.getElementById('user-modal-ativo-row').style.display = user ? '' : 'none';
+  document.getElementById('user-modal-senha-obs').style.display = user ? '' : 'none';
+  document.getElementById('user-modal-titulo').textContent = user ? 'Editar Usuário' : 'Novo Usuário';
+  document.getElementById('user-modal-erro').style.display = 'none';
+  const permitidas = new Set((user?.paginas || '').split(',').map(p => p.trim()));
+  document.querySelectorAll('#user-modal-paginas input[data-pg]').forEach(cb => {
+    cb.checked = user ? permitidas.has(cb.dataset.pg) : TODAS_PAGINAS.includes(cb.dataset.pg);
+  });
+}
+
+function usersFecharModal() {
+  const modal = document.getElementById('user-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+async function usersSalvar() {
+  const id    = document.getElementById('user-modal-id').value;
+  const nome  = document.getElementById('user-modal-nome').value.trim();
+  const email = document.getElementById('user-modal-email').value.trim();
+  const senha = document.getElementById('user-modal-senha').value;
+  const admin = document.getElementById('user-modal-admin').checked;
+  const ativo = document.getElementById('user-modal-ativo').checked;
+  const paginas = [...document.querySelectorAll('#user-modal-paginas input[data-pg]:checked')].map(cb => cb.dataset.pg).join(',');
+  const erro = document.getElementById('user-modal-erro');
+  if (!nome || !email) { erro.textContent = 'Nome e email são obrigatórios'; erro.style.display = 'block'; return; }
+  if (!paginas) { erro.textContent = 'Selecione pelo menos uma página'; erro.style.display = 'block'; return; }
+  const btn = document.getElementById('user-modal-save-btn');
+  btn.disabled = true; btn.textContent = 'Salvando...';
+  const body = { nome, email, senha: senha || undefined, paginas, is_admin: admin, ativo };
+  try {
+    const url  = id ? `${PROXY_URL}/api/auth/users/${id}` : `${PROXY_URL}/api/auth/users`;
+    const meth = id ? 'PUT' : 'POST';
+    const r    = await fetch(url, { method: meth, headers: { 'Content-Type':'application/json', Authorization:'Bearer '+_authToken() }, body: JSON.stringify(body) });
+    const d    = await r.json();
+    if (d.ok) { usersFecharModal(); usersCarregar(); }
+    else { erro.textContent = d.motivo || 'Erro ao salvar'; erro.style.display = 'block'; }
+  } catch(e) { erro.textContent = 'Erro de conexão'; erro.style.display = 'block'; }
+  finally { btn.disabled = false; btn.textContent = 'Salvar'; }
+}
+
+async function usersExcluir(id, nome, btnEl) {
+  if (!confirm(`Excluir o usuário "${nome}"?`)) return;
+  try {
+    const r = await fetch(`${PROXY_URL}/api/auth/users/${id}`, { method:'DELETE', headers: { Authorization:'Bearer '+_authToken() } });
+    const d = await r.json();
+    if (d.ok) usersCarregar();
+    else alert(d.motivo || 'Erro ao excluir');
+  } catch(e) { alert('Erro de conexão'); }
+}
+
+// AUTO-INIT — chamado por _appStart() após login validado
+function _appStart() {
   // Passo 1 — restaura todos os caches do localStorage (exibição instantânea)
   const _lcGet  = (key, ttl) => { try { const v = JSON.parse(localStorage.getItem(key)||'null'); return v && (Date.now()-v.ts)<ttl ? v.data : null; } catch { return null; } };
   const _lcFresh = (key, ttl) => { try { const v = JSON.parse(localStorage.getItem(key)||'null'); return !!(v && (Date.now()-v.ts)<ttl); } catch { return false; } };
@@ -7440,6 +7714,8 @@ function filterEstoque(txt) {
   const _initPage = _pageFromPath();
   history.replaceState({ page: _initPage }, '', '/' + _initPage);
   if (_initPage !== 'comercial') goPage(_initPage, null, true);
+  // Passo 2b — calendário
+  try { renderCal(); carregarEventos(); } catch {}
   // Passo 3 — chamados em background
   autoRefresh();
   // Passo 4 — Comercial imediato (página inicial ou se vier de /comercial)
@@ -7461,7 +7737,10 @@ function filterEstoque(txt) {
   _prefetch('ops360_esq_cache',   15*60*1000, loadEstoque,        60000);
   // Passo 7 — intervalo de 10s para chamados (servidor já tem cache, resposta rápida)
   setInterval(autoRefresh, 10000);
-})();
+}
+
+// Inicia verificando login (substitui o auto-execute anterior)
+window.addEventListener('DOMContentLoaded', () => { authInit(); });
 
 // ── RH / RHiD ──────────────────────────────────────────────────────
 let _rhData = null;
