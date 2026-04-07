@@ -3899,22 +3899,69 @@ Você tem acesso ao contexto do sistema OPS360: chamados, atendimento, comercial
 
 // ── Fallback SPA: qualquer rota não-API serve o index.html ───────
 // ── AUTH ──────────────────────────────────────────────────────────
+
+// Usuários em memória (fallback quando banco não disponível)
+const TODAS_PGS = 'comercial,atendimento,chamados,retencao,financeiro,fiscal,estoque,rh,saude,conexoes,tarefas,integracoes';
+let _usersMemoria = null; // carregado do arquivo se banco offline
+
+function _usersArquivo() { return path.join(__dirname, 'users.json'); }
+
+function _usersCarregarArq() {
+  if (_usersMemoria) return _usersMemoria;
+  try {
+    const fs = require('fs');
+    const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'admin@meuprovedor360.com').toLowerCase();
+    const ADMIN_PASS  = process.env.ADMIN_PASS  || 'admin360';
+    const defaultAdmin = { id:1, nome:'Administrador', email: ADMIN_EMAIL, senha_hash: _hashSenha(ADMIN_PASS), paginas: TODAS_PGS, admin: true, ativo: true };
+    if (fs.existsSync(_usersArquivo())) {
+      _usersMemoria = JSON.parse(fs.readFileSync(_usersArquivo(), 'utf8'));
+      // Garante que admin padrão existe
+      if (!_usersMemoria.find(u => u.admin)) _usersMemoria.unshift(defaultAdmin);
+    } else {
+      _usersMemoria = [defaultAdmin];
+      fs.writeFileSync(_usersArquivo(), JSON.stringify(_usersMemoria, null, 2));
+    }
+  } catch { _usersMemoria = [{ id:1, nome:'Administrador', email:'admin@meuprovedor360.com', senha_hash: _hashSenha('admin360'), paginas: TODAS_PGS, admin:true, ativo:true }]; }
+  return _usersMemoria;
+}
+
+function _usersSalvarArq() {
+  try { require('fs').writeFileSync(_usersArquivo(), JSON.stringify(_usersMemoria, null, 2)); } catch {}
+}
+
+async function _findUser(email) {
+  const pool = getPool();
+  if (pool) {
+    try {
+      const r = await pool.query('SELECT * FROM ops360_users WHERE email=$1 AND ativo=TRUE', [email]);
+      return r.rows[0] || null;
+    } catch {}
+  }
+  // Fallback arquivo
+  return _usersCarregarArq().find(u => u.email === email && u.ativo) || null;
+}
+
+async function _getUser(id) {
+  const pool = getPool();
+  if (pool) {
+    try {
+      const r = await pool.query('SELECT * FROM ops360_users WHERE id=$1 AND ativo=TRUE', [id]);
+      return r.rows[0] || null;
+    } catch {}
+  }
+  return _usersCarregarArq().find(u => u.id === id && u.ativo) || null;
+}
+
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, senha } = req.body || {};
     if (!email || !senha) return res.json({ ok: false, motivo: 'Email e senha obrigatórios' });
-    const pool = getPool();
-    if (!pool) return res.json({ ok: false, motivo: 'Banco indisponível' });
-    const r = await pool.query('SELECT * FROM ops360_users WHERE email=$1 AND ativo=TRUE', [email.trim().toLowerCase()]);
-    const user = r.rows[0];
+    const user = await _findUser(email.trim().toLowerCase());
     if (!user) return res.json({ ok: false, motivo: 'Usuário não encontrado' });
-    const hash = _hashSenha(senha);
-    if (hash !== user.senha_hash) return res.json({ ok: false, motivo: 'Senha incorreta' });
+    if (_hashSenha(senha) !== user.senha_hash) return res.json({ ok: false, motivo: 'Senha incorreta' });
     const token = _gerarToken(user.id);
     res.json({ ok: true, token, user: { id: user.id, nome: user.nome, email: user.email, paginas: user.paginas, admin: user.admin } });
-  } catch(e) {
-    res.json({ ok: false, motivo: e.message });
-  }
+  } catch(e) { res.json({ ok: false, motivo: e.message }); }
 });
 
 app.get('/api/auth/me', async (req, res) => {
@@ -3940,8 +3987,13 @@ app.get('/api/auth/users', async (req, res) => {
   if (!admin) return res.status(403).json({ ok: false, motivo: 'Acesso negado' });
   try {
     const pool = getPool();
-    const r = await pool.query('SELECT id,nome,email,paginas,admin,ativo,criado_em FROM ops360_users ORDER BY nome');
-    res.json({ ok: true, users: r.rows });
+    if (pool) {
+      const r = await pool.query('SELECT id,nome,email,paginas,admin,ativo FROM ops360_users ORDER BY nome');
+      return res.json({ ok: true, users: r.rows });
+    }
+    // Fallback arquivo
+    const users = _usersCarregarArq().map(u => ({ id:u.id, nome:u.nome, email:u.email, paginas:u.paginas, admin:u.admin, ativo:u.ativo }));
+    res.json({ ok: true, users });
   } catch(e) { res.json({ ok: false, motivo: e.message }); }
 });
 
@@ -3952,12 +4004,20 @@ app.post('/api/auth/users', async (req, res) => {
     const { nome, email, senha, paginas, is_admin } = req.body || {};
     if (!nome || !email || !senha) return res.json({ ok: false, motivo: 'Nome, email e senha obrigatórios' });
     const hash = _hashSenha(senha);
+    const emailNorm = email.trim().toLowerCase();
     const pool = getPool();
-    const r = await pool.query(
-      `INSERT INTO ops360_users(nome,email,senha_hash,paginas,admin) VALUES($1,$2,$3,$4,$5) RETURNING id`,
-      [nome.trim(), email.trim().toLowerCase(), hash, (paginas||'comercial'), !!is_admin]
-    );
-    res.json({ ok: true, id: r.rows[0].id });
+    if (pool) {
+      const r = await pool.query(`INSERT INTO ops360_users(nome,email,senha_hash,paginas,admin) VALUES($1,$2,$3,$4,$5) RETURNING id`,
+        [nome.trim(), emailNorm, hash, (paginas||'comercial'), !!is_admin]);
+      return res.json({ ok: true, id: r.rows[0].id });
+    }
+    // Fallback arquivo
+    const lista = _usersCarregarArq();
+    if (lista.find(u => u.email === emailNorm)) return res.json({ ok: false, motivo: 'Email já cadastrado' });
+    const newId = Math.max(0, ...lista.map(u => u.id)) + 1;
+    lista.push({ id: newId, nome: nome.trim(), email: emailNorm, senha_hash: hash, paginas: paginas||'comercial', admin: !!is_admin, ativo: true });
+    _usersSalvarArq();
+    res.json({ ok: true, id: newId });
   } catch(e) { res.json({ ok: false, motivo: e.message }); }
 });
 
@@ -3966,19 +4026,25 @@ app.put('/api/auth/users/:id', async (req, res) => {
   if (!admin) return res.status(403).json({ ok: false, motivo: 'Acesso negado' });
   try {
     const { nome, email, senha, paginas, is_admin, ativo } = req.body || {};
+    const uid = parseInt(req.params.id);
     const pool = getPool();
-    if (senha) {
-      const hash = _hashSenha(senha);
-      await pool.query(
-        `UPDATE ops360_users SET nome=$1,email=$2,senha_hash=$3,paginas=$4,admin=$5,ativo=$6 WHERE id=$7`,
-        [nome, email?.toLowerCase(), hash, paginas, !!is_admin, ativo !== false, req.params.id]
-      );
-    } else {
-      await pool.query(
-        `UPDATE ops360_users SET nome=$1,email=$2,paginas=$3,admin=$4,ativo=$5 WHERE id=$6`,
-        [nome, email?.toLowerCase(), paginas, !!is_admin, ativo !== false, req.params.id]
-      );
+    if (pool) {
+      if (senha) {
+        await pool.query(`UPDATE ops360_users SET nome=$1,email=$2,senha_hash=$3,paginas=$4,admin=$5,ativo=$6 WHERE id=$7`,
+          [nome, email?.toLowerCase(), _hashSenha(senha), paginas, !!is_admin, ativo !== false, uid]);
+      } else {
+        await pool.query(`UPDATE ops360_users SET nome=$1,email=$2,paginas=$3,admin=$4,ativo=$5 WHERE id=$6`,
+          [nome, email?.toLowerCase(), paginas, !!is_admin, ativo !== false, uid]);
+      }
+      return res.json({ ok: true });
     }
+    // Fallback arquivo
+    const lista = _usersCarregarArq();
+    const idx = lista.findIndex(u => u.id === uid);
+    if (idx < 0) return res.json({ ok: false, motivo: 'Usuário não encontrado' });
+    lista[idx] = { ...lista[idx], nome, email: email?.toLowerCase()||lista[idx].email, paginas: paginas||lista[idx].paginas, admin: !!is_admin, ativo: ativo !== false };
+    if (senha) lista[idx].senha_hash = _hashSenha(senha);
+    _usersSalvarArq();
     res.json({ ok: true });
   } catch(e) { res.json({ ok: false, motivo: e.message }); }
 });
@@ -3987,8 +4053,16 @@ app.delete('/api/auth/users/:id', async (req, res) => {
   const admin = await _authAdmin(req);
   if (!admin) return res.status(403).json({ ok: false, motivo: 'Acesso negado' });
   try {
-    if (parseInt(req.params.id) === admin.id) return res.json({ ok: false, motivo: 'Não pode excluir a si mesmo' });
-    await getPool().query('DELETE FROM ops360_users WHERE id=$1', [req.params.id]);
+    const uid = parseInt(req.params.id);
+    if (uid === admin.id) return res.json({ ok: false, motivo: 'Não pode excluir a si mesmo' });
+    const pool = getPool();
+    if (pool) {
+      await pool.query('DELETE FROM ops360_users WHERE id=$1', [uid]);
+      return res.json({ ok: true });
+    }
+    const lista = _usersCarregarArq();
+    _usersMemoria = lista.filter(u => u.id !== uid);
+    _usersSalvarArq();
     res.json({ ok: true });
   } catch(e) { res.json({ ok: false, motivo: e.message }); }
 });
