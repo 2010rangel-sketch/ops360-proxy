@@ -1828,10 +1828,10 @@ input[type="text"]::placeholder { color:var(--text3); }
             <table class="tbl" style="table-layout:fixed;min-width:520px">
               <thead><tr>
                 <th style="width:110px">Mês / Filial</th>
-                <th style="text-align:right;width:80px">NFS-e</th>
-                <th style="text-align:right;width:80px">Telecom</th>
-                <th style="text-align:right;width:80px">NFCom</th>
-                <th style="text-align:right;width:80px">NF-e</th>
+                <th style="text-align:right;width:80px;color:#4ade80">NFS-e</th>
+                <th style="text-align:right;width:80px;color:#60a5fa">Telecom</th>
+                <th style="text-align:right;width:80px;color:#f59e0b">NFCom</th>
+                <th style="text-align:right;width:80px;color:#f87171">NF-e</th>
                 <th style="text-align:right">Total</th>
               </tr></thead>
               <tbody id="fisc-mes-body"></tbody>
@@ -7453,6 +7453,13 @@ function renderFiscal(d) {
     let totalGeral = 0;
     const body = document.getElementById('fisc-mes-body');
     if (body) {
+      const fmtR = v => v ? 'R$\u00a0' + parseFloat(v).toLocaleString('pt-BR', {minimumFractionDigits:0, maximumFractionDigits:0}) : '';
+      const _cell = (qtd, val, cor, small) => {
+        const fs = small ? 'font-size:11px;' : '';
+        if (!qtd) return `<td class="mono" style="${fs}text-align:right;color:${cor}">—</td>`;
+        const valStr = val ? ` <span style="font-size:9px;opacity:.65">${fmtR(val)}</span>` : '';
+        return `<td class="mono" style="${fs}text-align:right;color:${cor};white-space:nowrap">${qtd}${valStr}</td>`;
+      };
       const rows = [];
       meses.forEach(mes => {
         const m = porMes[mes];
@@ -7463,31 +7470,31 @@ function renderFiscal(d) {
         const temFiliais = m.filiais && Object.keys(m.filiais).length > 0;
         rows.push(`<tr style="cursor:${temFiliais?'pointer':'default'}" onclick="${temFiliais?`fiscToggleFiliais('${mes}')`:''}">
           <td style="font-size:12px;${mesAtualStyle}">${mesLabel}${temFiliais?` <span style="font-size:9px;color:var(--text3)">▶</span>`:''}</td>
-          <td class="mono" style="text-align:right;color:var(--green)">${m.nfse || '—'}</td>
-          <td class="mono" style="text-align:right;color:var(--amber)">${m.telecom || '—'}</td>
-          <td class="mono" style="text-align:right;color:var(--purple,#9b59b6)">${m.nfcom || '—'}</td>
-          <td class="mono" style="text-align:right;color:var(--red)">${m.nfe || '—'}</td>
-          <td class="mono" style="text-align:right;font-weight:600">${m.total}</td>
+          ${_cell(m.nfse, m.nfse_valor, '#4ade80', false)}
+          ${_cell(m.telecom, m.telecom_valor, '#60a5fa', false)}
+          ${_cell(m.nfcom, m.nfcom_valor, '#f59e0b', false)}
+          ${_cell(m.nfe, m.nfe_valor, '#f87171', false)}
+          <td class="mono" style="text-align:right;font-weight:600">${m.total}${m.valor ? `<br><span style="font-size:9px;opacity:.7">${fmtR(m.valor)}</span>` : ''}</td>
         </tr>`);
         if (temFiliais) {
           rows.push(Object.entries(m.filiais).sort((a,b)=>b[1].total-a[1].total).map(([cnpj, f]) =>
             `<tr class="fisc-filial-row fisc-filial-${mes}" style="display:none;background:var(--bg3)">
               <td style="font-size:11px;color:var(--text2);padding-left:20px">${CNPJ_NOME[cnpj]||cnpj.slice(-4)}</td>
-              <td class="mono" style="text-align:right;font-size:11px;color:var(--green)">${f.nfse||'—'}</td>
-              <td class="mono" style="text-align:right;font-size:11px;color:var(--amber)">${f.telecom||'—'}</td>
-              <td class="mono" style="text-align:right;font-size:11px;color:var(--purple,#9b59b6)">${f.nfcom||'—'}</td>
-              <td class="mono" style="text-align:right;font-size:11px;color:var(--red)">${f.nfe||'—'}</td>
-              <td class="mono" style="text-align:right;font-size:11px">${f.total}</td>
+              ${_cell(f.nfse, f.nfse_valor, '#4ade80', true)}
+              ${_cell(f.telecom, f.telecom_valor, '#60a5fa', true)}
+              ${_cell(f.nfcom, f.nfcom_valor, '#f59e0b', true)}
+              ${_cell(f.nfe, f.nfe_valor, '#f87171', true)}
+              <td class="mono" style="text-align:right;font-size:11px">${f.total}${f.valor ? `<br><span style="font-size:9px;opacity:.7">${fmtR(f.valor)}</span>` : ''}</td>
             </tr>`
           ).join(''));
         }
       });
       rows.push(`<tr style="border-top:2px solid var(--border);background:var(--bg3)">
         <td style="font-size:12px;font-weight:700">Total</td>
-        <td class="mono" style="text-align:right;font-weight:700;color:var(--green)">${meses.reduce((a,m)=>a+(porMes[m].nfse||0),0)||'—'}</td>
-        <td class="mono" style="text-align:right;font-weight:700;color:var(--amber)">${meses.reduce((a,m)=>a+(porMes[m].telecom||0),0)||'—'}</td>
-        <td class="mono" style="text-align:right;font-weight:700;color:var(--purple,#9b59b6)">${meses.reduce((a,m)=>a+(porMes[m].nfcom||0),0)||'—'}</td>
-        <td class="mono" style="text-align:right;font-weight:700;color:var(--red)">${meses.reduce((a,m)=>a+(porMes[m].nfe||0),0)||'—'}</td>
+        ${_cell(meses.reduce((a,m)=>a+(porMes[m].nfse||0),0)||0, meses.reduce((a,m)=>a+(porMes[m].nfse_valor||0),0), '#4ade80', false)}
+        ${_cell(meses.reduce((a,m)=>a+(porMes[m].telecom||0),0)||0, meses.reduce((a,m)=>a+(porMes[m].telecom_valor||0),0), '#60a5fa', false)}
+        ${_cell(meses.reduce((a,m)=>a+(porMes[m].nfcom||0),0)||0, meses.reduce((a,m)=>a+(porMes[m].nfcom_valor||0),0), '#f59e0b', false)}
+        ${_cell(meses.reduce((a,m)=>a+(porMes[m].nfe||0),0)||0, meses.reduce((a,m)=>a+(porMes[m].nfe_valor||0),0), '#f87171', false)}
         <td class="mono" style="text-align:right;font-weight:700">${totalGeral}</td>
       </tr>`);
       body.innerHTML = rows.join('');

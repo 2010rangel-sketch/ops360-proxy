@@ -3192,13 +3192,13 @@ async function fetchNfAggPorMes(token, dataIni) {
       const ultimoDia = new Date(parseInt(ano), parseInt(mm), 0).getDate();
       const mesFim = `${ano}-${mm}-${String(ultimoDia).padStart(2, '0')}`;
       const buscarValor = mesesComValor.has(mes);
-      if (!porMes[mes]) porMes[mes] = { total: 0, nfse: 0, telecom: 0, nfcom: 0, nfe: 0, valor: 0, temValor: buscarValor, filiais: {} };
+      if (!porMes[mes]) porMes[mes] = { total: 0, nfse: 0, telecom: 0, nfcom: 0, nfe: 0, valor: 0, nfse_valor: 0, telecom_valor: 0, nfcom_valor: 0, nfe_valor: 0, temValor: buscarValor, filiais: {} };
 
-      const tarefas = TIPOS.flatMap(tipo => LC_CNPJS.map(cnpj => ({ tipo, cnpj })));
-      for (let i = 0; i < tarefas.length; i += 18) {
-        await Promise.all(tarefas.slice(i, i + 18).map(async ({ tipo, cnpj }) => {
+      // Fase A: NFse/telecom/nfcom → contagem via total_registros (rápido)
+      const tarefasA = ['nfse', 'telecom', 'nfcom'].flatMap(tipo => LC_CNPJS.map(cnpj => ({ tipo, cnpj })));
+      for (let i = 0; i < tarefasA.length; i += 18) {
+        await Promise.all(tarefasA.slice(i, i + 18).map(async ({ tipo, cnpj }) => {
           try {
-            // Fase 1: contagem (itens_por_pagina=1 → rápido)
             const p0 = { tipo_data: 'data_emissao', data_inicio: mesIni, data_fim: mesFim, pagina: 0, itens_por_pagina: buscarValor ? 200 : 1, documento: cnpj };
             if (tipo === 'telecom') p0.modelo = '21';
             const r0 = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/nota_fiscal/${tipo}`, {
@@ -3210,19 +3210,18 @@ async function fetchNfAggPorMes(token, dataIni) {
               porMes[mes][tipo] += totalReg;
               porMes[mes].total += totalReg;
               totalNf += totalReg;
-              if (!porMes[mes].filiais[cnpj]) porMes[mes].filiais[cnpj] = { total: 0, nfse: 0, telecom: 0, nfcom: 0, nfe: 0, valor: 0 };
+              if (!porMes[mes].filiais[cnpj]) porMes[mes].filiais[cnpj] = { total: 0, nfse: 0, telecom: 0, nfcom: 0, nfe: 0, valor: 0, nfse_valor: 0, telecom_valor: 0, nfcom_valor: 0, nfe_valor: 0 };
               porMes[mes].filiais[cnpj][tipo] += totalReg;
               porMes[mes].filiais[cnpj].total += totalReg;
             }
-            // Fase 2: soma valores (só para meses recentes)
-            if (buscarValor) {
+            if (buscarValor && totalReg > 0) {
               const arr0 = extrairArr(r0.data, tipo);
               for (const nf of arr0) {
                 const v = somarValorItem(nf);
                 porMes[mes].valor += v;
-                if (porMes[mes].filiais[cnpj]) porMes[mes].filiais[cnpj].valor += v;
+                porMes[mes][tipo + '_valor'] = (porMes[mes][tipo + '_valor'] || 0) + v;
+                if (porMes[mes].filiais[cnpj]) { porMes[mes].filiais[cnpj].valor += v; porMes[mes].filiais[cnpj][tipo + '_valor'] = (porMes[mes].filiais[cnpj][tipo + '_valor'] || 0) + v; }
               }
-              // Demais páginas (cap 100 páginas por segurança)
               for (let p = 1; p <= Math.min(ultimaPag, 100); p++) {
                 try {
                   const rp = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/nota_fiscal/${tipo}`, {
@@ -3233,14 +3232,60 @@ async function fetchNfAggPorMes(token, dataIni) {
                   for (const nf of arrP) {
                     const v = somarValorItem(nf);
                     porMes[mes].valor += v;
-                    if (porMes[mes].filiais[cnpj]) porMes[mes].filiais[cnpj].valor += v;
+                    porMes[mes][tipo + '_valor'] = (porMes[mes][tipo + '_valor'] || 0) + v;
+                    if (porMes[mes].filiais[cnpj]) { porMes[mes].filiais[cnpj].valor += v; porMes[mes].filiais[cnpj][tipo + '_valor'] = (porMes[mes].filiais[cnpj][tipo + '_valor'] || 0) + v; }
                   }
                   if (arrP.length < 200) break;
                 } catch { break; }
               }
             }
           } catch (e) {
-            console.error(`[fiscal] mes=${mes} tipo=${tipo} cnpj=${cnpj}: ${e.response?.data?.msg || e.message}`);
+            console.error(`[fiscal] mes=${mes} tipo=A/${e.config?.url?.split('/').pop()} cnpj=${cnpj}: ${e.response?.data?.msg || e.message}`);
+          }
+        }));
+      }
+
+      // Fase B: NF-e → baixa todos os itens e filtra apenas VENDA
+      const tarefasB = LC_CNPJS.map(cnpj => ({ tipo: 'nfe', cnpj }));
+      for (let i = 0; i < tarefasB.length; i += 9) {
+        await Promise.all(tarefasB.slice(i, i + 9).map(async ({ cnpj }) => {
+          try {
+            const p0 = { tipo_data: 'data_emissao', data_inicio: mesIni, data_fim: mesFim, pagina: 0, itens_por_pagina: 200, documento: cnpj };
+            const r0 = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/nota_fiscal/nfe`, {
+              headers: { Authorization: `Bearer ${token}` }, params: p0, timeout: 20000,
+            });
+            const ultimaPag = r0.data?.paginacao?.ultima_pagina ?? 0;
+            const todasPags = [extrairArr(r0.data, 'nfe')];
+            for (let p = 1; p <= Math.min(ultimaPag, 200); p++) {
+              try {
+                const rp = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/nota_fiscal/nfe`, {
+                  headers: { Authorization: `Bearer ${token}` },
+                  params: { ...p0, pagina: p }, timeout: 20000,
+                });
+                todasPags.push(extrairArr(rp.data, 'nfe'));
+                if (todasPags[todasPags.length - 1].length < 200) break;
+              } catch { break; }
+            }
+            for (const arr of todasPags) {
+              for (const nf of arr) {
+                if (!(nf.natureza_operacao || '').toUpperCase().includes('VENDA')) continue;
+                porMes[mes].nfe += 1;
+                porMes[mes].total += 1;
+                totalNf += 1;
+                if (!porMes[mes].filiais[cnpj]) porMes[mes].filiais[cnpj] = { total: 0, nfse: 0, telecom: 0, nfcom: 0, nfe: 0, valor: 0, nfse_valor: 0, telecom_valor: 0, nfcom_valor: 0, nfe_valor: 0 };
+                porMes[mes].filiais[cnpj].nfe += 1;
+                porMes[mes].filiais[cnpj].total += 1;
+                if (buscarValor) {
+                  const v = somarValorItem(nf);
+                  porMes[mes].valor += v;
+                  porMes[mes].nfe_valor = (porMes[mes].nfe_valor || 0) + v;
+                  porMes[mes].filiais[cnpj].valor += v;
+                  porMes[mes].filiais[cnpj].nfe_valor = (porMes[mes].filiais[cnpj].nfe_valor || 0) + v;
+                }
+              }
+            }
+          } catch (e) {
+            console.error(`[fiscal] mes=${mes} tipo=nfe cnpj=${cnpj}: ${e.response?.data?.msg || e.message}`);
           }
         }));
       }
@@ -3265,7 +3310,7 @@ app.get('/api/fiscal', async (req, res) => {
       if (dbF) {
         // Verifica formato novo (porMes com breakdown por tipo via fetchNfAggPorMes)
         const firstMes = Object.values(dbF.porMes || {})[0];
-        if (firstMes && firstMes.nfse !== undefined && dbF._versao === 'v3') {
+        if (firstMes && firstMes.nfse !== undefined && dbF._versao === 'v4') {
           _fiscalCache = dbF; _fiscalFetchedAt = Date.now(); return res.json({ ...dbF, cache: 'db' });
         }
         console.log('[fiscal] cache antigo, reconstruindo com nova estratégia...');
@@ -3297,7 +3342,7 @@ app.get('/api/fiscal', async (req, res) => {
       },
       porMes,
       nfse: [], telecom: [], nfcom: [], nfe: [], // sem detalhe individual (apenas totais)
-      _versao: 'v3',
+      _versao: 'v4',
     };
     _fiscalCache = fiscalResult; _fiscalFetchedAt = Date.now();
     dbCacheSet('cache:fiscal', fiscalResult);
