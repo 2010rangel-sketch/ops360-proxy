@@ -4119,7 +4119,7 @@ app.post('/api/chat', async (req, res) => {
 
   try {
     const response = await axios.post('https://api.anthropic.com/v1/messages', {
-      model: 'claude-opus-4-5',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 1024,
       system: `Você é RAX (Rangel Analytics X), um agente de análise inteligente integrado ao sistema OPS360 de uma empresa de internet (ISP).
 Responda sempre em português brasileiro de forma direta e objetiva.
