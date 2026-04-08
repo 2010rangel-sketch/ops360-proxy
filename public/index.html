@@ -1755,110 +1755,74 @@ input[type="text"]::placeholder { color:var(--text3); }
 
     <!-- ═══ FISCAL ═══ -->
     <div class="page" id="page-fiscal">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+
+      <!-- Header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap">
         <div>
           <div style="font-size:16px;font-weight:700;color:var(--text)">Fiscal</div>
-          <div style="font-size:11px;color:var(--text3)" id="fisc-periodo-label">Notas fiscais · NFS-e · NFCom · NF-e · Telecom</div>
+          <div style="font-size:11px;color:var(--text3)" id="fisc-periodo-label">Notas fiscais · Jan 2025 → hoje</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <span class="badge b-blue" id="fisc-sync-badge">—</span>
           <button class="btn btn-primary btn-sm" onclick="loadFiscal(true)"><i class="fas fa-sync-alt"></i> Atualizar</button>
         </div>
       </div>
-      <!-- KPIs principais -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px">
+
+      <!-- KPIs: 6 cards -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px">
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Total de NFs</div><div class="kpi-mini-val" id="fisc-kpi-total" style="color:var(--accent)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--cyan)"></div><div class="kpi-mini-label">Valor Total</div><div class="kpi-mini-val" id="fisc-kpi-valor" style="color:var(--cyan)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">NFS-e</div><div class="kpi-mini-val" id="fisc-kpi-nfse" style="color:var(--green)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">Telecom</div><div class="kpi-mini-val" id="fisc-kpi-telecom" style="color:var(--amber)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--purple, #9b59b6)"></div><div class="kpi-mini-label">NFCom</div><div class="kpi-mini-val" id="fisc-kpi-nfcom" style="color:var(--purple,#9b59b6)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">NF-e</div><div class="kpi-mini-val" id="fisc-kpi-nfe" style="color:var(--red)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:#22d3ee"></div><div class="kpi-mini-label">Valor Total</div><div class="kpi-mini-val" id="fisc-kpi-valor" style="color:#22d3ee;font-size:15px">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:#f59e0b"></div><div class="kpi-mini-label">NFCom</div><div class="kpi-mini-val" id="fisc-kpi-nfcom" style="color:#f59e0b">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:#f87171"></div><div class="kpi-mini-label">NF-e</div><div class="kpi-mini-val" id="fisc-kpi-nfe" style="color:#f87171">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:#60a5fa"></div><div class="kpi-mini-label">Telecom</div><div class="kpi-mini-val" id="fisc-kpi-telecom" style="color:#60a5fa">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:#4ade80"></div><div class="kpi-mini-label">NFS-e</div><div class="kpi-mini-val" id="fisc-kpi-nfse" style="color:#4ade80">—</div></div>
       </div>
-      <!-- Tabela mês a mês -->
+
+      <!-- Gráfico principal -->
       <div class="tbl-card" style="margin-bottom:14px">
-        <div class="tbl-header">
+        <div class="tbl-header" style="flex-wrap:wrap;gap:8px">
           <span class="tbl-title">Notas por Mês</span>
-          <span class="badge b-blue" id="fisc-mes-badge">Jan 2025 → hoje</span>
+          <div style="display:flex;gap:4px;margin-left:4px">
+            <button id="fisc-btn-qtd" onclick="fiscSetMode('qtd')" style="background:#3b82f6;border:none;border-radius:5px;padding:4px 12px;color:#fff;font-size:11px;cursor:pointer;font-weight:600">Quantidade</button>
+            <button id="fisc-btn-val" onclick="fiscSetMode('val')" style="background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:4px 12px;color:var(--text3);font-size:11px;cursor:pointer">Valor R$</button>
+          </div>
+          <span class="badge b-blue" id="fisc-mes-badge" style="margin-left:auto">—</span>
         </div>
-        <div id="fisc-mes-empty" style="padding:40px;text-align:center;color:var(--text3)">
-          <i class="fas fa-file-invoice" style="font-size:32px;margin-bottom:12px;opacity:.3;display:block"></i>
-          <div style="font-size:14px;font-weight:600;margin-bottom:6px">Clique em Atualizar para carregar</div>
+        <div id="fisc-chart-empty" style="padding:40px;text-align:center;color:var(--text3)">
+          <i class="fas fa-chart-bar" style="font-size:32px;margin-bottom:12px;opacity:.3;display:block"></i>
+          <div style="font-size:14px;font-weight:600">Clique em Atualizar para carregar</div>
         </div>
-        <div style="display:none" id="fisc-mes-wrap">
-          <!-- Filtro por Natureza de Operação -->
-          <div style="padding:10px 16px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <span style="font-size:11px;color:var(--text3);font-weight:600">Natureza de Operação:</span>
-            <select id="fisc-nat-tipo" onchange="fiscNatCarregar()" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:11px">
-              <option value="nfcom">NFCom</option>
-              <option value="nfe">NF-e</option>
-              <option value="telecom">Telecom</option>
-              <option value="nfse">NFS-e</option>
-            </select>
-            <select id="fisc-nat-sel" onchange="fiscNatFiltrar()" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:11px;min-width:260px;max-width:480px">
-              <option value="">— Todas as naturezas —</option>
-            </select>
-            <button onclick="fiscNatCarregar(true)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:var(--text3);font-size:11px;cursor:pointer">
-              <i class="fas fa-sync-alt"></i> Carregar naturezas
-            </button>
-            <span id="fisc-nat-loading" style="font-size:11px;color:var(--text3);display:none">Carregando...</span>
-          </div>
-          <!-- Resultado filtrado por natureza -->
-          <div id="fisc-nat-result" style="display:none;padding:10px 16px">
-            <div style="font-size:11px;color:var(--text3);margin-bottom:6px" id="fisc-nat-titulo"></div>
-            <div id="fisc-nat-chart" style="min-height:200px;display:flex;align-items:flex-end;gap:0;min-width:400px;overflow-x:auto"></div>
-          </div>
-          <!-- Gráfico de barras por tipo (contagem) -->
-          <div style="padding:16px 16px 4px;overflow-x:auto">
-            <div style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Quantidade de Notas por Mês</div>
-            <div id="fisc-mes-chart" style="min-height:300px;display:flex;align-items:flex-end;justify-content:flex-start;gap:0;min-width:700px"></div>
-            <div id="fisc-mes-legend" style="display:flex;gap:16px;justify-content:center;margin-top:8px;flex-wrap:wrap;font-size:11px;color:var(--text3)"></div>
-          </div>
-          <!-- Gráfico de valor total (últimos meses) -->
-          <div style="padding:4px 16px 4px;overflow-x:auto" id="fisc-val-section">
-            <div style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;margin-top:10px">Valor Total das Notas (últimos 6 meses)</div>
-            <div id="fisc-val-chart" style="min-height:250px;display:flex;align-items:flex-end;justify-content:flex-start;gap:0;min-width:400px"></div>
-          </div>
-          <!-- Tabela detalhada (expansível) -->
-          <div style="padding:0 16px 4px">
-            <button onclick="fiscToggleTbl()" style="background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;padding:4px 0">
-              <span id="fisc-tbl-toggle-ico">▶</span> Ver tabela detalhada por filial
-            </button>
-          </div>
-          <div id="fisc-tbl-wrap" style="display:none;overflow-x:auto">
-            <table class="tbl" style="table-layout:fixed;min-width:520px">
-              <thead><tr>
-                <th style="width:110px">Mês / Filial</th>
-                <th style="text-align:right;width:80px;color:#4ade80">NFS-e</th>
-                <th style="text-align:right;width:80px;color:#60a5fa">Telecom</th>
-                <th style="text-align:right;width:80px;color:#f59e0b">NFCom</th>
-                <th style="text-align:right;width:80px;color:#f87171">NF-e</th>
-                <th style="text-align:right">Total</th>
-              </tr></thead>
-              <tbody id="fisc-mes-body"></tbody>
-            </table>
+        <div id="fisc-chart-wrap" style="display:none">
+          <div style="padding:14px 16px 8px;overflow-x:auto">
+            <div id="fisc-chart" style="display:flex;align-items:flex-end;justify-content:flex-start;gap:0;min-width:600px;min-height:300px"></div>
+            <div id="fisc-legend" style="display:flex;gap:16px;justify-content:center;margin-top:10px;flex-wrap:wrap;font-size:11px;color:var(--text3)"></div>
           </div>
         </div>
       </div>
 
-      <!-- Tabs para detalhe de NFs (mês atual + anterior) -->
-      <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap" id="fisc-tabs">
-        <button class="btn btn-sm btn-primary" onclick="fiscShowTipo('nfse',this)">NFS-e</button>
-        <button class="btn btn-sm btn-ghost" onclick="fiscShowTipo('telecom',this)">Telecom</button>
-        <button class="btn btn-sm btn-ghost" onclick="fiscShowTipo('nfcom',this)">NFCom</button>
-        <button class="btn btn-sm btn-ghost" onclick="fiscShowTipo('nfe',this)">NF-e</button>
-      </div>
+      <!-- Tabela detalhamento mensal -->
       <div class="tbl-card">
         <div class="tbl-header">
-          <span class="tbl-title" id="fisc-tbl-title">NFS-e</span>
-          <span class="badge b-blue" id="fisc-tbl-count">—</span>
-          <span style="font-size:10px;color:var(--text3);margin-left:6px">(mês atual e anterior)</span>
+          <span class="tbl-title">Detalhamento Mensal</span>
+          <span class="badge b-blue" id="fisc-tbl-badge">—</span>
+          <span style="font-size:10px;color:var(--text3);margin-left:4px">clique no mês para ver por filial</span>
         </div>
-        <div id="fisc-empty-wrap" style="padding:40px;text-align:center;color:var(--text3)">
+        <div id="fisc-tbl-empty" style="padding:40px;text-align:center;color:var(--text3)">
           <i class="fas fa-file-invoice" style="font-size:32px;margin-bottom:12px;opacity:.3;display:block"></i>
-          <div style="font-size:14px;font-weight:600;margin-bottom:6px">Clique em Atualizar para carregar</div>
+          <div style="font-size:14px;font-weight:600">Clique em Atualizar para carregar</div>
         </div>
-        <div style="max-height:460px;overflow-y:auto;display:none" id="fisc-tbl-wrap">
-          <table class="tbl"><thead><tr id="fisc-tbl-head"></tr></thead><tbody id="fisc-tbl-body"></tbody></table>
+        <div id="fisc-tbl-main" style="display:none;overflow-x:auto">
+          <table class="tbl" style="min-width:560px">
+            <thead><tr>
+              <th style="width:110px">Mês / Filial</th>
+              <th style="text-align:right;color:#f59e0b">NFCom</th>
+              <th style="text-align:right;color:#f87171">NF-e</th>
+              <th style="text-align:right;color:#60a5fa">Telecom</th>
+              <th style="text-align:right;color:#4ade80">NFS-e</th>
+              <th style="text-align:right">Total</th>
+            </tr></thead>
+            <tbody id="fisc-tbl-body"></tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -7250,9 +7214,21 @@ function renderTempoMedioHist(meses) {
   }
 }
 
+
 // ─── FISCAL ──────────────────────────────────────────────────────────────────
 let _fiscData = null;
-let _fiscTipoAtivo = 'nfse';
+let _fiscChartMode = 'qtd';
+
+const FISC_COR   = { nfcom:'#f59e0b', nfe:'#f87171', telecom:'#60a5fa', nfse:'#4ade80' };
+const FISC_LABEL = { nfcom:'NFCom', nfe:'NF-e', telecom:'Telecom', nfse:'NFS-e' };
+const FISC_TIPOS = ['nfcom', 'nfe', 'telecom', 'nfse'];
+const FISC_MESES = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const FISC_CNPJ  = {
+  '08407644000100':'Matriz','08407644000291':'Concordia','08407644000372':'Ipixuna',
+  '08407644000453':'Acará','08407644000534':'Aurora','08407644000615':'S.Miguel',
+  '08407644000704':'Salinópolis','08407644000887':'N.Esperança','08407644000968':'Garrafão',
+};
+
 async function loadFiscal(force = false) {
   const badge = document.getElementById('fisc-sync-badge');
   if (badge) { badge.textContent = 'Carregando...'; badge.className = 'badge b-blue'; }
@@ -7260,7 +7236,6 @@ async function loadFiscal(force = false) {
     const r = await fetch(`${PROXY_URL}/api/fiscal${force ? '?force=1' : ''}`);
     const d = await r.json();
     _fiscData = d;
-    if (d.ok) { try { localStorage.setItem('ops360_fisc_cache', JSON.stringify({ data: d, ts: Date.now() })); } catch {} }
     renderFiscal(d);
     if (badge) {
       const hora = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
@@ -7272,331 +7247,195 @@ async function loadFiscal(force = false) {
   }
 }
 
-function fiscShowTipo(tipo, btn) {
-  _fiscTipoAtivo = tipo;
-  document.querySelectorAll('#fisc-tabs button').forEach(b => b.className = 'btn btn-sm btn-ghost');
-  if (btn) btn.className = 'btn btn-sm btn-primary';
-  if (_fiscData) _fiscRenderTipo(_fiscData);
+function fiscSetMode(mode) {
+  _fiscChartMode = mode;
+  const ON  = 'background:#3b82f6;border:none;border-radius:5px;padding:4px 12px;color:#fff;font-size:11px;cursor:pointer;font-weight:600';
+  const OFF = 'background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:4px 12px;color:var(--text3);font-size:11px;cursor:pointer';
+  const bQ = document.getElementById('fisc-btn-qtd');
+  const bV = document.getElementById('fisc-btn-val');
+  if (bQ) bQ.style.cssText = mode === 'qtd' ? ON : OFF;
+  if (bV) bV.style.cssText = mode === 'val' ? ON : OFF;
+  if (_fiscData) _fiscRenderChart(_fiscData.porMes || {});
 }
 
-function _fiscRenderTipo(d) {
-  const itens = d[_fiscTipoAtivo] || [];
-  const titleMap = { nfse: 'NFS-e', telecom: 'Telecom', nfcom: 'NFCom', nfe: 'NF-e' };
-  const title = document.getElementById('fisc-tbl-title');
-  const count = document.getElementById('fisc-tbl-count');
-  const empty = document.getElementById('fisc-empty-wrap');
-  const wrap  = document.getElementById('fisc-tbl-wrap');
-  if (title) title.textContent = titleMap[_fiscTipoAtivo] || _fiscTipoAtivo;
-  if (count) count.textContent = itens.length;
-  if (itens.length === 0) {
-    const tipo = d.tipos?.[_fiscTipoAtivo];
-    if (empty) { empty.style.display = 'block'; empty.querySelector('div') && (empty.querySelector('div').textContent = tipo?.erro ? `Endpoint indisponível (${tipo.erro})` : 'Nenhum registro no período'); }
-    if (wrap)  wrap.style.display = 'none';
+function _fiscFmtK(v) {
+  if (!v || v === 0) return '';
+  return v >= 1000000 ? `R$${(v/1000000).toFixed(1)}M` : v >= 1000 ? `R$${(v/1000).toFixed(0)}k` : `R$${Math.round(v)}`;
+}
+
+function _fiscRenderChart(porMes) {
+  const chart  = document.getElementById('fisc-chart');
+  const legend = document.getElementById('fisc-legend');
+  if (!chart) return;
+  const isVal   = _fiscChartMode === 'val';
+  const mesHoje = new Date().toISOString().slice(0, 7);
+  let mesOrdem  = Object.keys(porMes).sort();
+  if (isVal) mesOrdem = mesOrdem.filter(m => porMes[m].temValor && (porMes[m].valor || 0) > 0);
+  if (!mesOrdem.length) {
+    chart.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:20px;align-self:center">Dados de valor disponíveis apenas nos últimos 6 meses. Clique em Atualizar.</div>';
+    if (legend) legend.innerHTML = '';
     return;
   }
-  if (empty) empty.style.display = 'none';
-  if (wrap)  wrap.style.display  = 'block';
-  // Campos preferidos por tipo
-  const prefKeys = {
-    nfse:    ['numero', 'data_emissao', 'nome_tomador', 'valor_total', 'status', 'descricao'],
-    telecom: ['numero', 'data_emissao', 'nome_destinatario', 'valor_total', 'status', 'modelo'],
-    nfcom:   ['numero', 'data_emissao', 'nome_destinatario', 'valor_total', 'status', 'chave'],
-    nfe:     ['numero', 'data_emissao', 'nome_destinatario', 'valor_total', 'status', 'chave'],
-  };
-  const allKeys = itens.length > 0 ? Object.keys(itens[0]) : [];
-  const pref = prefKeys[_fiscTipoAtivo] || [];
-  const keys = [...pref.filter(k => allKeys.includes(k)), ...allKeys.filter(k => !pref.includes(k))].slice(0, 8);
-  const fmtVal = (k, v) => {
-    if (v == null) return '—';
-    if ((k.includes('valor') || k.includes('total')) && !isNaN(parseFloat(v)))
-      return 'R$ ' + parseFloat(v).toLocaleString('pt-BR', {minimumFractionDigits:2});
-    return String(v);
-  };
-  const head = document.getElementById('fisc-tbl-head');
-  const body = document.getElementById('fisc-tbl-body');
-  if (head) head.innerHTML = keys.map(k => `<th>${k}</th>`).join('');
-  if (body) body.innerHTML = itens.map(item =>
-    `<tr>${keys.map(k => `<td style="font-size:11px;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis" title="${item[k]??''}">${fmtVal(k, item[k])}</td>`).join('')}</tr>`
-  ).join('');
+  const ALTURA = 270;
+  const getV   = (m, t) => isVal ? (porMes[m][t+'_valor'] || 0) : (porMes[m][t] || 0);
+  const maxV   = Math.max(...mesOrdem.flatMap(m => FISC_TIPOS.map(t => getV(m, t))), 1);
+  const fmtLbl = v => isVal ? _fiscFmtK(v) : v > 0 ? v.toLocaleString('pt-BR') : '';
+
+  chart.innerHTML = mesOrdem.map((mes, i) => {
+    const m = porMes[mes];
+    const [ano, mm] = mes.split('-');
+    const label = (FISC_MESES[parseInt(mm)] || mm) + '/' + ano.slice(2);
+    const isParcial = mes === mesHoje;
+    const anoLbl = (i === 0 || mesOrdem[i-1].slice(0,4) !== ano)
+      ? `<div style="font-size:9px;color:var(--text3);font-weight:600;text-align:center;margin-bottom:3px">${ano}</div>`
+      : `<div style="height:15px"></div>`;
+    const sep = i < mesOrdem.length - 1 ? 'margin-right:10px;' : '';
+    const barras = FISC_TIPOS.map(t => {
+      const v = getV(m, t);
+      if (v <= 0) return `<div style="width:30px;height:${ALTURA}px"></div>`;
+      const h = Math.max(Math.round((v / maxV) * ALTURA), 4);
+      return `<div style="width:30px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:${ALTURA}px" title="${FISC_LABEL[t]}: ${fmtLbl(v)}">
+        <div style="font-size:9px;color:${FISC_COR[t]};font-weight:700;writing-mode:vertical-lr;transform:rotate(180deg);white-space:nowrap;margin-bottom:2px">${fmtLbl(v)}</div>
+        <div style="width:100%;height:${h}px;background:${FISC_COR[t]};border-radius:3px 3px 0 0;${isParcial?'opacity:.7;':''}"></div>
+      </div>`;
+    }).join('');
+    return `<div style="display:flex;flex-direction:column;align-items:center;${sep}">
+      ${anoLbl}
+      <div style="display:flex;align-items:flex-end;border-bottom:1px solid var(--border)">${barras}</div>
+      <div style="font-size:9px;color:${isParcial?'#60a5fa':'var(--text3)'};margin-top:4px;text-align:center;white-space:nowrap">${label}</div>
+    </div>`;
+  }).join('');
+
+  if (legend) {
+    const tots = {};
+    FISC_TIPOS.forEach(t => tots[t] = mesOrdem.reduce((a,m) => a + getV(porMes[m], t), 0));
+    const totalAll = mesOrdem.reduce((a,m) => a + (isVal ? (porMes[m].valor||0) : (porMes[m].total||0)), 0);
+    legend.innerHTML = FISC_TIPOS.filter(t => tots[t] > 0).map(t =>
+      `<span style="display:flex;align-items:center;gap:5px">
+        <span style="width:10px;height:10px;border-radius:2px;background:${FISC_COR[t]};display:inline-block"></span>
+        ${FISC_LABEL[t]} <b>${isVal ? _fiscFmtK(tots[t]) : tots[t].toLocaleString('pt-BR')}</b>
+      </span>`
+    ).join('') +
+    `<span style="font-weight:700;color:var(--text);margin-left:4px">Total <b>${isVal ? _fiscFmtK(totalAll) : totalAll.toLocaleString('pt-BR')}</b></span>`;
+  }
 }
 
 function renderFiscal(d) {
   if (!d) return;
-  if (!d.ok) {
-    const empty = document.getElementById('fisc-empty-wrap');
-    if (empty) { empty.style.display = 'block'; const div = empty.querySelector('div'); if (div) div.textContent = d.motivo || 'Erro ao carregar'; }
+  const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  const fmtMoeda = v => v > 0 ? 'R$\u00a0' + v.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
+  const fmtR = v => v ? 'R$\u00a0' + parseFloat(v).toLocaleString('pt-BR', {minimumFractionDigits:0, maximumFractionDigits:0}) : '';
+
+  if (!d.ok) { set('fisc-kpi-total', 'Erro'); return; }
+
+  const porMes = d.porMes || {};
+  const meses  = Object.keys(porMes).sort().reverse();
+
+  // KPIs
+  const tots = { nfcom:0, nfe:0, telecom:0, nfse:0, valor:0 };
+  meses.forEach(m => { FISC_TIPOS.forEach(t => tots[t] += porMes[m][t]||0); tots.valor += porMes[m].valor||0; });
+  const totalNf = FISC_TIPOS.reduce((a,t) => a + tots[t], 0);
+  set('fisc-kpi-total',   totalNf.toLocaleString('pt-BR'));
+  set('fisc-kpi-valor',   tots.valor > 0 ? fmtMoeda(tots.valor) : '—');
+  set('fisc-kpi-nfcom',   tots.nfcom.toLocaleString('pt-BR'));
+  set('fisc-kpi-nfe',     tots.nfe.toLocaleString('pt-BR'));
+  set('fisc-kpi-telecom', tots.telecom.toLocaleString('pt-BR'));
+  set('fisc-kpi-nfse',    tots.nfse.toLocaleString('pt-BR'));
+
+  // Período
+  if (meses.length > 0) {
+    const [a0,m0] = meses[meses.length-1].split('-');
+    const [a1,m1] = meses[0].split('-');
+    const lbl = document.getElementById('fisc-periodo-label');
+    if (lbl) lbl.textContent = `Notas fiscais · ${FISC_MESES[parseInt(m0)]}/${a0} → ${FISC_MESES[parseInt(m1)]}/${a1}`;
+  }
+
+  // Gráfico
+  const chartEmpty = document.getElementById('fisc-chart-empty');
+  const chartWrap  = document.getElementById('fisc-chart-wrap');
+  if (!meses.length) {
+    if (chartEmpty) chartEmpty.style.display = '';
+    if (chartWrap)  chartWrap.style.display  = 'none';
+  } else {
+    if (chartEmpty) chartEmpty.style.display = 'none';
+    if (chartWrap)  chartWrap.style.display  = '';
+    const mesBadge = document.getElementById('fisc-mes-badge');
+    if (mesBadge) mesBadge.textContent = meses.length + ' meses';
+    _fiscRenderChart(porMes);
+  }
+
+  // Tabela
+  const tblEmpty = document.getElementById('fisc-tbl-empty');
+  const tblMain  = document.getElementById('fisc-tbl-main');
+  const tblBody  = document.getElementById('fisc-tbl-body');
+  const tblBadge = document.getElementById('fisc-tbl-badge');
+  if (!meses.length) {
+    if (tblEmpty) tblEmpty.style.display = '';
+    if (tblMain)  tblMain.style.display  = 'none';
     return;
   }
-  const fmtMoeda = v => v > 0 ? 'R$ ' + v.toLocaleString('pt-BR', {minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
-  const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
-  // KPIs
-  set('fisc-kpi-total',   d.totalNf ?? '—');
-  set('fisc-kpi-valor',   fmtMoeda(d.totalValor ?? 0));
-  set('fisc-kpi-nfse',    d.tipos?.nfse?.total ?? '—');
-  set('fisc-kpi-telecom', d.tipos?.telecom?.total ?? '—');
-  set('fisc-kpi-nfcom',   d.tipos?.nfcom?.total ?? '—');
-  set('fisc-kpi-nfe',     d.tipos?.nfe?.total ?? '—');
-  // Período label
-  const lbl = document.getElementById('fisc-periodo-label');
-  if (lbl) lbl.textContent = 'Notas fiscais · NFS-e · NFCom · NF-e · Telecom · Jan 2025 → hoje';
-  // Tabela mês a mês
-  const mesEmpty = document.getElementById('fisc-mes-empty');
-  const mesWrap  = document.getElementById('fisc-mes-wrap');
-  const mesBadge = document.getElementById('fisc-mes-badge');
-  const porMes = d.porMes || {};
-  const meses = Object.keys(porMes).sort().reverse(); // mais recente primeiro
-  if (meses.length === 0) {
-    if (mesEmpty) mesEmpty.style.display = 'block';
-    if (mesWrap)  mesWrap.style.display  = 'none';
-  } else {
-    if (mesEmpty) mesEmpty.style.display = 'none';
-    if (mesWrap)  mesWrap.style.display  = 'block';
-    if (mesBadge) mesBadge.textContent   = meses.length + ' meses';
-    const MESES_PT = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-    const CNPJ_NOME = {
-      '08407644000100': 'Matriz', '08407644000291': 'Concordia', '08407644000372': 'Ipixuna',
-      '08407644000453': 'Acará', '08407644000534': 'Aurora', '08407644000615': 'S.Miguel',
-      '08407644000704': 'Salinópolis', '08407644000887': 'N.Esperança', '08407644000968': 'Garrafão',
-    };
+  if (tblEmpty) tblEmpty.style.display = 'none';
+  if (tblMain)  tblMain.style.display  = '';
+  if (tblBadge) tblBadge.textContent   = meses.length + ' meses';
 
-    // ── Helpers de gráfico ──
-    const mesOrdem = [...meses].sort();
-    const TIPOS_GRAF = ['nfcom','nfse','telecom','nfe'];
-    const TIPO_LABEL = { nfcom:'NFCom', nfse:'NFS-e', telecom:'Telecom', nfe:'NF-e' };
-    // Paleta igual aos gráficos do Financeiro
-    const TIPO_COR   = { nfcom:'#f59e0b', nfse:'#4ade80', telecom:'#60a5fa', nfe:'#f87171' };
-    const mesHoje = new Date().toISOString().slice(0, 7);
+  const mesHoje = new Date().toISOString().slice(0, 7);
+  const _cell = (qtd, val, cor, small) => {
+    const fs = small ? 'font-size:11px;' : '';
+    if (!qtd) return `<td class="mono" style="${fs}text-align:right;color:${cor};opacity:.25">—</td>`;
+    const valDiv = val ? `<div style="font-size:9px;opacity:.55;margin-top:1px">${fmtR(val)}</div>` : '';
+    return `<td class="mono" style="${fs}text-align:right;color:${cor}">${qtd.toLocaleString('pt-BR')}${valDiv}</td>`;
+  };
 
-    function _fiscBarCol(mes, i, lista, getVal, maxVal, altura, fmtVal) {
-      const m = porMes[mes];
-      const [ano, mm] = mes.split('-');
-      const label = (MESES_PT[parseInt(mm)] || mm) + '/' + ano.slice(2);
-      const isParcial = mes === mesHoje;
-      const anoLbl = (i === 0 || lista[i-1].slice(0,4) !== ano)
-        ? `<div style="font-size:9px;color:var(--text3);font-weight:600;text-align:center;margin-bottom:3px">${ano}</div>`
-        : `<div style="font-size:9px;color:transparent;margin-bottom:3px">·</div>`;
-      // Barras coladas (gap:0), apenas tipos com valor — barras zeradas omitidas
-      const barras = TIPOS_GRAF.map(t => {
-        const v = getVal(m, t);
-        if (v <= 0) return '';
-        const h = Math.max(Math.round((v / maxVal) * altura), 3);
-        const op = isParcial ? 'opacity:.75;' : '';
-        return `<div style="width:35px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:${altura}px" title="${TIPO_LABEL[t]}: ${fmtVal(v)}">
-          <div style="font-size:10px;color:${TIPO_COR[t]};font-weight:700;line-height:1;margin-bottom:2px;writing-mode:vertical-lr;transform:rotate(180deg);white-space:nowrap">${fmtVal(v)}</div>
-          <div style="width:100%;height:${h}px;background:${TIPO_COR[t]};border-radius:3px 3px 0 0;${op}"></div>
-        </div>`;
-      }).join('');
-      // Espaço entre meses via margin-right
-      const sepDir = i < lista.length - 1 ? 'margin-right:12px;' : '';
-      return `<div style="display:flex;flex-direction:column;align-items:center;${sepDir}">
-        ${anoLbl}
-        <div style="display:flex;align-items:flex-end;gap:0;border-bottom:1px solid var(--border)">${barras}</div>
-        <div style="font-size:9px;color:var(--text3);margin-top:4px;text-align:center;white-space:nowrap">${label}${isParcial?' <span style="color:#60a5fa;font-size:8px">●</span>':''}</div>
-      </div>`;
+  let totalGeral = 0;
+  const rows = [];
+  meses.forEach(mes => {
+    const m = porMes[mes];
+    totalGeral += m.total || 0;
+    const [ano, mm] = mes.split('-');
+    const mesLabel = (FISC_MESES[parseInt(mm)] || mm) + '/' + ano;
+    const isAtual  = mes === mesHoje;
+    const temFil   = m.filiais && Object.keys(m.filiais).length > 0;
+    const totalDiv = m.valor ? `<div style="font-size:9px;opacity:.55;margin-top:1px">${fmtR(m.valor)}</div>` : '';
+    rows.push(`<tr style="cursor:${temFil?'pointer':'default'};${isAtual?'background:rgba(59,130,246,.06)':''}" onclick="${temFil?`fiscToggleFiliais('${mes}')`:''}" >
+      <td style="font-size:12px;${isAtual?'font-weight:700;color:var(--accent)':''}">${mesLabel}${temFil?` <span id="fisc-ico-${mes}" style="font-size:9px;color:var(--text3)">▶</span>`:''}</td>
+      ${_cell(m.nfcom, m.nfcom_valor, '#f59e0b', false)}
+      ${_cell(m.nfe,   m.nfe_valor,   '#f87171', false)}
+      ${_cell(m.telecom, m.telecom_valor, '#60a5fa', false)}
+      ${_cell(m.nfse,  m.nfse_valor,  '#4ade80', false)}
+      <td class="mono" style="text-align:right;font-weight:600">${(m.total||0).toLocaleString('pt-BR')}${totalDiv}</td>
+    </tr>`);
+    if (temFil) {
+      rows.push(...Object.entries(m.filiais).sort((a,b)=>b[1].total-a[1].total).map(([cnpj, f]) =>
+        `<tr class="fisc-fil-${mes}" style="display:none;background:var(--bg3)">
+          <td style="font-size:11px;color:var(--text2);padding-left:18px">${FISC_CNPJ[cnpj]||cnpj.slice(-4)}</td>
+          ${_cell(f.nfcom, f.nfcom_valor, '#f59e0b', true)}
+          ${_cell(f.nfe,   f.nfe_valor,   '#f87171', true)}
+          ${_cell(f.telecom, f.telecom_valor, '#60a5fa', true)}
+          ${_cell(f.nfse,  f.nfse_valor,  '#4ade80', true)}
+          <td class="mono" style="text-align:right;font-size:11px">${(f.total||0).toLocaleString('pt-BR')}${f.valor?`<div style="font-size:9px;opacity:.55">${fmtR(f.valor)}</div>`:''}</td>
+        </tr>`
+      ));
     }
-
-    // ── Gráfico 1: Quantidade ──
-    const maxQtd = Math.max(...mesOrdem.flatMap(m => TIPOS_GRAF.map(t => porMes[m][t]||0)), 1);
-    const chart = document.getElementById('fisc-mes-chart');
-    if (chart) {
-      chart.innerHTML = mesOrdem.map((mes, i) =>
-        _fiscBarCol(mes, i, mesOrdem, (m,t) => m[t]||0, maxQtd, 250, v => v > 0 ? v.toLocaleString('pt-BR') : '')
-      ).join('');
-    }
-
-    // Legenda
-    const legend = document.getElementById('fisc-mes-legend');
-    if (legend) {
-      const tots = { nfcom:0, nfse:0, telecom:0, nfe:0 };
-      meses.forEach(m => TIPOS_GRAF.forEach(t => { tots[t] += porMes[m][t]||0; }));
-      const totalAll = meses.reduce((a,m)=>a+(porMes[m].total||0),0);
-      legend.innerHTML = TIPOS_GRAF.map(t =>
-        `<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:${TIPO_COR[t]};display:inline-block"></span>${TIPO_LABEL[t]} <b>${tots[t].toLocaleString('pt-BR')}</b></span>`
-      ).join('') + `<span style="display:flex;align-items:center;gap:4px;font-weight:700;color:var(--text)">Total <b>${totalAll.toLocaleString('pt-BR')}</b></span>`;
-    }
-
-    // ── Gráfico 2: Valor por tipo (últimos 6 meses) ──
-    const mesesComValor = mesOrdem.filter(m => porMes[m].temValor && porMes[m].valor > 0);
-    const valSection = document.getElementById('fisc-val-section');
-    if (valSection) valSection.style.display = mesesComValor.length ? '' : 'none';
-    const valChart = document.getElementById('fisc-val-chart');
-    if (valChart && mesesComValor.length) {
-      // Valor por tipo não está no server ainda — usa valor total por barra única por enquanto
-      // (filiais têm valor, mas tipo não — usar valor total como barra única cyan por mês)
-      const maxVal = Math.max(...mesesComValor.map(m => porMes[m].valor), 1);
-      const HALTURA = 200;
-      const fmtK = v => v >= 1000000 ? `R$${(v/1000000).toFixed(1)}M` : v >= 1000 ? `R$${(v/1000).toFixed(0)}k` : fmtMoeda(v);
-      valChart.innerHTML = mesesComValor.map((mes, i) => {
-        const m = porMes[mes];
-        const [ano, mm] = mes.split('-');
-        const label = (MESES_PT[parseInt(mm)] || mm) + '/' + ano.slice(2);
-        const isParcial = mes === mesHoje;
-        const h = Math.max(Math.round((m.valor / maxVal) * HALTURA), 4);
-        const anoLbl = (i === 0 || mesesComValor[i-1]?.slice(0,4) !== ano)
-          ? `<div style="font-size:9px;color:var(--text3);font-weight:600;text-align:center;margin-bottom:3px">${ano}</div>`
-          : `<div style="font-size:9px;color:transparent;margin-bottom:3px">·</div>`;
-        const sepDir = i < mesesComValor.length - 1 ? 'margin-right:12px;' : '';
-        return `<div style="display:flex;flex-direction:column;align-items:center;${sepDir}">
-          ${anoLbl}
-          <div style="display:flex;align-items:flex-end;gap:0;border-bottom:1px solid var(--border)">
-            <div style="width:75px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:${HALTURA}px" title="${label}: ${fmtMoeda(m.valor)}">
-              <div style="font-size:10px;color:#22d3ee;font-weight:700;line-height:1;margin-bottom:2px;writing-mode:vertical-lr;transform:rotate(180deg)">${fmtK(m.valor)}</div>
-              <div style="width:100%;height:${h}px;background:${isParcial?'#60a5fa':'#22d3ee'};border-radius:2px 2px 0 0;${isParcial?'opacity:.7;':''}"></div>
-            </div>
-          </div>
-          <div style="font-size:9px;color:var(--text3);margin-top:4px;text-align:center;white-space:nowrap">${label}${isParcial?' <span style="color:#60a5fa;font-size:8px">●</span>':''}</div>
-        </div>`;
-      }).join('');
-    }
-
-    // ── Tabela detalhada (oculta por padrão) ──
-    let totalGeral = 0;
-    const body = document.getElementById('fisc-mes-body');
-    if (body) {
-      const fmtR = v => v ? 'R$\u00a0' + parseFloat(v).toLocaleString('pt-BR', {minimumFractionDigits:0, maximumFractionDigits:0}) : '';
-      const _cell = (qtd, val, cor, small) => {
-        const fs = small ? 'font-size:11px;' : '';
-        if (!qtd) return `<td class="mono" style="${fs}text-align:right;color:${cor}">—</td>`;
-        const valStr = val ? ` <span style="font-size:9px;opacity:.65">${fmtR(val)}</span>` : '';
-        return `<td class="mono" style="${fs}text-align:right;color:${cor};white-space:nowrap">${qtd}${valStr}</td>`;
-      };
-      const rows = [];
-      meses.forEach(mes => {
-        const m = porMes[mes];
-        totalGeral += m.total;
-        const [ano, mm] = mes.split('-');
-        const mesLabel = (MESES_PT[parseInt(mm)] || mm) + '/' + ano;
-        const mesAtualStyle = mes === mesHoje ? 'font-weight:700;color:var(--accent)' : '';
-        const temFiliais = m.filiais && Object.keys(m.filiais).length > 0;
-        rows.push(`<tr style="cursor:${temFiliais?'pointer':'default'}" onclick="${temFiliais?`fiscToggleFiliais('${mes}')`:''}">
-          <td style="font-size:12px;${mesAtualStyle}">${mesLabel}${temFiliais?` <span style="font-size:9px;color:var(--text3)">▶</span>`:''}</td>
-          ${_cell(m.nfse, m.nfse_valor, '#4ade80', false)}
-          ${_cell(m.telecom, m.telecom_valor, '#60a5fa', false)}
-          ${_cell(m.nfcom, m.nfcom_valor, '#f59e0b', false)}
-          ${_cell(m.nfe, m.nfe_valor, '#f87171', false)}
-          <td class="mono" style="text-align:right;font-weight:600">${m.total}${m.valor ? `<br><span style="font-size:9px;opacity:.7">${fmtR(m.valor)}</span>` : ''}</td>
-        </tr>`);
-        if (temFiliais) {
-          rows.push(Object.entries(m.filiais).sort((a,b)=>b[1].total-a[1].total).map(([cnpj, f]) =>
-            `<tr class="fisc-filial-row fisc-filial-${mes}" style="display:none;background:var(--bg3)">
-              <td style="font-size:11px;color:var(--text2);padding-left:20px">${CNPJ_NOME[cnpj]||cnpj.slice(-4)}</td>
-              ${_cell(f.nfse, f.nfse_valor, '#4ade80', true)}
-              ${_cell(f.telecom, f.telecom_valor, '#60a5fa', true)}
-              ${_cell(f.nfcom, f.nfcom_valor, '#f59e0b', true)}
-              ${_cell(f.nfe, f.nfe_valor, '#f87171', true)}
-              <td class="mono" style="text-align:right;font-size:11px">${f.total}${f.valor ? `<br><span style="font-size:9px;opacity:.7">${fmtR(f.valor)}</span>` : ''}</td>
-            </tr>`
-          ).join(''));
-        }
-      });
-      rows.push(`<tr style="border-top:2px solid var(--border);background:var(--bg3)">
-        <td style="font-size:12px;font-weight:700">Total</td>
-        ${_cell(meses.reduce((a,m)=>a+(porMes[m].nfse||0),0)||0, meses.reduce((a,m)=>a+(porMes[m].nfse_valor||0),0), '#4ade80', false)}
-        ${_cell(meses.reduce((a,m)=>a+(porMes[m].telecom||0),0)||0, meses.reduce((a,m)=>a+(porMes[m].telecom_valor||0),0), '#60a5fa', false)}
-        ${_cell(meses.reduce((a,m)=>a+(porMes[m].nfcom||0),0)||0, meses.reduce((a,m)=>a+(porMes[m].nfcom_valor||0),0), '#f59e0b', false)}
-        ${_cell(meses.reduce((a,m)=>a+(porMes[m].nfe||0),0)||0, meses.reduce((a,m)=>a+(porMes[m].nfe_valor||0),0), '#f87171', false)}
-        <td class="mono" style="text-align:right;font-weight:700">${totalGeral}</td>
-      </tr>`);
-      body.innerHTML = rows.join('');
-    }
-  }
-  _fiscRenderTipo(d);
-}
-
-function fiscToggleTbl() {
-  const wrap = document.getElementById('fisc-tbl-wrap');
-  const ico  = document.getElementById('fisc-tbl-toggle-ico');
-  if (!wrap) return;
-  const aberto = wrap.style.display !== 'none';
-  wrap.style.display = aberto ? 'none' : '';
-  if (ico) ico.textContent = aberto ? '▶' : '▼';
+  });
+  const totR = { nfcom:0, nfe:0, telecom:0, nfse:0, nfcom_valor:0, nfe_valor:0, telecom_valor:0, nfse_valor:0, valor:0 };
+  meses.forEach(m => { FISC_TIPOS.forEach(t => { totR[t]+=(porMes[m][t]||0); totR[t+'_valor']+=(porMes[m][t+'_valor']||0); }); totR.valor+=(porMes[m].valor||0); });
+  rows.push(`<tr style="border-top:2px solid var(--border);background:var(--bg3)">
+    <td style="font-size:12px;font-weight:700">Total</td>
+    ${_cell(totR.nfcom, totR.nfcom_valor, '#f59e0b', false)}
+    ${_cell(totR.nfe,   totR.nfe_valor,   '#f87171', false)}
+    ${_cell(totR.telecom, totR.telecom_valor, '#60a5fa', false)}
+    ${_cell(totR.nfse,  totR.nfse_valor,  '#4ade80', false)}
+    <td class="mono" style="text-align:right;font-weight:700">${totalGeral.toLocaleString('pt-BR')}${totR.valor?`<div style="font-size:9px;opacity:.55">${fmtR(totR.valor)}</div>`:''}</td>
+  </tr>`);
+  if (tblBody) tblBody.innerHTML = rows.join('');
 }
 
 function fiscToggleFiliais(mes) {
-  const rows = document.querySelectorAll(`.fisc-filial-${mes}`);
-  const aberto = rows.length > 0 && rows[0].style.display !== 'none';
-  rows.forEach(r => r.style.display = aberto ? 'none' : '');
-  const trMes = document.querySelector(`[onclick="fiscToggleFiliais('${mes}')"]`);
-  if (trMes) { const ico = trMes.querySelector('span'); if (ico) ico.textContent = aberto ? '▶' : '▼'; }
-}
-
-// ── Natureza de Operação ──────────────────────────────────────────────────────
-let _fiscNaturezas = null;
-
-async function fiscNatCarregar(force = false) {
-  const loading = document.getElementById('fisc-nat-loading');
-  const sel = document.getElementById('fisc-nat-sel');
-  const tipo = document.getElementById('fisc-nat-tipo')?.value || 'nfcom';
-  if (loading) loading.style.display = '';
-  try {
-    if (!_fiscNaturezas || force) {
-      const r = await fetch(`${PROXY_URL}/api/fiscal-naturezas${force ? '?force=1' : ''}`);
-      _fiscNaturezas = await r.json();
-    }
-    const lista = _fiscNaturezas?.resultado?.[tipo] || [];
-    if (sel) {
-      sel.innerHTML = '<option value="">— Todas as naturezas —</option>' +
-        lista.map(n => `<option value="${n.label.replace(/"/g,'&quot;')}">${n.label} (${n.count})</option>`).join('');
-    }
-  } catch(e) { console.error('[fiscNatCarregar]', e); }
-  if (loading) loading.style.display = 'none';
-}
-
-async function fiscNatFiltrar() {
-  const tipo = document.getElementById('fisc-nat-tipo')?.value || 'nfcom';
-  const natureza = document.getElementById('fisc-nat-sel')?.value || '';
-  const result = document.getElementById('fisc-nat-result');
-  if (!natureza) { if (result) result.style.display = 'none'; return; }
-
-  if (result) result.style.display = '';
-  const titulo = document.getElementById('fisc-nat-titulo');
-  if (titulo) titulo.textContent = `Carregando dados para "${natureza}"...`;
-
-  try {
-    const r = await fetch(`${PROXY_URL}/api/fiscal-por-natureza?tipo=${encodeURIComponent(tipo)}&natureza=${encodeURIComponent(natureza)}`);
-    const d = await r.json();
-    if (!d.ok) { if (titulo) titulo.textContent = 'Erro ao carregar: ' + d.erro; return; }
-
-    const MESES_PT = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-    const mesOrdem = Object.keys(d.porMes).sort();
-    const maxV = Math.max(...mesOrdem.map(m => d.porMes[m].total), 1);
-    const ALTURA = 160;
-    const mesHoje = new Date().toISOString().slice(0, 7);
-    const TIPO_LABEL = { nfcom:'NFCom', nfse:'NFS-e', telecom:'Telecom', nfe:'NF-e' };
-    const TIPO_COR_NAT = { nfcom:'#f59e0b', nfse:'#4ade80', telecom:'#60a5fa', nfe:'#f87171' };
-    const cor = TIPO_COR_NAT[tipo] || '#4ade80';
-
-    const chart = document.getElementById('fisc-nat-chart');
-    if (chart) {
-      chart.innerHTML = mesOrdem.map((mes, i) => {
-        const m = d.porMes[mes];
-        if (!m.total) return '';
-        const [ano, mm] = mes.split('-');
-        const label = (MESES_PT[parseInt(mm)] || mm) + '/' + ano.slice(2);
-        const isParcial = mes === mesHoje;
-        const h = Math.max(Math.round((m.total / maxV) * ALTURA), 3);
-        const anoLbl = (i === 0 || mesOrdem[i-1]?.slice(0,4) !== ano)
-          ? `<div style="font-size:9px;color:var(--text3);font-weight:600;text-align:center;margin-bottom:3px">${ano}</div>`
-          : `<div style="font-size:9px;color:transparent;margin-bottom:3px">·</div>`;
-        const sepDir = i < mesOrdem.length - 1 ? 'margin-right:10px;' : '';
-        return `<div style="display:flex;flex-direction:column;align-items:center;${sepDir}">
-          ${anoLbl}
-          <div style="display:flex;align-items:flex-end;border-bottom:1px solid var(--border)">
-            <div style="width:40px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:${ALTURA}px">
-              <div style="font-size:9px;color:${cor};font-weight:700;margin-bottom:2px">${m.total.toLocaleString('pt-BR')}</div>
-              <div style="width:100%;height:${h}px;background:${cor};border-radius:3px 3px 0 0;${isParcial?'opacity:.7;':''}"></div>
-            </div>
-          </div>
-          <div style="font-size:9px;color:var(--text3);margin-top:4px;text-align:center;white-space:nowrap">${label}</div>
-        </div>`;
-      }).filter(Boolean).join('');
-    }
-    const totalGeral = mesOrdem.reduce((a, m) => a + d.porMes[m].total, 0);
-    if (titulo) titulo.textContent = `${TIPO_LABEL[tipo]} · "${natureza}" · ${totalGeral.toLocaleString('pt-BR')} notas (Jan/2025 → hoje)`;
-  } catch(e) {
-    const titulo = document.getElementById('fisc-nat-titulo');
-    if (titulo) titulo.textContent = 'Erro: ' + e.message;
-  }
+  const rows = document.querySelectorAll(`.fisc-fil-${mes}`);
+  const ico  = document.getElementById(`fisc-ico-${mes}`);
+  const open = rows.length > 0 && rows[0].style.display !== 'none';
+  rows.forEach(r => r.style.display = open ? 'none' : '');
+  if (ico) ico.textContent = open ? '▶' : '▼';
 }
 
 // ─── SAÚDE DA BASE ───────────────────────────────────────────────────────────
