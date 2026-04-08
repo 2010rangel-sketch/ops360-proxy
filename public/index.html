@@ -7352,19 +7352,22 @@ function renderFiscal(d) {
       const anoLbl = (i === 0 || lista[i-1].slice(0,4) !== ano)
         ? `<div style="font-size:9px;color:var(--text3);font-weight:600;text-align:center;margin-bottom:3px">${ano}</div>`
         : `<div style="font-size:9px;color:transparent;margin-bottom:3px">·</div>`;
-      // 4 barras lado a lado, mesma largura, alinhadas à base
+      // Barras coladas (gap:0), apenas tipos com valor — barras zeradas omitidas
       const barras = TIPOS_GRAF.map(t => {
         const v = getVal(m, t);
-        const h = v > 0 ? Math.max(Math.round((v / maxVal) * altura), 3) : 0;
+        if (v <= 0) return '';
+        const h = Math.max(Math.round((v / maxVal) * altura), 3);
         const op = isParcial ? 'opacity:.75;' : '';
-        return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:${altura}px" title="${TIPO_LABEL[t]}: ${fmtVal(v)}">
-          <div style="font-size:7px;color:${TIPO_COR[t]};font-weight:700;line-height:1;margin-bottom:2px;text-align:center">${v > 0 ? fmtVal(v) : ''}</div>
-          <div style="width:85%;height:${h}px;background:${TIPO_COR[t]};border-radius:2px 2px 0 0;${op}"></div>
+        return `<div style="width:18px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:${altura}px" title="${TIPO_LABEL[t]}: ${fmtVal(v)}">
+          <div style="font-size:7px;color:${TIPO_COR[t]};font-weight:700;line-height:1;margin-bottom:2px;writing-mode:vertical-lr;transform:rotate(180deg);white-space:nowrap">${fmtVal(v)}</div>
+          <div style="width:100%;height:${h}px;background:${TIPO_COR[t]};border-radius:2px 2px 0 0;${op}"></div>
         </div>`;
       }).join('');
-      return `<div style="display:flex;flex-direction:column;align-items:stretch;flex:1;min-width:80px;max-width:130px;padding:0 3px">
+      // Espaço entre meses via margin-right
+      const sepDir = i < lista.length - 1 ? 'margin-right:12px;' : '';
+      return `<div style="display:flex;flex-direction:column;align-items:center;${sepDir}">
         ${anoLbl}
-        <div style="display:flex;align-items:flex-end;gap:2px;border-bottom:1px solid var(--border)">${barras}</div>
+        <div style="display:flex;align-items:flex-end;gap:0;border-bottom:1px solid var(--border)">${barras}</div>
         <div style="font-size:9px;color:var(--text3);margin-top:4px;text-align:center;white-space:nowrap">${label}${isParcial?' <span style="color:#60a5fa;font-size:8px">●</span>':''}</div>
       </div>`;
     }
@@ -7409,12 +7412,13 @@ function renderFiscal(d) {
         const anoLbl = (i === 0 || mesesComValor[i-1]?.slice(0,4) !== ano)
           ? `<div style="font-size:9px;color:var(--text3);font-weight:600;text-align:center;margin-bottom:3px">${ano}</div>`
           : `<div style="font-size:9px;color:transparent;margin-bottom:3px">·</div>`;
-        return `<div style="display:flex;flex-direction:column;align-items:stretch;flex:1;min-width:80px;max-width:130px;padding:0 3px">
+        const sepDir = i < mesesComValor.length - 1 ? 'margin-right:12px;' : '';
+        return `<div style="display:flex;flex-direction:column;align-items:center;${sepDir}">
           ${anoLbl}
-          <div style="display:flex;align-items:flex-end;gap:2px;border-bottom:1px solid var(--border)">
-            <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:${HALTURA}px" title="${label}: ${fmtMoeda(m.valor)}">
-              <div style="font-size:8px;color:#06b6d4;font-weight:700;line-height:1;margin-bottom:2px;text-align:center">${fmtK(m.valor)}</div>
-              <div style="width:60%;height:${h}px;background:${isParcial?'#60a5fa':'#22d3ee'};border-radius:2px 2px 0 0;${isParcial?'opacity:.7;border:1px dashed #93c5fd;box-sizing:border-box':''}"></div>
+          <div style="display:flex;align-items:flex-end;gap:0;border-bottom:1px solid var(--border)">
+            <div style="width:40px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:${HALTURA}px" title="${label}: ${fmtMoeda(m.valor)}">
+              <div style="font-size:7px;color:#06b6d4;font-weight:700;line-height:1;margin-bottom:2px;writing-mode:vertical-lr;transform:rotate(180deg)">${fmtK(m.valor)}</div>
+              <div style="width:100%;height:${h}px;background:${isParcial?'#60a5fa':'#22d3ee'};border-radius:2px 2px 0 0;${isParcial?'opacity:.7;':''}"></div>
             </div>
           </div>
           <div style="font-size:9px;color:var(--text3);margin-top:4px;text-align:center;white-space:nowrap">${label}${isParcial?' <span style="color:#60a5fa;font-size:8px">●</span>':''}</div>
