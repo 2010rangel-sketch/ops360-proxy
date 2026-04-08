@@ -1788,13 +1788,13 @@ input[type="text"]::placeholder { color:var(--text3); }
           <!-- Gráfico de barras empilhadas (contagem) -->
           <div style="padding:16px 16px 4px;overflow-x:auto">
             <div style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Quantidade de Notas por Mês</div>
-            <div id="fisc-mes-chart" style="min-height:240px;display:flex;align-items:flex-end;justify-content:flex-start;gap:0;min-width:700px"></div>
+            <div id="fisc-mes-chart" style="min-height:300px;display:flex;align-items:flex-end;justify-content:flex-start;gap:0;min-width:700px"></div>
             <div id="fisc-mes-legend" style="display:flex;gap:16px;justify-content:center;margin-top:8px;flex-wrap:wrap;font-size:11px;color:var(--text3)"></div>
           </div>
           <!-- Gráfico de valor total (últimos meses) -->
           <div style="padding:4px 16px 4px;overflow-x:auto" id="fisc-val-section">
             <div style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;margin-top:10px">Valor Total das Notas (últimos 6 meses)</div>
-            <div id="fisc-val-chart" style="min-height:200px;display:flex;align-items:flex-end;justify-content:flex-start;gap:0;min-width:400px"></div>
+            <div id="fisc-val-chart" style="min-height:250px;display:flex;align-items:flex-end;justify-content:flex-start;gap:0;min-width:400px"></div>
           </div>
           <!-- Tabela detalhada (expansível) -->
           <div style="padding:0 16px 4px">
@@ -7341,7 +7341,8 @@ function renderFiscal(d) {
     const mesOrdem = [...meses].sort();
     const TIPOS_GRAF = ['nfcom','nfse','telecom','nfe'];
     const TIPO_LABEL = { nfcom:'NFCom', nfse:'NFS-e', telecom:'Telecom', nfe:'NF-e' };
-    const TIPO_COR   = { nfcom:'#9b59b6', nfse:'#22c55e', telecom:'#f59e0b', nfe:'#ef4444' };
+    // Paleta igual aos gráficos do Financeiro
+    const TIPO_COR   = { nfcom:'#f59e0b', nfse:'#4ade80', telecom:'#60a5fa', nfe:'#f87171' };
     const mesHoje = new Date().toISOString().slice(0, 7);
 
     function _fiscBarCol(mes, i, lista, getVal, maxVal, altura, fmtVal) {
@@ -7358,8 +7359,8 @@ function renderFiscal(d) {
         if (v <= 0) return '';
         const h = Math.max(Math.round((v / maxVal) * altura), 3);
         const op = isParcial ? 'opacity:.75;' : '';
-        return `<div style="width:28px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:${altura}px" title="${TIPO_LABEL[t]}: ${fmtVal(v)}">
-          <div style="font-size:8px;color:${TIPO_COR[t]};font-weight:700;line-height:1;margin-bottom:2px;writing-mode:vertical-lr;transform:rotate(180deg);white-space:nowrap">${fmtVal(v)}</div>
+        return `<div style="width:35px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:${altura}px" title="${TIPO_LABEL[t]}: ${fmtVal(v)}">
+          <div style="font-size:10px;color:${TIPO_COR[t]};font-weight:700;line-height:1;margin-bottom:2px;writing-mode:vertical-lr;transform:rotate(180deg);white-space:nowrap">${fmtVal(v)}</div>
           <div style="width:100%;height:${h}px;background:${TIPO_COR[t]};border-radius:3px 3px 0 0;${op}"></div>
         </div>`;
       }).join('');
@@ -7377,7 +7378,7 @@ function renderFiscal(d) {
     const chart = document.getElementById('fisc-mes-chart');
     if (chart) {
       chart.innerHTML = mesOrdem.map((mes, i) =>
-        _fiscBarCol(mes, i, mesOrdem, (m,t) => m[t]||0, maxQtd, 200, v => v > 0 ? v.toLocaleString('pt-BR') : '')
+        _fiscBarCol(mes, i, mesOrdem, (m,t) => m[t]||0, maxQtd, 250, v => v > 0 ? v.toLocaleString('pt-BR') : '')
       ).join('');
     }
 
@@ -7401,7 +7402,7 @@ function renderFiscal(d) {
       // Valor por tipo não está no server ainda — usa valor total por barra única por enquanto
       // (filiais têm valor, mas tipo não — usar valor total como barra única cyan por mês)
       const maxVal = Math.max(...mesesComValor.map(m => porMes[m].valor), 1);
-      const HALTURA = 160;
+      const HALTURA = 200;
       const fmtK = v => v >= 1000000 ? `R$${(v/1000000).toFixed(1)}M` : v >= 1000 ? `R$${(v/1000).toFixed(0)}k` : fmtMoeda(v);
       valChart.innerHTML = mesesComValor.map((mes, i) => {
         const m = porMes[mes];
@@ -7416,8 +7417,8 @@ function renderFiscal(d) {
         return `<div style="display:flex;flex-direction:column;align-items:center;${sepDir}">
           ${anoLbl}
           <div style="display:flex;align-items:flex-end;gap:0;border-bottom:1px solid var(--border)">
-            <div style="width:60px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:${HALTURA}px" title="${label}: ${fmtMoeda(m.valor)}">
-              <div style="font-size:7px;color:#06b6d4;font-weight:700;line-height:1;margin-bottom:2px;writing-mode:vertical-lr;transform:rotate(180deg)">${fmtK(m.valor)}</div>
+            <div style="width:75px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:${HALTURA}px" title="${label}: ${fmtMoeda(m.valor)}">
+              <div style="font-size:10px;color:#22d3ee;font-weight:700;line-height:1;margin-bottom:2px;writing-mode:vertical-lr;transform:rotate(180deg)">${fmtK(m.valor)}</div>
               <div style="width:100%;height:${h}px;background:${isParcial?'#60a5fa':'#22d3ee'};border-radius:2px 2px 0 0;${isParcial?'opacity:.7;':''}"></div>
             </div>
           </div>
