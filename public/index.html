@@ -1785,7 +1785,29 @@ input[type="text"]::placeholder { color:var(--text3); }
           <div style="font-size:14px;font-weight:600;margin-bottom:6px">Clique em Atualizar para carregar</div>
         </div>
         <div style="display:none" id="fisc-mes-wrap">
-          <!-- Gráfico de barras empilhadas (contagem) -->
+          <!-- Filtro por Natureza de Operação -->
+          <div style="padding:10px 16px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span style="font-size:11px;color:var(--text3);font-weight:600">Natureza de Operação:</span>
+            <select id="fisc-nat-tipo" onchange="fiscNatCarregar()" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:11px">
+              <option value="nfcom">NFCom</option>
+              <option value="nfe">NF-e</option>
+              <option value="telecom">Telecom</option>
+              <option value="nfse">NFS-e</option>
+            </select>
+            <select id="fisc-nat-sel" onchange="fiscNatFiltrar()" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:11px;min-width:260px;max-width:480px">
+              <option value="">— Todas as naturezas —</option>
+            </select>
+            <button onclick="fiscNatCarregar(true)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:var(--text3);font-size:11px;cursor:pointer">
+              <i class="fas fa-sync-alt"></i> Carregar naturezas
+            </button>
+            <span id="fisc-nat-loading" style="font-size:11px;color:var(--text3);display:none">Carregando...</span>
+          </div>
+          <!-- Resultado filtrado por natureza -->
+          <div id="fisc-nat-result" style="display:none;padding:10px 16px">
+            <div style="font-size:11px;color:var(--text3);margin-bottom:6px" id="fisc-nat-titulo"></div>
+            <div id="fisc-nat-chart" style="min-height:200px;display:flex;align-items:flex-end;gap:0;min-width:400px;overflow-x:auto"></div>
+          </div>
+          <!-- Gráfico de barras por tipo (contagem) -->
           <div style="padding:16px 16px 4px;overflow-x:auto">
             <div style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Quantidade de Notas por Mês</div>
             <div id="fisc-mes-chart" style="min-height:300px;display:flex;align-items:flex-end;justify-content:flex-start;gap:0;min-width:700px"></div>
@@ -7489,6 +7511,85 @@ function fiscToggleFiliais(mes) {
   rows.forEach(r => r.style.display = aberto ? 'none' : '');
   const trMes = document.querySelector(`[onclick="fiscToggleFiliais('${mes}')"]`);
   if (trMes) { const ico = trMes.querySelector('span'); if (ico) ico.textContent = aberto ? '▶' : '▼'; }
+}
+
+// ── Natureza de Operação ──────────────────────────────────────────────────────
+let _fiscNaturezas = null;
+
+async function fiscNatCarregar(force = false) {
+  const loading = document.getElementById('fisc-nat-loading');
+  const sel = document.getElementById('fisc-nat-sel');
+  const tipo = document.getElementById('fisc-nat-tipo')?.value || 'nfcom';
+  if (loading) loading.style.display = '';
+  try {
+    if (!_fiscNaturezas || force) {
+      const r = await fetch(`${PROXY_URL}/api/fiscal-naturezas${force ? '?force=1' : ''}`);
+      _fiscNaturezas = await r.json();
+    }
+    const lista = _fiscNaturezas?.resultado?.[tipo] || [];
+    if (sel) {
+      sel.innerHTML = '<option value="">— Todas as naturezas —</option>' +
+        lista.map(n => `<option value="${n.label.replace(/"/g,'&quot;')}">${n.label} (${n.count})</option>`).join('');
+    }
+  } catch(e) { console.error('[fiscNatCarregar]', e); }
+  if (loading) loading.style.display = 'none';
+}
+
+async function fiscNatFiltrar() {
+  const tipo = document.getElementById('fisc-nat-tipo')?.value || 'nfcom';
+  const natureza = document.getElementById('fisc-nat-sel')?.value || '';
+  const result = document.getElementById('fisc-nat-result');
+  if (!natureza) { if (result) result.style.display = 'none'; return; }
+
+  if (result) result.style.display = '';
+  const titulo = document.getElementById('fisc-nat-titulo');
+  if (titulo) titulo.textContent = `Carregando dados para "${natureza}"...`;
+
+  try {
+    const r = await fetch(`${PROXY_URL}/api/fiscal-por-natureza?tipo=${encodeURIComponent(tipo)}&natureza=${encodeURIComponent(natureza)}`);
+    const d = await r.json();
+    if (!d.ok) { if (titulo) titulo.textContent = 'Erro ao carregar: ' + d.erro; return; }
+
+    const MESES_PT = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const mesOrdem = Object.keys(d.porMes).sort();
+    const maxV = Math.max(...mesOrdem.map(m => d.porMes[m].total), 1);
+    const ALTURA = 160;
+    const mesHoje = new Date().toISOString().slice(0, 7);
+    const TIPO_LABEL = { nfcom:'NFCom', nfse:'NFS-e', telecom:'Telecom', nfe:'NF-e' };
+    const TIPO_COR_NAT = { nfcom:'#f59e0b', nfse:'#4ade80', telecom:'#60a5fa', nfe:'#f87171' };
+    const cor = TIPO_COR_NAT[tipo] || '#4ade80';
+
+    const chart = document.getElementById('fisc-nat-chart');
+    if (chart) {
+      chart.innerHTML = mesOrdem.map((mes, i) => {
+        const m = d.porMes[mes];
+        if (!m.total) return '';
+        const [ano, mm] = mes.split('-');
+        const label = (MESES_PT[parseInt(mm)] || mm) + '/' + ano.slice(2);
+        const isParcial = mes === mesHoje;
+        const h = Math.max(Math.round((m.total / maxV) * ALTURA), 3);
+        const anoLbl = (i === 0 || mesOrdem[i-1]?.slice(0,4) !== ano)
+          ? `<div style="font-size:9px;color:var(--text3);font-weight:600;text-align:center;margin-bottom:3px">${ano}</div>`
+          : `<div style="font-size:9px;color:transparent;margin-bottom:3px">·</div>`;
+        const sepDir = i < mesOrdem.length - 1 ? 'margin-right:10px;' : '';
+        return `<div style="display:flex;flex-direction:column;align-items:center;${sepDir}">
+          ${anoLbl}
+          <div style="display:flex;align-items:flex-end;border-bottom:1px solid var(--border)">
+            <div style="width:40px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:${ALTURA}px">
+              <div style="font-size:9px;color:${cor};font-weight:700;margin-bottom:2px">${m.total.toLocaleString('pt-BR')}</div>
+              <div style="width:100%;height:${h}px;background:${cor};border-radius:3px 3px 0 0;${isParcial?'opacity:.7;':''}"></div>
+            </div>
+          </div>
+          <div style="font-size:9px;color:var(--text3);margin-top:4px;text-align:center;white-space:nowrap">${label}</div>
+        </div>`;
+      }).filter(Boolean).join('');
+    }
+    const totalGeral = mesOrdem.reduce((a, m) => a + d.porMes[m].total, 0);
+    if (titulo) titulo.textContent = `${TIPO_LABEL[tipo]} · "${natureza}" · ${totalGeral.toLocaleString('pt-BR')} notas (Jan/2025 → hoje)`;
+  } catch(e) {
+    const titulo = document.getElementById('fisc-nat-titulo');
+    if (titulo) titulo.textContent = 'Erro: ' + e.message;
+  }
 }
 
 // ─── SAÚDE DA BASE ───────────────────────────────────────────────────────────

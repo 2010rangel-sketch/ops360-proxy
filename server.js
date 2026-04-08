@@ -3309,6 +3309,123 @@ app.get('/api/fiscal', async (req, res) => {
   }
 });
 
+// ── Natureza de Operação das NFs ─────────────────────────────────────────────
+// Extrai o campo "natureza de operação" de um item NF (varia por tipo)
+function _nfNatureza(nf, tipo) {
+  // NFCom: codigo_classificacao_nfcom + descricao do cfop/item
+  if (tipo === 'nfcom') {
+    const cod = nf.codigo_classificacao_nfcom || nf.nfcom_item?.[0]?.codigo_classificacao_nfcom || '';
+    const desc = nf.nfcom_item?.[0]?.descricao_descricao || nf.descricao_natureza || '';
+    if (cod) return `${cod}${desc ? ' – ' + desc.slice(0, 60) : ''}`;
+    return desc || 'Sem classificação';
+  }
+  // NFS-e / NF-e: natureza_operacao, cfop, descricao_servico
+  return nf.natureza_operacao || nf.descricao_natureza_operacao ||
+         (nf.cfop ? `CFOP ${nf.cfop}` : '') ||
+         nf.descricao_servico?.slice(0, 60) || 'Não informado';
+}
+
+let _naturezaCache = null; let _naturezaFetchedAt = 0;
+const NATUREZA_TTL = 4 * 60 * 60 * 1000; // 4h
+
+app.get('/api/fiscal-naturezas', async (req, res) => {
+  try {
+    const force = req.query.force === '1';
+    if (!force && _naturezaCache && Date.now() - _naturezaFetchedAt < NATUREZA_TTL) return res.json(_naturezaCache);
+
+    const token = await getToken();
+    const agora = new Date(); const agoraBRT = new Date(agora.getTime() - 3*60*60*1000);
+    // Amostra mês atual + anterior para descobrir naturezas disponíveis
+    const mesAtual = agoraBRT.toISOString().slice(0, 7);
+    const mesAnt   = new Date(agoraBRT.getFullYear(), agoraBRT.getMonth() - 1, 1).toISOString().slice(0, 7);
+    const mesesAmo = [mesAtual, mesAnt];
+    const TIPOS = ['nfcom','nfe','telecom','nfse'];
+    const naturezas = {}; // { tipo: { cod: { label, count } } }
+
+    for (const tipo of TIPOS) {
+      naturezas[tipo] = {};
+      for (const mes of mesesAmo) {
+        const [ano, mm] = mes.split('-');
+        const ini = `${ano}-${mm}-01`;
+        const fim = `${ano}-${mm}-${new Date(parseInt(ano), parseInt(mm), 0).getDate()}`;
+        for (const cnpj of LC_CNPJS) {
+          try {
+            const params = { tipo_data:'data_emissao', data_inicio:ini, data_fim:fim, pagina:0, itens_por_pagina:200, documento:cnpj };
+            if (tipo === 'telecom') params.modelo = '21';
+            const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/nota_fiscal/${tipo}`, {
+              headers:{ Authorization:`Bearer ${token}` }, params, timeout:15000,
+            });
+            const arr = Array.isArray(r.data) ? r.data : (r.data?.[tipo+'s'] || r.data?.data || []);
+            for (const nf of arr) {
+              const nat = _nfNatureza(nf, tipo);
+              if (!naturezas[tipo][nat]) naturezas[tipo][nat] = { label: nat, count: 0 };
+              naturezas[tipo][nat].count++;
+            }
+          } catch { /* ignora */ }
+        }
+      }
+    }
+
+    // Transforma em listas ordenadas por count
+    const resultado = {};
+    for (const tipo of TIPOS) {
+      resultado[tipo] = Object.values(naturezas[tipo]).sort((a,b) => b.count - a.count);
+    }
+    _naturezaCache = { ok: true, resultado };
+    _naturezaFetchedAt = Date.now();
+    res.json(_naturezaCache);
+  } catch(e) { res.json({ ok:false, erro:e.message }); }
+});
+
+// Agrega contagens por mês filtrando por natureza específica
+app.get('/api/fiscal-por-natureza', async (req, res) => {
+  try {
+    const { tipo = 'nfcom', natureza } = req.query;
+    if (!natureza) return res.status(400).json({ erro: 'natureza obrigatório' });
+
+    const token = await getToken();
+    const agora = new Date(); const agoraBRT = new Date(agora.getTime() - 3*60*60*1000);
+    const [iniAno, iniMm] = '2025-01'.split('-');
+    const meses = [];
+    let d = new Date(Date.UTC(2025, 0, 1));
+    while (d <= agoraBRT) { meses.push(d.toISOString().slice(0,7)); d = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth()+1, 1)); }
+
+    const porMes = {};
+    for (const mes of meses) {
+      const [ano, mm] = mes.split('-');
+      const ini = `${ano}-${mm}-01`;
+      const fim = `${ano}-${mm}-${new Date(parseInt(ano), parseInt(mm), 0).getDate()}`;
+      porMes[mes] = { total: 0, valor: 0 };
+      for (const cnpj of LC_CNPJS) {
+        try {
+          let pagina = 0;
+          while (true) {
+            const params = { tipo_data:'data_emissao', data_inicio:ini, data_fim:fim, pagina, itens_por_pagina:200, documento:cnpj };
+            if (tipo === 'telecom') params.modelo = '21';
+            const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/nota_fiscal/${tipo}`, {
+              headers:{ Authorization:`Bearer ${token}` }, params, timeout:15000,
+            });
+            const arr = Array.isArray(r.data) ? r.data : (r.data?.[tipo+'s'] || r.data?.data || []);
+            for (const nf of arr) {
+              const nat = _nfNatureza(nf, tipo);
+              if (nat === natureza) {
+                porMes[mes].total++;
+                const _pf = v => { const n = parseFloat(v); return isNaN(n)?0:n; };
+                porMes[mes].valor += _pf(nf.valor_nota ?? nf.valor_total ?? nf.valor ?? 0);
+              }
+            }
+            const ult = r.data?.paginacao?.ultima_pagina ?? 0;
+            if (pagina >= ult || arr.length < 200) break;
+            pagina++;
+          }
+        } catch { /* ignora */ }
+      }
+      console.log(`[natureza] ${tipo} mes=${mes} natureza="${natureza}" total=${porMes[mes].total}`);
+    }
+    res.json({ ok:true, tipo, natureza, porMes });
+  } catch(e) { res.json({ ok:false, erro:e.message }); }
+});
+
 // Debug: vê resposta bruta da API de NF do Hubsoft
 app.get('/api/fiscal-debug', async (req, res) => {
   try {
