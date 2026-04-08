@@ -501,7 +501,7 @@ input[type="text"]::placeholder { color:var(--text3); }
   <div class="nav-item" onclick="goPage('chamados',this)"><i class="fas fa-ticket-alt"></i> Chamados</div>
   <div class="nav-item" onclick="goPage('retencao',this)"><i class="fas fa-user-shield"></i> Cancelamento / Retenção</div>
   <div class="nav-item" onclick="goPage('financeiro',this)"><i class="fas fa-dollar-sign"></i> Financeiro</div>
-  <!-- <div class="nav-item" onclick="goPage('fiscal',this)"><i class="fas fa-file-invoice"></i> Fiscal</div> -->
+  <div class="nav-item" onclick="goPage('fiscal',this)"><i class="fas fa-file-invoice"></i> Fiscal</div>
   <div class="nav-item" onclick="goPage('estoque',this)"><i class="fas fa-boxes"></i> Estoque</div>
   <div class="nav-item" onclick="goPage('rh',this)"><i class="fas fa-users"></i> RH</div>
   <div class="nav-item" onclick="goPage('saude',this)"><i class="fas fa-heartbeat"></i> Saúde da Base</div>
@@ -1779,27 +1779,6 @@ input[type="text"]::placeholder { color:var(--text3); }
       </div>
 
       <!-- Gráfico principal -->
-      <div class="tbl-card" style="margin-bottom:14px">
-        <div class="tbl-header" style="flex-wrap:wrap;gap:8px">
-          <span class="tbl-title">Notas por Mês</span>
-          <div style="display:flex;gap:4px;margin-left:4px">
-            <button id="fisc-btn-qtd" onclick="fiscSetMode('qtd')" style="background:#3b82f6;border:none;border-radius:5px;padding:4px 12px;color:#fff;font-size:11px;cursor:pointer;font-weight:600">Quantidade</button>
-            <button id="fisc-btn-val" onclick="fiscSetMode('val')" style="background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:4px 12px;color:var(--text3);font-size:11px;cursor:pointer">Valor R$</button>
-          </div>
-          <span class="badge b-blue" id="fisc-mes-badge" style="margin-left:auto">—</span>
-        </div>
-        <div id="fisc-chart-empty" style="padding:40px;text-align:center;color:var(--text3)">
-          <i class="fas fa-chart-bar" style="font-size:32px;margin-bottom:12px;opacity:.3;display:block"></i>
-          <div style="font-size:14px;font-weight:600">Clique em Atualizar para carregar</div>
-        </div>
-        <div id="fisc-chart-wrap" style="display:none">
-          <div style="padding:14px 16px 8px;overflow-x:auto">
-            <div id="fisc-chart" style="display:flex;align-items:flex-end;justify-content:flex-start;gap:0;min-width:600px;min-height:300px"></div>
-            <div id="fisc-legend" style="display:flex;gap:16px;justify-content:center;margin-top:10px;flex-wrap:wrap;font-size:11px;color:var(--text3)"></div>
-          </div>
-        </div>
-      </div>
-
       <!-- Tabela detalhamento mensal -->
       <div class="tbl-card">
         <div class="tbl-header">

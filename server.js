@@ -3154,7 +3154,7 @@ const LC_CNPJS = [
 
 // Estratégia: 1 chamada por (mês × tipo × cnpj), lê total_registros da paginação
 // = apenas contagens precisas sem baixar todos os itens (viável mesmo com 25k+ NFs/mês)
-const MESES_COM_VALOR = 6; // últimos N meses buscam valor total paginando itens
+const MESES_COM_VALOR = 24; // busca valor em todos os meses do histórico
 
 async function fetchNfAggPorMes(token, dataIni) {
   const agora = new Date();
@@ -3310,7 +3310,7 @@ app.get('/api/fiscal', async (req, res) => {
       if (dbF) {
         // Verifica formato novo (porMes com breakdown por tipo via fetchNfAggPorMes)
         const firstMes = Object.values(dbF.porMes || {})[0];
-        if (firstMes && firstMes.nfse !== undefined && dbF._versao === 'v4') {
+        if (firstMes && firstMes.nfse !== undefined && dbF._versao === 'v5') {
           _fiscalCache = dbF; _fiscalFetchedAt = Date.now(); return res.json({ ...dbF, cache: 'db' });
         }
         console.log('[fiscal] cache antigo, reconstruindo com nova estratégia...');
@@ -3342,7 +3342,7 @@ app.get('/api/fiscal', async (req, res) => {
       },
       porMes,
       nfse: [], telecom: [], nfcom: [], nfe: [], // sem detalhe individual (apenas totais)
-      _versao: 'v4',
+      _versao: 'v5',
     };
     _fiscalCache = fiscalResult; _fiscalFetchedAt = Date.now();
     dbCacheSet('cache:fiscal', fiscalResult);
