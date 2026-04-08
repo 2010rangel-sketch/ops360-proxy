@@ -7277,8 +7277,8 @@ function _fiscRenderChart(porMes) {
     return;
   }
   const ALTURA = 270;
-  const getV   = (m, t) => isVal ? (porMes[m][t+'_valor'] || 0) : (porMes[m][t] || 0);
-  const maxV   = Math.max(...mesOrdem.flatMap(m => FISC_TIPOS.map(t => getV(m, t))), 1);
+  const getV   = (obj, t) => isVal ? (obj[t+'_valor'] || 0) : (obj[t] || 0);
+  const maxV   = Math.max(...mesOrdem.flatMap(m => FISC_TIPOS.map(t => getV(porMes[m], t))), 1);
   const fmtLbl = v => isVal ? _fiscFmtK(v) : v > 0 ? v.toLocaleString('pt-BR') : '';
 
   chart.innerHTML = mesOrdem.map((mes, i) => {
