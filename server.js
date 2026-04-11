@@ -1664,7 +1664,7 @@ app.get('/api/comercial', async (req, res) => {
       // Salva resultado do mês atual no banco para boot rápido
       if (isMesAtual) {
         _comResultCache = result;
-        dbCacheSave('cache:comercial:mesatual', result).catch(()=>{});
+        dbCacheSet('cache:comercial:mesatual', result).catch(()=>{});
       }
       return res.json(result);
     }
