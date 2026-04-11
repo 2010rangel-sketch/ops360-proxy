@@ -4034,26 +4034,37 @@ async function dbInit() {
 }
 
 async function kvGet(key) {
-  try {
-    const pool = getPool(); if (!pool) return null;
-    const r = await pool.query('SELECT value FROM kv_store WHERE key=$1', [key]);
-    return r.rows[0]?.value ?? null;
-  } catch { return null; }
+  // Tenta até 3 vezes com 1s entre tentativas (evita perda por timeout momentâneo)
+  for (let i = 0; i < 3; i++) {
+    try {
+      const pool = getPool(); if (!pool) return null;
+      const r = await pool.query('SELECT value FROM kv_store WHERE key=$1', [key]);
+      return r.rows[0]?.value ?? null;
+    } catch(e) {
+      if (i < 2) await new Promise(r => setTimeout(r, 1000));
+      else console.warn('[kvGet] falhou após 3 tentativas:', key, e.message);
+    }
+  }
+  return null;
 }
 
 async function kvSet(key, value) {
-  try {
-    const pool = getPool(); if (!pool) return false;
-    await pool.query(
-      `INSERT INTO kv_store(key,value,updated_at) VALUES($1,$2,NOW())
-       ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value, updated_at=NOW()`,
-      [key, value]
-    );
-    return true;
-  } catch(e) {
-    console.error('[kvSet]', e.message);
-    return false;
+  // Tenta até 3 vezes com 1s entre tentativas
+  for (let i = 0; i < 3; i++) {
+    try {
+      const pool = getPool(); if (!pool) return false;
+      await pool.query(
+        `INSERT INTO kv_store(key,value,updated_at) VALUES($1,$2,NOW())
+         ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value, updated_at=NOW()`,
+        [key, value]
+      );
+      return true;
+    } catch(e) {
+      if (i < 2) await new Promise(r => setTimeout(r, 1000));
+      else console.error('[kvSet] falhou após 3 tentativas:', key, e.message);
+    }
   }
+  return false;
 }
 
 // ── Cache persistente com TTL (PostgreSQL) ────────────────────────
@@ -4105,13 +4116,21 @@ function fileSet(name, content) {
 }
 
 async function storeGet(key) {
+  // Fonte de verdade: PostgreSQL (persiste entre deploys no Railway)
+  // Arquivo local é apenas fallback para desenvolvimento — não confiável no Railway
   const v = await kvGet(key);
   if (v !== null) return v;
-  return fileGet(key.replace(/\//g, '_') + (key.endsWith('meta') ? '.json' : key === 'rh_csv' ? '.txt' : '.json'));
+  const fileVal = fileGet(key.replace(/\//g, '_') + (key.endsWith('meta') ? '.json' : key === 'rh_csv' ? '.txt' : '.json'));
+  if (fileVal) {
+    // Promove para banco para evitar perda futura
+    kvSet(key, fileVal).catch(()=>{});
+  }
+  return fileVal;
 }
 async function storeSet(key, value) {
   const ok = await kvSet(key, value);
-  // Escreve no arquivo também como backup local
+  if (!ok) console.error('[storeSet] AVISO: dado não salvo no banco:', key);
+  // Arquivo local apenas como último recurso (será perdido no próximo deploy Railway)
   fileSet(key.replace(/\//g, '_') + (key === 'rh_csv' ? '.txt' : '.json'), value);
   return ok;
 }
