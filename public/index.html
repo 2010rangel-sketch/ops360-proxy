@@ -6101,13 +6101,17 @@ function renderComercialAtualiza(data) {
   const busca = (document.getElementById('com-busca-cliente')?.value || '').trim().toLowerCase();
   if (busca) lista = lista.filter(v => (v.cliente || '').toLowerCase().includes(busca));
 
-  // Quando vendedor selecionado: atualiza cidades e planos para refletir apenas esse vendedor
+  // Quando vendedor selecionado: atualiza cidades, planos e status para refletir apenas esse vendedor
   if (_comFiltro.type === 'vendedor' && _comFiltro.val) {
     const vendasVend = (data.ultimas||[]).filter(v => v.vendedor === _comFiltro.val);
-    const cids  = _comAgregaCidades(vendasVend);
-    const plans = _comAgregaPlanos(vendasVend);
+    const cids   = _comAgregaCidades(vendasVend);
+    const plans  = _comAgregaPlanos(vendasVend);
+    const stMap  = {};
+    for (const v of vendasVend) { stMap[v.status||'desconhecido'] = (stMap[v.status||'desconhecido']||0)+1; }
+    const stArr  = Object.entries(stMap).sort((a,b)=>b[1]-a[1]).map(([status,total])=>({status,total}));
     renderComBarras('com-cidades-bars', cids,  cids[0]?.total||1,  '#6366f1','#06b6d4');
     renderComPlanoDonutData(plans);
+    renderComStatusDonut(stArr);
     if (vendBadge) { vendBadge.style.display=''; vendBadge.onclick=()=>setComFiltro('',''); }
     const cidCount = document.getElementById('com-cid-count');
     if (cidCount) cidCount.textContent = cids.length;

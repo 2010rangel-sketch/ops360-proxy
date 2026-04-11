@@ -1412,8 +1412,10 @@ function buildVendasFromClientes(clientes, iniStr, fimStr) {
       if (!vendaMs || vendaMs < iniMs) continue;
       if (isPastPeriod && vendaMs > fimMs) continue;
 
-      // Dedup por chave composta: mesmo cliente + mesmo plano + mesma data_venda
-      const chave = `${nome}|${s.nome || ''}|${s.data_venda || ''}`;
+      // Dedup por chave composta: mesmo cliente + mesmo plano + mesma data_venda + status cancelamento
+      // Inclui cancelado na chave para não descartar cliente que comprou e cancelou no mesmo período
+      const canceladoFlag = !!(s.data_cancelamento || (s.status_prefixo||'').includes('cancelado') || (s.status_prefixo||'').includes('rescindi'));
+      const chave = `${nome}|${s.nome || ''}|${s.data_venda || ''}|${canceladoFlag ? '1' : '0'}`;
       if (seen.has(chave)) continue;
       seen.add(chave);
 
@@ -4016,6 +4018,12 @@ async function dbInit() {
         ['Administrador', ADMIN_EMAIL, hash, 'comercial,atendimento,chamados,retencao,financeiro,fiscal,estoque,rh,saude,conexoes,tarefas,integracoes']
       );
       console.log(`[auth] Admin criado: ${ADMIN_EMAIL} / ${ADMIN_PASS}`);
+    } else {
+      // Garante que todos os admins têm acesso a todas as páginas (migração de campo paginas)
+      await pool.query(
+        `UPDATE ops360_users SET paginas=$1 WHERE admin=TRUE AND paginas NOT LIKE '%rh%'`,
+        ['comercial,atendimento,chamados,retencao,financeiro,fiscal,estoque,rh,saude,conexoes,tarefas,integracoes']
+      );
     }
     console.log('[db] tabelas prontas');
   } catch(e) {
