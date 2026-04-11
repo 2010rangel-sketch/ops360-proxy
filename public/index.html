@@ -5397,7 +5397,7 @@ function renderDashComercial() {
   ev('dco-total',    d.total);
   ev('dco-novas',    d.novas);
   ev('dco-reat',     d.reativacoes);
-  ev('dco-pct-reat', d.total > 0 ? Math.round(d.reativacoes / d.total * 100) + '%' : '0%');
+  ev('dco-pct-reat', (d.ativos ?? 0) > 0 ? Math.round(d.reativacoes / d.ativos * 100) + '%' : '0%');
   ev('dco-cid-count', d.cidades?.length || 0);
   ev('dco-vend-count', d.vendedores?.length || 0);
   ev('dco-ult-count',  d.ultimas?.length || 0);
@@ -6519,7 +6519,7 @@ async function loadComercial() {
     ev('com-total',      data.total);
     ev('com-novas',      data.novas);
     ev('com-reat',       data.reativacoes);
-    ev('com-pct-reat',   data.total > 0 ? Math.round(data.reativacoes / data.total * 100) + '%' : '0%');
+    ev('com-pct-reat',   (data.ativos ?? 0) > 0 ? Math.round(data.reativacoes / data.ativos * 100) + '%' : '0%');
     ev('com-ativos',     data.ativos ?? '—');
     ev('com-cancelados', data.cancelados ?? '—');
     ev('com-cid-count',  data.cidades.length);
