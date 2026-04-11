@@ -6163,7 +6163,8 @@ function _comRenderCancelTbl() {
     : _comCancelDetalhe;
   if (ct) ct.textContent = lista.length + (_comCancelMotivoAtivo ? ` (filtro)` : '');
   if (!lista.length) { tbl.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">Sem cancelamentos no período</td></tr>'; return; }
-  const fmt = d => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
+  // Parse sem conversão de timezone: 'YYYY-MM-DD' → DD/MM/YYYY
+  const fmt = d => { if (!d) return '—'; const [y,m,dd] = d.slice(0,10).split('-'); return `${dd}/${m}/${y}`; };
   const OE = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
   tbl.innerHTML = lista.map(v => `<tr>
     <td style="${OE};color:var(--text)" title="${v.cliente}">${v.cliente}</td>
