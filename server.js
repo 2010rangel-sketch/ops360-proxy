@@ -1441,7 +1441,8 @@ function buildVendasFromClientes(clientes, iniStr, fimStr) {
 
       const dataVenda = vendaDate.toISOString().split('T')[0];
       const motivo = (s.motivo_cancelamento || '').trim() || null;
-      const dataCancelamento = s.data_cancelamento ? s.data_cancelamento.slice(0,10) : null;
+      const _dcParsed = s.data_cancelamento ? parseDate(s.data_cancelamento) : null;
+      const dataCancelamento = _dcParsed ? _dcParsed.toISOString().split('T')[0] : null;
       vendas.push({ cliente: nome, cidade, plano, vendedor, status, dataCad: dataVenda, dataVenda, reativacao, cancelado, motivo, dataCancelamento });
     }
   }

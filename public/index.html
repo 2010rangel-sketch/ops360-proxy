@@ -4802,6 +4802,9 @@ let retPeriodo = 'mes';
 let _retData   = null;
 let _cancelServAbort = null;   // abort controller para cancelar fetch anterior
 let _cancelServSeq   = 0;      // versão — garante que resultado antigo nunca sobrescreva o atual
+let _remocAbort  = null;
+let _remocSeq    = 0;
+let _remocPeriodo = 'mes';
 
 function getRetDates() {
   const a = new Date();
@@ -6708,8 +6711,6 @@ function renderRemocoes() {
 }
 
 // Versão para a aba Cancelamento/Retenção — busca todas as OS do período via API
-let _remocAbort = null;
-let _remocSeq   = 0;
 async function loadRemocoes() {
   if (_remocAbort) _remocAbort.abort();
   _remocAbort = new AbortController();
@@ -6807,7 +6808,8 @@ function getRemocDates() {
   const a = new Date();
   const _d = (y,m,d) => `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
   if (_remocPeriodo === 'mes') {
-    return { ini: _d(a.getFullYear(),a.getMonth(),1), fim: _d(a.getFullYear(),a.getMonth()+1,0) };
+    const last = new Date(a.getFullYear(), a.getMonth()+1, 0);
+    return { ini: _d(a.getFullYear(),a.getMonth(),1), fim: _d(last.getFullYear(),last.getMonth(),last.getDate()) };
   }
   if (_remocPeriodo === 'mes_anterior') {
     const fim = new Date(a.getFullYear(),a.getMonth(),0);
@@ -6834,7 +6836,6 @@ function setRemocTab(tab, el) {
   document.getElementById('remoc-view-cobranca').style.display = tab === 'cobranca' ? '' : 'none';
 }
 
-let _remocPeriodo = 'mes';
 function setRemocPeriodo(p, el) {
   _remocPeriodo = p;
   document.querySelectorAll('.remoc-chip').forEach(c => c.classList.remove('active'));
