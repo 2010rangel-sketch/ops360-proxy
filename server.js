@@ -4316,6 +4316,53 @@ app.delete('/api/auth/users/:id', async (req, res) => {
   } catch(e) { res.json({ ok: false, motivo: e.message }); }
 });
 
+// ── PREFERÊNCIAS DO USUÁRIO ───────────────────────────────────────
+async function _authUser(req) {
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
+  const uid = _validarToken(token);
+  if (!uid) return null;
+  return _getUser(uid);
+}
+
+app.get('/api/user/prefs', async (req, res) => {
+  const user = await _authUser(req);
+  if (!user) return res.status(401).json({ ok: false });
+  try {
+    const pool = getPool();
+    if (pool) {
+      const r = await pool.query("SELECT value FROM kv_store WHERE key=$1", [`user_prefs:${user.id}`]);
+      const prefs = r.rows[0] ? JSON.parse(r.rows[0].value) : {};
+      return res.json({ ok: true, prefs });
+    }
+    // fallback: arquivo
+    const lista = _usersCarregarArq();
+    const u = lista.find(x => x.id === user.id);
+    res.json({ ok: true, prefs: u?.prefs || {} });
+  } catch(e) { res.json({ ok: true, prefs: {} }); }
+});
+
+app.post('/api/user/prefs', async (req, res) => {
+  const user = await _authUser(req);
+  if (!user) return res.status(401).json({ ok: false });
+  const prefs = req.body || {};
+  try {
+    const pool = getPool();
+    if (pool) {
+      await pool.query(
+        `INSERT INTO kv_store(key,value,updated_at) VALUES($1,$2,NOW())
+         ON CONFLICT(key) DO UPDATE SET value=$2, updated_at=NOW()`,
+        [`user_prefs:${user.id}`, JSON.stringify(prefs)]
+      );
+      return res.json({ ok: true });
+    }
+    // fallback: arquivo
+    const lista = _usersCarregarArq();
+    const u = lista.find(x => x.id === user.id);
+    if (u) { u.prefs = prefs; _usersSalvarArq(); }
+    res.json({ ok: true });
+  } catch(e) { res.json({ ok: false, motivo: e.message }); }
+});
+
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });

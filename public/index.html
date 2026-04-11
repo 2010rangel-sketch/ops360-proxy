@@ -3978,8 +3978,8 @@ function _afterLogin() {
   if (nm) nm.textContent = nome;
   // Filtra sidebar pelas páginas permitidas
   _aplicarPermissoes();
-  // Inicia o app normalmente
-  _appStart();
+  // Carrega preferências do usuário (widths, etc.) e depois inicia o app
+  _prefsLoad().finally(() => _appStart());
 }
 
 function _aplicarPermissoes() {
@@ -6376,20 +6376,44 @@ function renderComUltimas(ultimas) {
   initColResize('com-ult-table');
 }
 
+// ── Preferências do usuário (sincronizadas no servidor) ─────────────────────
+let _userPrefs = {};
+
+async function _prefsLoad() {
+  try {
+    const r = await fetch(`${PROXY_URL}/api/user/prefs`, { headers: { Authorization: 'Bearer ' + _authToken() } });
+    const d = await r.json();
+    if (d.ok) { _userPrefs = d.prefs || {}; return; }
+  } catch {}
+  // fallback localStorage
+  try { _userPrefs = JSON.parse(localStorage.getItem('ops360_user_prefs') || '{}'); } catch {}
+}
+
+let _prefsSaveTimer = null;
+function _prefsSave() {
+  clearTimeout(_prefsSaveTimer);
+  _prefsSaveTimer = setTimeout(async () => {
+    try {
+      localStorage.setItem('ops360_user_prefs', JSON.stringify(_userPrefs));
+      await fetch(`${PROXY_URL}/api/user/prefs`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + _authToken() },
+        body: JSON.stringify(_userPrefs)
+      });
+    } catch {}
+  }, 800);
+}
+
 // ── Redimensionamento de colunas por arrastar ────────────────────────────────
 function initColResize(tableId) {
   const table = document.getElementById(tableId);
   if (!table) return;
   const ths = [...table.querySelectorAll('thead th')];
 
-  // Restore saved widths
-  const lsKey = 'ops360_colw_' + tableId;
-  try {
-    const saved = JSON.parse(localStorage.getItem(lsKey));
-    if (saved && saved.length === ths.length) {
-      ths.forEach((th, i) => { if (saved[i]) th.style.width = saved[i] + 'px'; });
-    }
-  } catch {}
+  // Restaura larguras salvas
+  const saved = _userPrefs['colw_' + tableId];
+  if (saved && saved.length === ths.length) {
+    ths.forEach((th, i) => { if (saved[i]) th.style.width = saved[i] + 'px'; });
+  }
 
   ths.forEach((th, i) => {
     if (i === ths.length - 1) return; // sem handle na última coluna
@@ -6414,11 +6438,9 @@ function initColResize(tableId) {
         document.body.style.userSelect = '';
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
-        // Salva larguras em pixels
-        try {
-          const widths = ths.map(t => Math.round(t.getBoundingClientRect().width));
-          localStorage.setItem(lsKey, JSON.stringify(widths));
-        } catch {}
+        // Salva no servidor (debounced)
+        _userPrefs['colw_' + tableId] = ths.map(t => Math.round(t.getBoundingClientRect().width));
+        _prefsSave();
       };
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
