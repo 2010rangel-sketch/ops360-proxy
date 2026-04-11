@@ -433,6 +433,28 @@ input[type="text"]::placeholder { color:var(--text3); }
   #fin-kpi-row    { grid-template-columns:repeat(3,1fr)!important; }
   #fin-cancel-grid{ grid-template-columns:1fr!important; }
   #fin-mid-grid   { grid-template-columns:1fr!important; }
+
+  /* Comercial — empilha Por Plano + Por Status + Vendas */
+  [style*="grid-template-columns:198px 193px 1fr"] {
+    grid-template-columns:1fr!important;
+  }
+
+  /* Vendas — scroll horizontal, oculta colunas secundárias */
+  #com-ult-table {
+    table-layout:auto!important;
+    min-width:480px;
+  }
+  #com-ult-table thead th:nth-child(2),  /* Cidade */
+  #com-ult-table thead th:nth-child(3),  /* Vendedor */
+  #com-ult-table tbody td:nth-child(2),
+  #com-ult-table tbody td:nth-child(3) {
+    display:none;
+  }
+  /* wrapper com scroll horizontal */
+  #com-ult-table-wrap {
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+  }
 }
 </style>
 <style>
@@ -1331,7 +1353,7 @@ input[type="text"]::placeholder { color:var(--text3); }
                 style="width:100%;box-sizing:border-box;padding:6px 10px 6px 30px;background:var(--bg);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
             </div>
           </div>
-          <div style="max-height:340px;overflow-y:auto">
+          <div id="com-ult-table-wrap" style="max-height:340px;overflow-y:auto;overflow-x:auto;-webkit-overflow-scrolling:touch">
             <table id="com-ult-table" class="tbl" style="font-size:12px;table-layout:fixed;width:100%">
               <thead><tr>
                 <th style="width:22%;position:relative">Cliente</th><th style="width:13%;position:relative">Cidade</th><th style="width:12%;position:relative">Vendedor</th><th style="width:14%;position:relative">Plano</th><th style="width:16%;position:relative">Data</th><th style="width:10%;position:relative">Tipo</th><th style="width:13%">Status</th>
