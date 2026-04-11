@@ -3958,7 +3958,7 @@ async function dbInit() {
     const { rows } = await pool.query('SELECT COUNT(*) as n FROM ops360_users');
     if (parseInt(rows[0].n) === 0) {
       const crypto = require('crypto');
-      const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@meuprovedor360.com';
+      const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@lcfibra360.com';
       const ADMIN_PASS  = process.env.ADMIN_PASS  || 'admin360';
       const hash = crypto.createHash('sha256').update(ADMIN_PASS + AUTH_SECRET).digest('hex');
       await pool.query(
@@ -4159,7 +4159,7 @@ function _usersCarregarArq() {
   if (_usersMemoria) return _usersMemoria;
   try {
     const fs = require('fs');
-    const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'admin@meuprovedor360.com').toLowerCase();
+    const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'admin@lcfibra360.com').toLowerCase();
     const ADMIN_PASS  = process.env.ADMIN_PASS  || 'admin360';
     const defaultAdmin = { id:1, nome:'Administrador', email: ADMIN_EMAIL, senha_hash: _hashSenha(ADMIN_PASS), paginas: TODAS_PGS, admin: true, ativo: true };
     if (fs.existsSync(_usersArquivo())) {
@@ -4170,7 +4170,7 @@ function _usersCarregarArq() {
       _usersMemoria = [defaultAdmin];
       fs.writeFileSync(_usersArquivo(), JSON.stringify(_usersMemoria, null, 2));
     }
-  } catch { _usersMemoria = [{ id:1, nome:'Administrador', email:'admin@meuprovedor360.com', senha_hash: _hashSenha('admin360'), paginas: TODAS_PGS, admin:true, ativo:true }]; }
+  } catch { _usersMemoria = [{ id:1, nome:'Administrador', email:'admin@lcfibra360.com', senha_hash: _hashSenha('admin360'), paginas: TODAS_PGS, admin:true, ativo:true }]; }
   return _usersMemoria;
 }
 
