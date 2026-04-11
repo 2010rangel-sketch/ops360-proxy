@@ -8017,6 +8017,8 @@ function _appStart() {
   _prefetch('ops360_esq_cache',   15*60*1000, loadEstoque,        60000);
   // Passo 7 — intervalo de 10s para chamados (servidor já tem cache, resposta rápida)
   setInterval(autoRefresh, 10000);
+  // Passo 8 — keep-alive a cada 4 min para evitar cold start no Railway
+  setInterval(() => fetch('/ping').catch(()=>{}), 4 * 60 * 1000);
 }
 
 // Inicia verificando login (substitui o auto-execute anterior)

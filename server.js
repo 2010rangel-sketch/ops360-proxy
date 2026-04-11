@@ -3,7 +3,8 @@
 //  Hospede no Railway.app — funciona sem configuração extra
 // ═══════════════════════════════════════════════════════════════
 
-const express  = require('express');
+const express     = require('express');
+const compression = require('compression');
 const axios    = require('axios');
 const cors     = require('cors');
 const path     = require('path');
@@ -315,11 +316,24 @@ function extrairPaginacao(data) {
 }
 
 // ── CORS: permite acesso do dashboard em qualquer origem ─────────
+app.use(compression());
 app.use(cors());
 app.use(express.json({ limit: '15mb' }));
 
 // ── Serve o dashboard (arquivo HTML) ────────────────────────────
-app.use(express.static(path.join(__dirname, 'public')));
+// Assets estáticos com cache de 1h (exceto index.html que nunca usa cache)
+app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge: '1h',
+  setHeaders(res, filePath) {
+    if (filePath.endsWith('index.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    }
+  }
+}));
+
+
+// ── Keep-alive (evita cold start no Railway) ─────────────────────
+app.get('/ping', (req, res) => res.json({ ok: true, ts: Date.now() }));
 
 // ════════════════════════════════════════════════════════════════
 //  ROTAS DA API PROXY
