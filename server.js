@@ -1412,10 +1412,12 @@ function buildVendasFromClientes(clientes, iniStr, fimStr) {
       if (!vendaMs || vendaMs < iniMs) continue;
       if (isPastPeriod && vendaMs > fimMs) continue;
 
-      // Dedup por chave composta: mesmo cliente + mesmo plano + mesma data_venda + status cancelamento
-      // Inclui cancelado na chave para não descartar cliente que comprou e cancelou no mesmo período
+      // Dedup: mesmo cliente + mesmo plano + mesma data_venda + endereço + status
+      // Inclui cidade para permitir cliente com 2 serviços em endereços diferentes
       const canceladoFlag = !!(s.data_cancelamento || (s.status_prefixo||'').includes('cancelado') || (s.status_prefixo||'').includes('rescindi'));
-      const chave = `${nome}|${s.nome || ''}|${s.data_venda || ''}|${canceladoFlag ? '1' : '0'}`;
+      const endInst0 = typeof s.endereco_instalacao === 'object' && s.endereco_instalacao ? s.endereco_instalacao : {};
+      const cidadeKey = endInst0.cidade || endInst0.logradouro || '';
+      const chave = `${nome}|${s.nome || ''}|${s.data_venda || ''}|${cidadeKey}|${canceladoFlag ? '1' : '0'}`;
       if (seen.has(chave)) continue;
       seen.add(chave);
 
