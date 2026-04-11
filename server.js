@@ -1568,8 +1568,8 @@ async function warmupComercial() {
   } catch(e) { console.warn('[boot] restauração do banco falhou:', e.message); }
 })();
 
-// Inicia warm-up assim que o servidor sobe (sem await — não bloqueia)
-setTimeout(() => warmupComercial().catch(console.warn), 5000);
+// Warm-up de clientes completo desativado — rota agora busca por período diretamente
+// setTimeout(() => warmupComercial().catch(console.warn), 5000);
 // Warm-up de conexões logo após o comercial (10s delay para não sobrecarregar)
 setTimeout(() => fetchConexoesHubsoft().catch(console.warn), 10000);
 // Warm-up do financeiro (65s — comercial leva ~55s; financeiro reutiliza _comAllClientes)
@@ -1607,7 +1607,7 @@ setTimeout(async () => {
   } catch(e) { console.warn('[retencao] warm-up falhou:', e.message); }
 }, 20000);
 // Renova a cada 30 minutos
-setInterval(() => warmupComercial().catch(console.warn), 1800000);
+// setInterval(() => warmupComercial().catch(console.warn), 1800000);
 // Warm-up cancelados gerais (90s após boot — não bloqueia nada crítico)
 function warmupCanceladosGeral() {
   if (_comAllCanceladosFetching) return;
@@ -1633,6 +1633,26 @@ setTimeout(() => warmupCanceladosGeral(), 90000);
 // Renova a cada 6h
 setInterval(() => warmupCanceladosGeral(), 6 * 60 * 60 * 1000);
 
+// Busca ativos + cancelados do período diretamente via API (sem warmup)
+async function _fetchComercialPeriodo(iniStr, fimStr) {
+  const token = await getToken();
+  const filtroBase = {
+    relacoes: 'endereco_instalacao',
+    tipo_data_cliente_servico: 'data_venda',
+    data_inicio_cliente_servico: iniStr,
+    data_fim_cliente_servico: fimStr,
+  };
+  const [ativos, cancelados] = await Promise.all([
+    fetchIntegracaoClientes(token, { ...filtroBase, cancelado: 'nao' }, 50).catch(() => []),
+    fetchIntegracaoClientes(token, { ...filtroBase, cancelado: 'sim' }, 20).catch(() => []),
+  ]);
+  const vendas = buildVendasFromClientes([...ativos, ...cancelados], iniStr, fimStr);
+  return buildComResult(vendas, iniStr, fimStr);
+}
+
+// Cache por período: { [key]: { result, ts } }
+const _comPeriodoCache = {};
+
 app.get('/api/comercial', async (req, res) => {
   try {
     const agora = new Date();
@@ -1642,47 +1662,36 @@ app.get('/api/comercial', async (req, res) => {
     const iniStr = req.query.data_inicio || fmtDate(primeiroDiaMes);
     const fimStr = req.query.data_fim    || fmtDate(ultimoDiaMes);
     const isMesAtual = iniStr === fmtDate(primeiroDiaMes) && fimStr === fmtDate(ultimoDiaMes);
+    const cacheKey   = `${iniStr}_${fimStr}`;
 
-    // Cache completo disponível → build resultado fresco
-    if (_comAllClientes) {
-      let cancelados = [];
-      try {
-        const tkCanc = await getToken();
-        cancelados = await fetchIntegracaoClientes(tkCanc, {
-          cancelado: 'sim',
-          relacoes: 'endereco_instalacao',
-          tipo_data_cliente_servico: 'data_venda',
-          data_inicio_cliente_servico: iniStr,
-          data_fim_cliente_servico: fimStr,
-        }, 10);
-      } catch(e) {
-        console.warn('[comercial] busca cancelados falhou (usando só ativos):', e.message);
-      }
-      const todos  = [..._comAllClientes, ...cancelados];
-      const vendas = buildVendasFromClientes(todos, iniStr, fimStr);
-      const result = buildComResult(vendas, iniStr, fimStr);
-      // Salva resultado do mês atual no banco para boot rápido
-      if (isMesAtual) {
-        _comResultCache = result;
-        dbCacheSet('cache:comercial:mesatual', result).catch(()=>{});
-      }
-      return res.json(result);
+    // Cache em memória por período (válido 30min)
+    const cached = _comPeriodoCache[cacheKey];
+    if (cached && (Date.now() - cached.ts) < 30 * 60 * 1000) {
+      return res.json(cached.result);
     }
 
-    // Cache ainda aquecendo — serve resultado anterior do banco se disponível (mês atual)
+    // Se tem resultado anterior no banco, serve imediatamente enquanto busca dados frescos
     if (isMesAtual && _comResultCache) {
-      warmupComercial().catch(console.warn);
+      // Busca em background, não bloqueia
+      (async () => {
+        try {
+          const result = await _fetchComercialPeriodo(iniStr, fimStr);
+          _comPeriodoCache[cacheKey] = { result, ts: Date.now() };
+          _comResultCache = result;
+          dbCacheSet('cache:comercial:mesatual', result).catch(()=>{});
+        } catch(e) { console.warn('[comercial] refresh background falhou:', e.message); }
+      })();
       return res.json({ ..._comResultCache, _stale: true });
     }
 
-    // Cache vazio → dispara warm-up e avisa o frontend
-    warmupComercial().catch(console.warn);
-    return res.json({
-      ok: false,
-      motivo: 'cache_warmup',
-      warming: true,
-      info: 'Base de clientes sendo carregada. Tente novamente em alguns segundos.',
-    });
+    // Busca direta por período (sem precisar de cache de todos os clientes)
+    const result = await _fetchComercialPeriodo(iniStr, fimStr);
+    _comPeriodoCache[cacheKey] = { result, ts: Date.now() };
+    if (isMesAtual) {
+      _comResultCache = result;
+      dbCacheSet('cache:comercial:mesatual', result).catch(()=>{});
+    }
+    return res.json(result);
   } catch(e) {
     res.json({ ok: false, motivo: e.message, vendas: [], cidades: [], vendedores: [], planos: [] });
   }
