@@ -524,6 +524,7 @@ input[type="text"]::placeholder { color:var(--text3); }
   <div class="nav-item" onclick="goPage('atendimento',this)"><i class="fas fa-headset"></i> Atendimento</div>
   <div class="nav-item" onclick="goPage('chamados',this)"><i class="fas fa-ticket-alt"></i> Chamados</div>
   <div class="nav-item" onclick="goPage('retencao',this)"><i class="fas fa-user-shield"></i> Cancelamento / Retenção</div>
+  <div class="nav-item" onclick="goPage('remocao',this)"><i class="fas fa-tools"></i> Remoção de Equipamento</div>
   <div class="nav-item" onclick="goPage('financeiro',this)"><i class="fas fa-dollar-sign"></i> Financeiro</div>
   <div class="nav-item" onclick="goPage('fiscal',this)"><i class="fas fa-file-invoice"></i> Fiscal</div>
   <div class="nav-item" onclick="goPage('estoque',this)"><i class="fas fa-boxes"></i> Estoque</div>
@@ -1549,39 +1550,81 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
       </div>
 
-      <!-- ── Remoções de Equipamentos ── -->
-      <div style="font-weight:700;font-size:14px;color:var(--text);margin-bottom:12px;padding-top:4px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px">
-        <i class="fas fa-tools" style="color:var(--amber)"></i> Remoções de Equipamentos
-        <span class="badge b-amber" id="remoc-total-badge">—</span>
-      </div>
+    </div>
 
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px">
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">Removidos total</div><div class="kpi-mini-val" id="remoc-total" style="color:var(--amber)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Removido — Cancelamento</div><div class="kpi-mini-val" id="remoc-tipo-canc" style="color:var(--red)">—</div><div style="font-size:10px;color:var(--text3);margin-top:2px" id="remoc-pct-canc">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Removido — Cobrança</div><div class="kpi-mini-val" id="remoc-tipo-cobr" style="color:var(--accent)">—</div><div style="font-size:10px;color:var(--text3);margin-top:2px" id="remoc-pct-cobr">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--cyan)"></div><div class="kpi-mini-label">Removido — SPC</div><div class="kpi-mini-val" id="remoc-tipo-spc" style="color:var(--cyan)">—</div><div style="font-size:10px;color:var(--text3);margin-top:2px" id="remoc-pct-spc">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--text3)"></div><div class="kpi-mini-label">Removido — Outro motivo</div><div class="kpi-mini-val" id="remoc-tipo-outro" style="color:var(--text3)">—</div><div style="font-size:10px;color:var(--text3);margin-top:2px" id="remoc-pct-outro">—</div></div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-        <!-- Ranking de técnicos -->
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header">
-            <span class="tbl-title"><i class="fas fa-hard-hat" style="color:var(--amber);margin-right:5px"></i>Técnico que mais removeu</span>
-            <span class="badge b-amber" id="remoc-tec-count">—</span>
+    <!-- ═══ REMOÇÃO DE EQUIPAMENTO ═══ -->
+    <div class="page" id="page-remocao">
+      <!-- Header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:16px;font-weight:700;color:var(--text)">Remoção de Equipamento</div>
+          <div style="font-size:11px;color:var(--text3)">Equipamentos retirados · por tipo de motivo</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <!-- Abas Remoção / Cobrança -->
+          <div style="display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px">
+            <button class="chip active" id="remoc-tab-remocao" onclick="setRemocTab('remocao',this)"><i class="fas fa-tools" style="margin-right:4px"></i>Remoção</button>
+            <button class="chip" id="remoc-tab-cobranca" onclick="setRemocTab('cobranca',this)"><i class="fas fa-dollar-sign" style="margin-right:4px"></i>Cobrança</button>
           </div>
-          <div id="remoc-tec-bars" style="padding:12px 16px">
-            <div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem dados</div>
+          <!-- Período -->
+          <div style="display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px">
+            <button class="chip active remoc-chip" data-p="mes"          onclick="setRemocPeriodo('mes',this)">Mês atual</button>
+            <button class="chip remoc-chip"        data-p="mes_anterior" onclick="setRemocPeriodo('mes_anterior',this)">Mês anterior</button>
+            <button class="chip remoc-chip"        data-p="hoje"         onclick="setRemocPeriodo('hoje',this)">Hoje</button>
+            <button class="chip remoc-chip"        data-p="custom"       onclick="setRemocPeriodo('custom',this)">Período</button>
+          </div>
+          <div id="remocDateRange" style="display:none;gap:6px;align-items:center">
+            <input type="date" id="remocDtDe" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
+            <span style="color:var(--text3);font-size:12px">até</span>
+            <input type="date" id="remocDtAte" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
+            <button class="btn btn-primary btn-sm" onclick="loadRemocoes()" style="padding:5px 14px;font-size:12px"><i class="fas fa-search"></i> Buscar</button>
+          </div>
+          <span class="badge b-amber" id="remoc-total-badge">—</span>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px">
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">Total removidos</div><div class="kpi-mini-val" id="remoc-total" style="color:var(--amber)">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Cancelamento</div><div class="kpi-mini-val" id="remoc-tipo-canc" style="color:var(--red)">—</div><div style="font-size:10px;color:var(--text3);margin-top:2px" id="remoc-pct-canc">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Cobrança</div><div class="kpi-mini-val" id="remoc-tipo-cobr" style="color:var(--accent)">—</div><div style="font-size:10px;color:var(--text3);margin-top:2px" id="remoc-pct-cobr">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--cyan)"></div><div class="kpi-mini-label">SPC</div><div class="kpi-mini-val" id="remoc-tipo-spc" style="color:var(--cyan)">—</div><div style="font-size:10px;color:var(--text3);margin-top:2px" id="remoc-pct-spc">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--text3)"></div><div class="kpi-mini-label">Outro motivo</div><div class="kpi-mini-val" id="remoc-tipo-outro" style="color:var(--text3)">—</div><div style="font-size:10px;color:var(--text3);margin-top:2px" id="remoc-pct-outro">—</div></div>
+      </div>
+
+      <!-- Conteúdo por aba -->
+      <div id="remoc-view-remocao">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div class="tbl-card" style="margin-bottom:0">
+            <div class="tbl-header">
+              <span class="tbl-title"><i class="fas fa-hard-hat" style="color:var(--amber);margin-right:5px"></i>Técnico que mais removeu</span>
+              <span class="badge b-amber" id="remoc-tec-count">—</span>
+            </div>
+            <div id="remoc-tec-bars" style="padding:12px 16px">
+              <div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem dados</div>
+            </div>
+          </div>
+          <div class="tbl-card" style="margin-bottom:0">
+            <div class="tbl-header">
+              <span class="tbl-title"><i class="fas fa-list" style="color:var(--text3);margin-right:5px"></i>Remoções do período</span>
+            </div>
+            <div style="overflow-x:auto;max-height:500px;overflow-y:auto">
+              <table><thead><tr><th>Cliente</th><th>Cidade</th><th>Técnico</th><th>Tipo de Abertura</th><th>Data</th></tr></thead>
+              <tbody id="remocTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">—</td></tr></tbody></table>
+            </div>
           </div>
         </div>
-        <!-- Últimas remoções -->
-        <div class="tbl-card" style="margin-bottom:0">
+      </div>
+
+      <div id="remoc-view-cobranca" style="display:none">
+        <div class="tbl-card">
           <div class="tbl-header">
-            <span class="tbl-title"><i class="fas fa-list" style="color:var(--text3);margin-right:5px"></i>Remoções do período</span>
+            <span class="tbl-title"><i class="fas fa-dollar-sign" style="color:var(--accent);margin-right:5px"></i>Remoções por Cobrança</span>
+            <span class="badge b-blue" id="remoc-cobr-count">—</span>
           </div>
-          <div style="overflow-x:auto;max-height:500px;overflow-y:auto">
+          <div style="overflow-x:auto;max-height:600px;overflow-y:auto">
             <table><thead><tr><th>Cliente</th><th>Cidade</th><th>Técnico</th><th>Tipo de Abertura</th><th>Data</th></tr></thead>
-            <tbody id="remocTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">—</td></tr></tbody></table>
+            <tbody id="remocCobrTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">—</td></tr></tbody></table>
           </div>
         </div>
       </div>
@@ -2681,6 +2724,9 @@ function goPage(id, el, skipHistory) {
     loadRh();
     if (!window._rhEmployees) _restoreRhFromStorage();
   }
+  if (id === 'remocao') {
+    loadRemocoes();
+  }
 }
 
 // Botão voltar/avançar do navegador
@@ -2692,7 +2738,7 @@ window.addEventListener('popstate', e => {
 // Ao abrir link direto (ex: /financeiro), navega para a página correta
 function _pageFromPath() {
   const seg = window.location.pathname.replace(/^\//, '').split('/')[0];
-  const valid = ['comercial','chamados','atendimento','retencao','conexoes','financeiro','fiscal','estoque','rh','saude','tarefas','integracoes'];
+  const valid = ['comercial','chamados','atendimento','retencao','remocao','conexoes','financeiro','fiscal','estoque','rh','saude','tarefas','integracoes'];
   return valid.includes(seg) ? seg : 'comercial';
 }
 
@@ -6676,7 +6722,7 @@ async function loadRemocoes() {
   if (tbl) tbl.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Carregando…</td></tr>';
 
   try {
-    const { ini, fim } = getRetDates();
+    const { ini, fim } = getRemocDates();
     const qs  = `data_inicio=${encodeURIComponent(ini)}&data_fim=${encodeURIComponent(fim)}`;
     const res  = await fetch(`/api/remocoes?${qs}`, { signal });
     const data = await res.json();
@@ -6723,8 +6769,10 @@ async function loadRemocoes() {
       return 'outro';
     };
     const ultimas = data.ultimas || [];
-    if (tbl) {
-      tbl.innerHTML = ultimas.length ? ultimas.map(c => {
+    const renderRemocTbl = (tbId, lista) => {
+      const el = document.getElementById(tbId);
+      if (!el) return;
+      el.innerHTML = lista.length ? lista.map(c => {
         const dt      = c.data ? new Date(c.data).toLocaleDateString('pt-BR') : '—';
         const catKey  = categorizaTipo(c.tipo);
         const tagColor = catKey==='canc'?'var(--red)':catKey==='cobr'?'var(--accent)':catKey==='spc'?'var(--cyan)':'var(--text3)';
@@ -6737,7 +6785,14 @@ async function loadRemocoes() {
         </tr>`;
       }).join('')
       : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Sem remoções no período</td></tr>';
-    }
+    };
+    // Aba Remoção: todas
+    renderRemocTbl('remocTbl', ultimas);
+    // Aba Cobrança: apenas as de cobrança
+    const cobranças = ultimas.filter(c => categorizaTipo(c.tipo) === 'cobr');
+    const cobEl = document.getElementById('remoc-cobr-count');
+    if (cobEl) cobEl.textContent = cobranças.length;
+    renderRemocTbl('remocCobrTbl', cobranças);
   } catch(e) {
     if (e.name === 'AbortError') return;
     if (mySeq !== _remocSeq) return;
@@ -6745,6 +6800,48 @@ async function loadRemocoes() {
     const tbl = document.getElementById('remocTbl');
     if (tbl) tbl.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--red);padding:20px">Erro ao carregar</td></tr>';
   }
+}
+
+// ── Controles do painel Remoção ──────────────────────────────────
+function getRemocDates() {
+  const a = new Date();
+  const _d = (y,m,d) => `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  if (_remocPeriodo === 'mes') {
+    return { ini: _d(a.getFullYear(),a.getMonth(),1), fim: _d(a.getFullYear(),a.getMonth()+1,0) };
+  }
+  if (_remocPeriodo === 'mes_anterior') {
+    const fim = new Date(a.getFullYear(),a.getMonth(),0);
+    return { ini: _d(a.getFullYear(),a.getMonth()-1,1), fim: _d(fim.getFullYear(),fim.getMonth(),fim.getDate()) };
+  }
+  if (_remocPeriodo === 'hoje') {
+    const t = _d(a.getFullYear(),a.getMonth(),a.getDate());
+    return { ini: t, fim: t };
+  }
+  if (_remocPeriodo === 'custom') {
+    const de  = document.getElementById('remocDtDe')?.value;
+    const ate = document.getElementById('remocDtAte')?.value;
+    if (de && ate) return { ini: de, fim: ate };
+  }
+  return { ini: _d(a.getFullYear(),a.getMonth(),1), fim: _d(a.getFullYear(),a.getMonth(),a.getDate()) };
+}
+
+let _remocTab = 'remocao';
+function setRemocTab(tab, el) {
+  _remocTab = tab;
+  document.querySelectorAll('#remoc-tab-remocao,#remoc-tab-cobranca').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+  document.getElementById('remoc-view-remocao').style.display = tab === 'remocao' ? '' : 'none';
+  document.getElementById('remoc-view-cobranca').style.display = tab === 'cobranca' ? '' : 'none';
+}
+
+let _remocPeriodo = 'mes';
+function setRemocPeriodo(p, el) {
+  _remocPeriodo = p;
+  document.querySelectorAll('.remoc-chip').forEach(c => c.classList.remove('active'));
+  if (el) el.classList.add('active');
+  const dr = document.getElementById('remocDateRange');
+  if (dr) dr.style.display = p === 'custom' ? 'flex' : 'none';
+  if (p !== 'custom') loadRemocoes();
 }
 
 // ══════════════════════════════════════════════════════════════════

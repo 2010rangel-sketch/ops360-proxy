@@ -4018,14 +4018,14 @@ async function dbInit() {
       const hash = crypto.createHash('sha256').update(ADMIN_PASS + AUTH_SECRET).digest('hex');
       await pool.query(
         `INSERT INTO ops360_users(nome,email,senha_hash,paginas,admin) VALUES($1,$2,$3,$4,TRUE)`,
-        ['Administrador', ADMIN_EMAIL, hash, 'comercial,atendimento,chamados,retencao,financeiro,fiscal,estoque,rh,saude,conexoes,tarefas,integracoes']
+        ['Administrador', ADMIN_EMAIL, hash, 'comercial,atendimento,chamados,retencao,remocao,financeiro,fiscal,estoque,rh,saude,conexoes,tarefas,integracoes']
       );
       console.log(`[auth] Admin criado: ${ADMIN_EMAIL} / ${ADMIN_PASS}`);
     } else {
       // Garante que todos os admins têm acesso a todas as páginas (migração de campo paginas)
       await pool.query(
         `UPDATE ops360_users SET paginas=$1 WHERE admin=TRUE AND paginas NOT LIKE '%rh%'`,
-        ['comercial,atendimento,chamados,retencao,financeiro,fiscal,estoque,rh,saude,conexoes,tarefas,integracoes']
+        ['comercial,atendimento,chamados,retencao,remocao,financeiro,fiscal,estoque,rh,saude,conexoes,tarefas,integracoes']
       );
     }
     console.log('[db] tabelas prontas');
@@ -4230,7 +4230,7 @@ Você tem acesso ao contexto do sistema OPS360: chamados, atendimento, comercial
 // ── AUTH ──────────────────────────────────────────────────────────
 
 // Usuários em memória (fallback quando banco não disponível)
-const TODAS_PGS = 'comercial,atendimento,chamados,retencao,financeiro,fiscal,estoque,rh,saude,conexoes,tarefas,integracoes';
+const TODAS_PGS = 'comercial,atendimento,chamados,retencao,remocao,financeiro,fiscal,estoque,rh,saude,conexoes,tarefas,integracoes';
 let _usersMemoria = null; // carregado do arquivo se banco offline
 
 function _usersArquivo() { return path.join(__dirname, 'users.json'); }
