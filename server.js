@@ -1441,7 +1441,8 @@ function buildVendasFromClientes(clientes, iniStr, fimStr) {
 
       const dataVenda = vendaDate.toISOString().split('T')[0];
       const motivo = (s.motivo_cancelamento || '').trim() || null;
-      vendas.push({ cliente: nome, cidade, plano, vendedor, status, dataCad: dataVenda, dataVenda, reativacao, cancelado, motivo });
+      const dataCancelamento = s.data_cancelamento ? s.data_cancelamento.slice(0,10) : null;
+      vendas.push({ cliente: nome, cidade, plano, vendedor, status, dataCad: dataVenda, dataVenda, reativacao, cancelado, motivo, dataCancelamento });
     }
   }
   return vendas;
@@ -1492,7 +1493,7 @@ function buildComResult(vendas, iniStr, fimStr) {
     .map(([motivo, total]) => ({ motivo, total }));
   const cancelados_detalhe = vendasCanceladas
     .sort((a, b) => b.dataVenda > a.dataVenda ? 1 : -1)
-    .map(v => ({ cliente: v.cliente, vendedor: v.vendedor, plano: v.plano, motivo: v.motivo || 'Não informado', dataVenda: v.dataVenda }));
+    .map(v => ({ cliente: v.cliente, vendedor: v.vendedor, plano: v.plano, motivo: v.motivo || 'Não informado', dataVenda: v.dataVenda, dataCancelamento: v.dataCancelamento }));
   return {
     ok: true, fonte: 'integracao_cliente_todos',
     total: vendas.length,

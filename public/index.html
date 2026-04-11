@@ -1382,13 +1382,20 @@ input[type="text"]::placeholder { color:var(--text3); }
           <!-- Lista de cancelados -->
           <div class="tbl-card" style="margin-bottom:0">
             <div class="tbl-header">
-              <span class="tbl-title"><i class="fas fa-user-slash" style="color:var(--red);margin-right:5px"></i>Cancelados do Mês</span>
+              <span class="tbl-title"><i class="fas fa-user-slash" style="color:var(--red);margin-right:5px"></i>Desistência sem Instalação</span>
               <span class="badge b-red" id="com-cancel-count">—</span>
               <span id="com-cancel-filtro-badge" style="display:none;font-size:11px;color:var(--red);margin-left:6px;cursor:pointer" onclick="setComCancelMotivo(_comCancelMotivoAtivo)">✕ limpar</span>
             </div>
             <div style="overflow-x:auto;max-height:220px;overflow-y:auto">
-              <table class="tbl" style="font-size:12px">
-                <thead><tr><th>Cliente</th><th>Vendedor</th><th>Plano</th><th>Motivo</th><th>Data</th></tr></thead>
+              <table class="tbl" style="font-size:12px;table-layout:fixed;width:100%">
+                <thead><tr>
+                  <th style="width:22%">Cliente</th>
+                  <th style="width:14%">Vendedor</th>
+                  <th style="width:18%">Plano</th>
+                  <th style="width:24%">Motivo</th>
+                  <th style="width:11%">Dt. Venda</th>
+                  <th style="width:11%">Dt. Cancel.</th>
+                </tr></thead>
                 <tbody id="com-cancel-tbl"></tbody>
               </table>
             </div>
@@ -6155,14 +6162,16 @@ function _comRenderCancelTbl() {
     ? _comCancelDetalhe.filter(v => v.motivo === _comCancelMotivoAtivo)
     : _comCancelDetalhe;
   if (ct) ct.textContent = lista.length + (_comCancelMotivoAtivo ? ` (filtro)` : '');
-  if (!lista.length) { tbl.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Sem cancelamentos no período</td></tr>'; return; }
+  if (!lista.length) { tbl.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">Sem cancelamentos no período</td></tr>'; return; }
   const fmt = d => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
+  const OE = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
   tbl.innerHTML = lista.map(v => `<tr>
-    <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)" title="${v.cliente}">${v.cliente}</td>
-    <td style="white-space:nowrap;max-width:100px;overflow:hidden;text-overflow:ellipsis" title="${v.vendedor}">${v.vendedor || '—'}</td>
-    <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span style="background:var(--accent-light);color:var(--accent);font-size:10px;padding:2px 5px;border-radius:4px">${v.plano}</span></td>
-    <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text3)" title="${v.motivo}">${v.motivo}</td>
-    <td style="white-space:nowrap;color:var(--text3)">${fmt(v.dataVenda)}</td>
+    <td style="${OE};color:var(--text)" title="${v.cliente}">${v.cliente}</td>
+    <td style="${OE}" title="${v.vendedor||''}">${v.vendedor || '—'}</td>
+    <td style="${OE}"><span style="background:var(--accent-light);color:var(--accent);font-size:10px;padding:2px 5px;border-radius:4px" title="${v.plano}">${v.plano}</span></td>
+    <td style="${OE};color:var(--text3)" title="${v.motivo||''}">${v.motivo || '—'}</td>
+    <td style="${OE};color:var(--text3)">${fmt(v.dataVenda)}</td>
+    <td style="${OE};color:var(--red)">${fmt(v.dataCancelamento)}</td>
   </tr>`).join('');
 }
 
