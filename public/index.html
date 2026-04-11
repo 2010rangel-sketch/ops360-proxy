@@ -1361,6 +1361,7 @@ input[type="text"]::placeholder { color:var(--text3); }
             <div class="tbl-header">
               <span class="tbl-title"><i class="fas fa-user-slash" style="color:var(--red);margin-right:5px"></i>Cancelados do Mês</span>
               <span class="badge b-red" id="com-cancel-count">—</span>
+              <span id="com-cancel-filtro-badge" style="display:none;font-size:11px;color:var(--red);margin-left:6px;cursor:pointer" onclick="setComCancelMotivo(_comCancelMotivoAtivo)">✕ limpar</span>
             </div>
             <div style="overflow-x:auto;max-height:220px;overflow-y:auto">
               <table class="tbl" style="font-size:12px">
@@ -6041,20 +6042,55 @@ function getMetaVendedor(nome) {
   return 0;
 }
 
-function renderComCanceladosDetalhe(data) {
-  const row = document.getElementById('com-cancelados-row');
+let _comCancelMotivoAtivo = null;
+let _comCancelDetalhe = [];
+
+function _comRenderCancelTbl() {
   const tbl = document.getElementById('com-cancel-tbl');
   const ct  = document.getElementById('com-cancel-count');
+  if (!tbl) return;
+  const lista = _comCancelMotivoAtivo
+    ? _comCancelDetalhe.filter(v => v.motivo === _comCancelMotivoAtivo)
+    : _comCancelDetalhe;
+  if (ct) ct.textContent = lista.length + (_comCancelMotivoAtivo ? ` (filtro)` : '');
+  if (!lista.length) { tbl.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Sem cancelamentos no período</td></tr>'; return; }
+  const fmt = d => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
+  tbl.innerHTML = lista.map(v => `<tr>
+    <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)" title="${v.cliente}">${v.cliente}</td>
+    <td style="white-space:nowrap;max-width:100px;overflow:hidden;text-overflow:ellipsis" title="${v.vendedor}">${v.vendedor || '—'}</td>
+    <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span style="background:var(--accent-light);color:var(--accent);font-size:10px;padding:2px 5px;border-radius:4px">${v.plano}</span></td>
+    <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text3)" title="${v.motivo}">${v.motivo}</td>
+    <td style="white-space:nowrap;color:var(--text3)">${fmt(v.dataVenda)}</td>
+  </tr>`).join('');
+}
+
+function setComCancelMotivo(motivo) {
+  _comCancelMotivoAtivo = _comCancelMotivoAtivo === motivo ? null : motivo;
+  document.querySelectorAll('.com-cancel-motivo-item').forEach(el => {
+    const ativo = el.dataset.motivo === _comCancelMotivoAtivo;
+    el.style.border = ativo ? '1.5px solid var(--red)' : '1.5px solid transparent';
+    el.style.background = ativo ? 'rgba(239,68,68,.12)' : 'transparent';
+  });
+  const fb = document.getElementById('com-cancel-filtro-badge');
+  if (fb) fb.style.display = _comCancelMotivoAtivo ? '' : 'none';
+  _comRenderCancelTbl();
+}
+
+function renderComCanceladosDetalhe(data) {
+  const row = document.getElementById('com-cancelados-row');
   const motivosEl = document.getElementById('com-cancel-motivos');
-  const detalhe = data.cancelados_detalhe || [];
+  _comCancelDetalhe = data.cancelados_detalhe || [];
+  _comCancelMotivoAtivo = null;
   const porMotivo = data.cancelados_por_motivo || [];
-  if (row) row.style.display = detalhe.length ? '' : 'none';
-  if (ct) ct.textContent = detalhe.length;
+  if (row) row.style.display = _comCancelDetalhe.length ? '' : 'none';
   if (motivosEl) {
     const maxM = porMotivo[0]?.total || 1;
     motivosEl.innerHTML = porMotivo.map(m => {
       const pct = Math.round(m.total / maxM * 100);
-      return `<div style="margin-bottom:10px">
+      const mot = m.motivo.replace(/'/g,"&#39;").replace(/"/g,'&quot;');
+      return `<div class="com-cancel-motivo-item" data-motivo="${m.motivo}"
+        onclick="setComCancelMotivo('${mot}')"
+        style="margin-bottom:8px;cursor:pointer;padding:5px 7px;border-radius:6px;border:1.5px solid transparent;transition:.15s">
         <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
           <span style="color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${m.motivo}">${m.motivo}</span>
           <span style="color:var(--red);font-weight:600">${m.total}</span>
@@ -6065,17 +6101,7 @@ function renderComCanceladosDetalhe(data) {
       </div>`;
     }).join('') || '<div style="color:var(--text3);font-size:12px;text-align:center;padding:16px">Sem dados</div>';
   }
-  if (tbl) {
-    if (!detalhe.length) { tbl.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Sem cancelamentos no período</td></tr>'; return; }
-    const fmt = d => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
-    tbl.innerHTML = detalhe.map(v => `<tr>
-      <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)" title="${v.cliente}">${v.cliente}</td>
-      <td style="white-space:nowrap;max-width:100px;overflow:hidden;text-overflow:ellipsis" title="${v.vendedor}">${v.vendedor || '—'}</td>
-      <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span style="background:var(--accent-light);color:var(--accent);font-size:10px;padding:2px 5px;border-radius:4px">${v.plano}</span></td>
-      <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text3)" title="${v.motivo}">${v.motivo}</td>
-      <td style="white-space:nowrap;color:var(--text3)">${fmt(v.dataVenda)}</td>
-    </tr>`).join('');
-  }
+  _comRenderCancelTbl();
 }
 
 function renderComBarras(containerId, items, maxVal, colorNew, colorReat) {
