@@ -1561,11 +1561,6 @@ input[type="text"]::placeholder { color:var(--text3); }
           <div style="font-size:11px;color:var(--text3)">Equipamentos retirados · por tipo de motivo</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <!-- Abas Remoção / Cobrança -->
-          <div style="display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px">
-            <button class="chip active" id="remoc-tab-remocao" onclick="setRemocTab('remocao',this)"><i class="fas fa-tools" style="margin-right:4px"></i>Remoção</button>
-            <button class="chip" id="remoc-tab-cobranca" onclick="setRemocTab('cobranca',this)"><i class="fas fa-dollar-sign" style="margin-right:4px"></i>Cobrança</button>
-          </div>
           <!-- Período -->
           <div style="display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px">
             <button class="chip active remoc-chip" data-p="mes"          onclick="setRemocPeriodo('mes',this)">Mês atual</button>
@@ -1606,7 +1601,8 @@ input[type="text"]::placeholder { color:var(--text3); }
           </div>
           <div class="tbl-card" style="margin-bottom:0">
             <div class="tbl-header">
-              <span class="tbl-title"><i class="fas fa-list" style="color:var(--text3);margin-right:5px"></i>Remoções do período</span>
+              <span class="tbl-title"><i class="fas fa-list" style="color:var(--text3);margin-right:5px"></i><span id="remoc-tbl-title">Remoções do período</span></span>
+              <span class="badge b-blue" id="remoc-tbl-count" style="display:none"></span>
             </div>
             <div style="overflow-x:auto;max-height:500px;overflow-y:auto">
               <table><thead><tr><th>Cliente</th><th>Cidade</th><th>Técnico</th><th>Tipo de Abertura</th><th>Data</th></tr></thead>
@@ -1616,18 +1612,6 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
       </div>
 
-      <div id="remoc-view-cobranca" style="display:none">
-        <div class="tbl-card">
-          <div class="tbl-header">
-            <span class="tbl-title"><i class="fas fa-dollar-sign" style="color:var(--accent);margin-right:5px"></i>Remoções por Cobrança</span>
-            <span class="badge b-blue" id="remoc-cobr-count">—</span>
-          </div>
-          <div style="overflow-x:auto;max-height:600px;overflow-y:auto">
-            <table><thead><tr><th>Cliente</th><th>Cidade</th><th>Técnico</th><th>Tipo de Abertura</th><th>Data</th></tr></thead>
-            <tbody id="remocCobrTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">—</td></tr></tbody></table>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- ═══ FINANCEIRO ═══ -->
@@ -6710,6 +6694,63 @@ function renderRemocoes() {
   }
 }
 
+// ── Remoção: estado e funções de renderização global ─────────────
+let _remocTecFiltro  = null;
+let _remocAllUltimas = [];
+
+function _normR(s) { return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+function _catR(t)  {
+  const u = _normR(t);
+  if (u.includes('spc'))    return 'spc';
+  if (u.includes('cobran')) return 'cobr';
+  if (u.includes('cancel')) return 'canc';
+  return 'outro';
+}
+
+function _renderRemocTbl(lista) {
+  const el = document.getElementById('remocTbl');
+  if (!el) return;
+  const ct = document.getElementById('remoc-tbl-count');
+  if (ct) { ct.textContent = lista.length; ct.style.display = _remocTecFiltro ? '' : 'none'; }
+  el.innerHTML = lista.length ? lista.map(c => {
+    const dt      = c.data ? new Date(c.data).toLocaleDateString('pt-BR') : '—';
+    const catKey  = _catR(c.tipo);
+    const tagColor = catKey==='canc'?'var(--red)':catKey==='cobr'?'var(--accent)':catKey==='spc'?'var(--cyan)':'var(--text3)';
+    return `<tr>
+      <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.cli||''}">${c.cli||'—'}</td>
+      <td>${c.cidade||'—'}</td>
+      <td>${c.tec||'—'}</td>
+      <td><span style="font-size:10px;color:${tagColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:120px" title="${c.tipo}">${c.tipo}</span></td>
+      <td style="white-space:nowrap">${dt}</td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Sem remoções no período</td></tr>';
+}
+
+function filtrarRemocTec(nome) {
+  _remocTecFiltro = (_remocTecFiltro === nome) ? null : nome;
+  // Atualiza highlight das barras
+  document.querySelectorAll('#remoc-tec-bars .remoc-bar-row').forEach(d => {
+    const sel = d.dataset.tec === _remocTecFiltro;
+    d.style.background   = (sel && _remocTecFiltro) ? 'var(--bg3)' : '';
+    d.style.outline      = (sel && _remocTecFiltro) ? '1px solid var(--amber)' : '';
+    const fill = d.querySelector('.remoc-bar-fill');
+    const name = d.querySelector('.remoc-bar-name');
+    const num  = d.querySelector('.remoc-bar-num');
+    const op   = (!_remocTecFiltro || sel) ? '1' : '0.3';
+    if (fill) fill.style.opacity = op;
+    if (name) name.style.opacity = op;
+    if (num)  num.style.opacity  = op;
+  });
+  // Atualiza título da tabela
+  const titleEl = document.getElementById('remoc-tbl-title');
+  if (titleEl) titleEl.textContent = _remocTecFiltro || 'Remoções do período';
+  // Re-renderiza tabela
+  const lista = _remocTecFiltro
+    ? _remocAllUltimas.filter(c => c.tec === _remocTecFiltro)
+    : _remocAllUltimas;
+  _renderRemocTbl(lista);
+}
+
 // Versão para a aba Cancelamento/Retenção — busca todas as OS do período via API
 async function loadRemocoes() {
   if (_remocAbort) _remocAbort.abort();
@@ -6748,52 +6789,31 @@ async function loadRemocoes() {
     ev('remoc-tec-count', tecs.length);
     const barsEl = document.getElementById('remoc-tec-bars');
     if (barsEl) {
-      barsEl.innerHTML = tecs.length ? tecs.map(t => `
-        <div style="margin-bottom:10px">
+      barsEl.innerHTML = tecs.length ? tecs.map(t => {
+        const tecEsc = t.tec.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+        return `<div class="remoc-bar-row" data-tec="${t.tec.replace(/"/g,'&quot;')}" onclick="filtrarRemocTec('${tecEsc}')"
+          style="margin-bottom:8px;cursor:pointer;padding:5px 6px;border-radius:5px;transition:background .15s,outline .15s"
+          onmouseenter="this.style.background='var(--bg3)'"
+          onmouseleave="if(_remocTecFiltro!=='${tecEsc}')this.style.background=''">
           <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
-            <span style="color:var(--text);font-weight:500">${t.tec}</span>
-            <span style="color:var(--amber);font-weight:700">${t.total}</span>
+            <span class="remoc-bar-name" style="color:var(--text);font-weight:500">${t.tec}</span>
+            <span class="remoc-bar-num" style="color:var(--amber);font-weight:700">${t.total}</span>
           </div>
           <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden">
-            <div style="width:${Math.round(t.total/maxTec*100)}%;height:100%;background:var(--amber);border-radius:4px;transition:width .4s"></div>
+            <div class="remoc-bar-fill" style="width:${Math.round(t.total/maxTec*100)}%;height:100%;background:var(--amber);border-radius:4px;transition:width .4s"></div>
           </div>
-        </div>`).join('')
+        </div>`;
+      }).join('')
       : '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem remoções no período</div>';
     }
 
-    const norm = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-    const categorizaTipo = t => {
-      const u = norm(t);
-      if (u.includes('spc'))    return 'spc';
-      if (u.includes('cobran')) return 'cobr';
-      if (u.includes('cancel')) return 'canc';
-      return 'outro';
-    };
+    // Guarda todas as remoções e reseta filtro ao recarregar
     const ultimas = data.ultimas || [];
-    const renderRemocTbl = (tbId, lista) => {
-      const el = document.getElementById(tbId);
-      if (!el) return;
-      el.innerHTML = lista.length ? lista.map(c => {
-        const dt      = c.data ? new Date(c.data).toLocaleDateString('pt-BR') : '—';
-        const catKey  = categorizaTipo(c.tipo);
-        const tagColor = catKey==='canc'?'var(--red)':catKey==='cobr'?'var(--accent)':catKey==='spc'?'var(--cyan)':'var(--text3)';
-        return `<tr>
-          <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.cli||''}">${c.cli||'—'}</td>
-          <td>${c.cidade||'—'}</td>
-          <td>${c.tec||'—'}</td>
-          <td><span style="font-size:10px;color:${tagColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:120px" title="${c.tipo}">${c.tipo}</span></td>
-          <td style="white-space:nowrap">${dt}</td>
-        </tr>`;
-      }).join('')
-      : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Sem remoções no período</td></tr>';
-    };
-    // Aba Remoção: todas
-    renderRemocTbl('remocTbl', ultimas);
-    // Aba Cobrança: apenas as de cobrança
-    const cobranças = ultimas.filter(c => categorizaTipo(c.tipo) === 'cobr');
-    const cobEl = document.getElementById('remoc-cobr-count');
-    if (cobEl) cobEl.textContent = cobranças.length;
-    renderRemocTbl('remocCobrTbl', cobranças);
+    _remocAllUltimas = ultimas;
+    _remocTecFiltro  = null;
+    const titleEl = document.getElementById('remoc-tbl-title');
+    if (titleEl) titleEl.textContent = 'Remoções do período';
+    _renderRemocTbl(ultimas);
   } catch(e) {
     if (e.name === 'AbortError') return;
     if (mySeq !== _remocSeq) return;
