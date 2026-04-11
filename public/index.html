@@ -6102,6 +6102,18 @@ function setComFiltro(type, val) {
   if (_comData) renderComercialAtualiza(_comData);
 }
 
+// Agrega vendedores a partir de uma lista de vendas filtradas
+function _comAgregaVendedores(vendas) {
+  const m = {};
+  for (const v of vendas) {
+    const vend = v.vendedor || '—';
+    if (!m[vend]) m[vend] = { nome: vend, total: 0, novas: 0, reat: 0 };
+    m[vend].total++;
+    if (v.reativacao) m[vend].reat++; else m[vend].novas++;
+  }
+  return Object.values(m).sort((a,b) => b.total - a.total);
+}
+
 // Agrega cidades/planos a partir de uma lista de vendas filtradas
 function _comAgregaCidades(vendas) {
   const m = {};
@@ -6141,29 +6153,44 @@ function renderComercialAtualiza(data) {
   const busca = (document.getElementById('com-busca-cliente')?.value || '').trim().toLowerCase();
   if (busca) lista = lista.filter(v => (v.cliente || '').toLowerCase().includes(busca));
 
-  // Quando vendedor selecionado: atualiza cidades, planos e status para refletir apenas esse vendedor
+  // Quando filtro ativo: atualiza painéis laterais para refletir apenas a seleção
   if (_comFiltro.type === 'vendedor' && _comFiltro.val) {
-    const vendasVend = (data.ultimas||[]).filter(v => v.vendedor === _comFiltro.val);
-    const cids   = _comAgregaCidades(vendasVend);
-    const plans  = _comAgregaPlanos(vendasVend);
-    const stMap  = {};
-    for (const v of vendasVend) { stMap[v.status||'desconhecido'] = (stMap[v.status||'desconhecido']||0)+1; }
-    const stArr  = Object.entries(stMap).sort((a,b)=>b[1]-a[1]).map(([status,total])=>({status,total}));
-    renderComBarras('com-cidades-bars', cids,  cids[0]?.total||1,  '#6366f1','#06b6d4');
+    const vf = (data.ultimas||[]).filter(v => v.vendedor === _comFiltro.val);
+    const cids  = _comAgregaCidades(vf);
+    const plans = _comAgregaPlanos(vf);
+    const stMap = {}; for (const v of vf) { stMap[v.status||'desconhecido'] = (stMap[v.status||'desconhecido']||0)+1; }
+    const stArr = Object.entries(stMap).sort((a,b)=>b[1]-a[1]).map(([s,t])=>({status:s,total:t}));
+    renderComBarras('com-cidades-bars', cids, cids[0]?.total||1, '#6366f1','#06b6d4');
     renderComPlanoDonutData(plans);
     renderComStatusDonut(stArr);
+    renderComBarras('com-vendedor-bars', data.vendedores, data.vendedores[0]?.total||1,'#22c55e','#06b6d4');
     if (vendBadge) { vendBadge.style.display=''; vendBadge.onclick=()=>setComFiltro('',''); }
     const cidCount = document.getElementById('com-cid-count');
     if (cidCount) cidCount.textContent = cids.length;
+  } else if (_comFiltro.type === 'cidade' && _comFiltro.val) {
+    const vf    = (data.ultimas||[]).filter(v => v.cidade === _comFiltro.val);
+    const vends = _comAgregaVendedores(vf);
+    const plans = _comAgregaPlanos(vf);
+    const stMap = {}; for (const v of vf) { stMap[v.status||'desconhecido'] = (stMap[v.status||'desconhecido']||0)+1; }
+    const stArr = Object.entries(stMap).sort((a,b)=>b[1]-a[1]).map(([s,t])=>({status:s,total:t}));
+    renderComBarras('com-vendedor-bars', vends, vends[0]?.total||1,'#22c55e','#06b6d4');
+    renderComPlanoDonutData(plans);
+    renderComStatusDonut(stArr);
+    renderComBarras('com-cidades-bars', data.cidades, data.cidades[0]?.total||1, '#6366f1','#06b6d4');
+    if (vendBadge) vendBadge.style.display='none';
+    const vendCount = document.getElementById('com-vend-count');
+    if (vendCount) vendCount.textContent = vends.length;
   } else {
     renderComBarras('com-cidades-bars',  data.cidades,   data.cidades[0]?.total||1,  '#6366f1','#06b6d4');
     renderComPlanoDonutData(data.planos);
     renderComStatusDonut(data.por_status || []);
+    renderComBarras('com-vendedor-bars', data.vendedores, data.vendedores[0]?.total||1,'#22c55e','#06b6d4');
     if (vendBadge) vendBadge.style.display='none';
     const cidCount = document.getElementById('com-cid-count');
     if (cidCount) cidCount.textContent = data.cidades.length;
+    const vendCount = document.getElementById('com-vend-count');
+    if (vendCount) vendCount.textContent = data.vendedores.length;
   }
-  renderComBarras('com-vendedor-bars', data.vendedores, data.vendedores[0]?.total||1,'#22c55e','#06b6d4');
   renderComUltimas(lista);
 }
 
