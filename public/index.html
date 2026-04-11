@@ -6533,9 +6533,8 @@ async function loadComercial() {
 
     _comData = data;
     _comFiltro = { type: '', val: '' };
-    try { localStorage.setItem('ops360_com_cache', JSON.stringify({ data, ts: Date.now() })); } catch {}
+    if (!data._stale) { try { localStorage.setItem('ops360_com_cache', JSON.stringify({ data, ts: Date.now() })); } catch {} }
     if (typeof buildNotificacoes === 'function') buildNotificacoes();
-
 
     const ev = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
     ev('com-total',      data.total);
@@ -6551,9 +6550,15 @@ async function loadComercial() {
     renderComCanceladosDetalhe(data);
 
     const hora = new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
-    if (badge) { badge.textContent = `Atualizado ${hora}`; badge.className = 'badge b-green'; }
-    const pill = document.getElementById('live-pill-text');
-    if (pill) pill.textContent = hora;
+    if (data._stale) {
+      if (badge) { badge.textContent = 'Atualizando...'; badge.className = 'badge b-amber'; }
+      // Retry silencioso após 15s para pegar dados frescos
+      setTimeout(() => loadComercial(), 15000);
+    } else {
+      if (badge) { badge.textContent = `Atualizado ${hora}`; badge.className = 'badge b-green'; }
+      const pill = document.getElementById('live-pill-text');
+      if (pill) pill.textContent = hora;
+    }
   } catch(e) {
     if (badge) { badge.textContent = 'Erro'; badge.className = 'badge b-red'; }
     console.warn('Comercial:', e.message);

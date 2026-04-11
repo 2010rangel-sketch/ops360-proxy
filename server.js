@@ -1382,6 +1382,7 @@ let _comAllClientes  = null;   // array de clientes normalizados
 let _comCancelados   = null;   // clientes cancelados recentes (para capturar cancelados no mesmo mês)
 let _comFetching     = false;  // lock
 let _comFetchedAt    = 0;      // timestamp da última busca completa
+let _comResultCache  = null;   // último buildComResult() — persiste no banco para boot rápido
 let _comAllCancelados = null;  // todos os cancelados (histórico completo)
 let _comAllCanceladosAt = 0;
 let _comAllCanceladosFetching = false;
@@ -1561,6 +1562,9 @@ async function warmupComercial() {
     const cx = await dbCacheRestore('cache:conexoes');
     if (cx?.cidades) { _cxCache = { clientes: [], cidades: cx.cidades, ts: cx.ts }; console.log('[boot] conexoes restauradas'); }
     // Clientes brutos não são persistidos no DB (array grande) — warm-up em background aos 5s
+    // Resultado processado do comercial (mês atual) — pequeno, restaura para boot rápido
+    const comRes = await dbCacheRestore('cache:comercial:mesatual');
+    if (comRes) { _comResultCache = comRes; console.log('[boot] comercial resultado restaurado do banco'); }
   } catch(e) { console.warn('[boot] restauração do banco falhou:', e.message); }
 })();
 
@@ -1637,8 +1641,9 @@ app.get('/api/comercial', async (req, res) => {
     const ultimoDiaMes   = new Date(agora.getFullYear(), agora.getMonth() + 1, 0);
     const iniStr = req.query.data_inicio || fmtDate(primeiroDiaMes);
     const fimStr = req.query.data_fim    || fmtDate(ultimoDiaMes);
+    const isMesAtual = iniStr === fmtDate(primeiroDiaMes) && fimStr === fmtDate(ultimoDiaMes);
 
-    // Cache disponível → busca cancelados do PERÍODO via filtro nativo da API (rápido: 1-2 páginas)
+    // Cache completo disponível → build resultado fresco
     if (_comAllClientes) {
       let cancelados = [];
       try {
@@ -1655,7 +1660,19 @@ app.get('/api/comercial', async (req, res) => {
       }
       const todos  = [..._comAllClientes, ...cancelados];
       const vendas = buildVendasFromClientes(todos, iniStr, fimStr);
-      return res.json(buildComResult(vendas, iniStr, fimStr));
+      const result = buildComResult(vendas, iniStr, fimStr);
+      // Salva resultado do mês atual no banco para boot rápido
+      if (isMesAtual) {
+        _comResultCache = result;
+        dbCacheSave('cache:comercial:mesatual', result).catch(()=>{});
+      }
+      return res.json(result);
+    }
+
+    // Cache ainda aquecendo — serve resultado anterior do banco se disponível (mês atual)
+    if (isMesAtual && _comResultCache) {
+      warmupComercial().catch(console.warn);
+      return res.json({ ..._comResultCache, _stale: true });
     }
 
     // Cache vazio → dispara warm-up e avisa o frontend
@@ -1664,7 +1681,7 @@ app.get('/api/comercial', async (req, res) => {
       ok: false,
       motivo: 'cache_warmup',
       warming: true,
-      info: 'Base de clientes sendo carregada. Tente novamente em 60 segundos.',
+      info: 'Base de clientes sendo carregada. Tente novamente em alguns segundos.',
     });
   } catch(e) {
     res.json({ ok: false, motivo: e.message, vendas: [], cidades: [], vendedores: [], planos: [] });
