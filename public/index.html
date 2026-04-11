@@ -1292,16 +1292,16 @@ input[type="text"]::placeholder { color:var(--text3); }
       </div>
 
       <!-- Row 2: Por plano + Por Status (donuts) + Todas as vendas -->
-      <div style="display:grid;grid-template-columns:260px 220px 1fr;gap:14px;margin-bottom:14px">
+      <div style="display:grid;grid-template-columns:215px 195px 1fr;gap:14px;margin-bottom:14px">
 
         <!-- Por plano -->
         <div class="tbl-card" style="margin-bottom:0">
           <div class="tbl-header">
             <span class="tbl-title"><i class="fas fa-layer-group" style="color:var(--amber);margin-right:5px"></i>Por Plano</span>
           </div>
-          <div style="padding:12px 16px">
-            <svg id="com-plano-donut" viewBox="0 0 200 200" style="width:100%;max-width:160px;display:block;margin:0 auto"></svg>
-            <div id="com-plano-legend" style="margin-top:10px"></div>
+          <div style="padding:8px 12px">
+            <svg id="com-plano-donut" viewBox="0 0 200 200" style="width:100%;max-width:130px;display:block;margin:0 auto"></svg>
+            <div id="com-plano-legend" style="margin-top:8px"></div>
           </div>
         </div>
 
@@ -1310,13 +1310,13 @@ input[type="text"]::placeholder { color:var(--text3); }
           <div class="tbl-header">
             <span class="tbl-title"><i class="fas fa-signal" style="color:var(--cyan);margin-right:5px"></i>Por Status</span>
           </div>
-          <div style="padding:12px 16px">
-            <svg id="com-status-donut" viewBox="0 0 200 200" style="width:100%;max-width:140px;display:block;margin:0 auto"></svg>
-            <div id="com-status-legend" style="margin-top:10px"></div>
+          <div style="padding:8px 12px">
+            <svg id="com-status-donut" viewBox="0 0 200 200" style="width:100%;max-width:120px;display:block;margin:0 auto"></svg>
+            <div id="com-status-legend" style="margin-top:8px"></div>
           </div>
         </div>
 
-        <!-- Todas as vendas (scrollable) -->
+        <!-- Todas as vendas -->
         <div class="tbl-card" style="margin-bottom:0">
           <div class="tbl-header">
             <span class="tbl-title"><i class="fas fa-list" style="color:var(--text3);margin-right:5px"></i>Vendas</span>
@@ -1330,10 +1330,10 @@ input[type="text"]::placeholder { color:var(--text3); }
                 style="width:100%;box-sizing:border-box;padding:6px 10px 6px 30px;background:var(--bg);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
             </div>
           </div>
-          <div style="overflow-x:auto;max-height:340px;overflow-y:auto">
-            <table class="tbl" style="font-size:12px">
+          <div style="max-height:340px;overflow-y:auto">
+            <table class="tbl" style="font-size:12px;table-layout:fixed;width:100%">
               <thead><tr>
-                <th>Cliente</th><th>Cidade</th><th>Vendedor</th><th>Plano</th><th>Data venda</th><th>Tipo</th><th>Status</th>
+                <th style="width:22%">Cliente</th><th style="width:14%">Cidade</th><th style="width:14%">Vendedor</th><th style="width:26%">Plano</th><th style="width:10%">Data</th><th style="width:7%">Tipo</th><th style="width:7%">Status</th>
               </tr></thead>
               <tbody id="com-ult-tbl">
                 <tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr>
@@ -6253,7 +6253,7 @@ function renderComPlanoDonutData(planos) {
       const rowHtml = `<div ${!isOutros ? `onclick="setComFiltro('plano','${p.nome.replace(/'/g,"&#39;")}')"` : `onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'':'none';this.querySelector('.out-arrow').textContent=this.nextElementSibling.style.display===''?'▲':'▼'"`} style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:4px;cursor:pointer;padding:3px 5px;border-radius:4px;border:1.5px solid ${isActivePlan?'var(--accent)':'transparent'};background:${isActivePlan?'var(--accent-light)':'transparent'}">
         <div style="display:flex;align-items:center;gap:5px">
           <span style="width:8px;height:8px;border-radius:2px;background:${COLORS[i%COLORS.length]};display:inline-block;flex-shrink:0"></span>
-          <span style="color:${isActivePlan?'var(--accent)':'var(--text2)'};max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.nome}">${p.nome}</span>
+          <span style="color:${isActivePlan?'var(--accent)':'var(--text2)'};max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px" title="${p.nome}">${p.nome}</span>
           ${isOutros ? `<span class="out-arrow" style="color:var(--text3);font-size:9px">▼</span>` : ''}
         </div>
         <span style="color:var(--text3);font-weight:600">${p.total} <span style="color:var(--text3);font-weight:400">(${Math.round(p.total/total*100)}%)</span></span>
@@ -6282,17 +6282,18 @@ function renderComUltimas(ultimas) {
     const statusTag = v.cancelado
       ? '<span style="background:rgba(239,68,68,.12);color:var(--red);font-size:10px;padding:2px 6px;border-radius:4px">Cancelado</span>'
       : '<span style="background:rgba(34,197,94,.12);color:#22c55e;font-size:10px;padding:2px 6px;border-radius:4px">Ativo</span>';
+    const OE = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
     return `<tr onclick="verDetalhesVenda(${i})" style="cursor:pointer" title="Ver detalhes">
-    <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--accent);text-decoration:underline dotted" title="${v.cliente}">${v.cliente}</td>
-    <td>${v.cidade || '—'}</td>
-    <td style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.vendedor || '—'}</td>
-    <td><span style="background:var(--accent-light);color:var(--accent);font-size:10px;padding:2px 6px;border-radius:4px;white-space:nowrap">${v.plano}</span></td>
-    <td style="white-space:nowrap">${fmtData(v.dataVenda || v.dataCad)}</td>
-    <td>${v.reativacao
-      ? '<span style="background:rgba(6,182,212,.12);color:var(--cyan);font-size:10px;padding:2px 6px;border-radius:4px">Reativação</span>'
-      : '<span style="background:rgba(34,197,94,.12);color:#22c55e;font-size:10px;padding:2px 6px;border-radius:4px">Nova</span>'
+    <td style="${OE};color:var(--accent);text-decoration:underline dotted" title="${v.cliente}">${v.cliente}</td>
+    <td style="${OE}" title="${v.cidade||''}">${v.cidade || '—'}</td>
+    <td style="${OE}" title="${v.vendedor||''}">${v.vendedor || '—'}</td>
+    <td style="${OE}"><span style="background:var(--accent-light);color:var(--accent);font-size:10px;padding:2px 5px;border-radius:4px" title="${v.plano}">${v.plano}</span></td>
+    <td style="${OE}">${fmtData(v.dataVenda || v.dataCad)}</td>
+    <td style="${OE}">${v.reativacao
+      ? '<span style="background:rgba(6,182,212,.12);color:var(--cyan);font-size:10px;padding:2px 5px;border-radius:4px">Reat.</span>'
+      : '<span style="background:rgba(34,197,94,.12);color:#22c55e;font-size:10px;padding:2px 5px;border-radius:4px">Nova</span>'
     }</td>
-    <td>${statusTag}</td>
+    <td style="${OE}">${statusTag}</td>
   </tr>`;
   }).join('');
 }
