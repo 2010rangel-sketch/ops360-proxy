@@ -1636,16 +1636,26 @@ setInterval(() => warmupCanceladosGeral(), 6 * 60 * 60 * 1000);
 // Busca ativos + cancelados do período diretamente via API (sem warmup)
 async function _fetchComercialPeriodo(iniStr, fimStr) {
   const token = await getToken();
+  // Expande 1 dia em cada extremo na query da API para evitar perda por
+  // diferença de timezone entre API (UTC) e dados locais (BRT -03:00)
+  const expandDate = (str, days) => {
+    const d = new Date(str + 'T12:00:00Z');
+    d.setUTCDate(d.getUTCDate() + days);
+    return d.toISOString().slice(0, 10);
+  };
+  const apiIni = expandDate(iniStr, -1);
+  const apiFim = expandDate(fimStr,  1);
   const filtroBase = {
     relacoes: 'endereco_instalacao',
     tipo_data_cliente_servico: 'data_venda',
-    data_inicio_cliente_servico: iniStr,
-    data_fim_cliente_servico: fimStr,
+    data_inicio_cliente_servico: apiIni,
+    data_fim_cliente_servico: apiFim,
   };
   const [ativos, cancelados] = await Promise.all([
     fetchIntegracaoClientes(token, { ...filtroBase, cancelado: 'nao' }, 50).catch(() => []),
     fetchIntegracaoClientes(token, { ...filtroBase, cancelado: 'sim' }, 20).catch(() => []),
   ]);
+  // Filtro exato de data é aplicado em buildVendasFromClientes (não sofre de timezone)
   const vendas = buildVendasFromClientes([...ativos, ...cancelados], iniStr, fimStr);
   return buildComResult(vendas, iniStr, fimStr);
 }
