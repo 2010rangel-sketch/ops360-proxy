@@ -532,7 +532,7 @@ input[type="text"]::placeholder { color:var(--text3); }
     </div>
     <div class="topbar-right">
       <div class="topbar-clock" id="clock">--:--:--</div>
-      <button class="icon-btn" onclick="toggleNotif()"><i class="fas fa-bell"></i><div class="notif-pip"></div></button>
+      <button class="icon-btn" onclick="toggleNotif()"><i class="fas fa-bell"></i><div class="notif-pip" style="display:none"></div></button>
       <button class="icon-btn" onclick="goPage('integracoes')"><i class="fas fa-cog"></i></button>
     </div>
   </div>
@@ -2483,7 +2483,6 @@ input[type="text"]::placeholder { color:var(--text3); }
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="chamados" style="cursor:pointer"> <span style="font-size:12px">Chamados</span></label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="retencao" style="cursor:pointer"> <span style="font-size:12px">Cancelamento</span></label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="financeiro" style="cursor:pointer"> <span style="font-size:12px">Financeiro</span></label>
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="fiscal" style="cursor:pointer"> <span style="font-size:12px">Fiscal</span></label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="estoque" style="cursor:pointer"> <span style="font-size:12px">Estoque</span></label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="rh" style="cursor:pointer"> <span style="font-size:12px">RH</span></label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="saude" style="cursor:pointer"> <span style="font-size:12px">Saúde da Base</span></label>
@@ -2511,12 +2510,9 @@ input[type="text"]::placeholder { color:var(--text3); }
 
 <!-- NOTIF OVERLAY -->
 <div class="notif-overlay" id="notifOverlay" onclick="toggleNotif()">
-  <div class="notif-panel" onclick="e=>e.stopPropagation()">
+  <div class="notif-panel" onclick="event.stopPropagation()">
     <div class="notif-head"><h4>Notificações</h4><button class="btn btn-sm" onclick="toggleNotif()">Fechar</button></div>
-    <div class="notif-item"><div class="ni-icon" style="background:var(--red-light);color:var(--red)"><i class="fas fa-clock"></i></div><div><div class="notif-msg"><strong>Chamado #3847 atrasado</strong>SLA expirado há 45 min — João Silva</div><div class="notif-when">há 3 min · WhatsApp enviado</div></div></div>
-    <div class="notif-item"><div class="ni-icon" style="background:var(--orange-light);color:var(--orange)"><i class="fas fa-redo"></i></div><div><div class="notif-msg"><strong>Retrabalho #3851 aberto</strong>Mesmo cliente — 2ª visita em 7 dias</div><div class="notif-when">há 12 min · Email enviado</div></div></div>
-    <div class="notif-item"><div class="ni-icon" style="background:var(--amber-light);color:var(--amber)"><i class="fas fa-user-minus"></i></div><div><div class="notif-msg"><strong>Cancelamento #12045</strong>Motivo: Preço</div><div class="notif-when">há 28 min</div></div></div>
-    <div class="notif-item"><div class="ni-icon" style="background:var(--green-light);color:var(--green)"><i class="fas fa-check"></i></div><div><div class="notif-msg"><strong>Retenção bem-sucedida!</strong>Cliente #11983 revertido — Desconto 20%</div><div class="notif-when">há 1h 4min</div></div></div>
+    <div id="notif-lista"><div style="padding:24px 16px;text-align:center;color:var(--text3);font-size:12px"><i class="fas fa-spinner fa-spin" style="font-size:18px;margin-bottom:8px;display:block;opacity:.5"></i>Carregando...</div></div>
   </div>
 </div>
 
@@ -2671,7 +2667,84 @@ function _pageFromPath() {
 }
 
 // NOTIF
-function toggleNotif() { document.getElementById('notifOverlay').classList.toggle('open'); }
+function toggleNotif() {
+  const ov = document.getElementById('notifOverlay');
+  const abrir = !ov.classList.contains('open');
+  ov.classList.toggle('open');
+  if (abrir) buildNotificacoes();
+}
+
+function buildNotificacoes() {
+  const pgOk = new Set((_authUser?.paginas || '').split(',').map(p => p.trim()));
+  const itens = [];
+
+  // ── Chamados ──────────────────────────────────────────────────────
+  if (pgOk.has('chamados') && chamadosDB.length) {
+    const atrasados   = chamadosDB.filter(c => c.st === 'atrasado');
+    const retrabalhos = chamadosDB.filter(c => c.rtb || c.st === 'retrabalho');
+    if (atrasados.length) {
+      const tecs = [...new Set(atrasados.map(c => c.tec).filter(Boolean))].slice(0, 2).join(', ') || '—';
+      itens.push({ icon:'fa-clock', cor:'var(--red)', bg:'var(--red-light)',
+        titulo:`${atrasados.length} chamado${atrasados.length>1?'s':''} atrasado${atrasados.length>1?'s':''}`,
+        desc:`SLA expirado — ${tecs}`,
+        onclick:`goPage('chamados',document.querySelector(".nav-item[onclick*=\\'chamados\\']"))` });
+    }
+    if (retrabalhos.length) {
+      itens.push({ icon:'fa-redo', cor:'var(--orange)', bg:'var(--orange-light)',
+        titulo:`${retrabalhos.length} retrabalho${retrabalhos.length>1?'s':''}`,
+        desc:'Visitas repetidas no período',
+        onclick:`filterSt('retrabalho',null);goPage('chamados',document.querySelector(".nav-item[onclick*=\\'chamados\\']"))` });
+    }
+  }
+
+  // ── Cancelamento / Retenção ───────────────────────────────────────
+  if (pgOk.has('retencao') && _retData) {
+    const canc = _retData.cancelados ?? 0;
+    const taxa = _retData.taxa_retencao;
+    if (canc > 0) {
+      const alerta = taxa != null && taxa < 50;
+      itens.push({ icon:'fa-user-minus', cor: alerta?'var(--red)':'var(--amber)', bg: alerta?'var(--red-light)':'var(--amber-light)',
+        titulo:`${canc} cancelamento${canc>1?'s':''}`,
+        desc: taxa != null ? `Taxa de retenção: ${taxa}%` : 'Ver painel de cancelamento',
+        onclick:`goPage('retencao',document.querySelector(".nav-item[onclick*=\\'retencao\\']"))` });
+    }
+  }
+
+  // ── Comercial ─────────────────────────────────────────────────────
+  if (pgOk.has('comercial') && _comData) {
+    const canc = _comData.cancelados ?? 0;
+    const novas = _comData.novas ?? 0;
+    if (canc > 0) {
+      itens.push({ icon:'fa-user-minus', cor:'var(--red)', bg:'var(--red-light)',
+        titulo:`${canc} cancelamento${canc>1?'s':''} comercial`,
+        desc:'Cancelamentos no período selecionado',
+        onclick:`goPage('comercial',document.querySelector(".nav-item[onclick*=\\'comercial\\']"))` });
+    }
+    if (novas > 0) {
+      itens.push({ icon:'fa-handshake', cor:'var(--green)', bg:'var(--green-light)',
+        titulo:`${novas} nova${novas>1?'s':''} venda${novas>1?'s':''}`,
+        desc:`Total ${_comData.total} no período`,
+        onclick:`goPage('comercial',document.querySelector(".nav-item[onclick*=\\'comercial\\']"))` });
+    }
+  }
+
+  // ── pip badge ────────────────────────────────────────────────────
+  const pip = document.querySelector('.notif-pip');
+  if (pip) pip.style.display = itens.length ? '' : 'none';
+
+  // ── render ───────────────────────────────────────────────────────
+  const lista = document.getElementById('notif-lista');
+  if (!lista) return;
+  if (!itens.length) {
+    lista.innerHTML = '<div style="padding:24px 16px;text-align:center;color:var(--text3);font-size:12px"><i class="fas fa-check-circle" style="font-size:22px;margin-bottom:10px;display:block;opacity:.35"></i>Nenhuma notificação no momento</div>';
+    return;
+  }
+  lista.innerHTML = itens.map(n => `
+    <div class="notif-item" onclick="${n.onclick};toggleNotif()">
+      <div class="ni-icon" style="background:${n.bg};color:${n.cor}"><i class="fas ${n.icon}"></i></div>
+      <div><div class="notif-msg"><strong>${n.titulo}</strong>${n.desc}</div></div>
+    </div>`).join('');
+}
 
 // Dados estáticos de dashboard removidos — renderDashboard() usa dados reais
 
@@ -4041,6 +4114,7 @@ function aplicarDados(dados) {
   buildTiposConfig();
   populateDropdowns();
   applyFilters();
+  if (typeof buildNotificacoes === 'function') buildNotificacoes();
 }
 
 // ── WEATHER — Open-Meteo (gratuito, sem API key) ────────────────────────────
@@ -4776,6 +4850,7 @@ async function loadRetencaoAtend() {
       try { localStorage.setItem('ops360_ret_cache', JSON.stringify({ data, ts: Date.now() })); } catch {}
       renderRetencao(data);
       renderDashRetencao();
+      if (typeof buildNotificacoes === 'function') buildNotificacoes();
     }
     else if (badge) { badge.textContent = 'Erro'; badge.className = 'badge b-red'; }
   } catch(e) {
@@ -6361,6 +6436,7 @@ async function loadComercial() {
     _comData = data;
     _comFiltro = { type: '', val: '' };
     try { localStorage.setItem('ops360_com_cache', JSON.stringify({ data, ts: Date.now() })); } catch {}
+    if (typeof buildNotificacoes === 'function') buildNotificacoes();
 
 
     const ev = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
