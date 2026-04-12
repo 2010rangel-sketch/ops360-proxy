@@ -516,7 +516,7 @@ input[type="text"]::placeholder { color:var(--text3); }
   <div class="nav-item active" onclick="goPage('comercial',this)"><i class="fas fa-briefcase"></i> Comercial</div>
   <div class="nav-item" onclick="goPage('atendimento',this)"><i class="fas fa-headset"></i> Atendimento</div>
   <div class="nav-item" onclick="goPage('chamados',this)"><i class="fas fa-ticket-alt"></i> Chamados</div>
-  <div class="nav-item" onclick="goPage('retencao',this)"><i class="fas fa-user-shield"></i> Cancelamento / Retenção</div>
+  <div class="nav-item" onclick="goPage('retencao',this)"><i class="fas fa-user-shield"></i> Retenção / Cancelamento</div>
   <div class="nav-item" onclick="goPage('remocao',this)"><i class="fas fa-tools"></i> Remoção / Cobrança</div>
   <div class="nav-item" onclick="goPage('financeiro',this)"><i class="fas fa-dollar-sign"></i> Financeiro</div>
   <div class="nav-item" onclick="goPage('fiscal',this)"><i class="fas fa-file-invoice"></i> Fiscal</div>
@@ -689,7 +689,7 @@ input[type="text"]::placeholder { color:var(--text3); }
 
         <div class="tbl-card" style="margin-bottom:0">
           <div class="tbl-header" style="cursor:pointer" onclick="goPage('retencao')">
-            <span class="tbl-title"><i class="fas fa-user-shield" style="color:var(--red);margin-right:6px"></i>Cancelamento / Retenção</span>
+            <span class="tbl-title"><i class="fas fa-user-shield" style="color:var(--red);margin-right:6px"></i>Retenção / Cancelamento</span>
           </div>
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:8px 4px 4px">
             <div style="text-align:center;background:var(--bg3);border-radius:var(--r);padding:10px 6px">
@@ -2554,7 +2554,7 @@ function goPage(id, el, skipHistory) {
   // Marca o nav-item correspondente como ativo
   const navEl = el || document.querySelector(`.nav-item[onclick*="'${id}'"], .space-item[onclick*="'${id}'"]`);
   if(navEl) navEl.classList.add('active');
-  const titles = {chamados:'Chamados',atendimento:'Atendimento',comercial:'Comercial',retencao:'Cancelamento / Retenção',conexoes:'Conexões',financeiro:'Financeiro',fiscal:'Fiscal',estoque:'Estoque',rh:'RH',saude:'Saúde da Base',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
+  const titles = {chamados:'Chamados',atendimento:'Atendimento',comercial:'Comercial',retencao:'Retenção / Cancelamento',conexoes:'Conexões',financeiro:'Financeiro',fiscal:'Fiscal',estoque:'Estoque',rh:'RH',saude:'Saúde da Base',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
   document.getElementById('pageTitle').textContent = titles[id]||id;
   // Reseta pill para "Ao vivo" ao trocar de página (comercial escreve o horário quando carrega)
   const pill = document.getElementById('live-pill-text');
@@ -2661,7 +2661,7 @@ function buildNotificacoes() {
     }
   }
 
-  // ── Cancelamento / Retenção ───────────────────────────────────────
+  // ── Retenção / Cancelamento ───────────────────────────────────────
   if (pgOk.has('retencao') && _retData) {
     const canc = _retData.cancelados ?? 0;
     const taxa = _retData.taxa_retencao;
