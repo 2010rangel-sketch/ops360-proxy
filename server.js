@@ -1054,12 +1054,13 @@ app.get('/api/retencao', async (req, res) => {
     const fechados   = revertidos + cancelados;
     const taxa_retencao = total > 0 ? Math.round(revertidos / total * 100) : null;
 
-    // Por tipo de atendimento de cancelamento (Solicitação + Informação)
+    // Por tipo de atendimento de cancelamento (Solicitação + Informação) — agrega e retorna registros individuais
     const isTipoRelCancel = (tipo) => {
       const u = norm(tipo);
       return (u.includes('SOLICIT') || u.includes('INFORMA')) && u.includes('CANCELAMENTO');
     };
     const mapaTipoCancel = {};
+    const todosAtendCancel = []; // registros individuais de ambos os tipos
     for (const a of lista) {
       const tipo = a.tipo_atendimento?.descricao || 'Sem tipo';
       if (!isTipoRelCancel(tipo)) continue;
@@ -1070,6 +1071,18 @@ app.get('/api/retencao', async (req, res) => {
       if (!mapaTipoCancel[tipo]) mapaTipoCancel[tipo] = { tipo, total: 0, por_atendente: {} };
       mapaTipoCancel[tipo].total++;
       mapaTipoCancel[tipo].por_atendente[at] = (mapaTipoCancel[tipo].por_atendente[at] || 0) + 1;
+      // Registro individual
+      const cli  = a.cliente_servico?.cliente;
+      const cliente = cli?.nome_razaosocial || cli?.display || a.cliente_servico?.display || 'Sem cliente';
+      const data = a.data_fechamento || a.data_cadastro || null;
+      const txtOrig = ((a.descricao_abertura || '') + ' ' + (a.descricao_fechamento || '')).toUpperCase();
+      const origem  = txtOrig.includes('CHAT MIX') || txtOrig.includes('CHATMIX') ? 'ChatMix (WhatsApp)'
+                    : txtOrig.includes('PRESENCIAL') ? 'Presencial'
+                    : txtOrig.includes('LIGA') ? 'Ligação'
+                    : 'Origem ausente';
+      const motivoFechamento = a.descricao_fechamento || a.status_fechamento || '';
+      const desfecho = desfechoOf(a);
+      todosAtendCancel.push({ tipo, atendente: at, cliente, data, origem, motivoFechamento, desfecho });
     }
     const por_tipo_cancelamento = Object.values(mapaTipoCancel)
       .sort((a, b) => b.total - a.total)
@@ -1117,7 +1130,7 @@ app.get('/api/retencao', async (req, res) => {
       ok: true,
       total, revertidos, cancelados, pendentes, taxa_retencao,
       cancelamento_geral, por_motivo_cancelamento_geral,
-      por_tipo_cancelamento,
+      por_tipo_cancelamento, todos_atend_cancel: todosAtendCancel,
       por_atendente, por_origem, ultimos,
       sincronizado_em: new Date().toISOString(),
     };

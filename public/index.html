@@ -4788,15 +4788,39 @@ function _renderCancelServTbl(atendente, tipoCancel) {
   const temFiltro = atendente || tipoCancel;
 
   if (temFiltro && _retData) {
-    // Filtra ultimos por atendente e/ou tipo
+    const fonte = _retData.todos_atend_cancel || _retData.ultimos || [];
+    const label = atendente ? atendente.split(' ')[0] : tipoCancel.split(' ').slice(0,2).join(' ') + '…';
+
+    if (tipoCancel) {
+      // Quando filtro é por TIPO: usa motivoFechamento do atendimento (disponível em todos_atend_cancel)
+      const filtrados = fonte.filter(p =>
+        p.tipo === tipoCancel && (!atendente || p.atendente === atendente)
+      );
+      const mapaM = {};
+      for (const p of filtrados) {
+        const mot = (p.motivoFechamento || 'Sem motivo de fechamento').trim() || 'Sem motivo de fechamento';
+        if (!mapaM[mot]) mapaM[mot] = { motivo: mot, total: 0, clientes: [] };
+        mapaM[mot].total++;
+        mapaM[mot].clientes.push({ nome: p.cliente, cidade: '—', plano: p.tipo, data: p.data });
+      }
+      const motivos = Object.values(mapaM).sort((a, b) => b.total - a.total);
+      const total   = filtrados.length;
+      window._cancelServMotivosFiltro = motivos;
+      if (titulo) titulo.innerHTML = `<i class="fas fa-times-circle" style="color:var(--red);margin-right:6px"></i>Fechamentos — ${label}`;
+      if (sub)    sub.textContent = 'motivo de fechamento do atendimento';
+      if (badge)  badge.textContent = total;
+      if (kpiVal) kpiVal.textContent = total;
+      tbl.innerHTML = motivos.length
+        ? _row(motivos, total, 'mostrarClientesCancelamentoFiltro')
+        : '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Nenhum atendimento</td></tr>';
+      return;
+    }
+
+    // Quando filtro é por ATENDENTE: cross-ref com Hubsoft para motivos reais de cancelamento
     const filtrados = (_retData.ultimos || []).filter(p =>
-      (!atendente   || p.atendente === atendente) &&
-      (!tipoCancel  || p.tipo === tipoCancel) &&
-      p.desfecho === 'cancelado'
+      p.atendente === atendente && p.desfecho === 'cancelado'
     );
     const nomesSet = new Set(filtrados.map(p => p.cliente));
-
-    // Cross-ref com _cancelServData para pegar motivos reais do Hubsoft
     const servData = window._cancelServData;
     if (servData && servData.por_motivo && nomesSet.size > 0) {
       const mapaM = {};
@@ -4811,9 +4835,8 @@ function _renderCancelServTbl(atendente, tipoCancel) {
       const motivos = Object.values(mapaM).sort((a, b) => b.total - a.total);
       const total   = motivos.reduce((s, m) => s + m.total, 0);
       window._cancelServMotivosFiltro = motivos;
-      const label = atendente ? atendente.split(' ')[0] : tipoCancel.split(' ').slice(0,2).join(' ') + '…';
       if (titulo) titulo.innerHTML = `<i class="fas fa-times-circle" style="color:var(--red);margin-right:6px"></i>Cancelamentos — ${label}`;
-      if (sub)    sub.textContent = 'filtrado';
+      if (sub)    sub.textContent = 'filtrado por atendente';
       if (badge)  badge.textContent = total;
       if (kpiVal) kpiVal.textContent = total;
       tbl.innerHTML = motivos.length
@@ -4821,8 +4844,7 @@ function _renderCancelServTbl(atendente, tipoCancel) {
         : '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Sem cruzamento encontrado</td></tr>';
       return;
     }
-
-    // Fallback: sem dados do Hubsoft, agrupa por tipo de atendimento
+    // Fallback atendente sem cross-ref
     const mapaT = {};
     for (const p of filtrados) {
       const t = p.tipo || 'Sem tipo';
@@ -4833,9 +4855,8 @@ function _renderCancelServTbl(atendente, tipoCancel) {
     const motivos = Object.values(mapaT).sort((a, b) => b.total - a.total);
     const total   = filtrados.length;
     window._cancelServMotivosFiltro = motivos;
-    const label = atendente ? atendente.split(' ')[0] : tipoCancel.split(' ').slice(0,2).join(' ') + '…';
     if (titulo) titulo.innerHTML = `<i class="fas fa-times-circle" style="color:var(--red);margin-right:6px"></i>Cancelamentos — ${label}`;
-    if (sub)    sub.textContent = 'filtrado';
+    if (sub)    sub.textContent = 'filtrado por atendente';
     if (badge)  badge.textContent = total;
     if (kpiVal) kpiVal.textContent = total;
     tbl.innerHTML = motivos.length
@@ -4957,13 +4978,16 @@ function renderRetencao(data) {
     }
   }
 
+  // fonte dos registros — todos_atend_cancel tem Solicitação + Informação; ultimos só tem Solicitação
+  const _fonteCancel = data.todos_atend_cancel || data.ultimos || [];
+
   // Por atendente — filtra por tipo de atendimento se ativo
   const atTbl   = document.getElementById('retAtendTbl');
   const atCount = document.getElementById('ret-atend-count');
   let porAt;
   if (_retFiltroTipoCancel) {
     const mapaAt2 = {};
-    (data.ultimos || []).filter(p => p.tipo === _retFiltroTipoCancel).forEach(p => {
+    _fonteCancel.filter(p => p.tipo === _retFiltroTipoCancel).forEach(p => {
       if (!mapaAt2[p.atendente]) mapaAt2[p.atendente] = { atendente: p.atendente, total: 0, revertidos: 0, cancelados: 0 };
       mapaAt2[p.atendente].total++;
       if (p.desfecho === 'revertido') mapaAt2[p.atendente].revertidos++;
@@ -4998,7 +5022,8 @@ function renderRetencao(data) {
   const _filtroUltimos = _retFiltroAt || _retFiltroTipoCancel;
   if (_filtroUltimos) {
     const mapaOrig = {};
-    (data.ultimos || [])
+    // usa _fonteCancel para capturar Informação + Solicitação; filtra por atendente e/ou tipo
+    _fonteCancel
       .filter(p => (!_retFiltroAt || p.atendente === _retFiltroAt) && (!_retFiltroTipoCancel || p.tipo === _retFiltroTipoCancel))
       .forEach(p => {
         const o = p.origem || 'Origem ausente';
@@ -5033,8 +5058,8 @@ function renderRetencao(data) {
   const pedTbl      = document.getElementById('retPedidosTbl');
   const pedBadge    = document.getElementById('ret-pedidos-badge');
   const filtroBadge = document.getElementById('ret-filtro-badge');
-  let ultimos = data.ultimos || [];
-  // Aplica filtros
+  // Se filtro por tipo: usa _fonteCancel (inclui Informação); senão usa ultimos (só Solicitação)
+  let ultimos = _retFiltroTipoCancel ? [..._fonteCancel] : [...(data.ultimos || [])];
   if (_retFiltroAt)         ultimos = ultimos.filter(p => p.atendente === _retFiltroAt);
   if (_retFiltroTip)        ultimos = ultimos.filter(p => p.tipo      === _retFiltroTip);
   if (_retFiltroOrig)       ultimos = ultimos.filter(p => p.origem    === _retFiltroOrig);
@@ -5064,7 +5089,9 @@ function renderRetencao(data) {
       <td style="font-weight:500;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.cliente}</td>
       <td style="font-size:12px">${p.atendente}</td>
       <td style="font-size:12px;color:var(--text2)">${p.origem || '—'}</td>
-      <td>${desfechoBadge(p.desfecho, p.resumo)}</td>
+      <td>${_retFiltroTipoCancel && p.motivoFechamento
+        ? `<span class="badge b-amber" title="${p.motivoFechamento}">${(p.motivoFechamento||'').slice(0,30)}${p.motivoFechamento?.length>30?'…':''}</span>`
+        : desfechoBadge(p.desfecho, p.resumo)}</td>
       <td style="font-size:12px;color:var(--text3)">${p.data ? new Date(p.data).toLocaleDateString('pt-BR') : '—'}</td>
     </tr>`).join('')
     : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Nenhum pedido no período</td></tr>`;
