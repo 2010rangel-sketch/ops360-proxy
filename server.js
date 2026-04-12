@@ -1564,9 +1564,6 @@ async function warmupComercial() {
     // Estoque
     const esq = await dbCacheRestore('cache:estoque');
     if (esq) { _estoqueCache = esq; _estoqueFetchedAt = Date.now(); console.log('[boot] estoque restaurado'); }
-    // Conexões
-    const cx = await dbCacheRestore('cache:conexoes');
-    if (cx?.cidades) { _cxCache = { clientes: [], cidades: cx.cidades, ts: cx.ts }; console.log('[boot] conexoes restauradas'); }
     // Clientes brutos não são persistidos no DB (array grande) — warm-up em background aos 5s
     // Resultado processado do comercial (mês atual) — pequeno, restaura para boot rápido
     const comRes = await dbCacheRestore('cache:comercial:mesatual');
@@ -1576,8 +1573,6 @@ async function warmupComercial() {
 
 // Warm-up de clientes completo desativado — rota agora busca por período diretamente
 // setTimeout(() => warmupComercial().catch(console.warn), 5000);
-// Warm-up de conexões logo após o comercial (10s delay para não sobrecarregar)
-setTimeout(() => fetchConexoesHubsoft().catch(console.warn), 10000);
 // Warm-up do financeiro (65s — comercial leva ~55s; financeiro reutiliza _comAllClientes)
 setTimeout(() => {
   // Só executa se cache está ausente ou vencido, e não há rebuild em andamento
@@ -1758,25 +1753,6 @@ app.get('/api/noc/debug', async (req, res) => {
 });
 
 // ── CONEXÕES: Debug — descobre endpoint de assinantes online/offline ──
-app.get('/api/conexoes/debug', async (req, res) => {
-  const token = await getToken();
-  const headers = { Authorization: `Bearer ${token}` };
-  const getEps = [
-    'v1/assinante/online','v1/assinante/listar','v1/assinante/consultar',
-    'v1/cliente/assinante','v1/radius/sessao','v1/radius/assinante',
-    'v1/conexao/assinante','v1/cliente/online','v1/conexao/consultar',
-  ];
-  const resultados = {};
-  for (const ep of getEps) {
-    try {
-      const r = await axios.get(`${HUBSOFT_HOST}/api/${ep}`, { headers, params: { limit: 1 }, timeout: 6000 });
-      resultados[ep] = { ok: true, status: r.status, keys: Object.keys(r.data || {}), amostra: JSON.stringify(r.data).slice(0,200) };
-    } catch(e) {
-      resultados[ep] = { ok: false, status: e.response?.status, msg: e.message };
-    }
-  }
-  res.json({ host: HUBSOFT_HOST, resultados });
-});
 
 // ── COMERCIAL: Debug — descobre endpoint correto ──────────────────
 app.get('/api/comercial/debug', async (req, res) => {
@@ -2353,115 +2329,6 @@ app.get('/api/integracao/raw', async (req, res) => {
   }
 });
 
-// ── Cache de conexões (evita timeout: endpoint devolve cache instantâneo) ──
-let _cxCache      = null;  // { clientes, cidades, ts }
-let _cxFetching   = false; // lock para evitar fetch paralelo
-const _offlineInicioMap = new Map(); // id_cliente -> timestamp quando detectado offline pela primeira vez
-
-const CIDADES_EXCLUIDAS = ['SANTO ANTÔNIO DO MONTE'];
-
-function buildCidadeMap(clientes) {
-  const cidadeMap = {};
-  for (const c of clientes) {
-    if (CIDADES_EXCLUIDAS.includes((c.cidade || '').toUpperCase())) continue;
-    if (!cidadeMap[c.cidade]) cidadeMap[c.cidade] = { nome: c.cidade, online: 0, offline: 0, lat: null, lng: null };
-    if (c.online) cidadeMap[c.cidade].online++;
-    else          cidadeMap[c.cidade].offline++;
-    if (c.lat && !cidadeMap[c.cidade].lat) { cidadeMap[c.cidade].lat = c.lat; cidadeMap[c.cidade].lng = c.lng; }
-  }
-  return Object.values(cidadeMap).sort((a, b) => b.offline - a.offline);
-}
-
-// Busca TODOS os clientes ativos e popula o cache
-async function fetchConexoesHubsoft() {
-  if (_cxFetching) return _cxCache?.clientes || null;
-  _cxFetching = true;
-  try {
-    const token    = await getToken();
-    // endereco_instalacao como relação traz coordenadas; ipv4 já vem por padrão no serviço
-    const clientes = await fetchIntegracaoClientes(token, {
-      cancelado: 'nao',
-      relacoes:  'endereco_instalacao',
-    });
-    if (!clientes.length) { _cxFetching = false; return null; }
-
-    const resultado = [];
-    for (const cli of clientes) {
-      const nome       = cli.nome_razaosocial || '—';
-      const alerta     = cli.alerta === true;
-      const alertaMsgs = cli.alerta_mensagens || [];
-      const servicos   = cli.servicos || [];
-
-      if (!servicos.length) {
-        resultado.push({ id: cli.id_cliente, nome, cidade: cli.cidade || 'Desconhecida',
-          lat: null, lng: null, online: false, alerta, alertaMsgs });
-        continue;
-      }
-      // Verifica TODOS os serviços: se qualquer um tem IP válido, cliente está online
-      let cidade = cli.cidade || 'Desconhecida';
-      let lat = null, lng = null;
-      let online = false;
-      for (const s of servicos) {
-        const endInst = s.endereco_instalacao || {};
-        // Usa coordenadas e cidade do primeiro serviço que tiver
-        if (lat === null && endInst.coordenadas?.latitude != null) {
-          lat = parseFloat(endInst.coordenadas.latitude);
-          lng = parseFloat(endInst.coordenadas.longitude);
-        }
-        if (endInst.cidade) cidade = endInst.cidade;
-        // Online se qualquer serviço ativo tem IP válido
-        const ip = s.ipv4 || '';
-        if (ip !== '' && ip !== '0.0.0.0') online = true;
-      }
-      resultado.push({ id: cli.id_cliente, nome, cidade, lat, lng, online, alerta, alertaMsgs });
-    }
-
-    // Atualiza mapa de tempo offline
-    const agora_cx = Date.now();
-    for (const c of resultado) {
-      if (!c.online) {
-        if (!_offlineInicioMap.has(c.id)) _offlineInicioMap.set(c.id, agora_cx);
-      } else {
-        _offlineInicioMap.delete(c.id);
-      }
-    }
-
-    const cidades = buildCidadeMap(resultado);
-    _cxCache = { clientes: resultado, cidades, ts: new Date().toISOString() };
-    dbCacheSet('cache:conexoes', { cidades, ts: _cxCache.ts }); // persiste resumo no banco (sem clientes raw)
-    console.log(`[conexoes] Cache atualizado: ${resultado.length} clientes, ${cidades.length} cidades`);
-    _cxFetching = false;
-    return resultado;
-  } catch(e) {
-    _cxFetching = false;
-    throw e;
-  }
-}
-
-app.get('/api/conexoes', async (req, res) => {
-  try {
-    // Serve o cache se disponível (resposta < 100ms)
-    if (_cxCache) {
-      return res.json({ ok: true, clientes: _cxCache.clientes.length,
-        cidades: _cxCache.cidades, ts: _cxCache.ts, cache: true });
-    }
-    // Primeira chamada: busca agora (pode demorar)
-    const clientes = await fetchConexoesHubsoft();
-    if (!clientes) {
-      return res.json({ ok: false, motivo: 'sem_clientes_na_base', clientes: [], cidades: [],
-        info: 'Nenhum cliente ativo encontrado.' });
-    }
-    res.json({ ok: true, clientes: clientes.length, cidades: _cxCache.cidades, ts: _cxCache.ts });
-  } catch(e) {
-    console.error('[/api/conexoes]', e.message);
-    // Se há cache antigo, usa mesmo assim
-    if (_cxCache) {
-      return res.json({ ok: true, clientes: _cxCache.clientes.length,
-        cidades: _cxCache.cidades, ts: _cxCache.ts, cache: true, aviso: 'cache_antigo' });
-    }
-    res.json({ ok: false, motivo: e.message, clientes: [], cidades: [] });
-  }
-});
 
 // ── FINANCEIRO ───────────────────────────────────────────────────
 let _finCache    = null;
@@ -3047,51 +2914,6 @@ setInterval(() => _refreshChamadosHoje().catch(console.warn), 15000);
 // Dispara o primeiro refresh após 3s (após boot restore)
 setTimeout(() => _refreshChamadosHoje().catch(console.warn), 3000);
 
-// Cron: atualiza cache e detecta quedas (a cada 3 minutos)
-const OFFLINE_THRESHOLD = parseInt(process.env.OFFLINE_THRESHOLD || '5');
-cron.schedule('*/3 * * * *', async () => {
-  try {
-    const prevClientes = _cxCache?.clientes || [];
-    const clientes = await fetchConexoesHubsoft(); // atualiza _cxCache
-    if (!clientes) return;
-
-    // Detecta quedas comparando com estado anterior
-    const prev  = {};
-    for (const c of prevClientes) {
-      if (!prev[c.cidade]) prev[c.cidade] = { online: 0, offline: 0 };
-      if (c.online) prev[c.cidade].online++; else prev[c.cidade].offline++;
-    }
-    const atual = {};
-    for (const c of clientes) {
-      if (!atual[c.cidade]) atual[c.cidade] = { online: 0, offline: 0 };
-      if (c.online) atual[c.cidade].online++; else atual[c.cidade].offline++;
-    }
-
-    for (const [cidade, stats] of Object.entries(atual)) {
-      const prevStats = prev[cidade] || { online: 0, offline: 0 };
-      const deltaOff  = stats.offline - prevStats.offline;
-      if (deltaOff >= OFFLINE_THRESHOLD) {
-        const key = `${cidade}-${Math.floor(Date.now() / 600000)}`;
-        if (!offlineAlertSent.has(key)) {
-          offlineAlertSent.add(key);
-          const alertas = clientes
-            .filter(c => c.cidade === cidade && c.alertaMsgs?.length)
-            .flatMap(c => c.alertaMsgs)
-            .filter((v, i, a) => a.indexOf(v) === i)
-            .slice(0, 3);
-          const alertaTxt = alertas.length ? `\n\n📋 *Hubsoft:*\n${alertas.join('\n')}` : '';
-          const hora = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-          const msg = `⚠️ OPS360 — ALERTA DE QUEDA\n*${deltaOff} clientes* ficaram offline em *${cidade}*\nOnline: ${stats.online} | Offline: ${stats.offline}\n🕐 ${hora}${alertaTxt}`;
-          sendWhatsApp(msg).catch(console.error);
-          console.log(`[ALERTA] Queda em ${cidade}: +${deltaOff} offline`);
-        }
-      }
-    }
-    if (offlineAlertSent.size > 200) offlineAlertSent.clear();
-  } catch(e) {
-    console.warn('[cron-conexoes]', e.message);
-  }
-});
 
 // ── SAÚDE DA BASE ────────────────────────────────────────────────────────────
 const STATUS_CONTRATO_SUSPENSO = new Set(['suspenso_debito','suspenso_pedido_cliente','bloqueio_temporario','suspenso_judicial']);
