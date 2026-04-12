@@ -1340,6 +1340,39 @@ input[type="text"]::placeholder { color:var(--text3); }
         <span class="badge b-green" id="ret-atend-sync" style="margin-left:auto">—</span>
       </div>
 
+      <!-- KPIs de retenção — topo da página -->
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:14px">
+        <div class="kpi-mini">
+          <div class="kpi-mini-bar" style="background:var(--accent)"></div>
+          <div class="kpi-mini-label">Pedidos de cancelamento</div>
+          <div class="kpi-mini-val" id="ret-ped-total" style="color:var(--accent)">—</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px">via atendimento</div>
+        </div>
+        <div class="kpi-mini">
+          <div class="kpi-mini-bar" style="background:var(--green)"></div>
+          <div class="kpi-mini-label">Revertidos</div>
+          <div class="kpi-mini-val" id="ret-ped-revert" style="color:var(--green)">—</div>
+        </div>
+        <div class="kpi-mini">
+          <div class="kpi-mini-bar" style="background:var(--red)"></div>
+          <div class="kpi-mini-label">Canc. Passivo</div>
+          <div class="kpi-mini-val" id="ret-canc-passivo" style="color:var(--red)">—</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px">cliente pediu</div>
+        </div>
+        <div class="kpi-mini">
+          <div class="kpi-mini-bar" style="background:var(--amber)"></div>
+          <div class="kpi-mini-label">Taxa de retenção</div>
+          <div class="kpi-mini-val" id="ret-ped-taxa" style="color:var(--amber)">—</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px">revertidos/pedidos</div>
+        </div>
+        <div class="kpi-mini">
+          <div class="kpi-mini-bar" style="background:var(--red)"></div>
+          <div class="kpi-mini-label">Cancelamento Geral</div>
+          <div class="kpi-mini-val" id="ret-cancel-geral-val" style="color:var(--red)">—</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px">cancelamentos de serviço</div>
+        </div>
+      </div>
+
       <!-- Cancelamento Geral de Serviços — tabela rankeada por motivo -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
 
@@ -1379,39 +1412,6 @@ input[type="text"]::placeholder { color:var(--text3); }
           </div>
         </div>
 
-      </div>
-
-      <!-- KPIs de retenção -->
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:14px">
-        <div class="kpi-mini">
-          <div class="kpi-mini-bar" style="background:var(--accent)"></div>
-          <div class="kpi-mini-label">Pedidos de cancelamento</div>
-          <div class="kpi-mini-val" id="ret-ped-total" style="color:var(--accent)">—</div>
-          <div style="font-size:10px;color:var(--text3);margin-top:2px">via atendimento</div>
-        </div>
-        <div class="kpi-mini">
-          <div class="kpi-mini-bar" style="background:var(--green)"></div>
-          <div class="kpi-mini-label">Revertidos</div>
-          <div class="kpi-mini-val" id="ret-ped-revert" style="color:var(--green)">—</div>
-        </div>
-        <div class="kpi-mini">
-          <div class="kpi-mini-bar" style="background:var(--red)"></div>
-          <div class="kpi-mini-label">Canc. Passivo</div>
-          <div class="kpi-mini-val" id="ret-canc-passivo" style="color:var(--red)">—</div>
-          <div style="font-size:10px;color:var(--text3);margin-top:2px">cliente pediu</div>
-        </div>
-        <div class="kpi-mini">
-          <div class="kpi-mini-bar" style="background:var(--amber)"></div>
-          <div class="kpi-mini-label">Taxa de retenção</div>
-          <div class="kpi-mini-val" id="ret-ped-taxa" style="color:var(--amber)">—</div>
-          <div style="font-size:10px;color:var(--text3);margin-top:2px">revertidos/pedidos</div>
-        </div>
-        <div class="kpi-mini">
-          <div class="kpi-mini-bar" style="background:var(--red)"></div>
-          <div class="kpi-mini-label">Cancelamento Geral</div>
-          <div class="kpi-mini-val" id="ret-cancel-geral-val" style="color:var(--red)">—</div>
-          <div style="font-size:10px;color:var(--text3);margin-top:2px">cancelamentos de serviço</div>
-        </div>
       </div>
 
       <!-- Por atendente + Por tipo -->
