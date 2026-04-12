@@ -1373,48 +1373,7 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
       </div>
 
-      <!-- Cancelamento Geral de Serviços — tabela rankeada por motivo -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-
-        <!-- Tabela de motivos -->
-        <div class="tbl-card" style="margin-bottom:0;border-top:3px solid var(--red)">
-          <div class="tbl-header">
-            <span class="tbl-title" id="ret-cancel-geral-titulo"><i class="fas fa-times-circle" style="color:var(--red);margin-right:6px"></i>Cancelamento Geral do Mês</span>
-            <span style="font-size:10px;color:var(--text3)" id="ret-cancel-geral-sub">cancelamentos de serviço</span>
-            <span class="badge b-red" id="ret-cancel-geral-badge">—</span>
-          </div>
-          <div style="overflow-x:auto;max-height:320px;overflow-y:auto">
-            <table><thead><tr>
-              <th>#</th><th>Motivo</th><th>Total</th><th>%</th>
-            </tr></thead>
-            <tbody id="ret-cancel-serv-tbl">
-              <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr>
-            </tbody></table>
-          </div>
-        </div>
-
-        <!-- Painel de clientes ao clicar num motivo -->
-        <div class="tbl-card" style="margin-bottom:0" id="ret-cancel-clientes-card">
-          <div class="tbl-header">
-            <span class="tbl-title" id="ret-cancel-clientes-titulo"><i class="fas fa-users" style="color:var(--text3);margin-right:5px"></i>Clientes</span>
-            <span class="badge b-red" id="ret-cancel-clientes-badge">—</span>
-          </div>
-          <div style="overflow-x:auto;max-height:320px;overflow-y:auto">
-            <table style="font-size:11px"><thead><tr>
-              <th>Cliente</th><th>Cidade</th><th>Plano</th><th>Habilitação</th><th>Cancelamento</th>
-            </tr></thead>
-            <tbody id="ret-cancel-clientes-tbl">
-              <tr><td colspan="5" style="text-align:center;color:var(--text3);padding:30px;font-size:12px">
-                <i class="fas fa-hand-pointer" style="display:block;margin-bottom:8px;font-size:20px;color:var(--border)"></i>
-                Clique em um motivo para ver os clientes
-              </td></tr>
-            </tbody></table>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- Linha 1: Por Atendente + Por Origem -->
+      <!-- Linha 1: Por Atendente + Cancelamento Geral do Mês -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
         <div class="tbl-card" style="margin-bottom:0">
           <div class="tbl-header">
@@ -1426,19 +1385,40 @@ input[type="text"]::placeholder { color:var(--text3); }
             <tbody id="retAtendTbl"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
           </div>
         </div>
-        <div class="tbl-card" style="margin-bottom:0">
+        <div class="tbl-card" style="margin-bottom:0;border-top:3px solid var(--red)">
           <div class="tbl-header">
-            <span class="tbl-title">Por Origem de Contato</span>
-            <span class="badge b-blue" id="ret-tipo-count">—</span>
+            <span class="tbl-title" id="ret-cancel-geral-titulo"><i class="fas fa-times-circle" style="color:var(--red);margin-right:6px"></i>Cancelamento Geral do Mês</span>
+            <span style="font-size:10px;color:var(--text3)" id="ret-cancel-geral-sub">cancelamentos de serviço</span>
+            <span class="badge b-red" id="ret-cancel-geral-badge">—</span>
           </div>
           <div style="overflow-x:auto;max-height:280px;overflow-y:auto">
-            <table><thead><tr><th>#</th><th>Origem</th><th>Total</th><th style="color:var(--green)">Revertidos</th><th style="color:var(--red)">Cancelados</th></tr></thead>
-            <tbody id="retTipoTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
+            <table><thead><tr><th>#</th><th>Motivo</th><th>Total</th><th>%</th></tr></thead>
+            <tbody id="ret-cancel-serv-tbl">
+              <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr>
+            </tbody></table>
           </div>
         </div>
       </div>
-      <!-- Linha 2: Tipo de Atendimento + Por Cidade -->
+
+      <!-- Linha 2: Clientes + Tipo de Atendimento -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        <div class="tbl-card" style="margin-bottom:0" id="ret-cancel-clientes-card">
+          <div class="tbl-header">
+            <span class="tbl-title" id="ret-cancel-clientes-titulo"><i class="fas fa-users" style="color:var(--text3);margin-right:5px"></i>Clientes</span>
+            <span class="badge b-red" id="ret-cancel-clientes-badge">—</span>
+          </div>
+          <div style="overflow-x:auto;max-height:280px;overflow-y:auto">
+            <table style="font-size:11px"><thead><tr>
+              <th>Cliente</th><th>Cidade</th><th>Plano</th><th>Habilitação</th><th>Cancelamento</th>
+            </tr></thead>
+            <tbody id="ret-cancel-clientes-tbl">
+              <tr><td colspan="5" style="text-align:center;color:var(--text3);padding:30px;font-size:12px">
+                <i class="fas fa-hand-pointer" style="display:block;margin-bottom:8px;font-size:20px;color:var(--border)"></i>
+                Clique em um motivo para ver os clientes
+              </td></tr>
+            </tbody></table>
+          </div>
+        </div>
         <div class="tbl-card" style="margin-bottom:0;border-top:3px solid var(--accent)">
           <div class="tbl-header">
             <span class="tbl-title" id="ret-tipo-cancel-titulo"><i class="fas fa-phone-slash" style="color:var(--accent);margin-right:5px"></i>Tipo de Atendimento</span>
@@ -1447,6 +1427,20 @@ input[type="text"]::placeholder { color:var(--text3); }
           <div style="overflow-x:auto;max-height:280px;overflow-y:auto">
             <table><thead><tr><th>#</th><th>Tipo</th><th>Total</th></tr></thead>
             <tbody id="retTipoCancel"><tr><td colspan="3" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Linha 3: Por Origem de Contato + Por Cidade -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <span class="tbl-title">Por Origem de Contato</span>
+            <span class="badge b-blue" id="ret-tipo-count">—</span>
+          </div>
+          <div style="overflow-x:auto;max-height:280px;overflow-y:auto">
+            <table><thead><tr><th>#</th><th>Origem</th><th>Total</th><th style="color:var(--green)">Revertidos</th><th style="color:var(--red)">Cancelados</th></tr></thead>
+            <tbody id="retTipoTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
           </div>
         </div>
         <div class="tbl-card" style="margin-bottom:0;border-top:3px solid var(--cyan)">
