@@ -4941,10 +4941,24 @@ function renderRetencao(data) {
     : `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Nenhum pedido no período</td></tr>`;
   }
 
-  // Por tipo
+  // Por Origem de Contato — filtra por atendente se ativo
   const tipoTbl   = document.getElementById('retTipoTbl');
   const tipoCount = document.getElementById('ret-tipo-count');
-  const porOrigem = data.por_origem || [];
+  let porOrigem;
+  if (_retFiltroAt) {
+    // Reconstrói a partir de ultimos filtrado pelo atendente
+    const mapaOrig = {};
+    (data.ultimos || []).filter(p => p.atendente === _retFiltroAt).forEach(p => {
+      const o = p.origem || 'Origem ausente';
+      if (!mapaOrig[o]) mapaOrig[o] = { origem: o, total: 0, revertidos: 0, cancelados: 0 };
+      mapaOrig[o].total++;
+      if (p.desfecho === 'revertido') mapaOrig[o].revertidos++;
+      else if (p.desfecho === 'cancelado') mapaOrig[o].cancelados++;
+    });
+    porOrigem = Object.values(mapaOrig).sort((a, b) => b.total - a.total);
+  } else {
+    porOrigem = data.por_origem || [];
+  }
   if (tipoCount) tipoCount.textContent = `${porOrigem.length} origens`;
   if (tipoTbl) {
     tipoTbl.innerHTML = porOrigem.length ? porOrigem.map((t, i) => {
