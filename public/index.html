@@ -1415,7 +1415,7 @@ input[type="text"]::placeholder { color:var(--text3); }
       </div>
 
       <!-- Por atendente + Por tipo -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px">
         <div class="tbl-card" style="margin-bottom:0">
           <div class="tbl-header">
             <span class="tbl-title">Por Atendente</span>
@@ -1434,6 +1434,16 @@ input[type="text"]::placeholder { color:var(--text3); }
           <div style="overflow-x:auto;max-height:280px;overflow-y:auto">
             <table><thead><tr><th>#</th><th>Origem</th><th>Total</th><th style="color:var(--green)">Revertidos</th><th style="color:var(--red)">Cancelados</th></tr></thead>
             <tbody id="retTipoTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
+          </div>
+        </div>
+        <div class="tbl-card" style="margin-bottom:0;border-top:3px solid var(--accent)">
+          <div class="tbl-header">
+            <span class="tbl-title" id="ret-tipo-cancel-titulo"><i class="fas fa-phone-slash" style="color:var(--accent);margin-right:5px"></i>Tipo de Atendimento</span>
+            <span class="badge b-blue" id="ret-tipo-cancel-badge">—</span>
+          </div>
+          <div style="overflow-x:auto;max-height:280px;overflow-y:auto">
+            <table><thead><tr><th>#</th><th>Tipo</th><th>Total</th></tr></thead>
+            <tbody id="retTipoCancel"><tr><td colspan="3" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
           </div>
         </div>
       </div>
@@ -4950,6 +4960,9 @@ function renderRetencao(data) {
     : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Sem dados no período</td></tr>`;
   }
 
+  // Por tipo de atendimento de cancelamento (Solicitação + Informação)
+  _renderRetTipoCancel(data, _retFiltroAt);
+
   // Pedidos de cancelamento
   const pedTbl      = document.getElementById('retPedidosTbl');
   const pedBadge    = document.getElementById('ret-pedidos-badge');
@@ -5957,6 +5970,39 @@ let _comFiltro      = { type: '', val: '' }; // filtro ativo no comercial
 let _retFiltroAt    = '';                     // filtro atendente retenção
 let _retFiltroTip   = '';                     // filtro tipo retenção
 let _retFiltroOrig  = '';                     // filtro origem de contato
+
+function _renderRetTipoCancel(data, atendente) {
+  const tbl    = document.getElementById('retTipoCancel');
+  const badge  = document.getElementById('ret-tipo-cancel-badge');
+  const titulo = document.getElementById('ret-tipo-cancel-titulo');
+  if (!tbl) return;
+  const tipos = data.por_tipo_cancelamento || [];
+  if (!tipos.length) {
+    tbl.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:20px">Sem dados</td></tr>';
+    if (badge) badge.textContent = '—';
+    return;
+  }
+  // Se tem filtro de atendente: filtra os totais pelo por_atendente de cada tipo
+  const rows = tipos.map((t, i) => {
+    const total = atendente
+      ? (t.por_atendente?.[atendente] || 0)
+      : t.total;
+    return { tipo: t.tipo, total };
+  }).filter(r => !atendente || r.total > 0).sort((a, b) => b.total - a.total);
+
+  const totalGeral = rows.reduce((s, r) => s + r.total, 0);
+  if (badge) badge.textContent = totalGeral;
+  if (titulo) titulo.innerHTML = atendente
+    ? `<i class="fas fa-phone-slash" style="color:var(--accent);margin-right:5px"></i>Tipo — ${atendente.split(' ')[0]}`
+    : `<i class="fas fa-phone-slash" style="color:var(--accent);margin-right:5px"></i>Tipo de Atendimento`;
+
+  tbl.innerHTML = rows.length ? rows.map((r, i) => `<tr>
+    <td style="color:var(--text3)">${i+1}</td>
+    <td style="font-weight:500;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${r.tipo}">${r.tipo}</td>
+    <td class="mono" style="font-weight:700;color:var(--accent)">${r.total}</td>
+  </tr>`).join('')
+  : '<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:20px">Nenhum atendimento</td></tr>';
+}
 
 function setRetFiltro(tipo, val) {
   if (tipo === 'atendente') {

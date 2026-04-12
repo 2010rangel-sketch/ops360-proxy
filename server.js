@@ -1054,6 +1054,27 @@ app.get('/api/retencao', async (req, res) => {
     const fechados   = revertidos + cancelados;
     const taxa_retencao = total > 0 ? Math.round(revertidos / total * 100) : null;
 
+    // Por tipo de atendimento de cancelamento (Solicitação + Informação)
+    const isTipoRelCancel = (tipo) => {
+      const u = norm(tipo);
+      return (u.includes('SOLICIT') || u.includes('INFORMA')) && u.includes('CANCELAMENTO');
+    };
+    const mapaTipoCancel = {};
+    for (const a of lista) {
+      const tipo = a.tipo_atendimento?.descricao || 'Sem tipo';
+      if (!isTipoRelCancel(tipo)) continue;
+      const resps = Array.isArray(a.usuarios_responsaveis) ? a.usuarios_responsaveis : [];
+      const at = resps.map(u => u.name || u.nome).filter(Boolean).join(', ')
+              || a.usuario_fechamento?.name || a.usuario_fechamento?.nome
+              || 'Sem atendente';
+      if (!mapaTipoCancel[tipo]) mapaTipoCancel[tipo] = { tipo, total: 0, por_atendente: {} };
+      mapaTipoCancel[tipo].total++;
+      mapaTipoCancel[tipo].por_atendente[at] = (mapaTipoCancel[tipo].por_atendente[at] || 0) + 1;
+    }
+    const por_tipo_cancelamento = Object.values(mapaTipoCancel)
+      .sort((a, b) => b.total - a.total)
+      .map(t => ({ tipo: t.tipo, total: t.total, por_atendente: t.por_atendente }));
+
     // Cancelamento geral: qualquer atendimento fechado como cancelado, independente do tipo de abertura
     const todosCancel = lista.filter(a => desfechoOf(a) === 'cancelado');
     const cancelamento_geral = todosCancel.length;
@@ -1096,6 +1117,7 @@ app.get('/api/retencao', async (req, res) => {
       ok: true,
       total, revertidos, cancelados, pendentes, taxa_retencao,
       cancelamento_geral, por_motivo_cancelamento_geral,
+      por_tipo_cancelamento,
       por_atendente, por_origem, ultimos,
       sincronizado_em: new Date().toISOString(),
     };
