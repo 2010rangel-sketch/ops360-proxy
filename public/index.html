@@ -1400,11 +1400,11 @@ input[type="text"]::placeholder { color:var(--text3); }
             <span class="badge b-red" id="ret-cancel-clientes-badge">—</span>
           </div>
           <div style="overflow-x:auto;max-height:320px;overflow-y:auto">
-            <table><thead><tr>
-              <th>Cliente</th><th>Cidade</th><th>Plano</th><th>Data</th>
+            <table style="font-size:11px"><thead><tr>
+              <th>Cliente</th><th>Cidade</th><th>Plano</th><th>Habilitação</th><th>Cancelamento</th>
             </tr></thead>
             <tbody id="ret-cancel-clientes-tbl">
-              <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:30px;font-size:12px">
+              <tr><td colspan="5" style="text-align:center;color:var(--text3);padding:30px;font-size:12px">
                 <i class="fas fa-hand-pointer" style="display:block;margin-bottom:8px;font-size:20px;color:var(--border)"></i>
                 Clique em um motivo para ver os clientes
               </td></tr>
@@ -4955,12 +4955,14 @@ function mostrarClientesCancelamento(idx) {
   if (titulo) titulo.innerHTML = `<i class="fas fa-users" style="color:var(--red);margin-right:5px"></i>${m.motivo}`;
   if (badge)  badge.textContent = m.total;
   if (!tbl) return;
-  const fmt = d => { if (!d) return '—'; const [dd,mm,yyyy] = d.split('/'); return dd&&mm&&yyyy ? `${dd}/${mm}/${yyyy}` : d; };
+  const fmt = d => { if (!d) return '—'; const p = d.split('/'); if (p.length===3) return `${p[0]}/${p[1]}/${p[2]}`; try { return new Date(d).toLocaleDateString('pt-BR'); } catch { return d; } };
+  const abrevPlano = p => p && p.length > 22 ? p.slice(0,22) + '…' : (p||'—');
   tbl.innerHTML = m.clientes.map(c => `<tr>
-    <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500" title="${c.nome}">${c.nome}</td>
-    <td style="color:var(--text3)">${c.cidade}</td>
-    <td><span style="background:var(--accent-light);color:var(--accent);font-size:10px;padding:2px 5px;border-radius:4px;white-space:nowrap">${c.plano}</span></td>
-    <td style="color:var(--text3);white-space:nowrap">${fmt(c.data)}</td>
+    <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;font-size:11px" title="${c.nome}">${c.nome}</td>
+    <td style="color:var(--text3);font-size:10px;white-space:nowrap">${c.cidade}</td>
+    <td title="${c.plano}"><span style="background:var(--accent-light);color:var(--accent);font-size:10px;padding:2px 5px;border-radius:4px;white-space:nowrap">${abrevPlano(c.plano)}</span></td>
+    <td style="color:var(--green);font-size:10px;white-space:nowrap">${fmt(c.habilitacao)}</td>
+    <td style="color:var(--red);font-size:10px;white-space:nowrap">${fmt(c.data)}</td>
   </tr>`).join('');
 }
 

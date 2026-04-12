@@ -1230,7 +1230,8 @@ app.get('/api/cancelamentos-servico', async (req, res) => {
 
         if (!mapaMotivo[motivo]) mapaMotivo[motivo] = { motivo, total: 0, clientes: [] };
         mapaMotivo[motivo].total++;
-        mapaMotivo[motivo].clientes.push({ nome, cidade, plano, motivo, data: s.data_cancelamento });
+        const habilitacao = s.data_habilitacao || s.data_ativacao || null;
+        mapaMotivo[motivo].clientes.push({ nome, cidade, plano, motivo, data: s.data_cancelamento, habilitacao });
         total++;
 
         if (isInadimplencia(motivo)) total_ativo++;
