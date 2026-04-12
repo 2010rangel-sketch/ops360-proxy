@@ -4906,11 +4906,49 @@ function mostrarClientesCancelamento(idx) {
   const motivos = window._cancelServMotivos || [];
   const m = motivos[idx];
   if (!m) return;
+
+  // Toggle: clicar no mesmo motivo deseleciona
+  const mesmo = window._cancelMotivoIdx === idx;
+  window._cancelMotivoIdx = mesmo ? null : idx;
+
   // Destaca linha selecionada
   document.querySelectorAll('#ret-cancel-serv-tbl tr').forEach((tr, i) => {
-    tr.style.background = i === idx ? 'var(--accent-light)' : '';
-    tr.style.color = i === idx ? 'var(--accent)' : '';
+    tr.style.background = (!mesmo && i === idx) ? 'var(--accent-light)' : '';
+    tr.style.color      = (!mesmo && i === idx) ? 'var(--accent)' : '';
   });
+
+  // Filtra Por Atendente pelo cross-ref de nomes
+  const atTbl  = document.getElementById('retAtendTbl');
+  const atCount = document.getElementById('ret-atend-count');
+  if (atTbl && _retData) {
+    if (mesmo) {
+      // Restaura tabela completa
+      if (_retData) renderRetencao(_retData);
+      return;
+    }
+    const nomesSet = new Set((m.clientes || []).map(c => c.nome));
+    const mapaAt = {};
+    (_retData.ultimos || []).filter(p => nomesSet.has(p.cliente)).forEach(p => {
+      if (!mapaAt[p.atendente]) mapaAt[p.atendente] = { atendente: p.atendente, total: 0, revertidos: 0, cancelados: 0 };
+      mapaAt[p.atendente].total++;
+      if (p.desfecho === 'revertido') mapaAt[p.atendente].revertidos++;
+      else if (p.desfecho === 'cancelado') mapaAt[p.atendente].cancelados++;
+    });
+    const porAt = Object.values(mapaAt)
+      .map(a => ({ ...a, taxa: (a.revertidos+a.cancelados)>0 ? Math.round(a.revertidos/(a.revertidos+a.cancelados)*100) : null }))
+      .sort((a, b) => b.total - a.total);
+    if (atCount) atCount.textContent = porAt.length ? `${porAt.length} atendentes` : 'sem cruzamento';
+    atTbl.innerHTML = porAt.length ? porAt.map((a, i) => `<tr>
+      <td style="color:var(--text3)">${i+1}</td>
+      <td style="font-weight:500">${a.atendente}</td>
+      <td class="mono" style="font-weight:600">${a.total}</td>
+      <td class="mono" style="color:var(--green)">${a.revertidos}</td>
+      <td class="mono" style="color:var(--red)">${a.cancelados}</td>
+      <td class="mono">${a.taxa != null ? `<span style="font-weight:600;color:${a.taxa>=50?'var(--green)':'var(--red)'}">${a.taxa}%</span>` : '—'}</td>
+    </tr>`).join('')
+    : `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Sem atendentes neste motivo</td></tr>`;
+  }
+
   const titulo = document.getElementById('ret-cancel-clientes-titulo');
   const badge  = document.getElementById('ret-cancel-clientes-badge');
   const tbl    = document.getElementById('ret-cancel-clientes-tbl');
