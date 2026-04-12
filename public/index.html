@@ -1377,6 +1377,7 @@ input[type="text"]::placeholder { color:var(--text3); }
           <div class="tbl-card" style="margin-bottom:0">
             <div class="tbl-header">
               <span class="tbl-title"><i class="fas fa-times-circle" style="color:var(--red);margin-right:5px"></i><span id="com-cancel-motivo-title">Por Motivo</span></span>
+              <span class="badge b-red" id="com-cancel-atual-count" style="display:none">—</span>
             </div>
             <div id="com-cancel-motivos" style="padding:12px 16px;max-height:220px;overflow-y:auto"></div>
           </div>
@@ -1384,7 +1385,7 @@ input[type="text"]::placeholder { color:var(--text3); }
           <!-- Por Motivo Mês Posterior (cancelaram depois do período) — só aparece em período fechado -->
           <div id="com-cancel-motivos-ant-col" class="tbl-card" style="margin-bottom:0;display:none">
             <div class="tbl-header">
-              <span class="tbl-title"><i class="fas fa-clock" style="color:var(--amber);margin-right:5px"></i>Cancelaram Depois</span>
+              <span class="tbl-title"><i class="fas fa-clock" style="color:var(--amber);margin-right:5px"></i>Por Motivo Mês Anterior</span>
               <span class="badge b-amber" id="com-cancel-ant-count">—</span>
             </div>
             <div id="com-cancel-motivos-ant" style="padding:12px 16px;max-height:220px;overflow-y:auto"></div>
@@ -1394,7 +1395,7 @@ input[type="text"]::placeholder { color:var(--text3); }
           <!-- Lista de cancelados -->
           <div class="tbl-card" style="margin-bottom:0">
             <div class="tbl-header">
-              <span class="tbl-title"><i class="fas fa-user-slash" style="color:var(--red);margin-right:5px"></i>Desistência sem Instalação</span>
+              <span class="tbl-title"><i class="fas fa-user-slash" style="color:var(--red);margin-right:5px"></i>Cancelado sem Instalação</span>
               <span class="badge b-red" id="com-cancel-count">—</span>
               <span id="com-cancel-filtro-badge" style="display:none;font-size:11px;color:var(--red);margin-left:6px;cursor:pointer" onclick="setComCancelMotivo(_comCancelMotivoAtivo)">✕ limpar</span>
             </div>
@@ -6249,7 +6250,15 @@ function _comRenderCancelTbl() {
 
 function setComCancelMotivo(motivo) {
   _comCancelMotivoAtivo = _comCancelMotivoAtivo === motivo ? null : motivo;
-  document.querySelectorAll('.com-cancel-motivo-item').forEach(el => {
+  // limpa filtro coluna direita se estava ativo
+  if (_comCancelMotivoAtivo) {
+    _comCancelMotivoAntAtivo = null;
+    document.querySelectorAll('#com-cancel-motivos-ant .com-cancel-motivo-item').forEach(el => {
+      el.style.border = '1.5px solid transparent'; el.style.background = 'transparent';
+    });
+    _comCancelDetalhe = window._comDetalheAtual || _comCancelDetalhe;
+  }
+  document.querySelectorAll('#com-cancel-motivos .com-cancel-motivo-item').forEach(el => {
     const ativo = el.dataset.motivo === _comCancelMotivoAtivo;
     el.style.border = ativo ? '1.5px solid var(--red)' : '1.5px solid transparent';
     el.style.background = ativo ? 'rgba(239,68,68,.12)' : 'transparent';
@@ -6288,53 +6297,102 @@ function _comIsPeriodoFechado() {
   return false;
 }
 
-function renderComCanceladosDetalhe(data) {
-  const row      = document.getElementById('com-cancelados-row');
-  const grid     = document.getElementById('com-cancelados-grid');
-  const motivosEl = document.getElementById('com-cancel-motivos');
-  const antCol   = document.getElementById('com-cancel-motivos-ant-col');
-  const antEl    = document.getElementById('com-cancel-motivos-ant');
-  const antCount = document.getElementById('com-cancel-ant-count');
-  const titleEl  = document.getElementById('com-cancel-motivo-title');
+let _comCancelMotivoAntAtivo = null;
 
-  _comCancelDetalhe = data.cancelados_detalhe || [];
-  _comCancelMotivoAtivo = null;
-  const porMotivo = data.cancelados_por_motivo || [];
-  if (row) row.style.display = _comCancelDetalhe.length ? '' : 'none';
+function renderComCanceladosDetalhe(data) {
+  const row       = document.getElementById('com-cancelados-row');
+  const grid      = document.getElementById('com-cancelados-grid');
+  const motivosEl = document.getElementById('com-cancel-motivos');
+  const antCol    = document.getElementById('com-cancel-motivos-ant-col');
+  const antEl     = document.getElementById('com-cancel-motivos-ant');
+  const antCount  = document.getElementById('com-cancel-ant-count');
+  const atualCount = document.getElementById('com-cancel-atual-count');
+  const titleEl   = document.getElementById('com-cancel-motivo-title');
+
+  const todosDetalhe = data.cancelados_detalhe || [];
+  _comCancelMotivoAtivo    = null;
+  _comCancelMotivoAntAtivo = null;
 
   // Detecta período fechado
   const fechado = _comIsPeriodoFechado();
   const { fim: fimStr } = getComDates();
 
-  // Atualiza título e coluna extra
-  if (titleEl) titleEl.textContent = fechado ? 'Por Motivo (período)' : 'Por Motivo';
-  if (antCol) antCol.style.display = fechado ? '' : 'none';
-  if (grid) grid.style.gridTemplateColumns = fechado ? '260px 260px 1fr' : '280px 1fr';
+  // Separa: "mês atual" = cancelados DENTRO ou SEM data (já cancelados no período)
+  //         "mês anterior" = cancelados DEPOIS do fim do período
+  let detalheAtual, detalheAnt;
+  if (fechado) {
+    detalheAnt   = todosDetalhe.filter(v => v.dataCancelamento && v.dataCancelamento > fimStr);
+    detalheAtual = todosDetalhe.filter(v => !v.dataCancelamento || v.dataCancelamento <= fimStr);
+  } else {
+    detalheAtual = todosDetalhe;
+    detalheAnt   = [];
+  }
 
-  // Coluna principal — comportamento atual (todos cancelados com data_venda no período)
+  _comCancelDetalhe = detalheAtual; // tabela principal mostra apenas "mês atual"
+
+  if (row) row.style.display = todosDetalhe.length ? '' : 'none';
+
+  // Título e grid
+  if (titleEl) titleEl.textContent = fechado ? 'Por Motivo Mês Atual' : 'Por Motivo';
+  if (antCol) antCol.style.display = fechado ? '' : 'none';
+  if (grid) grid.style.gridTemplateColumns = fechado ? '240px 240px 1fr' : '280px 1fr';
+
+  // Coluna esquerda — apenas cancelados DENTRO do período
   if (motivosEl) {
-    const maxM = porMotivo[0]?.total || 1;
-    motivosEl.innerHTML = porMotivo.map(m => {
+    const motMap = {};
+    for (const v of detalheAtual) { const m = v.motivo || 'Não informado'; motMap[m] = (motMap[m]||0)+1; }
+    const lista = Object.entries(motMap).sort((a,b)=>b[1]-a[1]).map(([motivo,total])=>({motivo,total}));
+    const maxM  = lista[0]?.total || 1;
+    if (atualCount) { atualCount.textContent = detalheAtual.length; atualCount.style.display = fechado ? '' : 'none'; }
+    motivosEl.innerHTML = lista.map(m => {
       const mot = m.motivo.replace(/'/g,"&#39;").replace(/"/g,'&quot;');
       return _comMotivoBarHTML(m, maxM, 'var(--red)', `setComCancelMotivo('${mot}')`);
     }).join('') || '<div style="color:var(--text3);font-size:12px;text-align:center;padding:16px">Sem dados</div>';
   }
 
-  // Coluna extra — vendidos no período mas cancelaram DEPOIS do fim do período
+  // guarda os dois grupos para uso nos filtros
+  window._comDetalheAtual = detalheAtual;
+  window._comDetalheAnt   = detalheAnt;
+
+  // Coluna direita — cancelados DEPOIS do período, clicável para filtrar tabela
   if (fechado && antEl) {
-    const posteriores = _comCancelDetalhe.filter(v => v.dataCancelamento && v.dataCancelamento > fimStr);
     const motMapAnt = {};
-    for (const v of posteriores) {
-      const m = v.motivo || 'Não informado';
-      motMapAnt[m] = (motMapAnt[m] || 0) + 1;
-    }
-    const porMotivoAnt = Object.entries(motMapAnt).sort((a,b)=>b[1]-a[1]).map(([motivo,total])=>({motivo,total}));
-    const maxA = porMotivoAnt[0]?.total || 1;
-    if (antCount) antCount.textContent = posteriores.length;
-    antEl.innerHTML = porMotivoAnt.map(m => _comMotivoBarHTML(m, maxA, 'var(--amber)', '')).join('')
-      || '<div style="color:var(--text3);font-size:12px;text-align:center;padding:16px">Nenhum cancelamento posterior</div>';
+    for (const v of detalheAnt) { const m = v.motivo || 'Não informado'; motMapAnt[m] = (motMapAnt[m]||0)+1; }
+    const listaAnt = Object.entries(motMapAnt).sort((a,b)=>b[1]-a[1]).map(([motivo,total])=>({motivo,total}));
+    const maxA = listaAnt[0]?.total || 1;
+    if (antCount) antCount.textContent = detalheAnt.length;
+    antEl.innerHTML = listaAnt.map(m => {
+      const mot = m.motivo.replace(/'/g,"&#39;").replace(/"/g,'&quot;');
+      return _comMotivoBarHTML(m, maxA, 'var(--amber)', `setComCancelMotivoAnt('${mot}')`);
+    }).join('') || '<div style="color:var(--text3);font-size:12px;text-align:center;padding:16px">Nenhum cancelamento posterior</div>';
   }
 
+  _comRenderCancelTbl();
+}
+
+function setComCancelMotivoAnt(motivo) {
+  const detalheAnt = window._comDetalheAnt || [];
+  _comCancelMotivoAntAtivo = _comCancelMotivoAntAtivo === motivo ? null : motivo;
+  // highlight coluna direita
+  document.querySelectorAll('#com-cancel-motivos-ant .com-cancel-motivo-item').forEach(el => {
+    const ativo = el.dataset.motivo === _comCancelMotivoAntAtivo;
+    el.style.border     = ativo ? '1.5px solid var(--amber)' : '1.5px solid transparent';
+    el.style.background = ativo ? 'rgba(245,158,11,.12)' : 'transparent';
+  });
+  if (_comCancelMotivoAntAtivo) {
+    // mostra só os do motivo selecionado no grupo "mês anterior"
+    _comCancelDetalhe = detalheAnt.filter(v => v.motivo === _comCancelMotivoAntAtivo);
+    // limpa filtro da coluna esquerda
+    _comCancelMotivoAtivo = null;
+    document.querySelectorAll('#com-cancel-motivos .com-cancel-motivo-item').forEach(el => {
+      el.style.border = '1.5px solid transparent'; el.style.background = 'transparent';
+    });
+    const fb = document.getElementById('com-cancel-filtro-badge');
+    if (fb) fb.style.display = 'none';
+  } else {
+    // deseleccionou — volta ao grupo "mês atual"
+    _comCancelDetalhe = window._comDetalheAtual || [];
+  }
   _comRenderCancelTbl();
 }
 
