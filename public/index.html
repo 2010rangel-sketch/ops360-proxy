@@ -1415,7 +1415,7 @@ input[type="text"]::placeholder { color:var(--text3); }
       </div>
 
       <!-- Por atendente + Por tipo -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px">
         <div class="tbl-card" style="margin-bottom:0">
           <div class="tbl-header">
             <span class="tbl-title">Por Atendente</span>
@@ -1444,6 +1444,16 @@ input[type="text"]::placeholder { color:var(--text3); }
           <div style="overflow-x:auto;max-height:280px;overflow-y:auto">
             <table><thead><tr><th>#</th><th>Tipo</th><th>Total</th></tr></thead>
             <tbody id="retTipoCancel"><tr><td colspan="3" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
+          </div>
+        </div>
+        <div class="tbl-card" style="margin-bottom:0;border-top:3px solid var(--cyan)">
+          <div class="tbl-header">
+            <span class="tbl-title" id="ret-cidade-titulo"><i class="fas fa-map-marker-alt" style="color:var(--cyan);margin-right:5px"></i>Por Cidade</span>
+            <span class="badge b-blue" id="ret-cidade-badge">—</span>
+          </div>
+          <div style="overflow-x:auto;max-height:280px;overflow-y:auto">
+            <table><thead><tr><th>#</th><th>Cidade</th><th>Total</th><th>%</th></tr></thead>
+            <tbody id="retCidadeTbl"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
           </div>
         </div>
       </div>
@@ -4757,7 +4767,8 @@ async function loadCancelServico() {
     const motivos = data.por_motivo || [];
     window._cancelServData    = data;
     window._cancelServMotivos = motivos;
-    _renderCancelServTbl(_retFiltroAt, _retFiltroTipoCancel);
+    _renderCancelServTbl(_retFiltroAt, _retFiltroTipoCancel, _retFiltroCidade);
+    _renderRetCidade();
   } catch(e) {
     if (e.name === 'AbortError') return; // request cancelado — não sobrescreve tabela
     if (mySeq !== _cancelServSeq) return;
@@ -4767,7 +4778,7 @@ async function loadCancelServico() {
   }
 }
 
-function _renderCancelServTbl(atendente, tipoCancel) {
+function _renderCancelServTbl(atendente, tipoCancel, cidade) {
   const tbl    = document.getElementById('ret-cancel-serv-tbl');
   const titulo = document.getElementById('ret-cancel-geral-titulo');
   const sub    = document.getElementById('ret-cancel-geral-sub');
@@ -4785,11 +4796,37 @@ function _renderCancelServTbl(atendente, tipoCancel) {
     </tr>`;
   }).join('');
 
-  const temFiltro = atendente || tipoCancel;
+  const temFiltro = atendente || tipoCancel || cidade;
+
+  if (cidade && !atendente && !tipoCancel) {
+    // Filtro por cidade: filtra clientes de cada motivo pela cidade
+    const data = window._cancelServData;
+    if (!data) return;
+    const mapaM = {};
+    for (const m of (data.por_motivo || [])) {
+      const cliFiltrados = (m.clientes || []).filter(c => c.cidade === cidade);
+      if (!cliFiltrados.length) continue;
+      if (!mapaM[m.motivo]) mapaM[m.motivo] = { motivo: m.motivo, total: 0, clientes: [] };
+      mapaM[m.motivo].total += cliFiltrados.length;
+      mapaM[m.motivo].clientes.push(...cliFiltrados);
+    }
+    const motivos = Object.values(mapaM).sort((a, b) => b.total - a.total);
+    const total   = motivos.reduce((s, m) => s + m.total, 0);
+    window._cancelServMotivosFiltro = motivos;
+    window._cancelServMotivos = motivos; // para mostrarClientesCancelamento funcionar
+    if (titulo) titulo.innerHTML = `<i class="fas fa-times-circle" style="color:var(--red);margin-right:6px"></i>Cancelamentos — ${cidade}`;
+    if (sub)    sub.textContent = 'filtrado por cidade';
+    if (badge)  badge.textContent = total;
+    if (kpiVal) kpiVal.textContent = total;
+    tbl.innerHTML = motivos.length
+      ? _row(motivos, total, 'mostrarClientesCancelamento')
+      : '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Sem cancelamentos nesta cidade</td></tr>';
+    return;
+  }
 
   if (temFiltro && _retData) {
     const fonte = _retData.todos_atend_cancel || _retData.ultimos || [];
-    const label = atendente ? atendente.split(' ')[0] : tipoCancel.split(' ').slice(0,2).join(' ') + '…';
+    const label = atendente ? atendente.split(' ')[0] : tipoCancel ? tipoCancel.split(' ').slice(0,2).join(' ') + '…' : cidade;
 
     const isSolicitacao = tipoCancel && tipoCancel.toUpperCase().includes('SOLICIT');
 
@@ -4949,6 +4986,10 @@ function mostrarClientesCancelamento(idx) {
     : `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Sem atendentes neste motivo</td></tr>`;
   }
 
+  // Atualiza Por Cidade filtrando pelos clientes deste motivo
+  const _nomesMotivo = new Set((m.clientes || []).map(c => c.nome));
+  _renderRetCidade(mesmo ? null : _nomesMotivo);
+
   const titulo = document.getElementById('ret-cancel-clientes-titulo');
   const badge  = document.getElementById('ret-cancel-clientes-badge');
   const tbl    = document.getElementById('ret-cancel-clientes-tbl');
@@ -5022,8 +5063,10 @@ function renderRetencao(data) {
 
   // fonte dos registros — todos_atend_cancel tem Solicitação + Informação; ultimos só tem Solicitação
   const _fonteCancel = data.todos_atend_cancel || data.ultimos || [];
+  // nomes de clientes da cidade filtrada (cross-ref com _cancelServData)
+  const _nomesCidade = _retFiltroCidade ? _getNomesByCidade(_retFiltroCidade) : null;
 
-  // Por atendente — filtra por tipo de atendimento se ativo
+  // Por atendente — filtra por tipo ou cidade se ativo
   const atTbl   = document.getElementById('retAtendTbl');
   const atCount = document.getElementById('ret-atend-count');
   let porAt;
@@ -5036,6 +5079,17 @@ function renderRetencao(data) {
       else if (p.desfecho === 'cancelado') mapaAt2[p.atendente].cancelados++;
     });
     porAt = Object.values(mapaAt2)
+      .map(a => ({ ...a, taxa: (a.revertidos+a.cancelados)>0 ? Math.round(a.revertidos/(a.revertidos+a.cancelados)*100) : null }))
+      .sort((a, b) => b.total - a.total);
+  } else if (_nomesCidade) {
+    const mapaAt3 = {};
+    (data.ultimos || []).filter(p => _nomesCidade.has(p.cliente)).forEach(p => {
+      if (!mapaAt3[p.atendente]) mapaAt3[p.atendente] = { atendente: p.atendente, total: 0, revertidos: 0, cancelados: 0 };
+      mapaAt3[p.atendente].total++;
+      if (p.desfecho === 'revertido') mapaAt3[p.atendente].revertidos++;
+      else if (p.desfecho === 'cancelado') mapaAt3[p.atendente].cancelados++;
+    });
+    porAt = Object.values(mapaAt3)
       .map(a => ({ ...a, taxa: (a.revertidos+a.cancelados)>0 ? Math.round(a.revertidos/(a.revertidos+a.cancelados)*100) : null }))
       .sort((a, b) => b.total - a.total);
   } else {
@@ -5061,12 +5115,11 @@ function renderRetencao(data) {
   const tipoTbl   = document.getElementById('retTipoTbl');
   const tipoCount = document.getElementById('ret-tipo-count');
   let porOrigem;
-  const _filtroUltimos = _retFiltroAt || _retFiltroTipoCancel;
+  const _filtroUltimos = _retFiltroAt || _retFiltroTipoCancel || _nomesCidade;
   if (_filtroUltimos) {
     const mapaOrig = {};
-    // usa _fonteCancel para capturar Informação + Solicitação; filtra por atendente e/ou tipo
     _fonteCancel
-      .filter(p => (!_retFiltroAt || p.atendente === _retFiltroAt) && (!_retFiltroTipoCancel || p.tipo === _retFiltroTipoCancel))
+      .filter(p => (!_retFiltroAt || p.atendente === _retFiltroAt) && (!_retFiltroTipoCancel || p.tipo === _retFiltroTipoCancel) && (!_nomesCidade || _nomesCidade.has(p.cliente)))
       .forEach(p => {
         const o = p.origem || 'Origem ausente';
         if (!mapaOrig[o]) mapaOrig[o] = { origem: o, total: 0, revertidos: 0, cancelados: 0 };
@@ -5106,15 +5159,17 @@ function renderRetencao(data) {
   if (_retFiltroTip)        ultimos = ultimos.filter(p => p.tipo      === _retFiltroTip);
   if (_retFiltroOrig)       ultimos = ultimos.filter(p => p.origem    === _retFiltroOrig);
   if (_retFiltroTipoCancel) ultimos = ultimos.filter(p => p.tipo      === _retFiltroTipoCancel);
-  const filtroAtivo = _retFiltroAt || _retFiltroTip || _retFiltroOrig || _retFiltroTipoCancel;
+  if (_nomesCidade)         ultimos = ultimos.filter(p => _nomesCidade.has(p.cliente));
+  const filtroAtivo = _retFiltroAt || _retFiltroTip || _retFiltroOrig || _retFiltroTipoCancel || _retFiltroCidade;
   if (filtroBadge) {
     if (filtroAtivo) {
       const label = _retFiltroTipoCancel
         ? `Tipo: ${_retFiltroTipoCancel.split(' ').slice(0,2).join(' ')}… ✕`
+        : _retFiltroCidade ? `Cidade: ${_retFiltroCidade} ✕`
         : `Filtro: ${filtroAtivo} ✕`;
       filtroBadge.textContent = label;
       filtroBadge.style.display = '';
-      filtroBadge.onclick = () => { _retFiltroAt = ''; _retFiltroTip = ''; _retFiltroOrig = ''; _retFiltroTipoCancel = ''; if (_retData) renderRetencao(_retData); };
+      filtroBadge.onclick = () => { _retFiltroAt = ''; _retFiltroTip = ''; _retFiltroOrig = ''; _retFiltroTipoCancel = ''; _retFiltroCidade = ''; window._cancelMotivoIdx = null; if (_retData) renderRetencao(_retData); _renderCancelServTbl('','',''); };
     } else {
       filtroBadge.style.display = 'none';
     }
@@ -5138,8 +5193,13 @@ function renderRetencao(data) {
     </tr>`).join('')
     : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Nenhum pedido no período</td></tr>`;
   }
-  // Atualiza tabela de motivos conforme filtros ativos
-  _renderCancelServTbl(_retFiltroAt, _retFiltroTipoCancel);
+  // Atualiza tabela de motivos e cidade conforme filtros ativos
+  _renderCancelServTbl(_retFiltroAt, _retFiltroTipoCancel, _retFiltroCidade);
+  // Por Cidade — filtra pelos nomes do motivo selecionado (se houver)
+  const _nomesMotivoSel = window._cancelMotivoIdx != null
+    ? new Set(((window._cancelServMotivos || [])[window._cancelMotivoIdx]?.clientes || []).map(c => c.nome))
+    : null;
+  _renderRetCidade(_nomesMotivoSel);
 }
 
 function showDashTab() {
@@ -6110,6 +6170,7 @@ let _retFiltroAt    = '';                     // filtro atendente retenção
 let _retFiltroTip   = '';                     // filtro tipo retenção
 let _retFiltroOrig       = '';  // filtro origem de contato
 let _retFiltroTipoCancel = '';  // filtro tipo de atendimento cancelamento
+let _retFiltroCidade     = '';  // filtro por cidade (cancelamento serviço)
 
 function _renderRetTipoCancel(data, atendente) {
   const tbl    = document.getElementById('retTipoCancel');
@@ -6144,10 +6205,70 @@ function _renderRetTipoCancel(data, atendente) {
   : '<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:20px">Nenhum atendimento</td></tr>';
 }
 
+function _buildPorCidade(nomesFiltro) {
+  const data = window._cancelServData;
+  if (!data) return [];
+  const mapaC = {};
+  for (const m of (data.por_motivo || [])) {
+    for (const c of (m.clientes || [])) {
+      if (nomesFiltro && !nomesFiltro.has(c.nome)) continue;
+      const cid = c.cidade || '—';
+      if (!mapaC[cid]) mapaC[cid] = { cidade: cid, total: 0, nomes: new Set() };
+      mapaC[cid].total++;
+      mapaC[cid].nomes.add(c.nome);
+    }
+  }
+  return Object.values(mapaC)
+    .map(c => ({ cidade: c.cidade, total: c.total, nomes: [...c.nomes] }))
+    .sort((a, b) => b.total - a.total);
+}
+
+function _getNomesByCidade(cidade) {
+  const por = _buildPorCidade();
+  const c = por.find(x => x.cidade === cidade);
+  return c ? new Set(c.nomes) : new Set();
+}
+
+function _renderRetCidade(nomesFiltro) {
+  const tbl    = document.getElementById('retCidadeTbl');
+  const badge  = document.getElementById('ret-cidade-badge');
+  const titulo = document.getElementById('ret-cidade-titulo');
+  if (!tbl) return;
+  const cidades = _buildPorCidade(nomesFiltro);
+  const total   = cidades.reduce((s, c) => s + c.total, 0);
+  if (badge) badge.textContent = cidades.length;
+  if (titulo) titulo.innerHTML = _retFiltroCidade
+    ? `<i class="fas fa-map-marker-alt" style="color:var(--cyan);margin-right:5px"></i>Por Cidade — ${_retFiltroCidade} <span style="font-size:10px">✕</span>`
+    : `<i class="fas fa-map-marker-alt" style="color:var(--cyan);margin-right:5px"></i>Por Cidade`;
+  tbl.innerHTML = cidades.length ? cidades.map((c, i) => {
+    const pct = total > 0 ? Math.round(c.total / total * 100) : 0;
+    const isActive = _retFiltroCidade === c.cidade;
+    return `<tr onclick="filtrarRetCidade('${c.cidade.replace(/'/g,"&#39;")}')" style="cursor:pointer;${isActive ? 'background:rgba(6,182,212,.08);outline:1px solid var(--cyan);' : ''}">
+      <td style="color:var(--text3)">${i+1}</td>
+      <td style="font-weight:500;color:${isActive ? 'var(--cyan)' : ''}">${c.cidade}</td>
+      <td style="font-weight:700;color:var(--red)">${c.total}</td>
+      <td style="color:var(--text3)">${pct}%</td>
+    </tr>`;
+  }).join('')
+  : '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Sem dados</td></tr>';
+}
+
+function filtrarRetCidade(cidade) {
+  _retFiltroCidade     = _retFiltroCidade === cidade ? '' : cidade;
+  _retFiltroAt         = '';
+  _retFiltroOrig       = '';
+  _retFiltroTipoCancel = '';
+  window._cancelMotivoIdx = null;
+  if (_retData) renderRetencao(_retData);
+  _renderCancelServTbl('', '', _retFiltroCidade);
+}
+
 function filtrarRetTipoCancel(tipo) {
   _retFiltroTipoCancel = _retFiltroTipoCancel === tipo ? '' : tipo;
-  _retFiltroAt   = '';  // mutuamente exclusivo com atendente
-  _retFiltroOrig = '';
+  _retFiltroAt         = '';
+  _retFiltroOrig       = '';
+  _retFiltroCidade     = '';
+  window._cancelMotivoIdx = null;
   if (_retData) renderRetencao(_retData);
 }
 
@@ -6157,17 +6278,21 @@ function setRetFiltro(tipo, val) {
     _retFiltroTip        = '';
     _retFiltroOrig       = '';
     _retFiltroTipoCancel = '';
+    _retFiltroCidade     = '';
   } else if (tipo === 'origem') {
     _retFiltroOrig       = _retFiltroOrig === val ? '' : val;
     _retFiltroAt         = '';
     _retFiltroTip        = '';
     _retFiltroTipoCancel = '';
+    _retFiltroCidade     = '';
   } else {
     _retFiltroTip        = _retFiltroTip === val ? '' : val;
     _retFiltroAt         = '';
     _retFiltroOrig       = '';
     _retFiltroTipoCancel = '';
+    _retFiltroCidade     = '';
   }
+  window._cancelMotivoIdx = null;
   if (_retData) renderRetencao(_retData);
 }
 
