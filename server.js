@@ -1080,7 +1080,11 @@ app.get('/api/retencao', async (req, res) => {
                     : txtOrig.includes('PRESENCIAL') ? 'Presencial'
                     : txtOrig.includes('LIGA') ? 'Ligação'
                     : 'Origem ausente';
-      const motivoFechamento = a.descricao_fechamento || a.status_fechamento || '';
+      // Motivo pré-definido selecionado pela atendente ao fechar o atendimento
+      const mfObj = a.motivo_fechamento_atendimento;
+      const motivoFechamento = (typeof mfObj === 'object' && mfObj)
+        ? (mfObj.descricao || mfObj.nome || mfObj.titulo || `Motivo #${a.id_motivo_fechamento_atendimento || '?'}`)
+        : (a.status_fechamento || a.descricao_fechamento || 'Sem motivo');
       const desfecho = desfechoOf(a);
       todosAtendCancel.push({ tipo, atendente: at, cliente, data, origem, motivoFechamento, desfecho });
     }

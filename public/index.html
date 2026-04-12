@@ -4791,14 +4791,16 @@ function _renderCancelServTbl(atendente, tipoCancel) {
     const fonte = _retData.todos_atend_cancel || _retData.ultimos || [];
     const label = atendente ? atendente.split(' ')[0] : tipoCancel.split(' ').slice(0,2).join(' ') + '…';
 
-    if (tipoCancel) {
-      // Quando filtro é por TIPO: usa motivoFechamento do atendimento (disponível em todos_atend_cancel)
+    const isSolicitacao = tipoCancel && tipoCancel.toUpperCase().includes('SOLICIT');
+
+    if (tipoCancel && !isSolicitacao) {
+      // "Informação sobre Cancelamento" — usa motivo pré-definido selecionado pela atendente
       const filtrados = fonte.filter(p =>
         p.tipo === tipoCancel && (!atendente || p.atendente === atendente)
       );
       const mapaM = {};
       for (const p of filtrados) {
-        const mot = (p.motivoFechamento || 'Sem motivo de fechamento').trim() || 'Sem motivo de fechamento';
+        const mot = (p.motivoFechamento || 'Sem motivo').trim() || 'Sem motivo';
         if (!mapaM[mot]) mapaM[mot] = { motivo: mot, total: 0, clientes: [] };
         mapaM[mot].total++;
         mapaM[mot].clientes.push({ nome: p.cliente, cidade: '—', plano: p.tipo, data: p.data });
@@ -4806,8 +4808,8 @@ function _renderCancelServTbl(atendente, tipoCancel) {
       const motivos = Object.values(mapaM).sort((a, b) => b.total - a.total);
       const total   = filtrados.length;
       window._cancelServMotivosFiltro = motivos;
-      if (titulo) titulo.innerHTML = `<i class="fas fa-times-circle" style="color:var(--red);margin-right:6px"></i>Fechamentos — ${label}`;
-      if (sub)    sub.textContent = 'motivo de fechamento do atendimento';
+      if (titulo) titulo.innerHTML = `<i class="fas fa-times-circle" style="color:var(--red);margin-right:6px"></i>Motivo de Fechamento`;
+      if (sub)    sub.textContent = 'opção selecionada pela atendente';
       if (badge)  badge.textContent = total;
       if (kpiVal) kpiVal.textContent = total;
       tbl.innerHTML = motivos.length
@@ -4816,9 +4818,9 @@ function _renderCancelServTbl(atendente, tipoCancel) {
       return;
     }
 
-    // Quando filtro é por ATENDENTE: cross-ref com Hubsoft para motivos reais de cancelamento
+    // "Solicitação de Cancelamento" ou filtro por ATENDENTE: cross-ref com Hubsoft
     const filtrados = (_retData.ultimos || []).filter(p =>
-      p.atendente === atendente && p.desfecho === 'cancelado'
+      (!atendente || p.atendente === atendente) && p.desfecho === 'cancelado'
     );
     const nomesSet = new Set(filtrados.map(p => p.cliente));
     const servData = window._cancelServData;
