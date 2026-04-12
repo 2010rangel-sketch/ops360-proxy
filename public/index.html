@@ -1385,7 +1385,7 @@ input[type="text"]::placeholder { color:var(--text3); }
           <!-- Por Motivo Mês Posterior (cancelaram depois do período) — só aparece em período fechado -->
           <div id="com-cancel-motivos-ant-col" class="tbl-card" style="margin-bottom:0;display:none">
             <div class="tbl-header">
-              <span class="tbl-title"><i class="fas fa-clock" style="color:var(--amber);margin-right:5px"></i>Por Motivo Mês Anterior</span>
+              <span class="tbl-title"><i class="fas fa-clock" style="color:var(--amber);margin-right:5px"></i>Cancelaram Depois</span>
               <span class="badge b-amber" id="com-cancel-ant-count">—</span>
             </div>
             <div id="com-cancel-motivos-ant" style="padding:12px 16px;max-height:220px;overflow-y:auto"></div>
@@ -6333,7 +6333,7 @@ function renderComCanceladosDetalhe(data) {
   if (row) row.style.display = todosDetalhe.length ? '' : 'none';
 
   // Título e grid
-  if (titleEl) titleEl.textContent = fechado ? 'Por Motivo Mês Atual' : 'Por Motivo';
+  if (titleEl) titleEl.textContent = fechado ? 'Por Motivo (período)' : 'Por Motivo';
   if (antCol) antCol.style.display = fechado ? '' : 'none';
   if (grid) grid.style.gridTemplateColumns = fechado ? '240px 240px 1fr' : '280px 1fr';
 
