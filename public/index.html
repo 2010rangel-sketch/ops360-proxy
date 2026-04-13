@@ -106,6 +106,17 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
 .ws-chevron { color:var(--text3); font-size:10px; }
 
 .sb-toggle-row { display:none; }
+/* Botão toggle dentro do sidebar-top */
+.sb-toggle-btn {
+  width:22px; height:22px; border-radius:5px;
+  border:1px solid var(--border); background:var(--bg3);
+  color:var(--text3); cursor:pointer; flex-shrink:0;
+  display:grid; place-items:center; font-size:10px;
+  transition:transform .25s ease, background .15s, color .15s;
+}
+.sb-toggle-btn:hover { background:var(--border); color:var(--text); }
+/* Recolhido: gira 180° para apontar direita (>) */
+.sidebar.collapsed .sb-toggle-btn { transform:rotate(180deg); }
 
 .sidebar-section { padding:18px 14px 6px; font-size:10.5px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text3); transition:opacity .15s; }
 
@@ -535,15 +546,16 @@ input[type="text"]::placeholder { color:var(--text3); }
 <!-- SIDEBAR -->
 <nav class="sidebar collapsed" id="app-sidebar" style="display:none">
   <div class="sidebar-top">
-    <div style="display:flex;align-items:center;gap:10px;padding:2px 0">
+    <div style="display:flex;align-items:center;gap:10px;padding:2px 0;min-width:0">
       <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#5b6af0,#a78bfa);display:grid;place-items:center;flex-shrink:0;box-shadow:0 4px 12px rgba(91,106,240,.35)">
         <i class="fas fa-globe-americas" style="color:#fff;font-size:15px"></i>
       </div>
-      <div class="sb-logo-text" style="line-height:1.2">
+      <div class="sb-logo-text" style="line-height:1.2;min-width:0">
         <div style="font-size:11px;font-weight:500;color:var(--text3);letter-spacing:.04em;text-transform:uppercase">LC Fibra</div>
         <div style="font-size:18px;font-weight:800;background:linear-gradient(90deg,#5b6af0,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-.5px">360</div>
       </div>
     </div>
+    <button class="sb-toggle-btn" onclick="toggleSidebarCollapse()" title="Expandir/recolher"><i class="fas fa-chevron-left" id="sidebarToggleTopIcon"></i></button>
   </div>
 
   <div class="sidebar-section">Painel</div>
@@ -2471,9 +2483,6 @@ function toggleSidebarCollapse() {
   const sb = document.getElementById('app-sidebar');
   const collapsed = sb.classList.toggle('collapsed');
   localStorage.setItem('sb_collapsed', collapsed ? '1' : '0');
-  // Gira o ícone no header: > quando recolhido, < quando expandido
-  const ico = document.getElementById('sidebarToggleTopIcon');
-  if (ico) ico.style.transform = collapsed ? '' : 'rotate(180deg)';
 }
 
 // Restaura preferência de sidebar ao carregar
@@ -2483,9 +2492,6 @@ function toggleSidebarCollapse() {
   if (pref === '0') {
     const sb = document.getElementById('app-sidebar');
     if (sb) sb.classList.remove('collapsed');
-    // ícone aponta para esquerda quando expandido
-    const ico = document.getElementById('sidebarToggleTopIcon');
-    if (ico) ico.style.transform = 'rotate(180deg)';
   }
 })();
 
@@ -9316,23 +9322,5 @@ function raxPararVoz() {
 </script>
 
 <!-- Botão toggle flutuante e arrastável -->
-<button id="sidebarToggleTop" onclick="toggleSidebarCollapse()" title="Expandir/recolher menu">
-  <i class="fas fa-chevron-right" id="sidebarToggleTopIcon"></i>
-</button>
-
-<style>
-#sidebarToggleTop {
-  position:fixed; z-index:9000;
-  left:58px; top:15px;
-  width:18px; height:18px; border-radius:4px;
-  border:1px solid rgba(255,255,255,.12);
-  background:var(--bg2,#1a1d2e); color:var(--text2,#94a3b8);
-  display:grid; place-items:center; font-size:9px;
-  cursor:pointer;
-  box-shadow:0 1px 6px rgba(0,0,0,.3);
-  transition:background .15s, color .15s;
-}
-#sidebarToggleTop:hover { background:var(--bg3,#252840); color:#fff; }
-</style>
 </body>
 </html>
