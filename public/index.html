@@ -519,9 +519,8 @@ input[type="text"]::placeholder { color:var(--text3); }
   <div class="nav-item" onclick="goPage('retencao',this)"><i class="fas fa-user-shield"></i> Retenção / Cancelamento</div>
   <div class="nav-item" onclick="goPage('remocao',this)"><i class="fas fa-tools"></i> Remoção / Cobrança</div>
   <div class="nav-item" onclick="goPage('financeiro',this)"><i class="fas fa-dollar-sign"></i> Financeiro</div>
-  <div class="nav-item" onclick="goPage('estoque',this)"><i class="fas fa-boxes"></i> Estoque</div>
-  <div class="nav-item" onclick="goPage('rh',this)"><i class="fas fa-users"></i> RH</div>
   <div class="nav-item" onclick="goPage('saude',this)"><i class="fas fa-heartbeat"></i> Saúde da Base</div>
+  <div class="nav-item" onclick="goPage('rh',this)"><i class="fas fa-users"></i> RH</div>
 
   <div class="sidebar-section">Spaces</div>
   <div class="space-item" onclick="goPage('tarefas',this)"><div class="space-dot" style="background:#5b6af0">T</div> Tarefas</div>
@@ -1827,54 +1826,6 @@ input[type="text"]::placeholder { color:var(--text3); }
       </div>
     </div>
 
-    <!-- ═══ ESTOQUE ═══ -->
-    <div class="page" id="page-estoque">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap">
-        <div>
-          <div style="font-size:16px;font-weight:700;color:var(--text)">Estoque</div>
-          <div style="font-size:11px;color:var(--text3)">Materiais · equipamentos · inventário</div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <span class="badge b-blue" id="esq-sync-badge">—</span>
-          <button class="btn btn-primary btn-sm" onclick="loadEstoque(true)"><i class="fas fa-sync-alt"></i> Atualizar</button>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
-        <div class="kpi-mini" id="esq-kpi-card-todos" onclick="esqFiltrarKpi('todos')" style="cursor:pointer;transition:box-shadow .15s" onmouseenter="this.style.boxShadow='0 0 0 2px var(--accent)'" onmouseleave="if(_esqFiltroKpi!=='todos')this.style.boxShadow=''"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Total de Itens</div><div class="kpi-mini-val" id="esq-kpi-total" style="color:var(--accent)">—</div></div>
-        <div class="kpi-mini" id="esq-kpi-card-com" onclick="esqFiltrarKpi('com_estoque')" style="cursor:pointer;transition:box-shadow .15s" onmouseenter="this.style.boxShadow='0 0 0 2px var(--green)'" onmouseleave="if(_esqFiltroKpi!=='com_estoque')this.style.boxShadow=''"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">Com Estoque</div><div class="kpi-mini-val" id="esq-kpi-disp" style="color:var(--green)">—</div></div>
-        <div class="kpi-mini" id="esq-kpi-card-aloc" onclick="esqFiltrarKpi('alocado')" style="cursor:pointer;transition:box-shadow .15s" onmouseenter="this.style.boxShadow='0 0 0 2px var(--amber)'" onmouseleave="if(_esqFiltroKpi!=='alocado')this.style.boxShadow=''"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">Alocado</div><div class="kpi-mini-val" id="esq-kpi-uso" style="color:var(--amber)">—</div></div>
-        <div class="kpi-mini" id="esq-kpi-card-crit" onclick="esqFiltrarKpi('criticos')" style="cursor:pointer;transition:box-shadow .15s" onmouseenter="this.style.boxShadow='0 0 0 2px var(--red)'" onmouseleave="if(_esqFiltroKpi!=='criticos')this.style.boxShadow=''"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Crítico (abaixo mín.)</div><div class="kpi-mini-val" id="esq-kpi-crit" style="color:var(--red)">—</div></div>
-      </div>
-      <div class="tbl-card">
-        <div class="tbl-header">
-          <span class="tbl-title">Produtos</span>
-          <span class="badge b-blue" id="esq-tbl-count">—</span>
-          <div style="display:flex;gap:4px;margin-left:8px">
-            <button id="esq-btn-com" onclick="esqFiltrarKpi('com_estoque')" class="btn btn-sm" style="font-size:10px;padding:2px 8px;background:var(--green);color:#fff;border:none">Com Estoque</button>
-            <button id="esq-btn-zerado" onclick="esqFiltrarKpi('zerados')" class="btn btn-sm" style="font-size:10px;padding:2px 8px">Zerados</button>
-            <button id="esq-btn-todos" onclick="esqFiltrarKpi('todos')" class="btn btn-sm" style="font-size:10px;padding:2px 8px">Todos</button>
-          </div>
-          <input type="text" placeholder="Filtrar..." id="esq-search" class="search-input" style="margin-left:auto;width:180px" oninput="filterEstoque(this.value)">
-        </div>
-        <div id="esq-empty-msg" style="padding:40px;text-align:center;color:var(--text3)">
-          <i class="fas fa-boxes" style="font-size:32px;margin-bottom:12px;opacity:.3;display:block"></i>
-          <div style="font-size:14px;font-weight:600;margin-bottom:6px">Clique em Atualizar para carregar dados do Hubsoft.</div>
-        </div>
-        <div style="max-height:500px;overflow-y:auto;display:none" id="esq-tbl-wrap">
-          <table class="tbl">
-            <thead><tr><th>Produto</th><th>Categoria</th><th>Un.</th><th style="text-align:right">Qtd.</th><th style="text-align:right">Disponível</th><th style="text-align:right">Alocado</th><th style="text-align:right">Mínimo</th><th>Status</th></tr></thead>
-            <tbody id="esq-tbl-body"></tbody>
-          </table>
-        </div>
-      </div>
-      <div class="tbl-card" style="margin-top:12px">
-        <div class="tbl-header"><span class="tbl-title">APIs de Estoque — Diagnóstico</span></div>
-        <div id="esq-ep-list" style="padding:10px 14px;display:flex;flex-wrap:wrap;gap:6px">
-          <span style="color:var(--text3);font-size:12px">Clique em <b>Atualizar</b> para testar os endpoints disponíveis no Hubsoft.</span>
-        </div>
-      </div>
-    </div>
-
     <!-- ═══ RH ═══ -->
     <div class="page" id="page-rh">
 
@@ -2405,7 +2356,6 @@ input[type="text"]::placeholder { color:var(--text3); }
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="chamados" style="cursor:pointer"> <span style="font-size:12px">Chamados</span></label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="retencao" style="cursor:pointer"> <span style="font-size:12px">Cancelamento</span></label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="financeiro" style="cursor:pointer"> <span style="font-size:12px">Financeiro</span></label>
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="estoque" style="cursor:pointer"> <span style="font-size:12px">Estoque</span></label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="rh" style="cursor:pointer"> <span style="font-size:12px">RH</span></label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="saude" style="cursor:pointer"> <span style="font-size:12px">Saúde da Base</span></label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="conexoes" style="cursor:pointer"> <span style="font-size:12px">Conexões</span></label>
@@ -2508,7 +2458,7 @@ function goPage(id, el, skipHistory) {
   // Marca o nav-item correspondente como ativo
   const navEl = el || document.querySelector(`.nav-item[onclick*="'${id}'"], .space-item[onclick*="'${id}'"]`);
   if(navEl) navEl.classList.add('active');
-  const titles = {chamados:'Chamados',atendimento:'Atendimento',comercial:'Comercial',retencao:'Retenção / Cancelamento',conexoes:'Conexões',financeiro:'Financeiro',estoque:'Estoque',rh:'RH',saude:'Saúde da Base',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
+  const titles = {chamados:'Chamados',atendimento:'Atendimento',comercial:'Comercial',retencao:'Retenção / Cancelamento',conexoes:'Conexões',financeiro:'Financeiro',rh:'RH',saude:'Saúde da Base',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
   document.getElementById('pageTitle').textContent = titles[id]||id;
   // Reseta pill para "Ao vivo" ao trocar de página (comercial escreve o horário quando carrega)
   const pill = document.getElementById('live-pill-text');
@@ -2558,9 +2508,6 @@ function goPage(id, el, skipHistory) {
     if (_finData) renderFinanceiro(_finData);
     loadFinanceiro();
   }
-  if (id === 'estoque') {
-    loadEstoque();
-  }
   if (id === 'rh') {
     loadRh();
     if (!window._rhEmployees) _restoreRhFromStorage();
@@ -2579,7 +2526,7 @@ window.addEventListener('popstate', e => {
 // Ao abrir link direto (ex: /financeiro), navega para a página correta
 function _pageFromPath() {
   const seg = window.location.pathname.replace(/^\//, '').split('/')[0];
-  const valid = ['comercial','chamados','atendimento','retencao','remocao','conexoes','financeiro','estoque','rh','saude','tarefas','integracoes'];
+  const valid = ['comercial','chamados','atendimento','retencao','remocao','conexoes','financeiro','rh','saude','tarefas','integracoes'];
   return valid.includes(seg) ? seg : 'comercial';
 }
 
@@ -7795,85 +7742,7 @@ function saudeSearch(txt) {
   renderSaudeTbl();
 }
 
-// ─── ESTOQUE ─────────────────────────────────────────────────────────────────
-let _esqData = null;
-let _esqItens = [];
-async function loadEstoque(force = false) {
-  const badge = document.getElementById('esq-sync-badge');
-  if (badge) { badge.textContent = 'Carregando...'; badge.className = 'badge b-blue'; }
-  try {
-    const r = await fetch(`${PROXY_URL}/api/estoque${force ? '?force=1' : ''}`);
-    const d = await r.json();
-    _esqData = d;
-    if (d.ok) { try { localStorage.setItem('ops360_esq_cache', JSON.stringify({ data: d, ts: Date.now() })); } catch {} }
-    renderEstoque(d);
-    if (badge) {
-      const hora = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
-      badge.textContent = `Atualizado ${hora}`;
-      badge.className = d.ok ? 'badge b-green' : 'badge b-red';
-    }
-  } catch(e) {
-    if (badge) { badge.textContent = 'Erro de conexão'; badge.className = 'badge b-red'; }
-  }
-}
-
-function renderEstoque(d) {
-  if (!d || !d.ok) return;
-  _esqItens = d.items || [];
-  const kpi = d.kpi || {};
-  const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
-  set('esq-kpi-total', kpi.total ?? _esqItens.length);
-  set('esq-kpi-disp',  kpi.disponivel ?? '—');
-  set('esq-kpi-uso',   kpi.alocado ?? '—');
-  set('esq-kpi-crit',  kpi.criticos ?? '—');
-  const cnt      = document.getElementById('esq-tbl-count');
-  const emptyMsg = document.getElementById('esq-empty-msg');
-  const tblWrap  = document.getElementById('esq-tbl-wrap');
-  if (cnt) cnt.textContent = _esqItens.length;
-  if (_esqItens.length === 0) {
-    if (emptyMsg) emptyMsg.style.display = 'block';
-    if (tblWrap)  tblWrap.style.display  = 'none';
-    return;
-  }
-  if (emptyMsg) emptyMsg.style.display = 'none';
-  if (tblWrap)  tblWrap.style.display  = 'block';
-  renderEstoqueTbl(_esqItens);
-}
-
-function renderEstoqueTbl(itens) {
-  const body = document.getElementById('esq-tbl-body');
-  if (!body) return;
-  if (itens.length === 0) { body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px">Nenhum item encontrado</td></tr>'; return; }
-  const statusCor = (item) => {
-    if (item.minimo > 0 && item.disponivel < item.minimo) return 'color:var(--red)';
-    if (item.disponivel > 0) return 'color:var(--green)';
-    return 'color:var(--text3)';
-  };
-  const statusTxt = (item) => {
-    if (item.minimo > 0 && item.disponivel < item.minimo) return 'Crítico';
-    if (item.disponivel > 0) return 'OK';
-    return 'Zerado';
-  };
-  body.innerHTML = itens.map(item => `<tr>
-    <td style="font-size:12px;font-weight:500">${item.nome}</td>
-    <td style="font-size:11px;color:var(--text3)">${item.categoria}</td>
-    <td style="font-size:11px;color:var(--text3)">${item.unidade}</td>
-    <td class="mono" style="text-align:right">${item.quantidade}</td>
-    <td class="mono" style="text-align:right;color:var(--green)">${item.disponivel}</td>
-    <td class="mono" style="text-align:right;color:var(--amber)">${item.alocado || '—'}</td>
-    <td class="mono" style="text-align:right;color:var(--text3)">${item.minimo || '—'}</td>
-    <td style="font-size:11px;font-weight:600;${statusCor(item)}">${statusTxt(item)}</td>
-  </tr>`).join('');
-}
-
-function filterEstoque(txt) {
-  if (!_esqItens.length) return;
-  const q = txt.toLowerCase().trim();
-  renderEstoqueTbl(q ? _esqItens.filter(i => JSON.stringify(i).toLowerCase().includes(q)) : _esqItens);
-}
-
-// ── GESTÃO DE USUÁRIOS (frontend) ────────────────────────────────
-const TODAS_PAGINAS = ['comercial','atendimento','chamados','retencao','financeiro','estoque','rh','saude','conexoes','tarefas','integracoes'];
+const TODAS_PAGINAS = ['comercial','atendimento','chamados','retencao','financeiro','rh','saude','conexoes','tarefas','integracoes'];
 
 async function usersCarregar() {
   if (!_authUser?.admin) return;
@@ -7885,7 +7754,7 @@ async function usersCarregar() {
     if (!d.ok) return;
     const body = document.getElementById('users-tbl-body');
     if (!body) return;
-    const LABEL_PG = { comercial:'Comercial',atendimento:'Atendimento',chamados:'Chamados',retencao:'Cancelamento',financeiro:'Financeiro',estoque:'Estoque',rh:'RH',saude:'Saúde',conexoes:'Conexões',tarefas:'Tarefas',integracoes:'Integrações' };
+    const LABEL_PG = { comercial:'Comercial',atendimento:'Atendimento',chamados:'Chamados',retencao:'Cancelamento',financeiro:'Financeiro',rh:'RH',saude:'Saúde',conexoes:'Conexões',tarefas:'Tarefas',integracoes:'Integrações' };
     body.innerHTML = d.users.map(u => {
       const pgs = u.paginas.split(',').map(p => `<span style="font-size:10px;padding:1px 6px;border-radius:8px;background:var(--accent-light);color:var(--accent);margin:1px;display:inline-block">${LABEL_PG[p.trim()]||p}</span>`).join('');
       return `<tr>
@@ -7972,7 +7841,6 @@ function _appStart() {
   const _ret = _lcGet('ops360_ret_cache', 10*60*1000); if (_ret) { _retData = _ret; }
   const _com = _lcGet('ops360_com_cache', 35*60*1000); if (_com) { _comData = _com; renderComercialAtualiza(_com); }
   const _atd = _lcGet('ops360_atend_cache', 10*60*1000); if (_atd) { _atendData = _atd; }
-  const _esq = _lcGet('ops360_esq_cache', 35*60*1000);  if (_esq) { _esqData = _esq; renderEstoque(_esq); }
   // Passo 2 — navega para a página da URL (ou comercial por padrão)
   const _initPage = _pageFromPath();
   history.replaceState({ page: _initPage }, '', '/' + _initPage);
@@ -7996,7 +7864,6 @@ function _appStart() {
   setTimeout(() => loadRemocoes().catch(()=>{}),                  15000);
   _prefetch('ops360_atend_cache',  4*60*1000, loadAtendimentos,   20000);
   _prefetch('ops360_fin_cache',   15*60*1000, loadFinanceiro,     30000);
-  _prefetch('ops360_esq_cache',   15*60*1000, loadEstoque,        60000);
   // Passo 7 — intervalo de 10s para chamados (servidor já tem cache, resposta rápida)
   setInterval(autoRefresh, 10000);
   // Passo 8 — keep-alive a cada 4 min para evitar cold start no Railway
