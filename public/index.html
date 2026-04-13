@@ -59,9 +59,10 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
   background:var(--bg2); border-right:1px solid var(--border);
   overflow-y:auto; overflow-x:hidden;
   transition:width .2s ease;
+  position:relative;
 }
 /* ── Sidebar recolhida ── */
-.sidebar.collapsed { width:54px; }
+.sidebar.collapsed { width:54px; overflow-x:visible; }
 .sidebar.collapsed .sb-label,
 .sidebar.collapsed .sidebar-section,
 .sidebar.collapsed .user-name,
@@ -82,8 +83,6 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
 .sidebar.collapsed .space-dot { margin:0; }
 .sidebar.collapsed .sidebar-bottom { padding:10px 4px; }
 .sidebar.collapsed .user-row { justify-content:center; padding:6px 0; gap:0; }
-/* Botão toggle vira seta para direita quando recolhido */
-.sidebar.collapsed .sb-toggle-btn { transform:rotate(180deg); }
 .sidebar.collapsed .sidebar-top { padding:10px 0; justify-content:center; }
 .sidebar.collapsed .sb-logo-text { display:none; }
 
@@ -116,20 +115,19 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
 .ws-name { font-weight:600; font-size:13px; flex:1; }
 .ws-chevron { color:var(--text3); font-size:10px; }
 
-/* Linha do botão toggle */
-.sb-toggle-row {
-  display:flex; align-items:center; justify-content:flex-end;
-  padding:0 10px 8px; transition:justify-content .2s, padding .2s;
-}
-.sidebar.collapsed .sb-toggle-row { justify-content:center; padding:0 0 8px; }
-/* Botão de toggle (seta) */
+/* Botão toggle flutuante na borda direita da sidebar */
+.sb-toggle-row { display:none; } /* linha antiga não usada */
 .sb-toggle-btn {
-  width:22px; height:22px; border-radius:5px; border:1px solid var(--border);
-  background:var(--bg3); color:var(--text3); cursor:pointer;
+  position:absolute; right:-12px; top:72px;
+  width:20px; height:36px; border-radius:0 6px 6px 0;
+  border:1px solid var(--border); border-left:none;
+  background:var(--bg2); color:var(--text3); cursor:pointer;
   display:grid; place-items:center; font-size:10px;
-  transition:transform .2s, background .15s; flex-shrink:0;
+  transition:transform .2s, background .15s, color .15s;
+  z-index:200; flex-shrink:0;
 }
-.sb-toggle-btn:hover { background:var(--border); color:var(--text); }
+.sb-toggle-btn:hover { background:var(--bg3); color:var(--text); }
+.sidebar.collapsed .sb-toggle-btn { transform:rotate(180deg); }
 
 .sidebar-section { padding:18px 14px 6px; font-size:10.5px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text3); transition:opacity .15s; }
 
@@ -569,10 +567,8 @@ input[type="text"]::placeholder { color:var(--text3); }
       </div>
     </div>
   </div>
-  <!-- Botão toggle separado, sempre centralizado -->
-  <div class="sb-toggle-row">
-    <button class="sb-toggle-btn" onclick="toggleSidebarCollapse()" title="Expandir/recolher menu"><i class="fas fa-chevron-right"></i></button>
-  </div>
+  <!-- Botão toggle: orelha colada na borda direita da sidebar -->
+  <button class="sb-toggle-btn" onclick="toggleSidebarCollapse()" title="Expandir/recolher menu"><i class="fas fa-chevron-right"></i></button>
 
   <div class="sidebar-section">Painel</div>
   <div class="nav-item active" onclick="goPage('comercial',this)" data-label="Comercial"><i class="fas fa-briefcase"></i><span class="sb-label"> Comercial</span></div>
