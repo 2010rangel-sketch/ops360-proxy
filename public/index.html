@@ -58,10 +58,44 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
   width:220px; flex-shrink:0; height:100vh; display:flex; flex-direction:column;
   background:var(--bg2); border-right:1px solid var(--border);
   overflow-y:auto; overflow-x:hidden;
+  transition:width .2s ease;
 }
+/* ── Sidebar recolhida ── */
+.sidebar.collapsed { width:54px; }
+.sidebar.collapsed .sb-label,
+.sidebar.collapsed .sidebar-section,
+.sidebar.collapsed .user-name,
+.sidebar.collapsed .ws-name,
+.sidebar.collapsed .ws-chevron,
+.sidebar.collapsed .nav-count { display:none !important; }
+.sidebar.collapsed .nav-item,
+.sidebar.collapsed .space-item { padding:9px 0; justify-content:center; }
+.sidebar.collapsed .nav-item i { width:20px; font-size:14px; opacity:.75; }
+.sidebar.collapsed .space-dot { margin:0; }
+.sidebar.collapsed .sidebar-bottom { padding:10px 4px; }
+.sidebar.collapsed .user-row { justify-content:center; padding:6px 0; gap:0; }
+.sidebar.collapsed .sb-toggle-btn { transform:rotate(180deg); }
+.sidebar.collapsed .sidebar-top { padding:12px 0; justify-content:center; }
+.sidebar.collapsed .sb-logo-text { display:none; }
+
+/* Tooltip ao passar mouse na sidebar recolhida */
+.sidebar.collapsed .nav-item[data-label],
+.sidebar.collapsed .space-item[data-label] { position:relative; }
+.sidebar.collapsed .nav-item[data-label]:hover::after,
+.sidebar.collapsed .space-item[data-label]:hover::after {
+  content: attr(data-label);
+  position:absolute; left:58px; top:50%; transform:translateY(-50%);
+  background:var(--surface2); color:var(--text); font-size:12px; font-weight:500;
+  padding:5px 10px; border-radius:6px; white-space:nowrap;
+  border:1px solid var(--border); box-shadow:0 4px 12px rgba(0,0,0,.3);
+  z-index:9999; pointer-events:none;
+}
+
 .sidebar-top {
   padding:16px 14px 12px;
   border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+  transition:padding .2s;
 }
 .workspace {
   display:flex; align-items:center; gap:8px; padding:6px 8px;
@@ -73,7 +107,16 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
 .ws-name { font-weight:600; font-size:13px; flex:1; }
 .ws-chevron { color:var(--text3); font-size:10px; }
 
-.sidebar-section { padding:18px 14px 6px; font-size:10.5px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text3); }
+/* Botão de toggle (seta) */
+.sb-toggle-btn {
+  width:22px; height:22px; border-radius:5px; border:1px solid var(--border);
+  background:var(--bg3); color:var(--text3); cursor:pointer;
+  display:grid; place-items:center; font-size:10px;
+  transition:transform .2s, background .15s; flex-shrink:0;
+}
+.sb-toggle-btn:hover { background:var(--border); color:var(--text); }
+
+.sidebar-section { padding:18px 14px 6px; font-size:10.5px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text3); transition:opacity .15s; }
 
 .nav-item {
   display:flex; align-items:center; gap:8px; padding:7px 14px;
@@ -82,7 +125,7 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
 }
 .nav-item:hover { background:var(--bg3); color:var(--text); }
 .nav-item.active { background:var(--bg3); color:var(--text); }
-.nav-item i { width:16px; text-align:center; font-size:12px; opacity:.7; }
+.nav-item i { width:16px; text-align:center; font-size:12px; opacity:.7; flex-shrink:0; }
 .nav-item.active i { opacity:1; color:var(--accent); }
 .nav-count { margin-left:auto; font-size:10.5px; font-family:'JetBrains Mono',monospace; padding:1px 6px; border-radius:10px; font-weight:500; }
 .nc-red { background:var(--red-light); color:var(--red); }
@@ -96,7 +139,7 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
 .space-item:hover { background:var(--bg3); color:var(--text); }
 .space-dot { width:22px; height:22px; border-radius:6px; display:grid; place-items:center; font-size:10px; font-weight:700; color:#fff; flex-shrink:0; }
 
-.sidebar-bottom { margin-top:auto; padding:12px 14px; border-top:1px solid var(--border); }
+.sidebar-bottom { margin-top:auto; padding:12px 14px; border-top:1px solid var(--border); transition:padding .2s; }
 .user-row { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:var(--r); cursor:pointer; }
 .user-row:hover { background:var(--bg3); }
 .user-avatar { width:26px; height:26px; border-radius:6px; background:linear-gradient(135deg,var(--pink),var(--accent)); display:grid; place-items:center; font-size:10px; color:#fff; font-weight:700; flex-shrink:0; }
@@ -499,32 +542,33 @@ input[type="text"]::placeholder { color:var(--text3); }
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
 <!-- SIDEBAR -->
-<nav class="sidebar" id="app-sidebar" style="display:none">
+<nav class="sidebar collapsed" id="app-sidebar" style="display:none">
   <div class="sidebar-top">
-    <div style="display:flex;align-items:center;gap:10px;padding:6px 4px">
+    <div style="display:flex;align-items:center;gap:10px;padding:2px 0">
       <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#5b6af0,#a78bfa);display:grid;place-items:center;flex-shrink:0;box-shadow:0 4px 12px rgba(91,106,240,.35)">
         <i class="fas fa-globe-americas" style="color:#fff;font-size:15px"></i>
       </div>
-      <div style="line-height:1.2">
+      <div class="sb-logo-text" style="line-height:1.2">
         <div style="font-size:11px;font-weight:500;color:var(--text3);letter-spacing:.04em;text-transform:uppercase">LC Fibra</div>
         <div style="font-size:18px;font-weight:800;background:linear-gradient(90deg,#5b6af0,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-.5px">360</div>
       </div>
     </div>
+    <button class="sb-toggle-btn" onclick="toggleSidebarCollapse()" title="Expandir/recolher menu"><i class="fas fa-chevron-right"></i></button>
   </div>
 
   <div class="sidebar-section">Painel</div>
-  <div class="nav-item active" onclick="goPage('comercial',this)"><i class="fas fa-briefcase"></i> Comercial</div>
-  <div class="nav-item" onclick="goPage('atendimento',this)"><i class="fas fa-headset"></i> Atendimento</div>
-  <div class="nav-item" onclick="goPage('chamados',this)"><i class="fas fa-ticket-alt"></i> Chamados</div>
-  <div class="nav-item" onclick="goPage('retencao',this)"><i class="fas fa-user-shield"></i> Retenção / Cancelamento</div>
-  <div class="nav-item" onclick="goPage('remocao',this)"><i class="fas fa-tools"></i> Remoção / Cobrança</div>
-  <div class="nav-item" onclick="goPage('financeiro',this)"><i class="fas fa-dollar-sign"></i> Financeiro</div>
-  <div class="nav-item" onclick="goPage('saude',this)"><i class="fas fa-heartbeat"></i> Saúde da Base</div>
-  <div class="nav-item" onclick="goPage('rh',this)"><i class="fas fa-users"></i> RH</div>
+  <div class="nav-item active" onclick="goPage('comercial',this)" data-label="Comercial"><i class="fas fa-briefcase"></i><span class="sb-label"> Comercial</span></div>
+  <div class="nav-item" onclick="goPage('atendimento',this)" data-label="Atendimento"><i class="fas fa-headset"></i><span class="sb-label"> Atendimento</span></div>
+  <div class="nav-item" onclick="goPage('chamados',this)" data-label="Chamados"><i class="fas fa-ticket-alt"></i><span class="sb-label"> Chamados</span></div>
+  <div class="nav-item" onclick="goPage('retencao',this)" data-label="Retenção / Cancelamento"><i class="fas fa-user-shield"></i><span class="sb-label"> Retenção / Cancelamento</span></div>
+  <div class="nav-item" onclick="goPage('remocao',this)" data-label="Remoção / Cobrança"><i class="fas fa-tools"></i><span class="sb-label"> Remoção / Cobrança</span></div>
+  <div class="nav-item" onclick="goPage('financeiro',this)" data-label="Financeiro"><i class="fas fa-dollar-sign"></i><span class="sb-label"> Financeiro</span></div>
+  <div class="nav-item" onclick="goPage('saude',this)" data-label="Saúde da Base"><i class="fas fa-heartbeat"></i><span class="sb-label"> Saúde da Base</span></div>
+  <div class="nav-item" onclick="goPage('rh',this)" data-label="RH"><i class="fas fa-users"></i><span class="sb-label"> RH</span></div>
 
   <div class="sidebar-section">Spaces</div>
-  <div class="space-item" onclick="goPage('tarefas',this)"><div class="space-dot" style="background:#5b6af0">T</div> Tarefas</div>
-  <div class="space-item" onclick="goPage('integracoes',this)"><div class="space-dot" style="background:#f59e0b">I</div> Integrações</div>
+  <div class="space-item" onclick="goPage('tarefas',this)" data-label="Tarefas"><div class="space-dot" style="background:#5b6af0">T</div><span class="sb-label"> Tarefas</span></div>
+  <div class="space-item" onclick="goPage('integracoes',this)" data-label="Integrações"><div class="space-dot" style="background:#f59e0b">I</div><span class="sb-label"> Integrações</span></div>
 
   <div class="sidebar-bottom">
     <div class="user-row">
@@ -2432,6 +2476,22 @@ function toggleSidebar() {
   document.querySelector('.sidebar').classList.toggle('open');
   document.getElementById('sidebarOverlay').classList.toggle('open');
 }
+
+function toggleSidebarCollapse() {
+  const sb = document.getElementById('app-sidebar');
+  const collapsed = sb.classList.toggle('collapsed');
+  localStorage.setItem('sb_collapsed', collapsed ? '1' : '0');
+}
+
+// Restaura preferência de sidebar ao carregar
+(function() {
+  const pref = localStorage.getItem('sb_collapsed');
+  // padrão = recolhida (collapsed). Só expande se usuário explicitamente expandiu (pref === '0')
+  if (pref === '0') {
+    const sb = document.getElementById('app-sidebar');
+    if (sb) sb.classList.remove('collapsed');
+  }
+})();
 
 // THEME
 function toggleTheme() {
