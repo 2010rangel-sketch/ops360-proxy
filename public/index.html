@@ -9302,15 +9302,55 @@ function raxPararVoz() {
 <style>
 #sidebarToggleTop {
   position:fixed; z-index:9000;
-  left:32px; top:12px;
-  width:24px; height:24px;
-  background:transparent; border:none;
-  color:rgba(148,163,184,.5);
+  width:26px; height:26px; border-radius:6px;
+  border:1px solid rgba(255,255,255,.12);
+  background:var(--bg2,#1a1d2e); color:var(--text2,#94a3b8);
   display:grid; place-items:center; font-size:10px;
-  cursor:pointer; padding:0;
-  transition:color .15s;
+  cursor:grab; user-select:none;
+  box-shadow:0 2px 8px rgba(0,0,0,.35);
+  transition:background .15s, color .15s;
 }
-#sidebarToggleTop:hover { color:rgba(148,163,184,1); }
+#sidebarToggleTop:hover { background:var(--bg3,#252840); color:#fff; }
+#sidebarToggleTop:active { cursor:grabbing; }
 </style>
+
+<script>
+(function(){
+  const btn = document.getElementById('sidebarToggleTop');
+  const saved = JSON.parse(localStorage.getItem('sb_toggle_pos') || 'null');
+  btn.style.left = (saved?.x ?? 60) + 'px';
+  btn.style.top  = (saved?.y ?? 14) + 'px';
+
+  let dragging = false, startX, startY, origX, origY, moved = false;
+
+  btn.addEventListener('mousedown', e => {
+    dragging = true; moved = false;
+    startX = e.clientX; startY = e.clientY;
+    const r = btn.getBoundingClientRect();
+    origX = r.left; origY = r.top;
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const dx = e.clientX - startX, dy = e.clientY - startY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+    btn.style.left = Math.max(0, Math.min(window.innerWidth  - 30, origX + dx)) + 'px';
+    btn.style.top  = Math.max(0, Math.min(window.innerHeight - 30, origY + dy)) + 'px';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    if (moved) {
+      localStorage.setItem('sb_toggle_pos', JSON.stringify({
+        x: parseInt(btn.style.left), y: parseInt(btn.style.top)
+      }));
+    } else {
+      toggleSidebarCollapse();
+    }
+  });
+})();
+</script>
 </body>
 </html>
