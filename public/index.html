@@ -9295,8 +9295,9 @@ function raxPararVoz() {
 </script>
 
 <!-- Botão toggle flutuante e arrastável -->
-<button id="sidebarToggleTop" title="Expandir/recolher menu — arraste para reposicionar">
+<button id="sidebarToggleTop" title="Clique: expandir/recolher — Arraste: mover — Canto: redimensionar">
   <i class="fas fa-chevron-right" id="sidebarToggleTopIcon"></i>
+  <div id="sb-resize-handle"></div>
 </button>
 
 <style>
@@ -9305,25 +9306,52 @@ function raxPararVoz() {
   width:26px; height:26px; border-radius:6px;
   border:1px solid rgba(255,255,255,.12);
   background:var(--bg2,#1a1d2e); color:var(--text2,#94a3b8);
-  display:grid; place-items:center; font-size:10px;
+  display:grid; place-items:center;
   cursor:grab; user-select:none;
   box-shadow:0 2px 8px rgba(0,0,0,.35);
   transition:background .15s, color .15s;
+  overflow:visible;
 }
 #sidebarToggleTop:hover { background:var(--bg3,#252840); color:#fff; }
 #sidebarToggleTop:active { cursor:grabbing; }
+#sidebarToggleTopIcon { pointer-events:none; }
+/* Alça de redimensionar — canto inferior direito */
+#sb-resize-handle {
+  position:absolute; bottom:-4px; right:-4px;
+  width:10px; height:10px; border-radius:3px;
+  background:rgba(148,163,184,.4); border:1px solid rgba(255,255,255,.15);
+  cursor:nwse-resize; z-index:9001;
+  transition:background .15s;
+}
+#sb-resize-handle:hover { background:rgba(148,163,184,.9); }
 </style>
 
 <script>
 (function(){
-  const btn = document.getElementById('sidebarToggleTop');
-  const saved = JSON.parse(localStorage.getItem('sb_toggle_pos') || 'null');
-  btn.style.left = (saved?.x ?? 60) + 'px';
-  btn.style.top  = (saved?.y ?? 14) + 'px';
+  const btn  = document.getElementById('sidebarToggleTop');
+  const ico  = document.getElementById('sidebarToggleTopIcon');
 
+  // Restaura posição e tamanho salvos
+  const saved = JSON.parse(localStorage.getItem('sb_toggle_pos') || 'null');
+  btn.style.left    = (saved?.x  ?? 60) + 'px';
+  btn.style.top     = (saved?.y  ?? 14) + 'px';
+  const sz = saved?.size ?? 26;
+  btn.style.width   = sz + 'px';
+  btn.style.height  = sz + 'px';
+  ico.style.fontSize = Math.round(sz * 0.42) + 'px';
+
+  function saveState() {
+    localStorage.setItem('sb_toggle_pos', JSON.stringify({
+      x: parseInt(btn.style.left), y: parseInt(btn.style.top),
+      size: parseInt(btn.style.width)
+    }));
+  }
+
+  // ── Arrastar botão ──
   let dragging = false, startX, startY, origX, origY, moved = false;
 
   btn.addEventListener('mousedown', e => {
+    if (e.target.id === 'sb-resize-handle') return; // deixa resize tratar
     dragging = true; moved = false;
     startX = e.clientX; startY = e.clientY;
     const r = btn.getBoundingClientRect();
@@ -9342,13 +9370,34 @@ function raxPararVoz() {
   document.addEventListener('mouseup', () => {
     if (!dragging) return;
     dragging = false;
-    if (moved) {
-      localStorage.setItem('sb_toggle_pos', JSON.stringify({
-        x: parseInt(btn.style.left), y: parseInt(btn.style.top)
-      }));
-    } else {
-      toggleSidebarCollapse();
-    }
+    if (moved) saveState();
+    else toggleSidebarCollapse();
+  });
+
+  // ── Redimensionar ──
+  const handle = document.getElementById('sb-resize-handle');
+  let resizing = false, rsX, rsY, rsSize;
+
+  handle.addEventListener('mousedown', e => {
+    resizing = true;
+    rsX = e.clientX; rsY = e.clientY;
+    rsSize = parseInt(btn.style.width) || 26;
+    e.stopPropagation(); e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!resizing) return;
+    const delta = Math.max(e.clientX - rsX, e.clientY - rsY);
+    const ns = Math.max(20, Math.min(80, rsSize + delta));
+    btn.style.width  = ns + 'px';
+    btn.style.height = ns + 'px';
+    ico.style.fontSize = Math.round(ns * 0.42) + 'px';
+  });
+
+  document.addEventListener('mouseup', e => {
+    if (!resizing) return;
+    resizing = false;
+    saveState();
   });
 })();
 </script>
