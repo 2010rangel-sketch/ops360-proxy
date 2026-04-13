@@ -519,7 +519,6 @@ input[type="text"]::placeholder { color:var(--text3); }
   <div class="nav-item" onclick="goPage('retencao',this)"><i class="fas fa-user-shield"></i> Retenção / Cancelamento</div>
   <div class="nav-item" onclick="goPage('remocao',this)"><i class="fas fa-tools"></i> Remoção / Cobrança</div>
   <div class="nav-item" onclick="goPage('financeiro',this)"><i class="fas fa-dollar-sign"></i> Financeiro</div>
-  <div class="nav-item" onclick="goPage('fiscal',this)"><i class="fas fa-file-invoice"></i> Fiscal</div>
   <div class="nav-item" onclick="goPage('estoque',this)"><i class="fas fa-boxes"></i> Estoque</div>
   <div class="nav-item" onclick="goPage('rh',this)"><i class="fas fa-users"></i> RH</div>
   <div class="nav-item" onclick="goPage('saude',this)"><i class="fas fa-heartbeat"></i> Saúde da Base</div>
@@ -1680,59 +1679,6 @@ input[type="text"]::placeholder { color:var(--text3); }
 
     </div>
 
-    <!-- ═══ FISCAL ═══ -->
-    <div class="page" id="page-fiscal">
-
-      <!-- Header -->
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap">
-        <div>
-          <div style="font-size:16px;font-weight:700;color:var(--text)">Fiscal</div>
-          <div style="font-size:11px;color:var(--text3)" id="fisc-periodo-label">Notas fiscais · Jan 2025 → hoje</div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <span class="badge b-blue" id="fisc-sync-badge">—</span>
-          <button class="btn btn-primary btn-sm" onclick="loadFiscal(true)"><i class="fas fa-sync-alt"></i> Atualizar</button>
-        </div>
-      </div>
-
-      <!-- KPIs: 6 cards -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px">
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Total de NFs</div><div class="kpi-mini-val" id="fisc-kpi-total" style="color:var(--accent)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:#22d3ee"></div><div class="kpi-mini-label">Valor Total</div><div class="kpi-mini-val" id="fisc-kpi-valor" style="color:#22d3ee;font-size:15px">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:#f59e0b"></div><div class="kpi-mini-label">NFCom</div><div class="kpi-mini-val" id="fisc-kpi-nfcom" style="color:#f59e0b">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:#f87171"></div><div class="kpi-mini-label">NF-e</div><div class="kpi-mini-val" id="fisc-kpi-nfe" style="color:#f87171">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:#60a5fa"></div><div class="kpi-mini-label">Telecom</div><div class="kpi-mini-val" id="fisc-kpi-telecom" style="color:#60a5fa">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:#4ade80"></div><div class="kpi-mini-label">NFS-e</div><div class="kpi-mini-val" id="fisc-kpi-nfse" style="color:#4ade80">—</div></div>
-      </div>
-
-      <!-- Gráfico principal -->
-      <!-- Tabela detalhamento mensal -->
-      <div class="tbl-card">
-        <div class="tbl-header">
-          <span class="tbl-title">Detalhamento Mensal</span>
-          <span class="badge b-blue" id="fisc-tbl-badge">—</span>
-          <span style="font-size:10px;color:var(--text3);margin-left:4px">clique no mês para ver por filial</span>
-        </div>
-        <div id="fisc-tbl-empty" style="padding:40px;text-align:center;color:var(--text3)">
-          <i class="fas fa-file-invoice" style="font-size:32px;margin-bottom:12px;opacity:.3;display:block"></i>
-          <div style="font-size:14px;font-weight:600">Clique em Atualizar para carregar</div>
-        </div>
-        <div id="fisc-tbl-main" style="display:none;overflow-x:auto">
-          <table class="tbl" style="min-width:560px">
-            <thead><tr>
-              <th style="width:110px">Mês / Filial</th>
-              <th style="text-align:right;color:#f59e0b">NFCom</th>
-              <th style="text-align:right;color:#f87171">NF-e</th>
-              <th style="text-align:right;color:#60a5fa">Telecom</th>
-              <th style="text-align:right;color:#4ade80">NFS-e</th>
-              <th style="text-align:right">Total</th>
-            </tr></thead>
-            <tbody id="fisc-tbl-body"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
     <!-- ═══ SAÚDE DA BASE ═══ -->
     <div class="page" id="page-saude">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap">
@@ -2562,7 +2508,7 @@ function goPage(id, el, skipHistory) {
   // Marca o nav-item correspondente como ativo
   const navEl = el || document.querySelector(`.nav-item[onclick*="'${id}'"], .space-item[onclick*="'${id}'"]`);
   if(navEl) navEl.classList.add('active');
-  const titles = {chamados:'Chamados',atendimento:'Atendimento',comercial:'Comercial',retencao:'Retenção / Cancelamento',conexoes:'Conexões',financeiro:'Financeiro',fiscal:'Fiscal',estoque:'Estoque',rh:'RH',saude:'Saúde da Base',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
+  const titles = {chamados:'Chamados',atendimento:'Atendimento',comercial:'Comercial',retencao:'Retenção / Cancelamento',conexoes:'Conexões',financeiro:'Financeiro',estoque:'Estoque',rh:'RH',saude:'Saúde da Base',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
   document.getElementById('pageTitle').textContent = titles[id]||id;
   // Reseta pill para "Ao vivo" ao trocar de página (comercial escreve o horário quando carrega)
   const pill = document.getElementById('live-pill-text');
@@ -2607,9 +2553,6 @@ function goPage(id, el, skipHistory) {
     if (_alData) renderAdicaoLiquida(_alData);
     else loadAdicaoLiquida();
   }
-  if (id === 'fiscal') {
-    loadFiscal();
-  }
   if (id === 'saude') {
     loadSaudeBase();
     if (_finData) renderFinanceiro(_finData);
@@ -2636,7 +2579,7 @@ window.addEventListener('popstate', e => {
 // Ao abrir link direto (ex: /financeiro), navega para a página correta
 function _pageFromPath() {
   const seg = window.location.pathname.replace(/^\//, '').split('/')[0];
-  const valid = ['comercial','chamados','atendimento','retencao','remocao','conexoes','financeiro','fiscal','estoque','rh','saude','tarefas','integracoes'];
+  const valid = ['comercial','chamados','atendimento','retencao','remocao','conexoes','financeiro','estoque','rh','saude','tarefas','integracoes'];
   return valid.includes(seg) ? seg : 'comercial';
 }
 
@@ -7659,229 +7602,6 @@ function renderTempoMedioHist(meses) {
 }
 
 
-// ─── FISCAL ──────────────────────────────────────────────────────────────────
-let _fiscData = null;
-let _fiscChartMode = 'qtd';
-
-const FISC_COR   = { nfcom:'#f59e0b', nfe:'#f87171', telecom:'#60a5fa', nfse:'#4ade80' };
-const FISC_LABEL = { nfcom:'NFCom', nfe:'NF-e', telecom:'Telecom', nfse:'NFS-e' };
-const FISC_TIPOS = ['nfcom', 'nfe', 'telecom', 'nfse'];
-const FISC_MESES = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-const FISC_CNPJ  = {
-  '08407644000100':'Matriz','08407644000291':'Concordia','08407644000372':'Ipixuna',
-  '08407644000453':'Acará','08407644000534':'Aurora','08407644000615':'S.Miguel',
-  '08407644000704':'Salinópolis','08407644000887':'N.Esperança','08407644000968':'Garrafão',
-};
-
-async function loadFiscal(force = false) {
-  const badge = document.getElementById('fisc-sync-badge');
-  if (badge) { badge.textContent = 'Carregando...'; badge.className = 'badge b-blue'; }
-  try {
-    const r = await fetch(`${PROXY_URL}/api/fiscal${force ? '?force=1' : ''}`);
-    const d = await r.json();
-    _fiscData = d;
-    renderFiscal(d);
-    if (badge) {
-      const hora = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
-      badge.textContent = `Atualizado ${hora}`;
-      badge.className = d.ok ? 'badge b-green' : 'badge b-red';
-    }
-  } catch(e) {
-    if (badge) { badge.textContent = 'Erro de conexão'; badge.className = 'badge b-red'; }
-  }
-}
-
-function fiscSetMode(mode) {
-  _fiscChartMode = mode;
-  const ON  = 'background:#3b82f6;border:none;border-radius:5px;padding:4px 12px;color:#fff;font-size:11px;cursor:pointer;font-weight:600';
-  const OFF = 'background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:4px 12px;color:var(--text3);font-size:11px;cursor:pointer';
-  const bQ = document.getElementById('fisc-btn-qtd');
-  const bV = document.getElementById('fisc-btn-val');
-  if (bQ) bQ.style.cssText = mode === 'qtd' ? ON : OFF;
-  if (bV) bV.style.cssText = mode === 'val' ? ON : OFF;
-  if (_fiscData) _fiscRenderChart(_fiscData.porMes || {});
-}
-
-function _fiscFmtK(v) {
-  if (!v || v === 0) return '';
-  return v >= 1000000 ? `R$${(v/1000000).toFixed(1)}M` : v >= 1000 ? `R$${(v/1000).toFixed(0)}k` : `R$${Math.round(v)}`;
-}
-
-function _fiscRenderChart(porMes) {
-  const chart  = document.getElementById('fisc-chart');
-  const legend = document.getElementById('fisc-legend');
-  if (!chart) return;
-  const isVal   = _fiscChartMode === 'val';
-  const mesHoje = new Date().toISOString().slice(0, 7);
-  let mesOrdem  = Object.keys(porMes).sort();
-  if (isVal) mesOrdem = mesOrdem.filter(m => porMes[m].temValor && (porMes[m].valor || 0) > 0);
-  if (!mesOrdem.length) {
-    chart.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:20px;align-self:center">Dados de valor disponíveis apenas nos últimos 6 meses. Clique em Atualizar.</div>';
-    if (legend) legend.innerHTML = '';
-    return;
-  }
-  const ALTURA = 270;
-  const getV   = (obj, t) => isVal ? (obj[t+'_valor'] || 0) : (obj[t] || 0);
-  const maxV   = Math.max(...mesOrdem.flatMap(m => FISC_TIPOS.map(t => getV(porMes[m], t))), 1);
-  const fmtLbl = v => isVal ? _fiscFmtK(v) : v > 0 ? v.toLocaleString('pt-BR') : '';
-
-  chart.innerHTML = mesOrdem.map((mes, i) => {
-    const m = porMes[mes];
-    const [ano, mm] = mes.split('-');
-    const label = (FISC_MESES[parseInt(mm)] || mm) + '/' + ano.slice(2);
-    const isParcial = mes === mesHoje;
-    const anoLbl = (i === 0 || mesOrdem[i-1].slice(0,4) !== ano)
-      ? `<div style="font-size:9px;color:var(--text3);font-weight:600;text-align:center;margin-bottom:3px">${ano}</div>`
-      : `<div style="height:15px"></div>`;
-    const sep = i < mesOrdem.length - 1 ? 'margin-right:10px;' : '';
-    const barras = FISC_TIPOS.map(t => {
-      const v = getV(m, t);
-      if (v <= 0) return `<div style="width:30px;height:${ALTURA}px"></div>`;
-      const h = Math.max(Math.round((v / maxV) * ALTURA), 4);
-      return `<div style="width:30px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:${ALTURA}px" title="${FISC_LABEL[t]}: ${fmtLbl(v)}">
-        <div style="font-size:9px;color:${FISC_COR[t]};font-weight:700;writing-mode:vertical-lr;transform:rotate(180deg);white-space:nowrap;margin-bottom:2px">${fmtLbl(v)}</div>
-        <div style="width:100%;height:${h}px;background:${FISC_COR[t]};border-radius:3px 3px 0 0;${isParcial?'opacity:.7;':''}"></div>
-      </div>`;
-    }).join('');
-    return `<div style="display:flex;flex-direction:column;align-items:center;${sep}">
-      ${anoLbl}
-      <div style="display:flex;align-items:flex-end;border-bottom:1px solid var(--border)">${barras}</div>
-      <div style="font-size:9px;color:${isParcial?'#60a5fa':'var(--text3)'};margin-top:4px;text-align:center;white-space:nowrap">${label}</div>
-    </div>`;
-  }).join('');
-
-  if (legend) {
-    const tots = {};
-    FISC_TIPOS.forEach(t => tots[t] = mesOrdem.reduce((a,m) => a + getV(porMes[m], t), 0));
-    const totalAll = mesOrdem.reduce((a,m) => a + (isVal ? (porMes[m].valor||0) : (porMes[m].total||0)), 0);
-    legend.innerHTML = FISC_TIPOS.filter(t => tots[t] > 0).map(t =>
-      `<span style="display:flex;align-items:center;gap:5px">
-        <span style="width:10px;height:10px;border-radius:2px;background:${FISC_COR[t]};display:inline-block"></span>
-        ${FISC_LABEL[t]} <b>${isVal ? _fiscFmtK(tots[t]) : tots[t].toLocaleString('pt-BR')}</b>
-      </span>`
-    ).join('') +
-    `<span style="font-weight:700;color:var(--text);margin-left:4px">Total <b>${isVal ? _fiscFmtK(totalAll) : totalAll.toLocaleString('pt-BR')}</b></span>`;
-  }
-}
-
-function renderFiscal(d) {
-  if (!d) return;
-  const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
-  const fmtMoeda = v => v > 0 ? 'R$\u00a0' + v.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
-  const fmtR = v => v ? 'R$\u00a0' + parseFloat(v).toLocaleString('pt-BR', {minimumFractionDigits:0, maximumFractionDigits:0}) : '';
-
-  if (!d.ok) { set('fisc-kpi-total', 'Erro'); return; }
-
-  const porMes = d.porMes || {};
-  const meses  = Object.keys(porMes).sort().reverse();
-
-  // KPIs
-  const tots = { nfcom:0, nfe:0, telecom:0, nfse:0, valor:0 };
-  meses.forEach(m => { FISC_TIPOS.forEach(t => tots[t] += porMes[m][t]||0); tots.valor += porMes[m].valor||0; });
-  const totalNf = FISC_TIPOS.reduce((a,t) => a + tots[t], 0);
-  set('fisc-kpi-total',   totalNf.toLocaleString('pt-BR'));
-  set('fisc-kpi-valor',   tots.valor > 0 ? fmtMoeda(tots.valor) : '—');
-  set('fisc-kpi-nfcom',   tots.nfcom.toLocaleString('pt-BR'));
-  set('fisc-kpi-nfe',     tots.nfe.toLocaleString('pt-BR'));
-  set('fisc-kpi-telecom', tots.telecom.toLocaleString('pt-BR'));
-  set('fisc-kpi-nfse',    tots.nfse.toLocaleString('pt-BR'));
-
-  // Período
-  if (meses.length > 0) {
-    const [a0,m0] = meses[meses.length-1].split('-');
-    const [a1,m1] = meses[0].split('-');
-    const lbl = document.getElementById('fisc-periodo-label');
-    if (lbl) lbl.textContent = `Notas fiscais · ${FISC_MESES[parseInt(m0)]}/${a0} → ${FISC_MESES[parseInt(m1)]}/${a1}`;
-  }
-
-  // Gráfico
-  const chartEmpty = document.getElementById('fisc-chart-empty');
-  const chartWrap  = document.getElementById('fisc-chart-wrap');
-  if (!meses.length) {
-    if (chartEmpty) chartEmpty.style.display = '';
-    if (chartWrap)  chartWrap.style.display  = 'none';
-  } else {
-    if (chartEmpty) chartEmpty.style.display = 'none';
-    if (chartWrap)  chartWrap.style.display  = '';
-    const mesBadge = document.getElementById('fisc-mes-badge');
-    if (mesBadge) mesBadge.textContent = meses.length + ' meses';
-    _fiscRenderChart(porMes);
-  }
-
-  // Tabela
-  const tblEmpty = document.getElementById('fisc-tbl-empty');
-  const tblMain  = document.getElementById('fisc-tbl-main');
-  const tblBody  = document.getElementById('fisc-tbl-body');
-  const tblBadge = document.getElementById('fisc-tbl-badge');
-  if (!meses.length) {
-    if (tblEmpty) tblEmpty.style.display = '';
-    if (tblMain)  tblMain.style.display  = 'none';
-    return;
-  }
-  if (tblEmpty) tblEmpty.style.display = 'none';
-  if (tblMain)  tblMain.style.display  = '';
-  if (tblBadge) tblBadge.textContent   = meses.length + ' meses';
-
-  const mesHoje = new Date().toISOString().slice(0, 7);
-  const _cell = (qtd, val, cor, small) => {
-    const fs = small ? 'font-size:11px;' : '';
-    if (!qtd) return `<td class="mono" style="${fs}text-align:right;color:${cor};opacity:.25">—</td>`;
-    const valDiv = val ? `<div style="font-size:9px;opacity:.55;margin-top:1px">${fmtR(val)}</div>` : '';
-    return `<td class="mono" style="${fs}text-align:right;color:${cor}">${qtd.toLocaleString('pt-BR')}${valDiv}</td>`;
-  };
-
-  let totalGeral = 0;
-  const rows = [];
-  meses.forEach(mes => {
-    const m = porMes[mes];
-    totalGeral += m.total || 0;
-    const [ano, mm] = mes.split('-');
-    const mesLabel = (FISC_MESES[parseInt(mm)] || mm) + '/' + ano;
-    const isAtual  = mes === mesHoje;
-    const temFil   = m.filiais && Object.keys(m.filiais).length > 0;
-    const totalDiv = m.valor ? `<div style="font-size:9px;opacity:.55;margin-top:1px">${fmtR(m.valor)}</div>` : '';
-    rows.push(`<tr style="cursor:${temFil?'pointer':'default'};${isAtual?'background:rgba(59,130,246,.06)':''}" onclick="${temFil?`fiscToggleFiliais('${mes}')`:''}" >
-      <td style="font-size:12px;${isAtual?'font-weight:700;color:var(--accent)':''}">${mesLabel}${temFil?` <span id="fisc-ico-${mes}" style="font-size:9px;color:var(--text3)">▶</span>`:''}</td>
-      ${_cell(m.nfcom, m.nfcom_valor, '#f59e0b', false)}
-      ${_cell(m.nfe,   m.nfe_valor,   '#f87171', false)}
-      ${_cell(m.telecom, m.telecom_valor, '#60a5fa', false)}
-      ${_cell(m.nfse,  m.nfse_valor,  '#4ade80', false)}
-      <td class="mono" style="text-align:right;font-weight:600">${(m.total||0).toLocaleString('pt-BR')}${totalDiv}</td>
-    </tr>`);
-    if (temFil) {
-      rows.push(...Object.entries(m.filiais).sort((a,b)=>b[1].total-a[1].total).map(([cnpj, f]) =>
-        `<tr class="fisc-fil-${mes}" style="display:none;background:var(--bg3)">
-          <td style="font-size:11px;color:var(--text2);padding-left:18px">${FISC_CNPJ[cnpj]||cnpj.slice(-4)}</td>
-          ${_cell(f.nfcom, f.nfcom_valor, '#f59e0b', true)}
-          ${_cell(f.nfe,   f.nfe_valor,   '#f87171', true)}
-          ${_cell(f.telecom, f.telecom_valor, '#60a5fa', true)}
-          ${_cell(f.nfse,  f.nfse_valor,  '#4ade80', true)}
-          <td class="mono" style="text-align:right;font-size:11px">${(f.total||0).toLocaleString('pt-BR')}${f.valor?`<div style="font-size:9px;opacity:.55">${fmtR(f.valor)}</div>`:''}</td>
-        </tr>`
-      ));
-    }
-  });
-  const totR = { nfcom:0, nfe:0, telecom:0, nfse:0, nfcom_valor:0, nfe_valor:0, telecom_valor:0, nfse_valor:0, valor:0 };
-  meses.forEach(m => { FISC_TIPOS.forEach(t => { totR[t]+=(porMes[m][t]||0); totR[t+'_valor']+=(porMes[m][t+'_valor']||0); }); totR.valor+=(porMes[m].valor||0); });
-  rows.push(`<tr style="border-top:2px solid var(--border);background:var(--bg3)">
-    <td style="font-size:12px;font-weight:700">Total</td>
-    ${_cell(totR.nfcom, totR.nfcom_valor, '#f59e0b', false)}
-    ${_cell(totR.nfe,   totR.nfe_valor,   '#f87171', false)}
-    ${_cell(totR.telecom, totR.telecom_valor, '#60a5fa', false)}
-    ${_cell(totR.nfse,  totR.nfse_valor,  '#4ade80', false)}
-    <td class="mono" style="text-align:right;font-weight:700">${totalGeral.toLocaleString('pt-BR')}${totR.valor?`<div style="font-size:9px;opacity:.55">${fmtR(totR.valor)}</div>`:''}</td>
-  </tr>`);
-  if (tblBody) tblBody.innerHTML = rows.join('');
-}
-
-function fiscToggleFiliais(mes) {
-  const rows = document.querySelectorAll(`.fisc-fil-${mes}`);
-  const ico  = document.getElementById(`fisc-ico-${mes}`);
-  const open = rows.length > 0 && rows[0].style.display !== 'none';
-  rows.forEach(r => r.style.display = open ? 'none' : '');
-  if (ico) ico.textContent = open ? '▶' : '▼';
-}
-
 // ─── SAÚDE DA BASE ───────────────────────────────────────────────────────────
 let _saudeData = null;
 let _saudeDias = 7;
@@ -8153,7 +7873,7 @@ function filterEstoque(txt) {
 }
 
 // ── GESTÃO DE USUÁRIOS (frontend) ────────────────────────────────
-const TODAS_PAGINAS = ['comercial','atendimento','chamados','retencao','financeiro','fiscal','estoque','rh','saude','conexoes','tarefas','integracoes'];
+const TODAS_PAGINAS = ['comercial','atendimento','chamados','retencao','financeiro','estoque','rh','saude','conexoes','tarefas','integracoes'];
 
 async function usersCarregar() {
   if (!_authUser?.admin) return;
@@ -8165,7 +7885,7 @@ async function usersCarregar() {
     if (!d.ok) return;
     const body = document.getElementById('users-tbl-body');
     if (!body) return;
-    const LABEL_PG = { comercial:'Comercial',atendimento:'Atendimento',chamados:'Chamados',retencao:'Cancelamento',financeiro:'Financeiro',fiscal:'Fiscal',estoque:'Estoque',rh:'RH',saude:'Saúde',conexoes:'Conexões',tarefas:'Tarefas',integracoes:'Integrações' };
+    const LABEL_PG = { comercial:'Comercial',atendimento:'Atendimento',chamados:'Chamados',retencao:'Cancelamento',financeiro:'Financeiro',estoque:'Estoque',rh:'RH',saude:'Saúde',conexoes:'Conexões',tarefas:'Tarefas',integracoes:'Integrações' };
     body.innerHTML = d.users.map(u => {
       const pgs = u.paginas.split(',').map(p => `<span style="font-size:10px;padding:1px 6px;border-radius:8px;background:var(--accent-light);color:var(--accent);margin:1px;display:inline-block">${LABEL_PG[p.trim()]||p}</span>`).join('');
       return `<tr>
@@ -8252,7 +7972,6 @@ function _appStart() {
   const _ret = _lcGet('ops360_ret_cache', 10*60*1000); if (_ret) { _retData = _ret; }
   const _com = _lcGet('ops360_com_cache', 35*60*1000); if (_com) { _comData = _com; renderComercialAtualiza(_com); }
   const _atd = _lcGet('ops360_atend_cache', 10*60*1000); if (_atd) { _atendData = _atd; }
-  const _fsc = _lcGet('ops360_fisc_cache', 35*60*1000); if (_fsc) { _fiscData = _fsc; }
   const _esq = _lcGet('ops360_esq_cache', 35*60*1000);  if (_esq) { _esqData = _esq; renderEstoque(_esq); }
   // Passo 2 — navega para a página da URL (ou comercial por padrão)
   const _initPage = _pageFromPath();
@@ -8277,7 +7996,6 @@ function _appStart() {
   setTimeout(() => loadRemocoes().catch(()=>{}),                  15000);
   _prefetch('ops360_atend_cache',  4*60*1000, loadAtendimentos,   20000);
   _prefetch('ops360_fin_cache',   15*60*1000, loadFinanceiro,     30000);
-  _prefetch('ops360_fisc_cache',  15*60*1000, loadFiscal,         45000);
   _prefetch('ops360_esq_cache',   15*60*1000, loadEstoque,        60000);
   // Passo 7 — intervalo de 10s para chamados (servidor já tem cache, resposta rápida)
   setInterval(autoRefresh, 10000);
