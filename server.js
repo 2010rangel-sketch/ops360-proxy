@@ -3885,10 +3885,11 @@ async function dbInit() {
       );
       console.log(`[auth] Admin criado: ${ADMIN_EMAIL} / ${ADMIN_PASS}`);
     } else {
-      // Garante que todos os admins têm acesso a todas as páginas (migração de campo paginas)
+      // Garante que todos os admins têm acesso a todas as páginas ativas
+      const PAGINAS_ADMIN = 'comercial,atendimento,chamados,retencao,remocao,financeiro,rh,saude,tarefas,integracoes';
       await pool.query(
-        `UPDATE ops360_users SET paginas=$1 WHERE admin=TRUE AND paginas NOT LIKE '%rh%'`,
-        ['comercial,atendimento,chamados,retencao,remocao,financeiro,fiscal,estoque,rh,saude,conexoes,tarefas,integracoes']
+        `UPDATE ops360_users SET paginas=$1 WHERE admin=TRUE`,
+        [PAGINAS_ADMIN]
       );
     }
     console.log('[db] tabelas prontas');

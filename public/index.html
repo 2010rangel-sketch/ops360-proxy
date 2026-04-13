@@ -2358,7 +2358,6 @@ input[type="text"]::placeholder { color:var(--text3); }
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="financeiro" style="cursor:pointer"> <span style="font-size:12px">Financeiro</span></label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="rh" style="cursor:pointer"> <span style="font-size:12px">RH</span></label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="saude" style="cursor:pointer"> <span style="font-size:12px">Saúde da Base</span></label>
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="conexoes" style="cursor:pointer"> <span style="font-size:12px">Conexões</span></label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="tarefas" style="cursor:pointer"> <span style="font-size:12px">Tarefas</span></label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="integracoes" style="cursor:pointer"> <span style="font-size:12px">Integrações</span></label>
         </div>
@@ -2441,7 +2440,10 @@ function toggleTheme() {
 }
 
 // NAV
+let _curPage = 'comercial'; // rastreia página ativa para auto-refresh
+
 function goPage(id, el, skipHistory) {
+  _curPage = id;
   // Atualiza URL para permitir voltar/avançar e favoritar
   if (!skipHistory) history.pushState({ page: id }, '', '/' + id);
   // Fecha modais globais ao trocar de página
@@ -2458,7 +2460,7 @@ function goPage(id, el, skipHistory) {
   // Marca o nav-item correspondente como ativo
   const navEl = el || document.querySelector(`.nav-item[onclick*="'${id}'"], .space-item[onclick*="'${id}'"]`);
   if(navEl) navEl.classList.add('active');
-  const titles = {chamados:'Chamados',atendimento:'Atendimento',comercial:'Comercial',retencao:'Retenção / Cancelamento',conexoes:'Conexões',financeiro:'Financeiro',rh:'RH',saude:'Saúde da Base',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
+  const titles = {chamados:'Chamados',atendimento:'Atendimento',comercial:'Comercial',retencao:'Retenção / Cancelamento',remocao:'Remoção / Cobrança',financeiro:'Financeiro',rh:'RH',saude:'Saúde da Base',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
   document.getElementById('pageTitle').textContent = titles[id]||id;
   // Reseta pill para "Ao vivo" ao trocar de página (comercial escreve o horário quando carrega)
   const pill = document.getElementById('live-pill-text');
@@ -2526,7 +2528,7 @@ window.addEventListener('popstate', e => {
 // Ao abrir link direto (ex: /financeiro), navega para a página correta
 function _pageFromPath() {
   const seg = window.location.pathname.replace(/^\//, '').split('/')[0];
-  const valid = ['comercial','chamados','atendimento','retencao','remocao','conexoes','financeiro','rh','saude','tarefas','integracoes'];
+  const valid = ['comercial','chamados','atendimento','retencao','remocao','financeiro','rh','saude','tarefas','integracoes'];
   return valid.includes(seg) ? seg : 'comercial';
 }
 
@@ -7742,7 +7744,7 @@ function saudeSearch(txt) {
   renderSaudeTbl();
 }
 
-const TODAS_PAGINAS = ['comercial','atendimento','chamados','retencao','financeiro','rh','saude','conexoes','tarefas','integracoes'];
+const TODAS_PAGINAS = ['comercial','atendimento','chamados','retencao','remocao','financeiro','rh','saude','tarefas','integracoes'];
 
 async function usersCarregar() {
   if (!_authUser?.admin) return;
@@ -7754,7 +7756,7 @@ async function usersCarregar() {
     if (!d.ok) return;
     const body = document.getElementById('users-tbl-body');
     if (!body) return;
-    const LABEL_PG = { comercial:'Comercial',atendimento:'Atendimento',chamados:'Chamados',retencao:'Cancelamento',financeiro:'Financeiro',rh:'RH',saude:'Saúde',conexoes:'Conexões',tarefas:'Tarefas',integracoes:'Integrações' };
+    const LABEL_PG = { comercial:'Comercial',atendimento:'Atendimento',chamados:'Chamados',retencao:'Cancelamento',remocao:'Remoção',financeiro:'Financeiro',rh:'RH',saude:'Saúde',tarefas:'Tarefas',integracoes:'Integrações' };
     body.innerHTML = d.users.map(u => {
       const pgs = u.paginas.split(',').map(p => `<span style="font-size:10px;padding:1px 6px;border-radius:8px;background:var(--accent-light);color:var(--accent);margin:1px;display:inline-block">${LABEL_PG[p.trim()]||p}</span>`).join('');
       return `<tr>
@@ -7868,6 +7870,25 @@ function _appStart() {
   setInterval(autoRefresh, 10000);
   // Passo 8 — keep-alive a cada 4 min para evitar cold start no Railway
   setInterval(() => fetch('/ping').catch(()=>{}), 4 * 60 * 1000);
+  // Passo 9 — auto-refresh de todos os painéis a cada 1 minuto
+  setInterval(_autoRefreshPagina, 60 * 1000);
+}
+
+// Auto-refresh global: atualiza o painel ativo a cada 1 minuto
+async function _autoRefreshPagina() {
+  try {
+    switch (_curPage) {
+      case 'comercial':   loadComercial();   break;
+      case 'atendimento': loadAtendimentos(); break;
+      case 'chamados':    autoRefresh();      break;
+      case 'retencao':    loadRetencaoAtend(); loadCancelServico(); break;
+      case 'remocao':     loadRemocoes();     break;
+      case 'financeiro':  loadFinanceiro();   break;
+      case 'saude':       loadSaudeBase();    loadFinanceiro(); break;
+      case 'rh':          loadRh();           break;
+      case 'tarefas':     loadTasksFromAPI(); break;
+    }
+  } catch(e) { /* silencia erros de rede */ }
 }
 
 // Inicia verificando login (substitui o auto-execute anterior)
