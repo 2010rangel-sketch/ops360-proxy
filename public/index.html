@@ -7935,7 +7935,9 @@ function _appStart() {
 }
 
 // Auto-refresh global: atualiza o painel ativo a cada 1 minuto
+let _lastRefreshTime = Date.now();
 async function _autoRefreshPagina() {
+  _lastRefreshTime = Date.now();
   try {
     switch (_curPage) {
       case 'comercial':   loadComercial();   break;
@@ -7950,6 +7952,15 @@ async function _autoRefreshPagina() {
     }
   } catch(e) { /* silencia erros de rede */ }
 }
+
+// Quando a aba volta ao foco (vinha em segundo plano), atualiza imediatamente
+// se passou mais de 55s desde o último refresh (browsers pausam setInterval em bg)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    const elapsed = Date.now() - _lastRefreshTime;
+    if (elapsed > 55000) _autoRefreshPagina();
+  }
+});
 
 // Inicia verificando login (substitui o auto-execute anterior)
 window.addEventListener('DOMContentLoaded', () => { authInit(); });
