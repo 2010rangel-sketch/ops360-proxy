@@ -2246,7 +2246,7 @@ app.get('/api/tasks/calendar.ics', (req, res) => {
 const notifSent = new Set(); // evita enviar duplicado na mesma janela
 
 cron.schedule('* * * * *', async () => {
-  const tasks = loadTasks();
+  const tasks = await loadTasks();
   const now   = Date.now();
 
   for (const t of tasks) {
