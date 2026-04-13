@@ -7915,13 +7915,14 @@ function _appStart() {
   const _ret = _lcGet('ops360_ret_cache', 10*60*1000); if (_ret) { _retData = _ret; }
   const _com = _lcGet('ops360_com_cache', 35*60*1000); if (_com) { _comData = _com; renderComercialAtualiza(_com); }
   const _atd = _lcGet('ops360_atend_cache', 10*60*1000); if (_atd) { _atendData = _atd; }
-  // Passo 2 — navega para a página da URL (ou primeira permitida por padrão)
+  // Passo 2 — navega para a página correta conforme permissões
   const _permitidas = (_authUser?.paginas || 'comercial').split(',').map(p => p.trim());
   let _initPage = _pageFromPath();
   // Se página não permitida, vai para a primeira da lista
   if (!_permitidas.includes(_initPage)) _initPage = _permitidas[0] || 'comercial';
   history.replaceState({ page: _initPage }, '', '/' + _initPage);
-  if (_initPage !== 'comercial') goPage(_initPage, null, true);
+  // Sempre navega explicitamente para garantir que a página correta aparece
+  goPage(_initPage, null, true);
   // Passo 2b — calendário
   try { renderCal(); carregarEventos(); } catch {}
   // Passo 3 — chamados em background
