@@ -596,7 +596,7 @@ input[type="text"]::placeholder { color:var(--text3); }
     </div>
     <div class="topbar-right">
       <div class="topbar-clock" id="clock">--:--:--</div>
-      <button class="icon-btn" onclick="goPage('integracoes')"><i class="fas fa-cog"></i></button>
+      <button class="icon-btn" id="btn-integracoes-cog" onclick="goPage('integracoes')" style="display:none"><i class="fas fa-cog"></i></button>
     </div>
   </div>
 
@@ -3922,6 +3922,9 @@ function _aplicarPermissoes() {
     const pg = m[1];
     el.style.display = permitidas.has(pg) ? '' : 'none';
   });
+  // Engrenagem (integrações) só para admin
+  const cogBtn = document.getElementById('btn-integracoes-cog');
+  if (cogBtn) cogBtn.style.display = _authUser.admin ? '' : 'none';
 }
 
 async function doLogin() {
@@ -7809,7 +7812,7 @@ function saudeSearch(txt) {
   renderSaudeTbl();
 }
 
-const TODAS_PAGINAS = ['comercial','atendimento','chamados','retencao','remocao','financeiro','rh','saude','tarefas','integracoes'];
+const TODAS_PAGINAS = ['comercial','atendimento','chamados','retencao','remocao','financeiro','rh','saude','tarefas'];
 
 async function usersCarregar() {
   if (!_authUser?.admin) return;
@@ -7912,8 +7915,11 @@ function _appStart() {
   const _ret = _lcGet('ops360_ret_cache', 10*60*1000); if (_ret) { _retData = _ret; }
   const _com = _lcGet('ops360_com_cache', 35*60*1000); if (_com) { _comData = _com; renderComercialAtualiza(_com); }
   const _atd = _lcGet('ops360_atend_cache', 10*60*1000); if (_atd) { _atendData = _atd; }
-  // Passo 2 — navega para a página da URL (ou comercial por padrão)
-  const _initPage = _pageFromPath();
+  // Passo 2 — navega para a página da URL (ou primeira permitida por padrão)
+  const _permitidas = (_authUser?.paginas || 'comercial').split(',').map(p => p.trim());
+  let _initPage = _pageFromPath();
+  // Se página não permitida, vai para a primeira da lista
+  if (!_permitidas.includes(_initPage)) _initPage = _permitidas[0] || 'comercial';
   history.replaceState({ page: _initPage }, '', '/' + _initPage);
   if (_initPage !== 'comercial') goPage(_initPage, null, true);
   // Passo 2b — calendário
