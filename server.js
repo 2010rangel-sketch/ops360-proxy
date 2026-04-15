@@ -2124,7 +2124,28 @@ app.put('/api/tasks/:id', async (req, res) => {
   }
 
   await saveTasks(tasks);
-  res.json({ ...tasks[idx], _proximaTarefa });
+
+  // Notificar pessoa cadastrada na tarefa ao concluir
+  const updated = tasks[idx];
+  const tornouConcluida = (req.body.status === 'done' || req.body.done === true);
+  if (tornouConcluida && updated.notifyTo) {
+    const titulo = updated.title || updated.t || 'Tarefa';
+    const desc   = updated.desc ? `<p>${updated.desc}</p>` : '';
+    const cl = (updated.checklist||[]).length
+      ? `<ul>${(updated.checklist||[]).map(i=>`<li>${i.done?'✅':'⬜'} ${i.text}</li>`).join('')}</ul>` : '';
+    const html = `
+      <div style="font-family:sans-serif;max-width:480px;margin:auto;background:#1e2235;color:#e2e8f0;padding:28px;border-radius:12px">
+        <div style="font-size:22px;font-weight:700;margin-bottom:6px">✅ Tarefa concluída</div>
+        <div style="font-size:18px;font-weight:600;color:#818cf8;margin-bottom:14px">${titulo}</div>
+        ${desc}
+        ${cl}
+        <hr style="border:none;border-top:1px solid #334155;margin:16px 0">
+        <div style="font-size:12px;color:#64748b">LC Fibra 360 — Notificação automática</div>
+      </div>`;
+    sendEmailToRecipient(updated.notifyTo, `✅ Concluído: ${titulo}`, html).catch(()=>{});
+  }
+
+  res.json({ ...updated, _proximaTarefa });
 });
 
 app.delete('/api/tasks/:id', async (req, res) => {
@@ -2166,6 +2187,18 @@ async function sendEmail(subject, html) {
     auth: { user: c.smtpUser, pass: c.smtpPass },
   });
   await transporter.sendMail({ from: c.smtpUser, to: c.email, subject, html });
+  return true;
+}
+
+// ── Email para destinatário específico (notificação de tarefa concluída) ──
+async function sendEmailToRecipient(to, subject, html) {
+  const c = getNotifConfig();
+  if (!c.smtpUser || !c.smtpPass) return false;
+  const transporter = nodemailer.createTransport({
+    host: c.smtpHost, port: c.smtpPort, secure: c.smtpPort === 465,
+    auth: { user: c.smtpUser, pass: c.smtpPass },
+  });
+  await transporter.sendMail({ from: `"LC Fibra 360" <${c.smtpUser}>`, to, subject, html });
   return true;
 }
 

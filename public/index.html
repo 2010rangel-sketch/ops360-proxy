@@ -2181,7 +2181,10 @@ input[type="text"]::placeholder { color:var(--text3); }
             <div class="form-group"><label>Recorrência</label><select id="kb-rec"><option value="">Não recorrente</option><option value="diaria">↻ Diária</option><option value="semanal">↻ Semanal</option><option value="mensal">↻ Mensal</option><option value="anual">↻ Anual</option></select></div>
           </div>
 
-          <div class="form-group" style="margin-bottom:14px"><label>Descrição</label><input type="text" id="kb-desc" placeholder="Detalhes opcionais..."></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+            <div class="form-group"><label>Descrição</label><input type="text" id="kb-desc" placeholder="Detalhes opcionais..."></div>
+            <div class="form-group"><label><i class="fas fa-paper-plane" style="color:var(--accent);margin-right:4px"></i>Notificar pessoa (e-mail ao concluir)</label><input type="email" id="kb-notify-to" placeholder="email@exemplo.com"></div>
+          </div>
 
           <!-- Checklist -->
           <div style="margin-bottom:14px">
@@ -6005,11 +6008,13 @@ function kbOpenModal(id, defaultStatus='todo') {
     g('kb-notif-email').checked = t.notifEmail!==false;
     g('kb-notif-wa').checked    = t.notifWA!==false;
     g('kb-notif-ical').checked  = t.notifICal!==false;
+    g('kb-notify-to').value     = t.notifyTo||'';
   } else {
     title.textContent = 'Nova Tarefa';
     g('kb-title').value=''; g('kb-pri').value='m'; g('kb-tag').value='Operações';
     g('kb-date').value=''; g('kb-alarm').value='15'; g('kb-rec').value=''; g('kb-desc').value='';
     g('kb-notif-email').checked=true; g('kb-notif-wa').checked=true; g('kb-notif-ical').checked=true;
+    g('kb-notify-to').value='';
   }
 
   kbRenderModalCL();
@@ -6061,6 +6066,7 @@ async function kbSaveTask() {
     notifEmail: g('kb-notif-email').checked,
     notifWA:    g('kb-notif-wa').checked,
     notifICal:  g('kb-notif-ical').checked,
+    notifyTo:   g('kb-notify-to').value.trim() || null,
     checklist:  _kbTempCL,
     status:     _kbTargetSt,
     done:       _kbTargetSt==='done',
