@@ -313,10 +313,10 @@ tr:hover td { background:var(--bg3); color:var(--text); }
 
 /* ── Kanban Board ── */
 .kb-board { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; align-items:start; }
-.kb-col { background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); display:flex; flex-direction:column; min-height:420px; }
+.kb-col { background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); display:flex; flex-direction:column; height:520px; }
 .kb-col-header { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-radius:var(--r-lg) var(--r-lg) 0 0; font-size:13px; font-weight:700; color:#fff; }
 .kb-col-count { background:rgba(255,255,255,0.25); border-radius:20px; padding:2px 10px; font-size:12px; font-weight:600; }
-.kb-cards { flex:1; padding:10px; display:flex; flex-direction:column; gap:8px; min-height:80px; transition:.15s; }
+.kb-cards { flex:1; padding:10px; display:flex; flex-direction:column; gap:8px; min-height:80px; overflow-y:auto; transition:.15s; }
 .kb-cards.drag-over { background:rgba(91,106,240,0.06); border-radius:8px; outline:2px dashed var(--accent); outline-offset:-4px; }
 .kb-add-btn { margin:0 10px 10px; background:none; border:1px dashed var(--border2); color:var(--text3); border-radius:8px; padding:8px; cursor:pointer; font-size:12px; transition:.15s; width:calc(100% - 20px); }
 .kb-add-btn:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-light); }
