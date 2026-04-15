@@ -1154,6 +1154,7 @@ app.get('/api/retencao', async (req, res) => {
 const _cancelServCache = {};
 const CANCEL_SERV_TTL  = 5 * 60 * 1000; // 5 min
 
+
 app.get('/api/cancelamentos-servico', async (req, res) => {
   try {
     const { data_inicio, data_fim } = req.query;
@@ -1231,7 +1232,9 @@ app.get('/api/cancelamentos-servico', async (req, res) => {
         if (!mapaMotivo[motivo]) mapaMotivo[motivo] = { motivo, total: 0, clientes: [] };
         mapaMotivo[motivo].total++;
         const habilitacao = s.data_habilitacao || s.data_ativacao || null;
-        mapaMotivo[motivo].clientes.push({ nome, cidade, plano, motivo, data: s.data_cancelamento, habilitacao });
+        const vendedor = s.vendedor?.nome || null;
+        const data_venda = s.data_venda || null;
+        mapaMotivo[motivo].clientes.push({ nome, cidade, plano, motivo, data: s.data_cancelamento, habilitacao, vendedor, data_venda });
         total++;
 
         if (isInadimplencia(motivo)) total_ativo++;

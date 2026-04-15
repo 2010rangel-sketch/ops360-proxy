@@ -311,6 +311,35 @@ tr:hover td { background:var(--bg3); color:var(--text); }
 .task-item:hover .task-del { opacity:1; }
 .task-del:hover { color:var(--red); background:var(--red-light); }
 
+/* ── Kanban Board ── */
+.kb-board { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; align-items:start; }
+.kb-col { background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); display:flex; flex-direction:column; min-height:420px; }
+.kb-col-header { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-radius:var(--r-lg) var(--r-lg) 0 0; font-size:13px; font-weight:700; color:#fff; }
+.kb-col-count { background:rgba(255,255,255,0.25); border-radius:20px; padding:2px 10px; font-size:12px; font-weight:600; }
+.kb-cards { flex:1; padding:10px; display:flex; flex-direction:column; gap:8px; min-height:80px; transition:.15s; }
+.kb-cards.drag-over { background:rgba(91,106,240,0.06); border-radius:8px; outline:2px dashed var(--accent); outline-offset:-4px; }
+.kb-add-btn { margin:0 10px 10px; background:none; border:1px dashed var(--border2); color:var(--text3); border-radius:8px; padding:8px; cursor:pointer; font-size:12px; transition:.15s; width:calc(100% - 20px); }
+.kb-add-btn:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-light); }
+.kb-card { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:12px; cursor:grab; transition:.15s; user-select:none; }
+.kb-card:hover { border-color:var(--border2); box-shadow:0 2px 8px rgba(0,0,0,.15); }
+.kb-card.dragging { opacity:.35; cursor:grabbing; }
+.kb-card-header { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin-bottom:8px; }
+.kb-card-title { font-size:12.5px; font-weight:600; color:var(--text); flex:1; line-height:1.4; }
+.kb-card-actions { display:flex; gap:2px; flex-shrink:0; opacity:0; transition:.12s; }
+.kb-card:hover .kb-card-actions { opacity:1; }
+.kb-card-actions button { background:none; border:none; color:var(--text3); cursor:pointer; padding:3px 6px; border-radius:5px; font-size:11px; line-height:1; }
+.kb-card-actions button:hover { color:var(--text); background:var(--bg3); }
+.kb-card-meta { display:flex; gap:5px; flex-wrap:wrap; align-items:center; margin-bottom:6px; }
+.kb-checklist { margin-top:8px; padding-top:8px; border-top:1px solid var(--border); }
+.kb-check-progress { height:3px; background:var(--bg3); border-radius:2px; margin-bottom:6px; overflow:hidden; }
+.kb-check-progress-fill { height:100%; background:var(--green); border-radius:2px; transition:.4s; }
+.kb-check-item { display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--text2); padding:3px 0; }
+.kb-check-item input[type=checkbox] { cursor:pointer; accent-color:var(--green); }
+.kb-check-done { text-decoration:line-through; color:var(--text3); }
+.kb-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:1000; align-items:center; justify-content:center; }
+.kb-modal-overlay.open { display:flex; }
+.kb-modal { background:var(--surface); border:1px solid var(--border2); border-radius:14px; width:580px; max-width:96vw; max-height:92vh; overflow-y:auto; padding:24px; position:relative; }
+
 /* Calendar */
 .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
 .cal-header { text-align:center; font-size:10px; font-weight:600; color:var(--text3); padding:4px; text-transform:uppercase; }
@@ -1515,6 +1544,18 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
       </div>
 
+      <!-- Serviços Cancelados (Cancelamento Geral) -->
+      <div class="tbl-card" style="margin-bottom:20px">
+        <div class="tbl-header">
+          <span class="tbl-title"><i class="fas fa-times-circle" style="color:var(--red);margin-right:6px"></i>Serviços cancelados</span>
+          <span class="badge b-red" id="ret-servicos-cancel-badge">—</span>
+        </div>
+        <div style="overflow-x:auto;max-height:400px;overflow-y:auto">
+          <table><thead><tr><th>Cliente</th><th>Motivo</th><th>Plano / Serviço</th><th>Cidade</th><th>Vendedor</th><th>Data Venda</th><th>Data Cancelamento</th></tr></thead>
+          <tbody id="retServicosCancelTbl"><tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
+        </div>
+      </div>
+
     </div>
 
     <!-- ═══ REMOÇÃO DE EQUIPAMENTO ═══ -->
@@ -2080,57 +2121,90 @@ input[type="text"]::placeholder { color:var(--text3); }
           <div class="kpi-mini" style="min-width:90px"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">Concluídas</div><div class="kpi-mini-val" style="color:var(--green)" id="tk-co">—</div></div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <button class="btn btn-sm" onclick="showTaskSettings()" title="Configurar notificações"><i class="fas fa-bell"></i> Notificações</button>
-          <button class="btn btn-sm" onclick="copyIcsUrl()" title="Assinar calendário no iPhone"><i class="fas fa-calendar-alt"></i> iPhone Calendar</button>
-          <button class="btn btn-primary btn-sm" onclick="showAddTask()"><i class="fas fa-plus"></i> Nova tarefa</button>
+          <button class="btn btn-sm" onclick="showTaskSettings()"><i class="fas fa-bell"></i> Notificações</button>
+          <button class="btn btn-sm" onclick="copyIcsUrl()"><i class="fas fa-calendar-alt"></i> iPhone Calendar</button>
+          <button class="btn btn-primary btn-sm" onclick="kbOpenModal(null,'todo')"><i class="fas fa-plus"></i> Nova tarefa</button>
         </div>
       </div>
 
-      <!-- Task lists -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header"><span class="tbl-title">🔴 Alta prioridade</span></div>
-          <div style="padding:0 16px" class="task-list" id="tasks-h"></div>
+      <!-- Kanban Board -->
+      <div class="kb-board">
+
+        <!-- A Fazer -->
+        <div class="kb-col" id="col-todo" ondragover="kbDragOver(event)" ondragleave="kbDragLeave(event)" ondrop="kbDrop(event,'todo')">
+          <div class="kb-col-header" style="background:var(--accent)">
+            <span><i class="fas fa-list-ul" style="margin-right:7px;opacity:.8"></i>A Fazer</span>
+            <span class="kb-col-count" id="cnt-todo">0</span>
+          </div>
+          <div class="kb-cards" id="cards-todo"></div>
+          <button class="kb-add-btn" onclick="kbOpenModal(null,'todo')"><i class="fas fa-plus" style="margin-right:5px"></i>Adicionar</button>
         </div>
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header"><span class="tbl-title">🟡 Média prioridade</span></div>
-          <div style="padding:0 16px" class="task-list" id="tasks-m"></div>
+
+        <!-- Em Processo -->
+        <div class="kb-col" id="col-doing" ondragover="kbDragOver(event)" ondragleave="kbDragLeave(event)" ondrop="kbDrop(event,'doing')">
+          <div class="kb-col-header" style="background:var(--amber)">
+            <span><i class="fas fa-spinner" style="margin-right:7px;opacity:.8"></i>Em Processo</span>
+            <span class="kb-col-count" id="cnt-doing">0</span>
+          </div>
+          <div class="kb-cards" id="cards-doing"></div>
+          <button class="kb-add-btn" onclick="kbOpenModal(null,'doing')"><i class="fas fa-plus" style="margin-right:5px"></i>Adicionar</button>
         </div>
-      </div>
-      <div class="tbl-card">
-        <div class="tbl-header"><span class="tbl-title">🟢 Baixa / Concluídas</span></div>
-        <div style="padding:0 16px" class="task-list" id="tasks-l"></div>
+
+        <!-- Finalizado -->
+        <div class="kb-col" id="col-done" ondragover="kbDragOver(event)" ondragleave="kbDragLeave(event)" ondrop="kbDrop(event,'done')">
+          <div class="kb-col-header" style="background:var(--green)">
+            <span><i class="fas fa-check-circle" style="margin-right:7px;opacity:.8"></i>Finalizado</span>
+            <span class="kb-col-count" id="cnt-done">0</span>
+          </div>
+          <div class="kb-cards" id="cards-done"></div>
+        </div>
+
       </div>
 
-      <!-- Add task form -->
-      <div class="add-form" id="addTaskForm" style="margin-top:14px">
-        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px"><i class="fas fa-plus-circle" style="color:var(--accent);margin-right:6px"></i>Nova Tarefa</div>
-        <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin-bottom:10px">
-          <div class="form-group"><label>Título *</label><input type="text" id="nt-title" placeholder="Descreva a tarefa..."></div>
-          <div class="form-group"><label>Prioridade</label><select id="nt-pri"><option value="h">🔴 Alta</option><option value="m" selected>🟡 Média</option><option value="l">🟢 Baixa</option></select></div>
-          <div class="form-group"><label>Categoria</label><select id="nt-tag"><option>Operações</option><option>Chamados</option><option>Retenção</option><option>Reunião</option><option>Relatório</option><option>Equipe</option><option>Outro</option></select></div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:10px">
-          <div class="form-group"><label>Prazo (data/hora)</label><input type="datetime-local" id="nt-date"></div>
-          <div class="form-group"><label>Lembrete antes</label><select id="nt-alarm"><option value="10">10 minutos</option><option value="15" selected>15 minutos</option><option value="30">30 minutos</option><option value="60">1 hora</option><option value="120">2 horas</option><option value="1440">1 dia antes</option></select></div>
-          <div class="form-group"><label>Recorrência</label><select id="nt-recorrencia"><option value="">Não recorrente</option><option value="diaria">↻ Diária</option><option value="semanal">↻ Semanal</option><option value="mensal">↻ Mensal</option><option value="anual">↻ Anual</option></select></div>
-          <div class="form-group"><label>Descrição</label><input type="text" id="nt-desc" placeholder="Detalhes opcionais..."></div>
-        </div>
-        <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px">
-          <span style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase">Notificar via:</span>
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px">
-            <input type="checkbox" id="nt-notif-email" checked> <i class="fas fa-envelope" style="color:var(--accent)"></i> Email
-          </label>
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px">
-            <input type="checkbox" id="nt-notif-wa" checked> <i class="fab fa-whatsapp" style="color:#22c55e"></i> WhatsApp
-          </label>
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px">
-            <input type="checkbox" id="nt-notif-ical" checked> <i class="fas fa-calendar" style="color:var(--cyan)"></i> iPhone Cal.
-          </label>
-        </div>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-primary btn-sm" onclick="addTask()"><i class="fas fa-plus"></i> Adicionar</button>
-          <button class="btn btn-sm" onclick="hideAddTask()">Cancelar</button>
+      <!-- Modal Add/Edit -->
+      <div class="kb-modal-overlay" id="kbModalOverlay" onclick="if(event.target===this)kbCloseModal()">
+        <div class="kb-modal">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+            <div style="font-size:14px;font-weight:700;color:var(--text)" id="kbModalTitle">Nova Tarefa</div>
+            <button onclick="kbCloseModal()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:20px;line-height:1;padding:0 4px">✕</button>
+          </div>
+
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin-bottom:10px">
+            <div class="form-group"><label>Título *</label><input type="text" id="kb-title" placeholder="Descreva a tarefa..."></div>
+            <div class="form-group"><label>Prioridade</label><select id="kb-pri"><option value="h">🔴 Alta</option><option value="m" selected>🟡 Média</option><option value="l">🟢 Baixa</option></select></div>
+            <div class="form-group"><label>Categoria</label><select id="kb-tag"><option>Operações</option><option>Chamados</option><option>Retenção</option><option>Reunião</option><option>Relatório</option><option>Equipe</option><option>Outro</option></select></div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+            <div class="form-group"><label>Prazo (data/hora)</label><input type="datetime-local" id="kb-date"></div>
+            <div class="form-group"><label>Lembrete antes</label><select id="kb-alarm"><option value="10">10 minutos</option><option value="15" selected>15 minutos</option><option value="30">30 minutos</option><option value="60">1 hora</option><option value="1440">1 dia antes</option></select></div>
+            <div class="form-group"><label>Recorrência</label><select id="kb-rec"><option value="">Não recorrente</option><option value="diaria">↻ Diária</option><option value="semanal">↻ Semanal</option><option value="mensal">↻ Mensal</option><option value="anual">↻ Anual</option></select></div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:14px"><label>Descrição</label><input type="text" id="kb-desc" placeholder="Detalhes opcionais..."></div>
+
+          <!-- Checklist -->
+          <div style="margin-bottom:14px">
+            <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px"><i class="fas fa-check-square" style="color:var(--accent);margin-right:5px"></i>Checklist</div>
+            <div id="kb-checklist-items" style="display:flex;flex-direction:column;gap:5px;margin-bottom:8px;min-height:4px"></div>
+            <div style="display:flex;gap:6px">
+              <input type="text" id="kb-check-new" placeholder="Adicionar item e pressionar Enter..." style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:7px 10px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif;outline:none" onkeydown="if(event.key==='Enter'){event.preventDefault();kbAddCheckItem()}">
+              <button onclick="kbAddCheckItem()" style="background:var(--accent-light);border:1px solid rgba(91,106,240,.3);color:var(--accent);border-radius:6px;padding:6px 14px;cursor:pointer;font-size:12px;font-weight:600"><i class="fas fa-plus"></i></button>
+            </div>
+          </div>
+
+          <!-- Notificar via -->
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:18px;flex-wrap:wrap">
+            <span style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase">Notificar via:</span>
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px"><input type="checkbox" id="kb-notif-email" checked> <i class="fas fa-envelope" style="color:var(--accent)"></i> Email</label>
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px"><input type="checkbox" id="kb-notif-wa" checked> <i class="fab fa-whatsapp" style="color:#22c55e"></i> WhatsApp</label>
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px"><input type="checkbox" id="kb-notif-ical" checked> <i class="fas fa-calendar" style="color:var(--cyan)"></i> iPhone Cal.</label>
+          </div>
+
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button class="btn btn-sm" onclick="kbCloseModal()">Cancelar</button>
+            <button class="btn btn-primary btn-sm" onclick="kbSaveTask()"><i class="fas fa-save"></i> Salvar</button>
+          </div>
         </div>
       </div>
 
@@ -4728,6 +4802,7 @@ async function loadCancelServico() {
     window._cancelServData    = data;
     window._cancelServMotivos = motivos;
     _renderCancelServTbl(_retFiltroAt, _retFiltroTipoCancel, _retFiltroCidade);
+    _renderServicosCancelTbl();
     _renderRetCidade();
   } catch(e) {
     if (e.name === 'AbortError') return; // request cancelado — não sobrescreve tabela
@@ -4875,6 +4950,51 @@ function _renderCancelServTbl(atendente, tipoCancel, cidade) {
       ? _row(motivos, total, 'mostrarClientesCancelamento')
       : '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Sem cancelamentos no período</td></tr>';
   }
+}
+
+function _renderServicosCancelTbl() {
+  const tbl   = document.getElementById('retServicosCancelTbl');
+  const badge = document.getElementById('ret-servicos-cancel-badge');
+  if (!tbl) return;
+  const data = window._cancelServData;
+  if (!data) return;
+
+  // Achata todos os clientes de todos os motivos em lista única
+  const clientes = [];
+  for (const m of (data.por_motivo || [])) {
+    for (const c of (m.clientes || [])) {
+      clientes.push({ nome: c.nome, motivo: m.motivo, plano: c.plano, cidade: c.cidade, data: c.data, vendedor: c.vendedor, data_venda: c.data_venda });
+    }
+  }
+  clientes.sort((a, b) => (b.data || '') > (a.data || '') ? 1 : -1);
+
+  if (badge) badge.textContent = clientes.length;
+
+  if (!clientes.length) {
+    tbl.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">Sem serviços cancelados no período</td></tr>';
+    return;
+  }
+
+  // Formata data dd/MM/yyyy — aceita tanto "dd/MM/yyyy" quanto "yyyy-MM-dd" e "yyyy-MM-dd HH:mm:ss"
+  const fmt = d => {
+    if (!d) return '—';
+    const s = String(d).slice(0, 10);
+    if (s.includes('/')) return s; // já está no formato br
+    const p = s.split('-');
+    return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d;
+  };
+
+  tbl.innerHTML = clientes.map(c => `
+    <tr>
+      <td>${c.nome || '—'}</td>
+      <td><span style="color:var(--red);font-size:11px">${c.motivo || '—'}</span></td>
+      <td>${c.plano || '—'}</td>
+      <td>${c.cidade || '—'}</td>
+      <td style="color:var(--text2);font-size:12px">${c.vendedor || '—'}</td>
+      <td style="white-space:nowrap;color:var(--text2)">${fmt(c.data_venda)}</td>
+      <td style="white-space:nowrap">${fmt(c.data)}</td>
+    </tr>
+  `).join('');
 }
 
 function mostrarClientesCancelamentoFiltro(idx) {
@@ -5754,101 +5874,251 @@ function taskUrgency(t) {
   return '';
 }
 
-function renderTasks() {
-  const renderTo = (id, fn) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const filtered = tasks.filter(fn);
-    el.innerHTML = filtered.length ? filtered.map(t => {
-      const urg = taskUrgency(t);
-      const urgStyle = urg==='overdue' ? 'border-left:3px solid var(--red);padding-left:8px'
-                     : urg==='soon'    ? 'border-left:3px solid var(--amber);padding-left:8px' : '';
-      const notifIcons = [
-        t.notifEmail!==false ? '<i class="fas fa-envelope" style="color:var(--accent);font-size:9px" title="Email"></i>' : '',
-        t.notifWA!==false    ? '<i class="fab fa-whatsapp" style="color:#22c55e;font-size:9px" title="WhatsApp"></i>' : '',
-        t.notifICal!==false  ? '<i class="fas fa-calendar" style="color:var(--cyan);font-size:9px" title="iPhone Cal"></i>' : '',
-      ].filter(Boolean).join('');
-      const recLabels = { diaria:'↻ Diária', semanal:'↻ Semanal', mensal:'↻ Mensal', anual:'↻ Anual' };
-      const recBadge  = t.recorrencia ? `<span style="font-size:9px;background:rgba(99,102,241,.18);color:var(--accent);padding:1px 6px;border-radius:8px">${recLabels[t.recorrencia]||t.recorrencia}</span>` : '';
-      return `<div class="task-item" style="${urgStyle}">
-        <div class="task-check ${t.done?'done':''}" onclick="toggleTask('${t.id}')">${t.done?'✓':''}</div>
-        <div class="task-body">
-          <div class="task-title ${t.done?'done':''}">${t.title||t.t} ${recBadge}</div>
-          <div class="task-meta">
-            <span class="task-tag">${t.tag||''}</span>
-            <span class="task-pri pri-${t.p}">${t.p==='h'?'Alta':t.p==='m'?'Média':'Baixa'}</span>
-            <span class="task-time" style="${urg==='overdue'?'color:var(--red)':urg==='soon'?'color:var(--amber)':''}">${fmtDue(t.dueAt)}</span>
-            <span style="display:flex;gap:3px;align-items:center">${notifIcons}</span>
-          </div>
-          ${t.desc ? `<div style="font-size:11px;color:var(--text3);margin-top:3px">${t.desc}</div>` : ''}
-        </div>
-        <button class="task-del" onclick="delTask('${t.id}')">✕</button>
-      </div>`;
-    }).join('') : '<div style="color:var(--text3);font-size:12px;padding:12px 0">Nenhuma tarefa</div>';
-  };
-  renderTo('tasks-h', t => t.p==='h' && !t.done);
-  renderTo('tasks-m', t => t.p==='m' && !t.done);
-  renderTo('tasks-l', t => t.p==='l' || t.done);
-  const a = tasks.filter(t=>!t.done).length;
-  const u = tasks.filter(t=>t.p==='h'&&!t.done).length;
-  const c = tasks.filter(t=>t.done).length;
-  const ta=document.getElementById('tk-at'); if(ta) ta.textContent=a;
-  const tu=document.getElementById('tk-ur'); if(tu) tu.textContent=u;
-  const tc2=document.getElementById('tk-co'); if(tc2) tc2.textContent=c;
+// ── Kanban state ──────────────────────────────────────────────────
+let _kbDragId   = null;
+let _kbEditId   = null;
+let _kbTempCL   = [];  // checklist temp no modal
+let _kbTargetSt = 'todo';
+
+function taskStatus(t) {
+  if (t.status) return t.status;
+  return t.done ? 'done' : 'todo';
 }
 
-async function toggleTask(id) {
+function renderKanban() {
+  const cols = { todo:[], doing:[], done:[] };
+  for (const t of tasks) { const s = taskStatus(t); cols[s] = cols[s] || []; cols[s].push(t); }
+
+  const priColor = { h:'var(--red)', m:'var(--amber)', l:'var(--green)' };
+  const priLabel = { h:'Alta', m:'Média', l:'Baixa' };
+  const recLabels = { diaria:'↻ Diária', semanal:'↻ Semanal', mensal:'↻ Mensal', anual:'↻ Anual' };
+
+  const renderCard = t => {
+    const urg = taskUrgency(t);
+    const cl  = t.checklist || [];
+    const clDone = cl.filter(i=>i.done).length;
+    const clPct  = cl.length ? Math.round(clDone/cl.length*100) : 0;
+    const dueStr = fmtDue(t.dueAt);
+    const dueColor = urg==='overdue'?'var(--red)':urg==='soon'?'var(--amber)':'var(--text3)';
+    return `<div class="kb-card" draggable="true" data-id="${t.id}"
+        ondragstart="kbDragStart(event)" ondragend="kbDragEnd(event)">
+      <div class="kb-card-header">
+        <div class="kb-card-title">${t.title||t.t||'Sem título'}</div>
+        <div class="kb-card-actions">
+          <button onclick="kbOpenModal('${t.id}')" title="Editar"><i class="fas fa-edit"></i></button>
+          <button onclick="kbDelTask('${t.id}')" title="Excluir" style="color:var(--red)"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+      <div class="kb-card-meta">
+        ${t.p?`<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;background:${priColor[t.p]}22;color:${priColor[t.p]}">${priLabel[t.p]}</span>`:''}
+        ${t.tag?`<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:var(--accent-light);color:var(--accent)">${t.tag}</span>`:''}
+        ${t.recorrencia?`<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(99,102,241,.15);color:var(--accent)">${recLabels[t.recorrencia]||''}</span>`:''}
+        ${dueStr?`<span style="font-size:10.5px;color:${dueColor}"><i class="fas fa-clock" style="margin-right:3px;font-size:9px"></i>${dueStr}</span>`:''}
+      </div>
+      ${t.desc?`<div style="font-size:11px;color:var(--text3);margin-bottom:6px;line-height:1.4">${t.desc}</div>`:''}
+      ${cl.length?`<div class="kb-checklist">
+        <div class="kb-check-progress"><div class="kb-check-progress-fill" style="width:${clPct}%"></div></div>
+        <div style="font-size:10px;color:var(--text3);margin-bottom:5px">${clDone}/${cl.length} concluídos</div>
+        ${cl.map(item=>`<div class="kb-check-item">
+          <input type="checkbox" ${item.done?'checked':''} onchange="kbToggleCheck('${t.id}','${item.id}',this.checked)" onclick="event.stopPropagation()">
+          <span class="${item.done?'kb-check-done':''}">${item.text}</span>
+        </div>`).join('')}
+      </div>`:''}
+    </div>`;
+  };
+
+  ['todo','doing','done'].forEach(s => {
+    const el  = document.getElementById(`cards-${s}`);
+    const cnt = document.getElementById(`cnt-${s}`);
+    const list = cols[s] || [];
+    if (el)  el.innerHTML  = list.length ? list.map(renderCard).join('') : `<div style="color:var(--text3);font-size:12px;padding:12px 4px;text-align:center;opacity:.6">Arraste uma tarefa aqui</div>`;
+    if (cnt) cnt.textContent = list.length;
+  });
+
+  const active = tasks.filter(t=>taskStatus(t)!=='done').length;
+  const urgent = tasks.filter(t=>t.p==='h'&&taskStatus(t)!=='done').length;
+  const done   = tasks.filter(t=>taskStatus(t)==='done').length;
+  const el = id => document.getElementById(id);
+  if(el('tk-at')) el('tk-at').textContent=active;
+  if(el('tk-ur')) el('tk-ur').textContent=urgent;
+  if(el('tk-co')) el('tk-co').textContent=done;
+}
+function renderTasks() { renderKanban(); }
+
+// ── Drag & Drop ────────────────────────────────────────────────────
+function kbDragStart(e) {
+  _kbDragId = e.currentTarget.dataset.id;
+  e.currentTarget.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+function kbDragEnd(e) {
+  e.currentTarget.classList.remove('dragging');
+}
+function kbDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.querySelector('.kb-cards')?.classList.add('drag-over');
+}
+function kbDragLeave(e) {
+  if (!e.currentTarget.contains(e.relatedTarget))
+    e.currentTarget.querySelector('.kb-cards')?.classList.remove('drag-over');
+}
+async function kbDrop(e, status) {
+  e.preventDefault();
+  e.currentTarget.querySelector('.kb-cards')?.classList.remove('drag-over');
+  const id = _kbDragId; _kbDragId = null;
+  if (!id) return;
   const t = tasks.find(x=>x.id===id);
-  if (!t) return;
+  if (!t || taskStatus(t)===status) return;
+  const isDone = status==='done';
   try {
-    const r = await fetch(`/api/tasks/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({done:!t.done}) });
+    const r = await fetch(`/api/tasks/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status, done:isDone}) });
     const result = await r.json();
     const { _proximaTarefa, ...updated } = result;
     tasks = tasks.map(x=>x.id===id ? updated : x);
     if (_proximaTarefa) tasks.push(_proximaTarefa);
-    renderTasks();
+    renderKanban();
   } catch(e) { console.error(e); }
 }
 
-async function delTask(id) {
+// ── Modal ──────────────────────────────────────────────────────────
+function kbOpenModal(id, defaultStatus='todo') {
+  _kbEditId   = id;
+  _kbTargetSt = defaultStatus;
+  _kbTempCL   = [];
+  const title = document.getElementById('kbModalTitle');
+  const g = el => document.getElementById(el);
+
+  if (id) {
+    const t = tasks.find(x=>x.id===id);
+    if (!t) return;
+    title.textContent = 'Editar Tarefa';
+    _kbTargetSt = taskStatus(t);
+    _kbTempCL   = (t.checklist||[]).map(i=>({...i}));
+    g('kb-title').value  = t.title||t.t||'';
+    g('kb-pri').value    = t.p||'m';
+    g('kb-tag').value    = t.tag||'Operações';
+    g('kb-date').value   = t.dueAt ? t.dueAt.slice(0,16) : '';
+    g('kb-alarm').value  = t.notifyMin||15;
+    g('kb-rec').value    = t.recorrencia||'';
+    g('kb-desc').value   = t.desc||'';
+    g('kb-notif-email').checked = t.notifEmail!==false;
+    g('kb-notif-wa').checked    = t.notifWA!==false;
+    g('kb-notif-ical').checked  = t.notifICal!==false;
+  } else {
+    title.textContent = 'Nova Tarefa';
+    g('kb-title').value=''; g('kb-pri').value='m'; g('kb-tag').value='Operações';
+    g('kb-date').value=''; g('kb-alarm').value='15'; g('kb-rec').value=''; g('kb-desc').value='';
+    g('kb-notif-email').checked=true; g('kb-notif-wa').checked=true; g('kb-notif-ical').checked=true;
+  }
+
+  kbRenderModalCL();
+  const overlay = document.getElementById('kbModalOverlay');
+  overlay.classList.add('open');
+  setTimeout(()=>g('kb-title').focus(), 80);
+}
+
+function kbCloseModal() {
+  document.getElementById('kbModalOverlay').classList.remove('open');
+  _kbEditId=null; _kbTempCL=[];
+}
+
+function kbRenderModalCL() {
+  const el = document.getElementById('kb-checklist-items');
+  if (!el) return;
+  el.innerHTML = _kbTempCL.length
+    ? _kbTempCL.map((item,i)=>`
+      <div style="display:flex;align-items:center;gap:7px;padding:6px 10px;background:var(--bg3);border-radius:7px">
+        <input type="checkbox" ${item.done?'checked':''} onchange="_kbTempCL[${i}].done=this.checked" style="cursor:pointer;accent-color:var(--green)">
+        <span style="flex:1;font-size:12px;color:var(--text)">${item.text}</span>
+        <button onclick="_kbTempCL.splice(${i},1);kbRenderModalCL()" style="background:none;border:none;color:var(--text3);cursor:pointer;padding:0 4px;font-size:12px" title="Remover"><i class="fas fa-times"></i></button>
+      </div>`).join('')
+    : '<div style="font-size:11px;color:var(--text3);padding:4px 2px">Nenhum item. Adicione abaixo.</div>';
+}
+
+function kbAddCheckItem() {
+  const inp = document.getElementById('kb-check-new');
+  const text = inp.value.trim();
+  if (!text) return;
+  _kbTempCL.push({ id: Date.now().toString()+Math.random().toString(36).slice(2), text, done:false });
+  inp.value='';
+  kbRenderModalCL();
+}
+
+async function kbSaveTask() {
+  const g = el => document.getElementById(el);
+  const title = g('kb-title').value.trim();
+  if (!title) { g('kb-title').focus(); return; }
+
+  const body = {
+    title, t: title,
+    p:          g('kb-pri').value,
+    tag:        g('kb-tag').value,
+    dueAt:      g('kb-date').value || null,
+    notifyMin:  parseInt(g('kb-alarm').value),
+    recorrencia:g('kb-rec').value || '',
+    desc:       g('kb-desc').value.trim() || null,
+    notifEmail: g('kb-notif-email').checked,
+    notifWA:    g('kb-notif-wa').checked,
+    notifICal:  g('kb-notif-ical').checked,
+    checklist:  _kbTempCL,
+    status:     _kbTargetSt,
+    done:       _kbTargetSt==='done',
+  };
+
+  try {
+    if (_kbEditId) {
+      const r = await fetch(`/api/tasks/${_kbEditId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+      const result = await r.json();
+      const { _proximaTarefa, ...updated } = result;
+      tasks = tasks.map(x=>x.id===_kbEditId ? updated : x);
+      if (_proximaTarefa) tasks.push(_proximaTarefa);
+    } else {
+      const r = await fetch('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+      tasks.push(await r.json());
+    }
+    renderKanban();
+    kbCloseModal();
+  } catch(e) { console.error(e); }
+}
+
+async function kbDelTask(id) {
+  if (!confirm('Excluir esta tarefa?')) return;
   try {
     await fetch(`/api/tasks/${id}`, { method:'DELETE' });
     tasks = tasks.filter(x=>x.id!==id);
-    renderTasks();
+    renderKanban();
   } catch(e) { console.error(e); }
 }
 
-function showAddTask() { document.getElementById('addTaskForm').style.display='block'; }
-function hideAddTask() { document.getElementById('addTaskForm').style.display='none'; }
-
-async function addTask() {
-  const title = document.getElementById('nt-title').value.trim();
-  if (!title) return;
-  const body = {
-    title,
-    t: title,
-    p:           document.getElementById('nt-pri').value,
-    tag:         document.getElementById('nt-tag').value,
-    dueAt:       document.getElementById('nt-date').value || null,
-    notifyMin:   parseInt(document.getElementById('nt-alarm').value),
-    desc:        document.getElementById('nt-desc').value.trim() || null,
-    notifEmail:  document.getElementById('nt-notif-email').checked,
-    notifWA:     document.getElementById('nt-notif-wa').checked,
-    notifICal:   document.getElementById('nt-notif-ical').checked,
-    recorrencia: document.getElementById('nt-recorrencia').value || '',
-  };
+async function kbToggleCheck(taskId, itemId, done) {
+  const t = tasks.find(x=>x.id===taskId);
+  if (!t||!t.checklist) return;
+  t.checklist = t.checklist.map(i=>i.id===itemId?{...i,done}:i);
   try {
-    const r = await fetch('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
-    const t = await r.json();
-    tasks.push(t);
-    renderTasks();
-    document.getElementById('nt-title').value = '';
-    document.getElementById('nt-date').value = '';
-    document.getElementById('nt-desc').value = '';
-    document.getElementById('nt-recorrencia').value = '';
-    hideAddTask();
+    await fetch(`/api/tasks/${taskId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({checklist:t.checklist}) });
+    renderKanban();
   } catch(e) { console.error(e); }
 }
+
+// ── Backward compat aliases ────────────────────────────────────────
+function showAddTask() { kbOpenModal(null,'todo'); }
+function hideAddTask() { kbCloseModal(); }
+async function addTask() { await kbSaveTask(); }
+async function toggleTask(id) {
+  const t = tasks.find(x=>x.id===id);
+  if(!t) return;
+  const ns = taskStatus(t)==='done'?'todo':'done';
+  try {
+    const r = await fetch(`/api/tasks/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:ns,done:ns==='done'})});
+    const result = await r.json();
+    const {_proximaTarefa,...updated}=result;
+    tasks=tasks.map(x=>x.id===id?updated:x);
+    if(_proximaTarefa) tasks.push(_proximaTarefa);
+    renderKanban();
+  } catch(e){console.error(e);}
+}
+async function delTask(id) { await kbDelTask(id); }
 
 // ── Notification config ───────────────────────────────────────────
 async function loadNotifConfig() {
