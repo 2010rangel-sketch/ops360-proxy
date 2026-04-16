@@ -2161,8 +2161,8 @@ function getNotifConfig() {
     email:       process.env.NOTIF_EMAIL       || '',
     smtpUser:    process.env.SMTP_USER         || '',
     smtpPass:    process.env.SMTP_PASS         || '',
-    smtpHost:    process.env.SMTP_HOST         || 'smtp.gmail.com',
-    smtpPort:    parseInt(process.env.SMTP_PORT||'587'),
+    smtpHost:    (process.env.SMTP_HOST || 'smtp.gmail.com').trim().replace(/^=+/, ''),
+    smtpPort:    parseInt((process.env.SMTP_PORT||'587').trim().replace(/^=+/, '')),
     waPhone:     process.env.WA_PHONE          || '',  // ex: 5511999999999
     waApiKey:    process.env.WA_CALLMEBOT_KEY  || '',
   };
