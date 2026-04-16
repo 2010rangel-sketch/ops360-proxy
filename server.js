@@ -1102,8 +1102,8 @@ app.get('/api/retencao', async (req, res) => {
       // Motivo pré-definido selecionado pela atendente ao fechar o atendimento
       const mfObj = a.motivo_fechamento_atendimento;
       const motivoFechamento = (typeof mfObj === 'object' && mfObj)
-        ? (mfObj.descricao || mfObj.nome || mfObj.titulo || `Motivo #${a.id_motivo_fechamento_atendimento || '?'}`)
-        : (a.status_fechamento || a.descricao_fechamento || 'Sem motivo');
+        ? (mfObj.descricao || mfObj.nome || mfObj.titulo || null)
+        : null; // só motivo estruturado — status/texto livre não é motivo
       const desfecho = desfechoOf(a);
       todosAtendCancel.push({ tipo, atendente: at, cliente, data, origem, motivoFechamento, desfecho });
     }
