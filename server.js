@@ -4404,13 +4404,13 @@ if (process.env.CHATMIX_TOKEN) {
 }
 
 // ── Endpoints ChatMix ──────────────────────────────────────────────
-app.get('/api/chatmix', requireAuth, (req, res) => {
+app.get('/api/chatmix', (req, res) => {
   if (!process.env.CHATMIX_TOKEN) return res.json({ error: 'CHATMIX_TOKEN não configurado' });
   if (!_chatmixCache) return res.json({ loading: true, lastUpdate: null });
   res.json({ ..._chatmixCache, lastUpdate: _chatmixLastUpdate });
 });
 
-app.post('/api/chatmix/refresh', requireAuth, async (req, res) => {
+app.post('/api/chatmix/refresh', async (req, res) => {
   await chatmixCollect();
   res.json({ ok: true, lastUpdate: _chatmixLastUpdate });
 });
