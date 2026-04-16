@@ -4393,14 +4393,17 @@ async function chatmixLogin() {
 }
 
 function chatmixHeaders() {
-  const bearer = (_chatmixToken || '').startsWith('Bearer ') ? _chatmixToken : `Bearer ${_chatmixToken}`;
+  const raw = (_chatmixToken || '').trim();
+  const bearer = raw.startsWith('Bearer ') ? raw : `Bearer ${raw}`;
+  // Cookie sem encoding — exatamente como o browser envia
   return {
     'Authorization': bearer,
-    'Cookie': `_chat_auth=${encodeURIComponent(bearer)}`,
+    'Cookie': `_chat_auth=${bearer}`,
     'Accept': 'application/json',
     'Content-Type': 'application/json',
     'Origin': CHATMIX_SRV,
-    'Referer': `${CHATMIX_SRV}/`,
+    'Referer': `${CHATMIX_SRV}/app/dash/home`,
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/147 Safari/537.36',
   };
 }
 
