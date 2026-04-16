@@ -336,6 +336,10 @@ tr:hover td { background:var(--bg3); color:var(--text); }
 .kb-check-item { display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--text2); padding:3px 0; }
 .kb-check-item input[type=checkbox] { cursor:pointer; accent-color:var(--green); }
 .kb-check-done { text-decoration:line-through; color:var(--text3); }
+.kb-status-btn { width:28px;height:28px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;background:var(--accent);color:#fff;flex-shrink:0;transition:.15s; }
+.kb-status-btn:hover { opacity:.85; transform:scale(1.1); }
+.kb-status-done { background:var(--green)!important; }
+.kb-status-undo { background:var(--text3)!important;font-size:9px; }
 .kb-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:1000; align-items:center; justify-content:center; }
 .kb-modal-overlay.open { display:flex; }
 .kb-modal { background:var(--surface); border:1px solid var(--border2); border-radius:14px; width:580px; max-width:96vw; max-height:92vh; overflow-y:auto; padding:24px; position:relative; }
@@ -5993,13 +5997,22 @@ function renderKanban() {
     const clPct  = cl.length ? Math.round(clDone/cl.length*100) : 0;
     const dueStr = fmtDue(t.dueAt);
     const dueColor = urg==='overdue'?'var(--red)':urg==='soon'?'var(--amber)':'var(--text3)';
+    const status = taskStatus(t);
+    const nextBtn = status==='todo'
+      ? `<button class="kb-status-btn" onclick="kbAdvanceTask('${t.id}','doing');event.stopPropagation()" title="Iniciar"><i class="fas fa-play"></i></button>`
+      : status==='doing'
+      ? `<button class="kb-status-btn kb-status-done" onclick="kbAdvanceTask('${t.id}','done');event.stopPropagation()" title="Finalizar"><i class="fas fa-check"></i></button>`
+      : `<button class="kb-status-btn kb-status-undo" onclick="kbAdvanceTask('${t.id}','todo');event.stopPropagation()" title="Reabrir"><i class="fas fa-undo"></i></button>`;
     return `<div class="kb-card" draggable="true" data-id="${t.id}"
         ondragstart="kbDragStart(event)" ondragend="kbDragEnd(event)">
       <div class="kb-card-header">
         <div class="kb-card-title">${t.title||t.t||'Sem título'}</div>
-        <div class="kb-card-actions">
-          <button onclick="kbOpenModal('${t.id}')" title="Editar"><i class="fas fa-edit"></i></button>
-          <button onclick="kbDelTask('${t.id}')" title="Excluir" style="color:var(--red)"><i class="fas fa-trash"></i></button>
+        <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+          ${nextBtn}
+          <div class="kb-card-actions">
+            <button onclick="kbOpenModal('${t.id}')" title="Editar"><i class="fas fa-edit"></i></button>
+            <button onclick="kbDelTask('${t.id}')" title="Excluir" style="color:var(--red)"><i class="fas fa-trash"></i></button>
+          </div>
         </div>
       </div>
       <div class="kb-card-meta">
@@ -6056,6 +6069,18 @@ function kbDragLeave(e) {
   if (!e.currentTarget.contains(e.relatedTarget))
     e.currentTarget.querySelector('.kb-cards')?.classList.remove('drag-over');
 }
+async function kbAdvanceTask(id, status) {
+  const isDone = status === 'done';
+  try {
+    const r = await fetch(`/api/tasks/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status, done:isDone}) });
+    const result = await r.json();
+    const { _proximaTarefa, ...updated } = result;
+    tasks = tasks.map(x => x.id===id ? updated : x);
+    if (_proximaTarefa) tasks.push(_proximaTarefa);
+    renderKanban();
+  } catch(e) { console.error(e); }
+}
+
 async function kbDrop(e, status) {
   e.preventDefault();
   e.currentTarget.querySelector('.kb-cards')?.classList.remove('drag-over');
