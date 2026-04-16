@@ -3,6 +3,9 @@
 //  Hospede no Railway.app — funciona sem configuração extra
 // ═══════════════════════════════════════════════════════════════
 
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first'); // Railway não tem IPv6 — força IPv4 em todas as conexões
+
 const express     = require('express');
 const compression = require('compression');
 const axios    = require('axios');
