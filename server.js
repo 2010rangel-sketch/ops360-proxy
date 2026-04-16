@@ -4347,7 +4347,7 @@ app.post('/api/user/prefs', async (req, res) => {
 //  CHATMIX — Coletor de dados de atendimento
 // ══════════════════════════════════════════════════════════════════
 
-const CHATMIX_SRV  = 'https://crm.chatmix.com.br';
+const CHATMIX_SRV  = 'https://srv6.chatmix.com.br';
 const CHATMIX_BASE = `${CHATMIX_SRV}/crm/api/V1`;
 let _chatmixCache = null;
 let _chatmixLastUpdate = null;
@@ -4360,8 +4360,10 @@ async function chatmixLogin() {
   const loginUrls = [
     `${CHATMIX_SRV}/crm/api/V1/auth/login`,
     `${CHATMIX_SRV}/crm/api/V1/login`,
-    `https://srv6.chatmix.com.br/v3/api/auth/login`,
-    `https://srv6.chatmix.com.br/api/login`,
+    `${CHATMIX_SRV}/v3/api/auth/login`,
+    `${CHATMIX_SRV}/v3/api/login`,
+    `${CHATMIX_SRV}/api/login`,
+    `${CHATMIX_SRV}/api/auth`,
   ];
   for (const url of loginUrls) {
     try {
