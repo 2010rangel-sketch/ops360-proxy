@@ -4462,6 +4462,15 @@ app.post('/api/chatmix/refresh', async (req, res) => {
   res.json({ ok: true, lastUpdate: _chatmixLastUpdate });
 });
 
+app.post('/api/chatmix/ingest', (req, res) => {
+  const secret = req.headers['x-agent-secret'];
+  if (secret !== (process.env.CHATMIX_AGENT_SECRET || 'chatmix-agent-2026')) return res.status(401).json({ error: 'não autorizado' });
+  if (!req.body || typeof req.body !== 'object') return res.status(400).json({ error: 'body inválido' });
+  _chatmixCache = req.body;
+  _chatmixLastUpdate = new Date().toISOString();
+  res.json({ ok: true });
+});
+
 app.get('/api/chatmix/debug', async (req, res) => {
   const results = {};
   // Tenta login
