@@ -4343,6 +4343,78 @@ app.post('/api/user/prefs', async (req, res) => {
   } catch(e) { res.json({ ok: false, motivo: e.message }); }
 });
 
+// ══════════════════════════════════════════════════════════════════
+//  CHATMIX — Coletor de dados de atendimento
+// ══════════════════════════════════════════════════════════════════
+
+const CHATMIX_BASE = 'https://crm.chatmix.com.br/crm/api/V1';
+let _chatmixCache = null;
+let _chatmixLastUpdate = null;
+
+function chatmixHeaders() {
+  const token = (process.env.CHATMIX_TOKEN || '').trim();
+  // O token já vem como "Bearer xxx" do cookie de sessão
+  const bearer = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+  return {
+    'Authorization': bearer,
+    'Cookie': `auth=${encodeURIComponent(bearer)}`,
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+    'Origin': 'https://crm.chatmix.com.br',
+    'Referer': 'https://crm.chatmix.com.br/',
+  };
+}
+
+async function chatmixGet(path) {
+  try {
+    const r = await axios.get(`${CHATMIX_BASE}${path}`, {
+      headers: chatmixHeaders(), timeout: 15000
+    });
+    return r.data;
+  } catch(e) {
+    console.error(`[ChatMix] GET ${path} →`, e.response?.status, e.message);
+    return null;
+  }
+}
+
+async function chatmixCollect() {
+  console.log('[ChatMix] Coletando dados...');
+  try {
+    const [monthly, sum, attendees, motivos, closed, waiting] = await Promise.all([
+      chatmixGet('/reports/dashboard/attendances/monthly'),
+      chatmixGet('/reports/dashboard/sum'),
+      chatmixGet('/reports/dashboard/attendees'),
+      chatmixGet('/reports/dashboard/motivos'),
+      chatmixGet('/reports/dashboard/closed'),
+      chatmixGet('/reports/dashboard/waiting'),
+    ]);
+
+    _chatmixCache = { monthly, sum, attendees, motivos, closed, waiting };
+    _chatmixLastUpdate = new Date().toISOString();
+    console.log('[ChatMix] Coleta concluída:', _chatmixLastUpdate);
+  } catch(e) {
+    console.error('[ChatMix] Erro na coleta:', e.message);
+  }
+}
+
+// Coleta inicial + agendamento a cada 30 minutos
+if (process.env.CHATMIX_TOKEN) {
+  setTimeout(chatmixCollect, 5000);
+  setInterval(chatmixCollect, 30 * 60 * 1000);
+}
+
+// ── Endpoints ChatMix ──────────────────────────────────────────────
+app.get('/api/chatmix', requireAuth, (req, res) => {
+  if (!process.env.CHATMIX_TOKEN) return res.json({ error: 'CHATMIX_TOKEN não configurado' });
+  if (!_chatmixCache) return res.json({ loading: true, lastUpdate: null });
+  res.json({ ..._chatmixCache, lastUpdate: _chatmixLastUpdate });
+});
+
+app.post('/api/chatmix/refresh', requireAuth, async (req, res) => {
+  await chatmixCollect();
+  res.json({ ok: true, lastUpdate: _chatmixLastUpdate });
+});
+
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
