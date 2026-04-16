@@ -2184,6 +2184,7 @@ async function sendEmail(subject, html) {
   if (!c.smtpUser || !c.smtpPass || !c.email) return false;
   const transporter = nodemailer.createTransport({
     host: c.smtpHost, port: c.smtpPort, secure: c.smtpPort === 465,
+    family: 4,
     auth: { user: c.smtpUser, pass: c.smtpPass },
   });
   await transporter.sendMail({ from: c.smtpUser, to: c.email, subject, html });
@@ -2196,6 +2197,7 @@ async function sendEmailToRecipient(to, subject, html) {
   if (!c.smtpUser || !c.smtpPass) return false;
   const transporter = nodemailer.createTransport({
     host: c.smtpHost, port: c.smtpPort, secure: c.smtpPort === 465,
+    family: 4,
     auth: { user: c.smtpUser, pass: c.smtpPass },
   });
   await transporter.sendMail({ from: `"LC Fibra 360" <${c.smtpUser}>`, to, subject, html });
