@@ -4347,8 +4347,8 @@ app.post('/api/user/prefs', async (req, res) => {
 //  CHATMIX — Coletor de dados de atendimento
 // ══════════════════════════════════════════════════════════════════
 
-const CHATMIX_SRV  = 'https://srv6.chatmix.com.br';
-const CHATMIX_BASE = `${CHATMIX_SRV}/v3`;
+const CHATMIX_SRV  = 'https://crm.chatmix.com.br';
+const CHATMIX_BASE = `${CHATMIX_SRV}/crm/api/V1`;
 let _chatmixCache = null;
 let _chatmixLastUpdate = null;
 let _chatmixToken = process.env.CHATMIX_TOKEN || null;
@@ -4357,29 +4357,44 @@ async function chatmixLogin() {
   const user = process.env.CHATMIX_USER;
   const pass = process.env.CHATMIX_PASS;
   if (!user || !pass) return false;
-  try {
-    const r = await axios.post(`${CHATMIX_BASE}/login`, { email: user, password: pass }, {
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      timeout: 15000,
-    });
-    const token = r.data?.token || r.data?.access_token || r.data?.data?.token;
-    if (token) {
-      _chatmixToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
-      console.log('[ChatMix] Login OK, token obtido');
-      return true;
+  const loginUrls = [
+    `${CHATMIX_SRV}/crm/api/V1/auth/login`,
+    `${CHATMIX_SRV}/crm/api/V1/login`,
+    `https://srv6.chatmix.com.br/v3/api/auth/login`,
+    `https://srv6.chatmix.com.br/api/login`,
+  ];
+  for (const url of loginUrls) {
+    try {
+      const r = await axios.post(url, { email: user, password: pass }, {
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        timeout: 10000, maxRedirects: 5,
+      });
+      const token = r.data?.token || r.data?.access_token || r.data?.data?.token || r.data?.auth_token;
+      if (token) {
+        _chatmixToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+        console.log('[ChatMix] Login OK via', url);
+        return true;
+      }
+      // Verifica cookie na resposta
+      const setCookie = r.headers['set-cookie'] || [];
+      const authCookie = setCookie.find(c => c.includes('_chat_auth'));
+      if (authCookie) {
+        const match = authCookie.match(/_chat_auth=([^;]+)/);
+        if (match) { _chatmixToken = decodeURIComponent(match[1]); console.log('[ChatMix] Login OK via cookie', url); return true; }
+      }
+    } catch(e) {
+      console.log('[ChatMix] Login tentativa', url, '→', e.response?.status || e.message);
     }
-    console.error('[ChatMix] Login: token não encontrado na resposta', r.data);
-    return false;
-  } catch(e) {
-    console.error('[ChatMix] Login falhou:', e.response?.status, e.response?.data || e.message);
-    return false;
   }
+  console.error('[ChatMix] Todos os endpoints de login falharam');
+  return false;
 }
 
 function chatmixHeaders() {
   const bearer = (_chatmixToken || '').startsWith('Bearer ') ? _chatmixToken : `Bearer ${_chatmixToken}`;
   return {
     'Authorization': bearer,
+    'Cookie': `_chat_auth=${encodeURIComponent(bearer)}`,
     'Accept': 'application/json',
     'Content-Type': 'application/json',
     'Origin': CHATMIX_SRV,
