@@ -4347,21 +4347,43 @@ app.post('/api/user/prefs', async (req, res) => {
 //  CHATMIX — Coletor de dados de atendimento
 // ══════════════════════════════════════════════════════════════════
 
-const CHATMIX_BASE = 'https://crm.chatmix.com.br/crm/api/V1';
+const CHATMIX_SRV  = 'https://srv6.chatmix.com.br';
+const CHATMIX_BASE = `${CHATMIX_SRV}/v3`;
 let _chatmixCache = null;
 let _chatmixLastUpdate = null;
+let _chatmixToken = process.env.CHATMIX_TOKEN || null;
+
+async function chatmixLogin() {
+  const user = process.env.CHATMIX_USER;
+  const pass = process.env.CHATMIX_PASS;
+  if (!user || !pass) return false;
+  try {
+    const r = await axios.post(`${CHATMIX_BASE}/login`, { email: user, password: pass }, {
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      timeout: 15000,
+    });
+    const token = r.data?.token || r.data?.access_token || r.data?.data?.token;
+    if (token) {
+      _chatmixToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+      console.log('[ChatMix] Login OK, token obtido');
+      return true;
+    }
+    console.error('[ChatMix] Login: token não encontrado na resposta', r.data);
+    return false;
+  } catch(e) {
+    console.error('[ChatMix] Login falhou:', e.response?.status, e.response?.data || e.message);
+    return false;
+  }
+}
 
 function chatmixHeaders() {
-  const token = (process.env.CHATMIX_TOKEN || '').trim();
-  // O token já vem como "Bearer xxx" do cookie de sessão
-  const bearer = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+  const bearer = (_chatmixToken || '').startsWith('Bearer ') ? _chatmixToken : `Bearer ${_chatmixToken}`;
   return {
     'Authorization': bearer,
-    'Cookie': `auth=${encodeURIComponent(bearer)}`,
     'Accept': 'application/json',
     'Content-Type': 'application/json',
-    'Origin': 'https://crm.chatmix.com.br',
-    'Referer': 'https://crm.chatmix.com.br/',
+    'Origin': CHATMIX_SRV,
+    'Referer': `${CHATMIX_SRV}/`,
   };
 }
 
@@ -4379,6 +4401,11 @@ async function chatmixGet(path) {
 
 async function chatmixCollect() {
   console.log('[ChatMix] Coletando dados...');
+  // Tenta login se tiver credenciais
+  if (process.env.CHATMIX_USER && process.env.CHATMIX_PASS) {
+    await chatmixLogin();
+  }
+  if (!_chatmixToken) { console.warn('[ChatMix] Sem token, pulando coleta'); return; }
   try {
     const [monthly, sum, attendees, motivos, closed, waiting] = await Promise.all([
       chatmixGet('/reports/dashboard/attendances/monthly'),
@@ -4398,14 +4425,14 @@ async function chatmixCollect() {
 }
 
 // Coleta inicial + agendamento a cada 30 minutos
-if (process.env.CHATMIX_TOKEN) {
+if (process.env.CHATMIX_USER || process.env.CHATMIX_TOKEN) {
   setTimeout(chatmixCollect, 5000);
   setInterval(chatmixCollect, 30 * 60 * 1000);
 }
 
 // ── Endpoints ChatMix ──────────────────────────────────────────────
 app.get('/api/chatmix', (req, res) => {
-  if (!process.env.CHATMIX_TOKEN) return res.json({ error: 'CHATMIX_TOKEN não configurado' });
+  if (!process.env.CHATMIX_USER && !process.env.CHATMIX_TOKEN) return res.json({ error: 'ChatMix não configurado' });
   if (!_chatmixCache) return res.json({ loading: true, lastUpdate: null });
   res.json({ ..._chatmixCache, lastUpdate: _chatmixLastUpdate });
 });
@@ -4416,7 +4443,9 @@ app.post('/api/chatmix/refresh', async (req, res) => {
 });
 
 app.get('/api/chatmix/debug', async (req, res) => {
-  const results = {};
+  // Tenta login primeiro
+  const loginOk = await chatmixLogin();
+  const results = { loginOk, token: _chatmixToken ? 'presente' : 'ausente' };
   const endpoints = ['/reports/dashboard/attendances/monthly','/reports/dashboard/sum','/reports/dashboard/attendees','/reports/dashboard/motivos','/reports/dashboard/closed','/reports/dashboard/waiting'];
   for (const ep of endpoints) {
     try {
