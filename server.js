@@ -4415,6 +4415,20 @@ app.post('/api/chatmix/refresh', async (req, res) => {
   res.json({ ok: true, lastUpdate: _chatmixLastUpdate });
 });
 
+app.get('/api/chatmix/debug', async (req, res) => {
+  const results = {};
+  const endpoints = ['/reports/dashboard/attendances/monthly','/reports/dashboard/sum','/reports/dashboard/attendees','/reports/dashboard/motivos','/reports/dashboard/closed','/reports/dashboard/waiting'];
+  for (const ep of endpoints) {
+    try {
+      const r = await axios.get(`${CHATMIX_BASE}${ep}`, { headers: chatmixHeaders(), timeout: 10000 });
+      results[ep] = { status: r.status, data: r.data };
+    } catch(e) {
+      results[ep] = { error: e.response?.status || e.message, body: e.response?.data };
+    }
+  }
+  res.json(results);
+});
+
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
