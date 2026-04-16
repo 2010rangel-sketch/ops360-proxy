@@ -2181,14 +2181,23 @@ app.get('/api/notif-config', (req, res) => {
   });
 });
 
+// ── Resolve hostname para IPv4 (Railway não tem rota IPv6) ───────
+async function resolveIPv4(hostname) {
+  try {
+    const addrs = await new Promise((res, rej) => dns.resolve4(hostname, (e, a) => e ? rej(e) : res(a)));
+    return addrs[0];
+  } catch { return hostname; }
+}
+
 // ── Email ─────────────────────────────────────────────────────────
 async function sendEmail(subject, html) {
   const c = getNotifConfig();
   if (!c.smtpUser || !c.smtpPass || !c.email) return false;
+  const host = await resolveIPv4(c.smtpHost);
   const transporter = nodemailer.createTransport({
-    host: c.smtpHost, port: c.smtpPort, secure: c.smtpPort === 465,
-    family: 4,
+    host, port: c.smtpPort, secure: c.smtpPort === 465,
     auth: { user: c.smtpUser, pass: c.smtpPass },
+    tls: { servername: c.smtpHost },
   });
   await transporter.sendMail({ from: c.smtpUser, to: c.email, subject, html });
   return true;
@@ -2198,10 +2207,11 @@ async function sendEmail(subject, html) {
 async function sendEmailToRecipient(to, subject, html) {
   const c = getNotifConfig();
   if (!c.smtpUser || !c.smtpPass) return false;
+  const host = await resolveIPv4(c.smtpHost);
   const transporter = nodemailer.createTransport({
-    host: c.smtpHost, port: c.smtpPort, secure: c.smtpPort === 465,
-    family: 4,
+    host, port: c.smtpPort, secure: c.smtpPort === 465,
     auth: { user: c.smtpUser, pass: c.smtpPass },
+    tls: { servername: c.smtpHost },
   });
   await transporter.sendMail({ from: `"LC Fibra 360" <${c.smtpUser}>`, to, subject, html });
   return true;
