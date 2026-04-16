@@ -2220,9 +2220,18 @@ app.post('/api/tasks/test-notif', async (req, res) => {
   const { type } = req.body;
   try {
     if (type === 'email') {
-      await sendEmail('✅ OPS360 — Teste de notificação',
-        '<h2>Notificação de email funcionando!</h2><p>Suas tarefas serão enviadas por aqui.</p>');
-      return res.json({ ok: true });
+      const c = getNotifConfig();
+      if (!process.env.RESEND_API_KEY) return res.json({ ok: false, erro: 'RESEND_API_KEY não configurada' });
+      if (!c.email) return res.json({ ok: false, erro: 'NOTIF_EMAIL não configurada' });
+      const { Resend } = require('resend');
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const result = await resend.emails.send({
+        from: 'LC Fibra 360 <onboarding@resend.dev>',
+        to: c.email,
+        subject: '✅ OPS360 — Teste de notificação',
+        html: '<h2>Notificação de email funcionando!</h2><p>Suas tarefas serão enviadas por aqui.</p>',
+      });
+      return res.json({ ok: !result.error, resend: result });
     }
     if (type === 'whatsapp') {
       await sendWhatsApp('✅ OPS360: Notificações WhatsApp ativadas!');
