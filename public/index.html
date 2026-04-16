@@ -4862,6 +4862,10 @@ function setRetPeriodo(p, el) {
   document.querySelectorAll(`.ret-chip[data-p="${p}"]`).forEach(b => b.classList.add('active'));
   const dr = document.getElementById('retDateRange');
   if (dr) dr.style.display = p === 'custom' ? 'flex' : 'none';
+  // Limpa dados anteriores para não mostrar período errado enquanto carrega
+  _retData = null;
+  window._cancelServData = null;
+  try { localStorage.removeItem('ops360_ret_cache'); } catch {}
   if (p !== 'custom') { loadRetencaoAtend(); loadCancelServico(); loadRemocoes(); }
 }
 
@@ -5034,7 +5038,8 @@ function _renderCancelServTbl(atendente, tipoCancel, cidade) {
       : '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Nenhum cancelamento</td></tr>';
   } else {
     const data = window._cancelServData;
-    if (titulo) titulo.innerHTML = `<i class="fas fa-times-circle" style="color:var(--red);margin-right:6px"></i>Cancelamento Geral do Mês`;
+    const labelPer = retPeriodo==='hoje' ? 'Hoje' : retPeriodo==='mes_anterior' ? 'Mês Anterior' : retPeriodo==='custom' ? 'Período' : 'Mês Atual';
+    if (titulo) titulo.innerHTML = `<i class="fas fa-times-circle" style="color:var(--red);margin-right:6px"></i>Cancelamento Geral — ${labelPer}`;
     if (sub)    sub.textContent = 'cancelamentos de serviço';
     if (!data) return;
     const motivos = data.por_motivo || [];
