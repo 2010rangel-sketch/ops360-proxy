@@ -485,9 +485,9 @@ app.get('/api/debug-retencao', async (req, res) => {
   try {
     const { data_inicio, data_fim } = req.query;
     const agora = new Date();
-    const ini = data_inicio || new Date(agora.getFullYear(), agora.getMonth()-1, 1).toISOString().slice(0,10);
-    const fim = data_fim    || new Date(agora.getFullYear(), agora.getMonth(), 0).toISOString().slice(0,10);
-    const first = await hubsoftPost('v1/atendimento/consultar/paginado/500?page=1', { data_inicio: ini, data_fim: fim, relacoes: 'origem_contato' });
+    const ini = data_inicio || agora.toISOString().slice(0,10);
+    const fim = data_fim    || agora.toISOString().slice(0,10);
+    const first = await hubsoftPost('v1/atendimento/consultar/paginado/500?page=1', { data_inicio: ini, data_fim: fim, relacoes: ['origem_contato'] });
     const totalPages = first?.atendimentos?.last_page || first?.atendimento?.last_page || first?.last_page || 1;
     let lista = first?.atendimentos?.data || first?.atendimento?.data || first?.data || [];
     // Busca todas as páginas
@@ -519,10 +519,19 @@ app.get('/api/debug-retencao', async (req, res) => {
       total_todos: lista.length,
       total_solicitacoes: solicitacoes.length,
       combinacoes_desfecho: combinacoes,
-      amostra_ingresado: solicitacoes.slice(0, 10).map(a => ({
+      amostra: solicitacoes.slice(0, 10).map(a => ({
+        cliente: a.cliente_servico?.cliente?.nome_razaosocial || a.cliente_servico?.display || '?',
+        origem_contato: a.origem_contato,
         ingressado: a.ingressado,
+        origem_detectada: (() => {
+          const norm = s => (s||'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+          const oc = norm(a.origem_contato?.descricao||a.origem_contato?.nome||a.origem_contato||'');
+          if(oc) return `campo: ${oc}`;
+          const txt = norm((a.descricao_abertura||'')+' '+(a.descricao_fechamento||''));
+          if(txt.includes('CHATMIX')||txt.includes('CHAT MIX')) return 'texto: ChatMix';
+          return 'Origem ausente';
+        })(),
         descricao_abertura_inicio: (a.descricao_abertura || '').slice(0, 80),
-        descricao_fechamento_inicio: (a.descricao_fechamento || '').slice(0, 80),
       })),
     });
   } catch(e) { res.json({ ok: false, erro: e.message }); }
@@ -982,7 +991,7 @@ app.get('/api/retencao', async (req, res) => {
     // Fetch all atendimentos in period (parallel pagination)
     const extractAtend = d => d?.atendimentos?.data || d?.atendimento?.data || d?.data || [];
     const extractPages = d => d?.atendimentos?.last_page || d?.atendimento?.last_page || d?.last_page || 1;
-    const first = await hubsoftPost('v1/atendimento/consultar/paginado/500?page=1', { data_inicio: ini, data_fim: fim });
+    const first = await hubsoftPost('v1/atendimento/consultar/paginado/500?page=1', { data_inicio: ini, data_fim: fim, relacoes: ['origem_contato'] });
     const lista1     = extractAtend(first);
     const totalPages = extractPages(first);
     let lista = [...lista1];
@@ -990,7 +999,7 @@ app.get('/api/retencao', async (req, res) => {
       const pages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
       const results = await Promise.all(pages.map(async pg => {
         try {
-          const d = await hubsoftPost(`v1/atendimento/consultar/paginado/500?page=${pg}`, { data_inicio: ini, data_fim: fim });
+          const d = await hubsoftPost(`v1/atendimento/consultar/paginado/500?page=${pg}`, { data_inicio: ini, data_fim: fim, relacoes: ['origem_contato'] });
           return extractAtend(d);
         } catch { return []; }
       }));
@@ -1018,6 +1027,24 @@ app.get('/api/retencao', async (req, res) => {
     // Pedidos de cancelamento = SOMENTE tipo "SOLICITAÇÃO DE CANCELAMENTO", qualquer status (aberto ou fechado)
     // Revertidos = mesmos pedidos fechados como "reverteu cancelamento"
     const norm = s => (s || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    // Detecta origem: campo oficial primeiro, depois busca em texto
+    const detectaOrigem = (a) => {
+      const oc = norm(a.origem_contato?.descricao || a.origem_contato?.nome || a.origem_contato || '');
+      if (oc.includes('CHATMIX') || oc.includes('CHAT MIX') || oc.includes('CHAT')) return 'ChatMix (WhatsApp)';
+      if (oc.includes('PRESENCIAL')) return 'Presencial';
+      if (oc.includes('LIGA') || oc.includes('FONE') || oc.includes('TELEF')) return 'Ligação';
+      if (oc.includes('WHATSAPP') || oc.includes('WHATS')) return 'WhatsApp';
+      if (oc && oc !== '') return a.origem_contato?.descricao || a.origem_contato?.nome || oc;
+      // fallback: busca no texto
+      const txt = norm((a.descricao_abertura || '') + ' ' + (a.descricao_fechamento || ''));
+      if (txt.includes('CHATMIX') || txt.includes('CHAT MIX')) return 'ChatMix (WhatsApp)';
+      if (txt.includes('PRESENCIAL')) return 'Presencial';
+      if (txt.includes('LIGACAO') || txt.includes('LIGAÇÃO') || txt.includes('LIGA')) return 'Ligação';
+      if (txt.includes('WHATSAPP') || txt.includes('WHATS')) return 'WhatsApp';
+      return 'Origem ausente';
+    };
+
     const isSolicitacaoCancelamento = (tipo) => {
       const u = norm(tipo);
       return u.includes('SOLICIT') && u.includes('CANCELAMENTO');
@@ -1039,11 +1066,7 @@ app.get('/api/retencao', async (req, res) => {
         const cliente   = cli?.nome_razaosocial || cli?.display || a.cliente_servico?.display || 'Sem cliente';
         const data      = a.data_fechamento || a.data_cadastro || null;
         const resumo    = a.descricao_fechamento || a.descricao_abertura || '';
-        const txtOrig   = ((a.descricao_abertura || '') + ' ' + (a.descricao_fechamento || '')).toUpperCase();
-        const origem    = txtOrig.includes('CHAT MIX') || txtOrig.includes('CHATMIX') ? 'ChatMix (WhatsApp)'
-                        : txtOrig.includes('PRESENCIAL') ? 'Presencial'
-                        : txtOrig.includes('LIGA') ? 'Ligação'
-                        : 'Origem ausente';
+        const origem    = detectaOrigem(a);
         return { tipo, desfecho, atendente, cliente, data, resumo, origem };
       });
 
@@ -1075,11 +1098,7 @@ app.get('/api/retencao', async (req, res) => {
       const cli  = a.cliente_servico?.cliente;
       const cliente = cli?.nome_razaosocial || cli?.display || a.cliente_servico?.display || 'Sem cliente';
       const data = a.data_fechamento || a.data_cadastro || null;
-      const txtOrig = ((a.descricao_abertura || '') + ' ' + (a.descricao_fechamento || '')).toUpperCase();
-      const origem  = txtOrig.includes('CHAT MIX') || txtOrig.includes('CHATMIX') ? 'ChatMix (WhatsApp)'
-                    : txtOrig.includes('PRESENCIAL') ? 'Presencial'
-                    : txtOrig.includes('LIGA') ? 'Ligação'
-                    : 'Origem ausente';
+      const origem  = detectaOrigem(a);
       // Motivo pré-definido selecionado pela atendente ao fechar o atendimento
       const mfObj = a.motivo_fechamento_atendimento;
       const motivoFechamento = (typeof mfObj === 'object' && mfObj)
