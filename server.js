@@ -2105,7 +2105,7 @@ app.put('/api/tasks/:id', async (req, res) => {
   const tasks = await loadTasks();
   const idx = tasks.findIndex(t => t.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
-  tasks[idx] = { ...tasks[idx], ...req.body };
+  tasks[idx] = { ...tasks[idx], ...req.body, updatedAt: new Date().toISOString() };
 
   // Auto-criar próxima ocorrência ao concluir tarefa recorrente
   let _proximaTarefa = null;

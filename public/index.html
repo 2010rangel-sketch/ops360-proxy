@@ -5966,6 +5966,7 @@ function taskStatus(t) {
 function renderKanban() {
   const cols = { todo:[], doing:[], done:[] };
   for (const t of tasks) { const s = taskStatus(t); cols[s] = cols[s] || []; cols[s].push(t); }
+  cols.done.sort((a,b) => new Date(b.updatedAt||b.createdAt||0) - new Date(a.updatedAt||a.createdAt||0));
 
   const priColor = { h:'var(--red)', m:'var(--amber)', l:'var(--green)' };
   const priLabel = { h:'Alta', m:'Média', l:'Baixa' };
