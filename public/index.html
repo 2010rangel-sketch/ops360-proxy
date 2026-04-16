@@ -525,6 +525,20 @@ input[type="text"]::placeholder { color:var(--text3); }
     overflow-x:auto;
     -webkit-overflow-scrolling:touch;
   }
+
+  /* Kanban — empilha colunas verticalmente no mobile */
+  .kb-board {
+    grid-template-columns:1fr!important;
+    gap:12px;
+  }
+  .kb-col {
+    height:auto!important;
+    max-height:none!important;
+  }
+  .kb-cards {
+    max-height:400px;
+    overflow-y:auto;
+  }
 }
 </style>
 <style>
