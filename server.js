@@ -519,16 +519,10 @@ app.get('/api/debug-retencao', async (req, res) => {
       total_todos: lista.length,
       total_solicitacoes: solicitacoes.length,
       combinacoes_desfecho: combinacoes,
-      amostra_ingresado: solicitacoes.slice(0, 5).map(a => ({
-        ingresado: a.ingresado,
-        destino_atendimento: a.destino_atendimento,
-        origem_contato: a.origem_contato,
-        canal: a.canal,
-        canal_atendimento: a.canal_atendimento,
-        id_origem: a.id_origem_contato || a.id_origem,
-        descricao_abertura_inicio: (a.descricao_abertura || '').slice(0, 60),
-        descricao_fechamento_inicio: (a.descricao_fechamento || '').slice(0, 60),
-        todos_campos: Object.keys(a),
+      amostra_ingresado: solicitacoes.slice(0, 10).map(a => ({
+        ingressado: a.ingressado,
+        descricao_abertura_inicio: (a.descricao_abertura || '').slice(0, 80),
+        descricao_fechamento_inicio: (a.descricao_fechamento || '').slice(0, 80),
       })),
     });
   } catch(e) { res.json({ ok: false, erro: e.message }); }
