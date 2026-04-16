@@ -4310,11 +4310,13 @@ function setAtendFiltroTipo(tipo) {
   _atendFiltroTipo = _atendFiltroTipo === tipo ? null : tipo;
   _atendFiltroAt   = null;
   renderAtendimentosFiltrado();
+  _saveFilters();
 }
 function setAtendFiltroAt(at) {
   _atendFiltroAt   = _atendFiltroAt === at ? null : at;
   _atendFiltroTipo = null;
   renderAtendimentosFiltrado();
+  _saveFilters();
   // Scroll para o painel de detalhe quando selecionando
   if (_atendFiltroAt) {
     const det = document.getElementById('at-atend-detalhe');
@@ -4397,6 +4399,7 @@ function setAtendPeriodo(p, el) {
   document.querySelectorAll(`.atend-chip[data-p="${p}"]`).forEach(b => b.classList.add('active'));
   const dr = document.getElementById('atendDateRange');
   if (dr) dr.style.display = p === 'custom' ? 'flex' : 'none';
+  _saveFilters();
   if (p !== 'custom') loadAtendimentos();
 }
 
@@ -4866,6 +4869,7 @@ function setRetPeriodo(p, el) {
   _retData = null;
   window._cancelServData = null;
   try { localStorage.removeItem('ops360_ret_cache'); } catch {}
+  _saveFilters();
   if (p !== 'custom') { loadRetencaoAtend(); loadCancelServico(); loadRemocoes(); }
 }
 
@@ -5350,7 +5354,7 @@ function renderRetencao(data) {
         : `Filtro: ${filtroAtivo} ✕`;
       filtroBadge.textContent = label;
       filtroBadge.style.display = '';
-      filtroBadge.onclick = () => { _retFiltroAt = ''; _retFiltroTip = ''; _retFiltroOrig = ''; _retFiltroTipoCancel = ''; _retFiltroCidade = ''; window._cancelMotivoIdx = null; if (_retData) renderRetencao(_retData); _renderCancelServTbl('','',''); };
+      filtroBadge.onclick = () => { _retFiltroAt = ''; _retFiltroTip = ''; _retFiltroOrig = ''; _retFiltroTipoCancel = ''; _retFiltroCidade = ''; window._cancelMotivoIdx = null; _saveFilters(); if (_retData) renderRetencao(_retData); _renderCancelServTbl('','',''); };
     } else {
       filtroBadge.style.display = 'none';
     }
@@ -6647,6 +6651,7 @@ function setComPeriodo(p, el) {
   if (el) el.classList.add('active');
   const dr = document.getElementById('comDateRange');
   if (dr) dr.style.display = p === 'custom' ? 'flex' : 'none';
+  _saveFilters();
   if (p !== 'custom') loadComercial();
 }
 
@@ -6745,6 +6750,7 @@ function filtrarRetCidade(cidade) {
   _retFiltroOrig       = '';
   _retFiltroTipoCancel = '';
   window._cancelMotivoIdx = null;
+  _saveFilters();
   if (_retData) renderRetencao(_retData);
   _renderCancelServTbl('', '', _retFiltroCidade);
 }
@@ -6755,6 +6761,7 @@ function filtrarRetTipoCancel(tipo) {
   _retFiltroOrig       = '';
   _retFiltroCidade     = '';
   window._cancelMotivoIdx = null;
+  _saveFilters();
   if (_retData) renderRetencao(_retData);
 }
 
@@ -6779,6 +6786,7 @@ function setRetFiltro(tipo, val) {
     _retFiltroCidade     = '';
   }
   window._cancelMotivoIdx = null;
+  _saveFilters();
   if (_retData) renderRetencao(_retData);
 }
 
@@ -6788,6 +6796,7 @@ function setComFiltro(type, val) {
   } else {
     _comFiltro = { type, val };
   }
+  _saveFilters();
   if (_comData) renderComercialAtualiza(_comData);
 }
 
@@ -8433,7 +8442,84 @@ async function usersExcluir(id, nome, btnEl) {
 }
 
 // AUTO-INIT — chamado por _appStart() após login validado
+// ── Persistência de filtros entre recarregamentos ──────────────────
+function _saveFilters() {
+  try {
+    localStorage.setItem('ops360_filtros', JSON.stringify({
+      comPeriodo,
+      comDtDe:  document.getElementById('comDtDe')?.value  || '',
+      comDtAte: document.getElementById('comDtAte')?.value || '',
+      comFiltro: _comFiltro,
+      retPeriodo,
+      retDtDe:  document.getElementById('retDtDe')?.value  || '',
+      retDtAte: document.getElementById('retDtAte')?.value || '',
+      retFiltroAt:         _retFiltroAt,
+      retFiltroTip:        _retFiltroTip,
+      retFiltroOrig:       _retFiltroOrig,
+      retFiltroTipoCancel: _retFiltroTipoCancel,
+      retFiltroCidade:     _retFiltroCidade,
+      atendPeriodo,
+      atendDtDe:  document.getElementById('atendDtDe')?.value  || '',
+      atendDtAte: document.getElementById('atendDtAte')?.value || '',
+      atendFiltroTipo: _atendFiltroTipo,
+      atendFiltroAt:   _atendFiltroAt,
+    }));
+  } catch {}
+}
+
+function _restoreFilters() {
+  try {
+    const s = JSON.parse(localStorage.getItem('ops360_filtros') || 'null');
+    if (!s) return;
+    // Comercial — período
+    if (s.comPeriodo) {
+      comPeriodo = s.comPeriodo;
+      document.querySelectorAll('.com-chip').forEach(c => c.classList.remove('active'));
+      document.querySelectorAll(`.com-chip[data-p="${comPeriodo}"]`).forEach(c => c.classList.add('active'));
+      const dr = document.getElementById('comDateRange');
+      if (dr) dr.style.display = comPeriodo === 'custom' ? 'flex' : 'none';
+      if (comPeriodo === 'custom' && s.comDtDe) {
+        const de = document.getElementById('comDtDe'); if (de) de.value = s.comDtDe;
+        const ate = document.getElementById('comDtAte'); if (ate) ate.value = s.comDtAte;
+      }
+    }
+    if (s.comFiltro) _comFiltro = s.comFiltro;
+    // Retenção — período e filtros
+    if (s.retPeriodo) {
+      retPeriodo = s.retPeriodo;
+      document.querySelectorAll('.ret-chip').forEach(c => c.classList.remove('active'));
+      document.querySelectorAll(`.ret-chip[data-p="${retPeriodo}"]`).forEach(c => c.classList.add('active'));
+      const dr = document.getElementById('retDateRange');
+      if (dr) dr.style.display = retPeriodo === 'custom' ? 'flex' : 'none';
+      if (retPeriodo === 'custom' && s.retDtDe) {
+        const de = document.getElementById('retDtDe'); if (de) de.value = s.retDtDe;
+        const ate = document.getElementById('retDtAte'); if (ate) ate.value = s.retDtAte;
+      }
+    }
+    if (s.retFiltroAt         !== undefined) _retFiltroAt         = s.retFiltroAt;
+    if (s.retFiltroTip        !== undefined) _retFiltroTip        = s.retFiltroTip;
+    if (s.retFiltroOrig       !== undefined) _retFiltroOrig       = s.retFiltroOrig;
+    if (s.retFiltroTipoCancel !== undefined) _retFiltroTipoCancel = s.retFiltroTipoCancel;
+    if (s.retFiltroCidade     !== undefined) _retFiltroCidade     = s.retFiltroCidade;
+    // Atendimento — período
+    if (s.atendPeriodo) {
+      atendPeriodo = s.atendPeriodo;
+      document.querySelectorAll('.atend-chip').forEach(c => c.classList.remove('active'));
+      document.querySelectorAll(`.atend-chip[data-p="${atendPeriodo}"]`).forEach(c => c.classList.add('active'));
+      const dr = document.getElementById('atendDateRange');
+      if (dr) dr.style.display = atendPeriodo === 'custom' ? 'flex' : 'none';
+      if (atendPeriodo === 'custom' && s.atendDtDe) {
+        const de = document.getElementById('atendDtDe'); if (de) de.value = s.atendDtDe;
+        const ate = document.getElementById('atendDtAte'); if (ate) ate.value = s.atendDtAte;
+      }
+    }
+    if (s.atendFiltroTipo !== undefined) _atendFiltroTipo = s.atendFiltroTipo;
+    if (s.atendFiltroAt  !== undefined) _atendFiltroAt   = s.atendFiltroAt;
+  } catch {}
+}
+
 function _appStart() {
+  _restoreFilters();
   // Passo 1 — restaura todos os caches do localStorage (exibição instantânea)
   const _lcGet  = (key, ttl) => { try { const v = JSON.parse(localStorage.getItem(key)||'null'); return v && (Date.now()-v.ts)<ttl ? v.data : null; } catch { return null; } };
   const _lcFresh = (key, ttl) => { try { const v = JSON.parse(localStorage.getItem(key)||'null'); return !!(v && (Date.now()-v.ts)<ttl); } catch { return false; } };
