@@ -4460,16 +4460,27 @@ app.post('/api/chatmix/refresh', async (req, res) => {
 });
 
 app.get('/api/chatmix/debug', async (req, res) => {
-  // Tenta login primeiro
+  const results = {};
+  // Tenta login
   const loginOk = await chatmixLogin();
-  const results = { loginOk, token: _chatmixToken ? 'presente' : 'ausente' };
-  const endpoints = ['/reports/dashboard/attendances/monthly','/reports/dashboard/sum','/reports/dashboard/attendees','/reports/dashboard/motivos','/reports/dashboard/closed','/reports/dashboard/waiting'];
-  for (const ep of endpoints) {
+  results._login = { ok: loginOk, token: _chatmixToken ? _chatmixToken.slice(0,30)+'...' : 'ausente' };
+
+  // Testa diferentes bases de API
+  const bases = [
+    `${CHATMIX_SRV}/crm/api/V1`,
+    `${CHATMIX_SRV}/v3`,
+    `${CHATMIX_SRV}/api/V1`,
+    `${CHATMIX_SRV}/api`,
+  ];
+  const testPath = '/reports/dashboard/sum';
+  for (const base of bases) {
+    const url = base + testPath;
     try {
-      const r = await axios.get(`${CHATMIX_BASE}${ep}`, { headers: chatmixHeaders(), timeout: 10000 });
-      results[ep] = { status: r.status, data: r.data };
+      const r = await axios.get(url, { headers: chatmixHeaders(), timeout: 8000 });
+      const isJson = typeof r.data === 'object';
+      results[base] = { status: r.status, isJson, preview: isJson ? JSON.stringify(r.data).slice(0,200) : String(r.data).slice(0,100) };
     } catch(e) {
-      results[ep] = { error: e.response?.status || e.message, body: e.response?.data };
+      results[base] = { error: e.response?.status || e.message };
     }
   }
   res.json(results);
