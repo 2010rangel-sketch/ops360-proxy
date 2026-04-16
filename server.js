@@ -3,9 +3,6 @@
 //  Hospede no Railway.app — funciona sem configuração extra
 // ═══════════════════════════════════════════════════════════════
 
-const dns = require('dns');
-dns.setDefaultResultOrder('ipv4first'); // Railway não tem IPv6 — força IPv4 em todas as conexões
-
 const express     = require('express');
 const compression = require('compression');
 const axios    = require('axios');
@@ -2174,46 +2171,38 @@ function getNotifConfig() {
 app.get('/api/notif-config', (req, res) => {
   const c = getNotifConfig();
   res.json({
-    emailConfigured: !!(c.smtpUser && c.smtpPass),
+    emailConfigured: !!(process.env.RESEND_API_KEY || (c.smtpUser && c.smtpPass)),
     waConfigured:    !!(c.waPhone && c.waApiKey),
     email: c.email,
     waPhone: c.waPhone,
   });
 });
 
-// ── Resolve hostname para IPv4 (Railway não tem rota IPv6) ───────
-async function resolveIPv4(hostname) {
-  try {
-    const addrs = await new Promise((res, rej) => dns.resolve4(hostname, (e, a) => e ? rej(e) : res(a)));
-    return addrs[0];
-  } catch { return hostname; }
-}
+// ── Email via Resend (HTTP — funciona no Railway) ─────────────────
+const { Resend } = require('resend');
 
-// ── Email ─────────────────────────────────────────────────────────
 async function sendEmail(subject, html) {
   const c = getNotifConfig();
-  if (!c.smtpUser || !c.smtpPass || !c.email) return false;
-  const host = await resolveIPv4(c.smtpHost);
-  const transporter = nodemailer.createTransport({
-    host, port: c.smtpPort, secure: c.smtpPort === 465,
-    auth: { user: c.smtpUser, pass: c.smtpPass },
-    tls: { servername: c.smtpHost },
+  if (!process.env.RESEND_API_KEY || !c.email) return false;
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  await resend.emails.send({
+    from: 'LC Fibra 360 <onboarding@resend.dev>',
+    to: c.email,
+    subject,
+    html,
   });
-  await transporter.sendMail({ from: c.smtpUser, to: c.email, subject, html });
   return true;
 }
 
-// ── Email para destinatário específico (notificação de tarefa concluída) ──
 async function sendEmailToRecipient(to, subject, html) {
-  const c = getNotifConfig();
-  if (!c.smtpUser || !c.smtpPass) return false;
-  const host = await resolveIPv4(c.smtpHost);
-  const transporter = nodemailer.createTransport({
-    host, port: c.smtpPort, secure: c.smtpPort === 465,
-    auth: { user: c.smtpUser, pass: c.smtpPass },
-    tls: { servername: c.smtpHost },
+  if (!process.env.RESEND_API_KEY) return false;
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  await resend.emails.send({
+    from: 'LC Fibra 360 <onboarding@resend.dev>',
+    to,
+    subject,
+    html,
   });
-  await transporter.sendMail({ from: `"LC Fibra 360" <${c.smtpUser}>`, to, subject, html });
   return true;
 }
 
