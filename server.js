@@ -1082,6 +1082,23 @@ app.get('/api/retencao', async (req, res) => {
       const u = norm(tipo);
       return (u.includes('SOLICIT') || u.includes('INFORMA')) && u.includes('CANCELAMENTO');
     };
+    const isInformacaoCancelamento = (tipo) => {
+      const u = norm(tipo);
+      return u.includes('INFORMA') && u.includes('CANCELAMENTO');
+    };
+    // Desfecho explícito: só conta se fechamento for inequivocamente revertido ou cancelado.
+    // Sem fallback — INFORMAÇÃO SOBRE CANCELAMENTO sem fechamento claro não conta.
+    const desfechoExplicito = (a) => {
+      const sp = (a.status?.prefixo || '').toLowerCase();
+      const sf = (a.status_fechamento || '').toLowerCase();
+      if (!sf || sf === 'pendente' || sp === 'pendente' || sp === 'aguardando_analise') return null;
+      if (sf.includes('revert')) return 'revertido';
+      if (sf.includes('cancel') || sf.includes('rescis')) return 'cancelado';
+      const idMotivo = a.id_motivo_fechamento_atendimento;
+      if (idMotivo && MOTIVO_CANCELADO.has(idMotivo)) return 'cancelado';
+      if (idMotivo && MOTIVO_REVERTIDO.has(idMotivo)) return 'revertido';
+      return null; // fechamento não-explícito — não conta
+    };
     const mapaTipoCancel = {};
     const todosAtendCancel = []; // registros individuais de ambos os tipos
     for (const a of lista) {
@@ -1094,7 +1111,9 @@ app.get('/api/retencao', async (req, res) => {
       if (!mapaTipoCancel[tipo]) mapaTipoCancel[tipo] = { tipo, total: 0, por_atendente: {} };
       mapaTipoCancel[tipo].total++;
       mapaTipoCancel[tipo].por_atendente[at] = (mapaTipoCancel[tipo].por_atendente[at] || 0) + 1;
-      // Registro individual
+      // Registro individual — INFORMAÇÃO usa desfecho explícito (sem fallback), SOLICITAÇÃO usa o padrão
+      const desfecho = isInformacaoCancelamento(tipo) ? desfechoExplicito(a) : desfechoOf(a);
+      if (isInformacaoCancelamento(tipo) && desfecho === null) continue; // não contabiliza INFORMAÇÃO sem fechamento explícito
       const cli  = a.cliente_servico?.cliente;
       const cliente = cli?.nome_razaosocial || cli?.display || a.cliente_servico?.display || 'Sem cliente';
       const data = a.data_fechamento || a.data_cadastro || null;
@@ -1104,7 +1123,6 @@ app.get('/api/retencao', async (req, res) => {
       const motivoFechamento = (typeof mfObj === 'object' && mfObj)
         ? (mfObj.descricao || mfObj.nome || mfObj.titulo || null)
         : null; // só motivo estruturado — status/texto livre não é motivo
-      const desfecho = desfechoOf(a);
       todosAtendCancel.push({ tipo, atendente: at, cliente, data, origem, motivoFechamento, desfecho });
     }
     const por_tipo_cancelamento = Object.values(mapaTipoCancel)
