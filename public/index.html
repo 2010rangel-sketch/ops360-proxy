@@ -5002,7 +5002,7 @@ function _renderCancelServTbl(atendente, tipoCancel, cidade) {
   } else {
     const data = window._cancelServData;
     const labelPer = retPeriodo==='hoje' ? 'Hoje' : retPeriodo==='mes_anterior' ? 'Mês Anterior' : retPeriodo==='custom' ? 'Período' : 'Mês Atual';
-    if (titulo) titulo.innerHTML = `<i class="fas fa-times-circle" style="color:var(--red);margin-right:6px"></i>Cancelamento Geral — ${labelPer}`;
+    if (titulo) titulo.innerHTML = `<i class="fas fa-times-circle" style="color:var(--red);margin-right:6px"></i>Por Motivo de Cancelamento`;
     if (sub)    sub.textContent = 'cancelamentos de serviço';
     if (!data) return;
     const motivos = data.por_motivo || [];
