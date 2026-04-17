@@ -980,22 +980,21 @@ app.get('/api/retencao', async (req, res) => {
     const fim = data_fim    || fimMes.toISOString();
 
     // 1) Cache em memória
-    const retKey = `${ini.slice(0,10)}-${fim.slice(0,10)}-${all||'false'}`;
+    const retKey    = `${ini.slice(0,10)}-${fim.slice(0,10)}-${all||'false'}`;
+    const dbRetKey  = `cache:retencao:${retKey}`;
     if (!nocache) {
       const retCached = _retCacheMap[retKey];
       if (retCached && (Date.now() - retCached.ts) < RET_CACHE_TTL) {
         return res.json({ ...retCached.data, cache: true });
       }
       // 2) Cache no PostgreSQL
-      const dbRetKey = `cache:retencao:${retKey}`;
       const dbRetCached = await dbCacheGet(dbRetKey, RET_CACHE_TTL);
       if (dbRetCached) {
         _retCacheMap[retKey] = { data: dbRetCached, ts: Date.now() };
         return res.json({ ...dbRetCached, cache: 'db' });
       }
     } else {
-      // Limpa cache em memória para esta chave
-      delete _retCacheMap[retKey];
+      delete _retCacheMap[retKey]; // Limpa cache em memória para esta chave
     }
 
     // Fetch all atendimentos in period (parallel pagination)
