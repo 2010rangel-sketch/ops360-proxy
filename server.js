@@ -1023,22 +1023,17 @@ app.get('/api/retencao', async (req, res) => {
     // Detecta origem: campo oficial primeiro, depois busca em texto
     const detectaOrigem = (a) => {
       const raw = a.origem_contato;
-      // Extrai label do campo origem_contato — Hubsoft pode retornar objeto com várias chaves ou string direta
-      const rawLabel = typeof raw === 'string'
-        ? raw
-        : (raw?.descricao || raw?.nome || raw?.name || raw?.label || raw?.titulo || raw?.title || raw?.value || '');
+      // Hubsoft retorna origem_contato como array (multiselect) ou objeto ou string
+      const rawObj = Array.isArray(raw) ? raw[0] : raw;
+      const rawLabel = typeof rawObj === 'string'
+        ? rawObj
+        : (rawObj?.descricao || rawObj?.nome || rawObj?.name || rawObj?.label || rawObj?.titulo || rawObj?.title || rawObj?.value || '');
       const oc = norm(rawLabel);
-      if (oc.includes('CHATMIX') || oc.includes('CHAT MIX') || oc.includes('CHAT')) return 'ChatMix (WhatsApp)';
+      if (oc.includes('CHATMIX') || oc.includes('CHAT MIX')) return 'ChatMix (WhatsApp)';
       if (oc.includes('PRESENCIAL')) return 'Presencial';
       if (oc.includes('LIGA') || oc.includes('FONE') || oc.includes('TELEF')) return 'Ligação';
       if (oc.includes('WHATSAPP') || oc.includes('WHATS')) return 'WhatsApp';
-      if (oc && oc !== '') return rawLabel;
-      // fallback: busca no texto de abertura/fechamento
-      const txt = norm((a.descricao_abertura || '') + ' ' + (a.descricao_fechamento || ''));
-      if (txt.includes('CHATMIX') || txt.includes('CHAT MIX')) return 'ChatMix (WhatsApp)';
-      if (txt.includes('PRESENCIAL')) return 'Presencial';
-      if (txt.includes('LIGACAO') || txt.includes('LIGAÇÃO') || txt.includes('LIGA')) return 'Ligação';
-      if (txt.includes('WHATSAPP') || txt.includes('WHATS')) return 'WhatsApp';
+      if (oc && oc !== '') return rawLabel; // outro valor cadastrado — retorna como está
       return 'Origem ausente';
     };
 
