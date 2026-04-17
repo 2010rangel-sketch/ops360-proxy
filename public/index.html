@@ -546,6 +546,38 @@ input[type="text"]::placeholder { color:var(--text3); }
 }
 </style>
 <style>
+/* Modo foco: só o kanban */
+body.modo-kanban .sidebar,
+body.modo-kanban .topbar,
+body.modo-kanban #page-chamados > *:not(#dch-kanban-section) { display:none!important; }
+body.modo-kanban #dch-kanban-section { display:flex!important; }
+body.modo-kanban .main { margin-left:0!important; }
+
+/* Modo foco: só a lista/tabela */
+body.modo-lista .sidebar,
+body.modo-lista .topbar,
+body.modo-lista #page-chamados > *:not(#dch-tabela-section) { display:none!important; }
+body.modo-lista #dch-tabela-section { display:grid!important; }
+body.modo-lista .main { margin-left:0!important; }
+</style>
+<script>
+(function(){
+  const m = new URLSearchParams(window.location.search).get('modo');
+  if(m==='kanban'||m==='lista') document.documentElement.classList.add('modo-'+m);
+  // aplica ao body quando DOM pronto (antes do authInit)
+  if(m==='kanban'||m==='lista'){
+    document.addEventListener('DOMContentLoaded',function(){
+      document.body.classList.add('modo-'+m);
+    },{once:true});
+  }
+})();
+</script>
+<style>
+/* Propaga a classe do html para o body antes do paint */
+html.modo-kanban body.modo-kanban .sidebar,
+html.modo-kanban body.modo-kanban .topbar { display:none!important; }
+</style>
+<style>
 .rh-placeholder-row {
   display:flex;justify-content:space-between;align-items:center;
   padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;
@@ -8560,20 +8592,8 @@ function _appStart() {
   // Modo foco: força chamados + layout sem sidebar
   if (_modoFoco === 'kanban' || _modoFoco === 'lista') {
     _initPage = 'chamados';
+    document.body.classList.add('modo-' + _modoFoco);
     history.replaceState({ page: 'chamados' }, '', '/chamados?modo=' + _modoFoco);
-    const sb = document.querySelector('.sidebar');
-    if (sb) sb.style.display = 'none';
-    const topbar = document.querySelector('.topbar');
-    if (topbar) topbar.style.display = 'none';
-    setTimeout(() => {
-      const hide = (...ids) => ids.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
-      hide('catCards');
-      if (_modoFoco === 'kanban') {
-        hide('dch-tabela-section', 'dch-analytics-section', 'dch-tma-section');
-      } else {
-        hide('dch-kanban-section', 'dch-analytics-section', 'dch-tma-section');
-      }
-    }, 300);
   } else {
     history.replaceState({ page: _initPage }, '', '/' + _initPage);
   }
