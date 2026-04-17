@@ -1085,7 +1085,7 @@ input[type="text"]::placeholder { color:var(--text3); }
       <!-- Filtro por setor + botão configurar -->
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
         <span style="font-size:12px;color:var(--text3)">Setor:</span>
-        <select id="filtAtendSetor" onchange="renderAtendimentosFiltrado()" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:4px 10px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
+        <select id="filtAtendSetor" onchange="renderAtendimentosFiltrado();_saveFilters();" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:4px 10px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
           <option value="">Todos</option>
         </select>
         <button onclick="abrirConfigSetores()" class="btn btn-sm" style="padding:4px 12px;font-size:11px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);color:var(--text2);cursor:pointer"><i class="fas fa-cog"></i> Configurar setores</button>
@@ -4305,6 +4305,7 @@ let atendPeriodo = 'hoje';
 let _atendData = null; // cache do último resultado
 let _atendFiltroTipo = null; // tipo selecionado (cross-filter)
 let _atendFiltroAt   = null; // atendente selecionado (cross-filter)
+let _atendSetorPending = ''; // setor a restaurar no primeiro render
 
 function setAtendFiltroTipo(tipo) {
   _atendFiltroTipo = _atendFiltroTipo === tipo ? null : tipo;
@@ -4438,6 +4439,7 @@ function filtrarPorSetor(setor) {
   if (!sel) return;
   // Toggle: clicou no mesmo setor já ativo → limpa filtro
   sel.value = sel.value === setor ? '' : setor;
+  _saveFilters();
   renderAtendimentosFiltrado();
   // Scroll suave para a tabela de atendentes
   const atTbl = document.getElementById('atendenteTbl');
@@ -4507,7 +4509,8 @@ function renderAtendimentos(data) {
   const setoresUnicos = [...new Set(porAtComSetor0.map(a => a.setor || 'Sem setor'))].sort();
   const sel0 = document.getElementById('filtAtendSetor');
   if (sel0) {
-    const valAtual = sel0.value;
+    const valAtual = sel0.value || _atendSetorPending;
+    _atendSetorPending = '';
     sel0.innerHTML = '<option value="">Todos</option>' +
       setoresUnicos.map(s => `<option value="${s}"${s === valAtual ? ' selected' : ''}>${s}</option>`).join('');
   }
@@ -8460,6 +8463,7 @@ function _saveFilters() {
       atendPeriodo,
       atendDtDe:  document.getElementById('atendDtDe')?.value  || '',
       atendDtAte: document.getElementById('atendDtAte')?.value || '',
+      atendSetor:      document.getElementById('filtAtendSetor')?.value || '',
       atendFiltroTipo: _atendFiltroTipo,
       atendFiltroAt:   _atendFiltroAt,
     }));
@@ -8512,8 +8516,9 @@ function _restoreFilters() {
         const ate = document.getElementById('atendDtAte'); if (ate) ate.value = s.atendDtAte;
       }
     }
-    if (s.atendFiltroTipo !== undefined) _atendFiltroTipo = s.atendFiltroTipo;
-    if (s.atendFiltroAt  !== undefined) _atendFiltroAt   = s.atendFiltroAt;
+    if (s.atendSetor)                    _atendSetorPending = s.atendSetor;
+    if (s.atendFiltroTipo !== undefined) _atendFiltroTipo   = s.atendFiltroTipo;
+    if (s.atendFiltroAt  !== undefined) _atendFiltroAt     = s.atendFiltroAt;
   } catch {}
 }
 
