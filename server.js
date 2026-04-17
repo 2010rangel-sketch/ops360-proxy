@@ -631,7 +631,9 @@ function _normalizarChamados(lista) {
     const deslocAtiva = !execAtiva && stBase === 'aguardando' &&
       Array.isArray(os.reservas) && os.reservas.some(r => !r.desreservada);
     const stVal = execAtiva ? 'em_execucao' : deslocAtiva ? 'em_deslocamento' : (os.status || '');
-    const reservaAtiva = Array.isArray(os.reservas) ? os.reservas.find(r => !r.desreservada) : null;
+    const reservaAtiva = Array.isArray(os.reservas)
+      ? os.reservas.slice().sort((a,b) => new Date(b.data_reserva||0) - new Date(a.data_reserva||0)).find(r => !r.desreservada)
+      : null;
     const abDesloc = reservaAtiva?.data_reserva ? formatarHora(reservaAtiva.data_reserva) : null;
     return {
       id: `#${os.id_ordem_servico || os.id}`, cli,
