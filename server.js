@@ -632,13 +632,16 @@ function _normalizarChamados(lista) {
       Array.isArray(os.reservas) && os.reservas.some(r => !r.desreservada);
     const stVal = execAtiva ? 'em_execucao' : deslocAtiva ? 'em_deslocamento' : (os.status || '');
     const reservaAtiva = Array.isArray(os.reservas)
-      ? os.reservas.slice().sort((a,b) => new Date(b.data_reserva||0) - new Date(a.data_reserva||0)).find(r => !r.desreservada)
+      ? os.reservas.slice().sort((a,b) => (b.data_reserva_timestamp||0) - (a.data_reserva_timestamp||0)).find(r => !r.desreservada)
       : null;
-    const abDesloc = reservaAtiva?.data_reserva ? formatarHora(reservaAtiva.data_reserva) : null;
+    const abDesloc = reservaAtiva?.data_reserva_br
+      ? reservaAtiva.data_reserva_br.slice(0, 5)
+      : (reservaAtiva?.data_reserva ? formatarHora(reservaAtiva.data_reserva) : null);
     return {
       id: `#${os.id_ordem_servico || os.id}`, cli,
       cat: normalizarTipo(tipo), tipo, tec, cidade, cidadeId: cidId,
       ab: deslocAtiva && abDesloc ? abDesloc : ((os.hora_inicio_programado || '').slice(0, 5) || formatarHora(os.data_inicio_programado || os.data_cadastro)),
+      tsDeslocInicio: reservaAtiva?.data_reserva_timestamp || null,
       dataProgramada: os.data_inicio_programado || os.data_cadastro || null,
       slaMin: os.tipo_ordem_servico?.prazo_execucao || 240,
       inicioExec: (os.hora_inicio_executado || '').slice(0, 5) || null,
