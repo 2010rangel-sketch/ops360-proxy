@@ -947,7 +947,7 @@ input[type="text"]::placeholder { color:var(--text3); }
 
       <!-- ── ANALYTICS ─────────────────────────────────────────────────── -->
       <!-- Chamados por hora + SLA -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+      <div id="dch-analytics-section" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
         <div class="tbl-card" style="margin-bottom:0">
           <div class="tbl-header">
             <span class="tbl-title">Chamados por hora</span>
@@ -985,7 +985,7 @@ input[type="text"]::placeholder { color:var(--text3); }
       </div>
 
       <!-- TMA por técnico + TMA por tipo -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+      <div id="dch-tma-section" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
         <div class="tbl-card" style="margin-bottom:0">
           <div class="tbl-header">
             <span class="tbl-title">TMA por técnico</span>
@@ -8566,12 +8566,13 @@ function _appStart() {
     const topbar = document.querySelector('.topbar');
     if (topbar) topbar.style.display = 'none';
     setTimeout(() => {
-      const kanban = document.getElementById('dch-kanban-section');
-      const tabela = document.getElementById('dch-tabela-section');
-      const cats   = document.getElementById('catCards');
-      if (cats) cats.style.display = 'none';
-      if (_modoFoco === 'kanban') { if (tabela) tabela.style.display = 'none'; }
-      else                        { if (kanban) kanban.style.display = 'none'; }
+      const hide = (...ids) => ids.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+      hide('catCards');
+      if (_modoFoco === 'kanban') {
+        hide('dch-tabela-section', 'dch-analytics-section', 'dch-tma-section');
+      } else {
+        hide('dch-kanban-section', 'dch-analytics-section', 'dch-tma-section');
+      }
     }, 300);
   } else {
     history.replaceState({ page: _initPage }, '', '/' + _initPage);
