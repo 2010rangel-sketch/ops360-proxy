@@ -871,17 +871,18 @@ input[type="text"]::placeholder { color:var(--text3); }
       <div id="catCards" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px"></div>
 
       <!-- ── KANBAN AO VIVO (full width) ── -->
-      <div class="tbl-card" style="margin-bottom:10px;display:flex;flex-direction:column">
+      <div class="tbl-card" id="dch-kanban-section" style="margin-bottom:10px;display:flex;flex-direction:column">
         <div class="tbl-header" style="padding-bottom:10px;flex-shrink:0">
           <span class="tbl-title">Chamados em andamento agora</span>
           <span class="badge b-blue" id="liveCount">0 pendentes</span>
+          <button onclick="copiarLinkModo('kanban')" id="btn-share-kanban" title="Compartilhar esta view" style="background:none;border:none;cursor:pointer;color:var(--text3);padding:2px 5px;border-radius:4px;font-size:11px;display:flex;align-items:center;gap:4px;transition:color .2s" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'"><i class="fas fa-share-nodes"></i></button>
         </div>
         <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;padding:0 4px 4px;flex:1" id="statusLanes"></div>
       </div>
 
 
       <!-- ── FEED AO VIVO + TABELA COMPLETA ── -->
-      <div style="display:grid;grid-template-columns:290px 1fr;gap:12px">
+      <div id="dch-tabela-section" style="display:grid;grid-template-columns:290px 1fr;gap:12px">
 
         <!-- Feed de eventos ao vivo -->
         <div class="tbl-card" style="margin-bottom:0;display:flex;flex-direction:column;align-self:start;max-height:480px">
@@ -896,7 +897,10 @@ input[type="text"]::placeholder { color:var(--text3); }
         <div class="tbl-card" style="margin-bottom:0">
           <div class="tbl-header" style="flex-wrap:wrap;gap:6px">
             <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
-              <span class="tbl-title" id="tblMainTitle">Todos os chamados</span>
+              <div style="display:flex;align-items:center;gap:6px">
+                <span class="tbl-title" id="tblMainTitle">Todos os chamados</span>
+                <button onclick="copiarLinkModo('lista')" id="btn-share-lista" title="Compartilhar esta view" style="background:none;border:none;cursor:pointer;color:var(--text3);padding:2px 5px;border-radius:4px;font-size:11px;display:flex;align-items:center;gap:4px;transition:color .2s" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'"><i class="fas fa-share-nodes"></i></button>
+              </div>
               <input id="filtBusca" oninput="applyFilters()" placeholder="🔍 Cliente, técnico ou cidade…" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:4px 10px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif;width:210px;outline:none">
             </div>
             <div style="display:flex;gap:4px;flex-wrap:wrap;flex:1;justify-content:flex-end" id="statusChips">
@@ -2647,6 +2651,18 @@ function compartilharPagina() {
   }).catch(() => {
     prompt('Copie o link:', url);
   });
+}
+
+function copiarLinkModo(modo) {
+  const url = window.location.origin + '/chamados?modo=' + modo;
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.getElementById('btn-share-' + modo);
+    if (!btn) return;
+    const icon = btn.querySelector('i');
+    icon.className = 'fas fa-check';
+    btn.style.color = 'var(--green)';
+    setTimeout(() => { icon.className = 'fas fa-share-nodes'; btn.style.color = ''; }, 2000);
+  }).catch(() => { prompt('Copie o link:', url); });
 }
 
 function goPage(id, el, skipHistory) {
@@ -8536,11 +8552,30 @@ function _appStart() {
   const _com = _lcGet('ops360_com_cache', 35*60*1000); if (_com) { _comData = _com; renderComercialAtualiza(_com); }
   const _atd = _lcGet('ops360_atend_cache', 10*60*1000); if (_atd) { _atendData = _atd; }
   // Passo 2 — navega para a página correta conforme permissões
+  const _modoFoco = new URLSearchParams(window.location.search).get('modo');
   const _permitidas = (_authUser?.paginas || 'comercial').split(',').map(p => p.trim());
   let _initPage = _pageFromPath();
   // Se página não permitida, vai para a primeira da lista
   if (!_permitidas.includes(_initPage)) _initPage = _permitidas[0] || 'comercial';
-  history.replaceState({ page: _initPage }, '', '/' + _initPage);
+  // Modo foco: força chamados + layout sem sidebar
+  if (_modoFoco === 'kanban' || _modoFoco === 'lista') {
+    _initPage = 'chamados';
+    history.replaceState({ page: 'chamados' }, '', '/chamados?modo=' + _modoFoco);
+    const sb = document.querySelector('.sidebar');
+    if (sb) sb.style.display = 'none';
+    const topbar = document.querySelector('.topbar');
+    if (topbar) topbar.style.display = 'none';
+    setTimeout(() => {
+      const kanban = document.getElementById('dch-kanban-section');
+      const tabela = document.getElementById('dch-tabela-section');
+      const cats   = document.getElementById('catCards');
+      if (cats) cats.style.display = 'none';
+      if (_modoFoco === 'kanban') { if (tabela) tabela.style.display = 'none'; }
+      else                        { if (kanban) kanban.style.display = 'none'; }
+    }, 300);
+  } else {
+    history.replaceState({ page: _initPage }, '', '/' + _initPage);
+  }
   // Sempre navega explicitamente para garantir que a página correta aparece
   goPage(_initPage, null, true);
   // Passo 2b — calendário
