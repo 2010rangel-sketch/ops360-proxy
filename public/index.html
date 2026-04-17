@@ -644,6 +644,7 @@ input[type="text"]::placeholder { color:var(--text3); }
     <div class="topbar-right">
       <div class="topbar-clock" id="clock">--:--:--</div>
       <button class="icon-btn" id="btn-integracoes-cog" onclick="goPage('integracoes')" style="display:none"><i class="fas fa-cog"></i></button>
+      <button class="icon-btn" id="btn-share-page" onclick="compartilharPagina()" title="Copiar link desta aba"><i class="fas fa-share-nodes"></i></button>
     </div>
   </div>
 
@@ -2634,6 +2635,19 @@ function toggleTheme() {
 
 // NAV
 let _curPage = 'comercial'; // rastreia página ativa para auto-refresh
+
+function compartilharPagina() {
+  const url = window.location.origin + window.location.pathname;
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.getElementById('btn-share-page');
+    const icon = btn.querySelector('i');
+    icon.className = 'fas fa-check';
+    btn.style.color = 'var(--green)';
+    setTimeout(() => { icon.className = 'fas fa-share-nodes'; btn.style.color = ''; }, 2000);
+  }).catch(() => {
+    prompt('Copie o link:', url);
+  });
+}
 
 function goPage(id, el, skipHistory) {
   _curPage = id;
