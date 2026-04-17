@@ -513,22 +513,30 @@ app.get('/api/debug-retencao', async (req, res) => {
       if (!combinacoes[key]) combinacoes[key] = { count: 0, exemplo_descricao: a.descricao_fechamento };
       combinacoes[key].count++;
     }
+    const norm2 = s => (s || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const informacoes = lista.filter(a => {
+      const u = norm2(a.tipo_atendimento?.descricao || '');
+      return u.includes('INFORMA') && u.includes('CANCELAMENTO');
+    });
     res.json({
       ok: true,
       total_paginas: totalPages,
       total_todos: lista.length,
       total_solicitacoes: solicitacoes.length,
+      total_informacoes: informacoes.length,
       combinacoes_desfecho: combinacoes,
       todas_chaves_primeiro_registro: lista[0] ? Object.keys(lista[0]) : [],
-      amostra: lista.slice(0, 5).map(a => ({
-        tipo: a.tipo_atendimento?.descricao || '?',
-        cliente: a.cliente_servico?.cliente?.nome_razaosocial || a.cliente_servico?.display || '?',
+      // Campos brutos de INFORMAÇÃO para diagnóstico do motivo
+      informacao_amostra: informacoes.slice(0, 5).map(a => ({
+        tipo: a.tipo_atendimento?.descricao,
         status_prefixo: a.status?.prefixo,
         status_fechamento: a.status_fechamento,
+        id_motivo: a.id_motivo_fechamento_atendimento,
+        motivo_fechamento_atendimento: a.motivo_fechamento_atendimento,
+        motivo_fechamento: a.motivo_fechamento,
+        motivo_cancelamento: a.motivo_cancelamento,
+        descricao_fechamento: (a.descricao_fechamento || '').slice(0, 80),
         origem_contato: a.origem_contato,
-        origem_do_contato: a.origem_do_contato,
-        origemContato: a.origemContato,
-        origem: a.origem,
       })),
     });
   } catch(e) { res.json({ ok: false, erro: e.message }); }
