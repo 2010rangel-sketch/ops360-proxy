@@ -1509,74 +1509,59 @@ input[type="text"]::placeholder { color:var(--text3); }
         <span class="badge b-green" id="ret-atend-sync" style="margin-left:auto">—</span>
       </div>
 
-      <!-- KPIs de retenção — topo da página -->
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:14px">
-        <div class="kpi-mini">
-          <div class="kpi-mini-bar" style="background:var(--accent)"></div>
-          <div class="kpi-mini-label">Pedidos de cancelamento</div>
-          <div class="kpi-mini-val" id="ret-ped-total" style="color:var(--accent)">—</div>
-          <div style="font-size:10px;color:var(--text3);margin-top:2px">via atendimento</div>
-        </div>
-        <div class="kpi-mini">
-          <div class="kpi-mini-bar" style="background:var(--green)"></div>
-          <div class="kpi-mini-label">Revertidos</div>
-          <div class="kpi-mini-val" id="ret-ped-revert" style="color:var(--green)">—</div>
-        </div>
-        <div class="kpi-mini">
-          <div class="kpi-mini-bar" style="background:var(--red)"></div>
-          <div class="kpi-mini-label">Canc. Passivo</div>
-          <div class="kpi-mini-val" id="ret-canc-passivo" style="color:var(--red)">—</div>
-          <div style="font-size:10px;color:var(--text3);margin-top:2px">cliente pediu</div>
-        </div>
-        <div class="kpi-mini">
-          <div class="kpi-mini-bar" style="background:var(--amber)"></div>
-          <div class="kpi-mini-label">Taxa de retenção</div>
-          <div class="kpi-mini-val" id="ret-ped-taxa" style="color:var(--amber)">—</div>
-          <div style="font-size:10px;color:var(--text3);margin-top:2px">revertidos/pedidos</div>
-        </div>
-        <div class="kpi-mini">
-          <div class="kpi-mini-bar" style="background:var(--red)"></div>
-          <div class="kpi-mini-label">Cancelamento Geral</div>
-          <div class="kpi-mini-val" id="ret-cancel-geral-val" style="color:var(--red)">—</div>
-          <div style="font-size:10px;color:var(--text3);margin-top:2px">cancelamentos de serviço</div>
+      <!-- KPI único: Cancelamento Geral -->
+      <!-- IDs ocultos para manter compatibilidade com JS existente -->
+      <span id="ret-ped-total" style="display:none"></span>
+      <span id="ret-ped-revert" style="display:none"></span>
+      <span id="ret-ped-taxa" style="display:none"></span>
+      <span id="ret-cancel-geral-val" style="display:none"></span>
+
+      <!-- Tipo de Atendimento — cards visuais clicáveis -->
+      <span id="ret-tipo-cancel-titulo" style="display:none"></span>
+      <span id="ret-tipo-cancel-badge" style="display:none"></span>
+      <div class="tbl-card" style="margin-bottom:14px;border-top:3px solid var(--accent)">
+        <div id="retTipoCancel" style="display:flex;gap:14px;padding:16px 16px 18px;flex-wrap:wrap">
+          <div style="color:var(--text3);padding:10px;font-size:12px">Carregando...</div>
         </div>
       </div>
 
-      <!-- Linha 1: Por Atendente + Cancelamento Geral do Mês -->
+      <!-- Linha 1: Por Atendente + Motivo de Fechamento -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
         <div class="tbl-card" style="margin-bottom:0">
           <div class="tbl-header">
-            <span class="tbl-title">Por Atendente</span>
+            <span class="tbl-title"><i class="fas fa-user-tie" style="color:var(--accent);margin-right:6px;font-size:11px"></i>Por Atendente</span>
             <span class="badge b-blue" id="ret-atend-count">—</span>
           </div>
-          <div style="overflow-x:auto;max-height:280px;overflow-y:auto">
-            <table><thead><tr><th>#</th><th>Atendente</th><th>Total</th><th style="color:var(--green)">Reverteu</th><th style="color:var(--red)">Cancelou</th><th>Taxa %</th></tr></thead>
-            <tbody id="retAtendTbl"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
+          <div style="overflow-x:auto;max-height:320px;overflow-y:auto">
+            <table>
+              <thead><tr><th>#</th><th>Atendente</th><th>Total</th><th style="color:var(--green)">Reverteu</th><th style="color:var(--red)">Cancelou</th><th>Retenção</th></tr></thead>
+              <tbody id="retAtendTbl"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody>
+            </table>
           </div>
         </div>
         <div class="tbl-card" style="margin-bottom:0;border-top:3px solid var(--red)">
           <div class="tbl-header">
-            <span class="tbl-title" id="ret-cancel-geral-titulo"><i class="fas fa-times-circle" style="color:var(--red);margin-right:6px"></i>Cancelamento Geral do Mês</span>
+            <span class="tbl-title" id="ret-cancel-geral-titulo"><i class="fas fa-times-circle" style="color:var(--red);margin-right:6px"></i>Motivo de Cancelamento</span>
             <span style="font-size:10px;color:var(--text3)" id="ret-cancel-geral-sub">cancelamentos de serviço</span>
-            <span class="badge b-red" id="ret-cancel-geral-badge">—</span>
+            <span id="ret-cancel-geral-badge" style="font-size:22px;font-weight:800;color:var(--red)">—</span>
           </div>
-          <div style="overflow-x:auto;max-height:280px;overflow-y:auto">
-            <table><thead><tr><th>#</th><th>Motivo</th><th>Total</th><th>%</th></tr></thead>
-            <tbody id="ret-cancel-serv-tbl">
-              <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr>
-            </tbody></table>
+          <div id="ret-cancel-serv-tbl" style="max-height:320px;overflow-y:auto">
+            <div style="text-align:center;color:var(--text3);padding:30px;font-size:12px">Carregando...</div>
           </div>
         </div>
       </div>
 
-      <!-- Linha 2: Clientes + Tipo de Atendimento -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-        <div class="tbl-card" style="margin-bottom:0" id="ret-cancel-clientes-card">
+      <span id="ret-tipo-count" style="display:none">—</span>
+      <div id="retTipoTbl" style="display:none"></div>
+
+      <!-- Linha 2: Clientes por motivo + Pedidos de cancelamento + Por Cidade -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px" id="ret-cancel-clientes-card">
+        <div class="tbl-card" style="margin-bottom:0">
           <div class="tbl-header">
-            <span class="tbl-title" id="ret-cancel-clientes-titulo"><i class="fas fa-users" style="color:var(--text3);margin-right:5px"></i>Clientes</span>
+            <span class="tbl-title" id="ret-cancel-clientes-titulo"><i class="fas fa-users" style="color:var(--text3);margin-right:5px"></i>Clientes por motivo</span>
             <span class="badge b-red" id="ret-cancel-clientes-badge">—</span>
           </div>
-          <div style="overflow-x:auto;max-height:280px;overflow-y:auto">
+          <div style="overflow-x:auto;max-height:300px;overflow-y:auto">
             <table style="font-size:11px"><thead><tr>
               <th>Cliente</th><th>Cidade</th><th>Plano</th><th>Habilitação</th><th>Cancelamento</th>
             </tr></thead>
@@ -1588,28 +1573,15 @@ input[type="text"]::placeholder { color:var(--text3); }
             </tbody></table>
           </div>
         </div>
-        <div class="tbl-card" style="margin-bottom:0;border-top:3px solid var(--accent)">
-          <div class="tbl-header">
-            <span class="tbl-title" id="ret-tipo-cancel-titulo"><i class="fas fa-phone-slash" style="color:var(--accent);margin-right:5px"></i>Tipo de Atendimento</span>
-            <span class="badge b-blue" id="ret-tipo-cancel-badge">—</span>
-          </div>
-          <div style="overflow-x:auto;max-height:280px;overflow-y:auto">
-            <table><thead><tr><th>#</th><th>Tipo</th><th>Total</th></tr></thead>
-            <tbody id="retTipoCancel"><tr><td colspan="3" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
-          </div>
-        </div>
-      </div>
-
-      <!-- Linha 3: Por Origem de Contato + Por Cidade -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
         <div class="tbl-card" style="margin-bottom:0">
           <div class="tbl-header">
-            <span class="tbl-title">Por Origem de Contato</span>
-            <span class="badge b-blue" id="ret-tipo-count">—</span>
+            <span class="tbl-title"><i class="fas fa-list-ul" style="color:var(--amber);margin-right:6px;font-size:11px"></i>Pedidos de cancelamento</span>
+            <span id="ret-filtro-badge" style="display:none;font-size:11px;padding:3px 8px;border-radius:4px;cursor:pointer;background:var(--accent-light);color:var(--accent);border:1px solid rgba(91,106,240,.4)">—</span>
+            <span class="badge b-amber" id="ret-pedidos-badge">—</span>
           </div>
-          <div style="overflow-x:auto;max-height:280px;overflow-y:auto">
-            <table><thead><tr><th>#</th><th>Origem</th><th>Total</th><th style="color:var(--green)">Revertidos</th><th style="color:var(--red)">Cancelados</th></tr></thead>
-            <tbody id="retTipoTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
+          <div style="overflow-x:auto;max-height:300px;overflow-y:auto">
+            <table><thead><tr><th>Cliente</th><th>Atendente</th><th>Desfecho</th><th>Data</th></tr></thead>
+            <tbody id="retPedidosTbl"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
           </div>
         </div>
         <div class="tbl-card" style="margin-bottom:0;border-top:3px solid var(--cyan)">
@@ -1617,34 +1589,23 @@ input[type="text"]::placeholder { color:var(--text3); }
             <span class="tbl-title" id="ret-cidade-titulo"><i class="fas fa-map-marker-alt" style="color:var(--cyan);margin-right:5px"></i>Por Cidade</span>
             <span class="badge b-blue" id="ret-cidade-badge">—</span>
           </div>
-          <div style="overflow-x:auto;max-height:280px;overflow-y:auto">
-            <table><thead><tr><th>#</th><th>Cidade</th><th>Total</th><th>%</th></tr></thead>
-            <tbody id="retCidadeTbl"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
+          <div id="retCidadeTbl" style="max-height:300px;overflow-y:auto">
+            <div style="text-align:center;color:var(--text3);padding:30px;font-size:12px">Carregando...</div>
           </div>
         </div>
       </div>
 
-      <!-- Pedidos de cancelamento -->
-      <div class="tbl-card" style="margin-bottom:20px">
-        <div class="tbl-header">
-          <span class="tbl-title">Pedidos de cancelamento</span>
-          <span id="ret-filtro-badge" style="display:none;font-size:11px;padding:3px 8px;border-radius:4px;cursor:pointer;background:var(--accent-light);color:var(--accent);border:1px solid rgba(91,106,240,.4)">—</span>
-          <span class="badge b-amber" id="ret-pedidos-badge">—</span>
-        </div>
-        <div style="overflow-x:auto;max-height:400px;overflow-y:auto">
-          <table><thead><tr><th>Cliente</th><th>Atendente</th><th>Origem</th><th>Desfecho</th><th>Data</th></tr></thead>
-          <tbody id="retPedidosTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
-        </div>
-      </div>
-
       <!-- Serviços Cancelados (Cancelamento Geral) -->
-      <div class="tbl-card" style="margin-bottom:20px">
+      <div class="tbl-card" style="margin-bottom:20px;border-top:3px solid #e11d48">
         <div class="tbl-header">
-          <span class="tbl-title"><i class="fas fa-times-circle" style="color:var(--red);margin-right:6px"></i>Serviços cancelados</span>
+          <span class="tbl-title"><i class="fas fa-user-minus" style="color:#e11d48;margin-right:6px"></i>Serviços Cancelados no Período</span>
+          <span style="font-size:10px;color:var(--text3)">cancelamentos reais de serviço · clique nos motivos acima para filtrar</span>
           <span class="badge b-red" id="ret-servicos-cancel-badge">—</span>
         </div>
-        <div style="overflow-x:auto;max-height:400px;overflow-y:auto">
-          <table><thead><tr><th>Cliente</th><th>Motivo</th><th>Plano / Serviço</th><th>Cidade</th><th>Vendedor</th><th>Data Venda</th><th>Data Cancelamento</th></tr></thead>
+        <div style="overflow-x:auto;max-height:380px;overflow-y:auto">
+          <table style="font-size:12px"><thead><tr>
+            <th>Cliente</th><th>Motivo</th><th>Plano / Serviço</th><th>Cidade</th><th>Vendedor</th><th>Data Venda</th><th>Cancelamento</th>
+          </tr></thead>
           <tbody id="retServicosCancelTbl"><tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
         </div>
       </div>
@@ -4865,7 +4826,15 @@ function setRetPeriodo(p, el) {
   // Limpa dados anteriores para não mostrar período errado enquanto carrega
   _retData = null;
   window._cancelServData = null;
+  window._cancelMotivoIdx = null;
   try { localStorage.removeItem('ops360_ret_cache'); } catch {}
+  // Reseta tabela de clientes (drill-down) para não mostrar dados do período anterior
+  const _cliTbl = document.getElementById('ret-cancel-clientes-tbl');
+  if (_cliTbl) _cliTbl.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:30px;font-size:12px"><i class="fas fa-hand-pointer" style="display:block;margin-bottom:8px;font-size:20px;color:var(--border)"></i>Clique em um motivo para ver os clientes</td></tr>';
+  const _cliTit = document.getElementById('ret-cancel-clientes-titulo');
+  if (_cliTit) _cliTit.innerHTML = '<i class="fas fa-users" style="color:var(--text3);margin-right:5px"></i>Clientes por motivo';
+  const _cliBadge = document.getElementById('ret-cancel-clientes-badge');
+  if (_cliBadge) _cliBadge.textContent = '—';
   if (p !== 'custom') { loadRetencaoAtend(); loadCancelServico(); loadRemocoes(); }
 }
 
@@ -4877,7 +4846,7 @@ async function loadCancelServico() {
   const mySeq   = ++_cancelServSeq;   // versão desta chamada
 
   const tbl = document.getElementById('ret-cancel-serv-tbl');
-  if (tbl) tbl.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr>';
+  if (tbl) tbl.innerHTML = '<div style="text-align:center;color:var(--text3);padding:30px;font-size:12px">Carregando...</div>';
   try {
     const { ini, fim } = getRetDates();
     const qs = `data_inicio=${encodeURIComponent(ini)}&data_fim=${encodeURIComponent(fim)}`;
@@ -4921,20 +4890,28 @@ function _renderCancelServTbl(atendente, tipoCancel, cidade) {
   const kpiVal = document.getElementById('ret-cancel-geral-val');
   if (!tbl) return;
 
-  const _row = (motivos, total, onclick) => motivos.map((m, i) => {
-    const pct = total > 0 ? Math.round(m.total / total * 100) : 0;
-    return `<tr onclick="${onclick}(${i})" style="cursor:pointer" title="Ver clientes">
-      <td style="color:var(--text3);font-size:11px">${i+1}</td>
-      <td style="font-weight:500">${m.motivo}</td>
-      <td style="font-weight:700;color:var(--red)">${m.total}</td>
-      <td style="color:var(--text3)">${pct}%</td>
-    </tr>`;
-  }).join('');
+  const MC = ['#f43f5e','#f97316','#f59e0b','#06b6d4','#a78bfa','#5b6af0','#22c55e','#ec4899','#8b5cf6','#14b8a6'];
+  const _bar = (motivos, total, onclick) => `<div style="padding:10px 18px 6px">${motivos.map((m, i) => {
+    const pct  = total > 0 ? Math.round(m.total / total * 100) : 0;
+    const barW = total > 0 ? (m.total / total * 100).toFixed(1) : 0;
+    const col  = MC[i % MC.length];
+    const lbl  = m.motivo.length > 26 ? m.motivo.slice(0,26)+'…' : m.motivo;
+    return `<div onclick="${onclick}(${i})" title="${m.motivo}" style="display:grid;grid-template-columns:150px 1fr 68px;align-items:center;gap:10px;padding:8px 0;cursor:pointer;border-bottom:1px solid var(--border)" onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background=''">
+      <span style="font-size:12px;font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lbl}</span>
+      <div style="height:20px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${barW}%;background:${col};border-radius:4px;opacity:.85"></div>
+      </div>
+      <div style="text-align:right;line-height:1.2">
+        <span style="font-size:14px;font-weight:800;color:${col}">${m.total}</span>
+        <span style="display:block;font-size:10px;color:var(--text3)">${pct}%</span>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+  const _empty = msg => `<div style="text-align:center;color:var(--text3);padding:30px;font-size:12px">${msg}</div>`;
 
   const temFiltro = atendente || tipoCancel || cidade;
 
   if (cidade && !atendente && !tipoCancel) {
-    // Filtro por cidade: filtra clientes de cada motivo pela cidade
     const data = window._cancelServData;
     if (!data) return;
     const mapaM = {};
@@ -4948,28 +4925,22 @@ function _renderCancelServTbl(atendente, tipoCancel, cidade) {
     const motivos = Object.values(mapaM).sort((a, b) => b.total - a.total);
     const total   = motivos.reduce((s, m) => s + m.total, 0);
     window._cancelServMotivosFiltro = motivos;
-    window._cancelServMotivos = motivos; // para mostrarClientesCancelamento funcionar
+    window._cancelServMotivos = motivos;
     if (titulo) titulo.innerHTML = `<i class="fas fa-times-circle" style="color:var(--red);margin-right:6px"></i>Cancelamentos — ${cidade}`;
     if (sub)    sub.textContent = 'filtrado por cidade';
     if (badge)  badge.textContent = total;
     if (kpiVal) kpiVal.textContent = total;
-    tbl.innerHTML = motivos.length
-      ? _row(motivos, total, 'mostrarClientesCancelamento')
-      : '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Sem cancelamentos nesta cidade</td></tr>';
+    tbl.innerHTML = motivos.length ? _bar(motivos, total, 'mostrarClientesCancelamento') : _empty('Sem cancelamentos nesta cidade');
     return;
   }
 
   if (temFiltro && _retData) {
     const fonte = _retData.todos_atend_cancel || _retData.ultimos || [];
-    const label = atendente ? atendente.split(' ')[0] : tipoCancel ? tipoCancel.split(' ').slice(0,2).join(' ') + '…' : cidade;
-
+    const label = atendente ? atendente.split(' ')[0] : tipoCancel ? tipoCancel.split(' ').slice(0,2).join(' ')+'…' : cidade;
     const isSolicitacao = tipoCancel && tipoCancel.toUpperCase().includes('SOLICIT');
 
     if (tipoCancel && !isSolicitacao) {
-      // "Informação sobre Cancelamento" — usa motivo pré-definido selecionado pela atendente
-      const filtrados = fonte.filter(p =>
-        p.tipo === tipoCancel && (!atendente || p.atendente === atendente)
-      );
+      const filtrados = fonte.filter(p => p.tipo === tipoCancel && (!atendente || p.atendente === atendente));
       const mapaM = {};
       for (const p of filtrados) {
         const mot = (p.motivoFechamento || 'Sem motivo').trim() || 'Sem motivo';
@@ -4984,13 +4955,10 @@ function _renderCancelServTbl(atendente, tipoCancel, cidade) {
       if (sub)    sub.textContent = 'opção selecionada pela atendente';
       if (badge)  badge.textContent = total;
       if (kpiVal) kpiVal.textContent = total;
-      tbl.innerHTML = motivos.length
-        ? _row(motivos, total, 'mostrarClientesCancelamentoFiltro')
-        : '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Nenhum atendimento</td></tr>';
+      tbl.innerHTML = motivos.length ? _bar(motivos, total, 'mostrarClientesCancelamentoFiltro') : _empty('Nenhum atendimento');
       return;
     }
 
-    // "Solicitação de Cancelamento" ou filtro por ATENDENTE: cross-ref com Hubsoft
     const filtrados = (_retData.ultimos || []).filter(p =>
       (!atendente || p.atendente === atendente) && p.desfecho === 'cancelado'
     );
@@ -5013,12 +4981,9 @@ function _renderCancelServTbl(atendente, tipoCancel, cidade) {
       if (sub)    sub.textContent = 'filtrado por atendente';
       if (badge)  badge.textContent = total;
       if (kpiVal) kpiVal.textContent = total;
-      tbl.innerHTML = motivos.length
-        ? _row(motivos, total, 'mostrarClientesCancelamentoFiltro')
-        : '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Sem cruzamento encontrado</td></tr>';
+      tbl.innerHTML = motivos.length ? _bar(motivos, total, 'mostrarClientesCancelamentoFiltro') : _empty('Sem cruzamento encontrado');
       return;
     }
-    // Fallback atendente sem cross-ref
     const mapaT = {};
     for (const p of filtrados) {
       const t = p.tipo || 'Sem tipo';
@@ -5033,9 +4998,7 @@ function _renderCancelServTbl(atendente, tipoCancel, cidade) {
     if (sub)    sub.textContent = 'filtrado por atendente';
     if (badge)  badge.textContent = total;
     if (kpiVal) kpiVal.textContent = total;
-    tbl.innerHTML = motivos.length
-      ? _row(motivos, total, 'mostrarClientesCancelamentoFiltro')
-      : '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Nenhum cancelamento</td></tr>';
+    tbl.innerHTML = motivos.length ? _bar(motivos, total, 'mostrarClientesCancelamentoFiltro') : _empty('Nenhum cancelamento');
   } else {
     const data = window._cancelServData;
     const labelPer = retPeriodo==='hoje' ? 'Hoje' : retPeriodo==='mes_anterior' ? 'Mês Anterior' : retPeriodo==='custom' ? 'Período' : 'Mês Atual';
@@ -5047,9 +5010,7 @@ function _renderCancelServTbl(atendente, tipoCancel, cidade) {
     if (badge)  badge.textContent = total;
     if (kpiVal) kpiVal.textContent = total;
     window._cancelServMotivos = motivos;
-    tbl.innerHTML = motivos.length
-      ? _row(motivos, total, 'mostrarClientesCancelamento')
-      : '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Sem cancelamentos no período</td></tr>';
+    tbl.innerHTML = motivos.length ? _bar(motivos, total, 'mostrarClientesCancelamento') : _empty('Sem cancelamentos no período');
   }
 }
 
@@ -5087,13 +5048,13 @@ function _renderServicosCancelTbl() {
 
   tbl.innerHTML = clientes.map(c => `
     <tr>
-      <td>${c.nome || '—'}</td>
-      <td><span style="color:var(--red);font-size:11px">${c.motivo || '—'}</span></td>
-      <td>${c.plano || '—'}</td>
-      <td>${c.cidade || '—'}</td>
-      <td style="color:var(--text2);font-size:12px">${c.vendedor || '—'}</td>
-      <td style="white-space:nowrap;color:var(--text2)">${fmt(c.data_venda)}</td>
-      <td style="white-space:nowrap">${fmt(c.data)}</td>
+      <td style="font-weight:600">${c.nome || '—'}</td>
+      <td><span style="display:inline-block;font-size:10px;font-weight:600;color:#e11d48;background:rgba(225,29,72,.08);border:1px solid rgba(225,29,72,.2);border-radius:5px;padding:2px 7px;white-space:nowrap">${c.motivo || '—'}</span></td>
+      <td style="color:var(--text2)">${c.plano || '—'}</td>
+      <td style="color:var(--text3)">${c.cidade || '—'}</td>
+      <td style="color:var(--text3);font-size:11px">${c.vendedor || '—'}</td>
+      <td style="color:var(--text3);font-size:11px;white-space:nowrap">${fmt(c.data_venda)}</td>
+      <td style="font-weight:600;white-space:nowrap;color:var(--red)">${fmt(c.data)}</td>
     </tr>
   `).join('');
 }
@@ -5222,6 +5183,7 @@ function renderRetencao(data) {
   elVal('ret-ped-revert', data.revertidos ?? '—');
   elVal('ret-ped-cancel', data.cancelados ?? '—');
   elVal('ret-ped-taxa',   data.taxa_retencao != null ? data.taxa_retencao + '%' : '—');
+  elVal('ret-ped-revert-card', data.revertidos ?? '—'); // card dentro da seção de tipos
 
   // ret-cancel-geral-badge é gerenciado por loadCancelServico (já filtrado) — não sobrescrever aqui
   const cgChips = document.getElementById('ret-cancel-geral-chips');
@@ -5280,13 +5242,22 @@ function renderRetencao(data) {
   if (atTbl) {
     atTbl.innerHTML = porAt.length ? porAt.map((a, i) => {
       const isActive = _retFiltroAt === a.atendente;
+      const taxaColor = a.taxa == null ? 'var(--text3)' : a.taxa >= 60 ? 'var(--green)' : a.taxa >= 35 ? 'var(--amber)' : 'var(--red)';
+      const barW = a.taxa != null ? a.taxa : 0;
       return `<tr onclick="setRetFiltro('atendente','${a.atendente.replace(/'/g,"&#39;")}')" style="cursor:pointer;${isActive ? 'background:rgba(91,106,240,.08);outline:1px solid var(--accent);' : ''}">
-        <td style="color:var(--text3)">${i+1}</td>
-        <td style="font-weight:500;color:${isActive ? 'var(--accent)' : 'var(--text)'}">${a.atendente}${isActive ? ' <span style="font-size:10px">✕</span>' : ''}</td>
-        <td class="mono" style="font-weight:600">${a.total}</td>
-        <td class="mono" style="color:var(--green)">${a.revertidos}</td>
-        <td class="mono" style="color:var(--red)">${a.cancelados}</td>
-        <td class="mono">${a.taxa != null ? `<span style="font-weight:600;color:${a.taxa>=50?'var(--green)':'var(--red)'}">${a.taxa}%</span>` : '—'}</td>
+        <td style="color:var(--text3);font-size:11px">${i+1}</td>
+        <td style="font-weight:600;color:${isActive ? 'var(--accent)' : 'var(--text)'}">${a.atendente}${isActive ? ' <span style="font-size:10px;opacity:.6">✕</span>' : ''}</td>
+        <td class="mono" style="font-weight:700;color:var(--text2)">${a.total}</td>
+        <td class="mono" style="color:var(--green);font-weight:600">${a.revertidos}</td>
+        <td class="mono" style="color:var(--red);font-weight:600">${a.cancelados}</td>
+        <td style="min-width:90px">
+          ${a.taxa != null ? `<div style="display:flex;align-items:center;gap:6px">
+            <div style="flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden">
+              <div style="height:100%;width:${barW}%;background:${taxaColor};border-radius:3px"></div>
+            </div>
+            <span style="font-size:12px;font-weight:700;color:${taxaColor};min-width:32px;text-align:right">${a.taxa}%</span>
+          </div>` : '<span style="color:var(--text3)">—</span>'}
+        </td>
       </tr>`;
     }).join('')
     : `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Nenhum pedido no período</td></tr>`;
@@ -5314,14 +5285,25 @@ function renderRetencao(data) {
   }
   if (tipoCount) tipoCount.textContent = `${porOrigem.length} origens`;
   if (tipoTbl) {
+    const maxOrig = Math.max(...porOrigem.map(t => t.total), 1);
     tipoTbl.innerHTML = porOrigem.length ? porOrigem.map((t, i) => {
-      const isActive = _retFiltroOrig === t.origem;
+      const isActive  = _retFiltroOrig === t.origem;
+      const barW      = Math.round(t.total / maxOrig * 100);
+      const origemIcon = t.origem.includes('Chat') ? 'fa-comment-dots' : t.origem.includes('Presencial') ? 'fa-store' : t.origem.includes('Liga') ? 'fa-phone' : t.origem.includes('WhatsApp') ? 'fa-whatsapp' : 'fa-circle';
       return `<tr onclick="setRetFiltro('origem','${t.origem.replace(/'/g,"&#39;")}')" style="cursor:pointer;${isActive ? 'background:rgba(91,106,240,.08);outline:1px solid var(--accent);' : ''}">
-        <td style="color:var(--text3)">${i+1}</td>
-        <td style="font-weight:500;color:${isActive ? 'var(--accent)' : 'var(--text)'}">${t.origem}${isActive ? ' <span style="font-size:10px">✕</span>' : ''}</td>
-        <td class="mono" style="font-weight:600">${t.total}</td>
-        <td class="mono" style="color:var(--green)">${t.revertidos}</td>
-        <td class="mono" style="color:var(--red)">${t.cancelados}</td>
+        <td style="color:var(--text3);font-size:11px">${i+1}</td>
+        <td style="font-weight:600;color:${isActive ? 'var(--accent)' : 'var(--text)'}">
+          <div style="display:flex;align-items:center;gap:6px">
+            <i class="fas ${origemIcon}" style="font-size:10px;color:${isActive ? 'var(--accent)' : 'var(--text3)'}"></i>
+            ${t.origem}${isActive ? ' <span style="font-size:10px;opacity:.6">✕</span>' : ''}
+          </div>
+          <div style="height:3px;background:var(--border);border-radius:2px;margin-top:4px;width:100%">
+            <div style="height:100%;width:${barW}%;background:${isActive ? 'var(--accent)' : 'var(--text3)'};border-radius:2px;opacity:.6"></div>
+          </div>
+        </td>
+        <td class="mono" style="font-weight:700;color:var(--text2)">${t.total}</td>
+        <td class="mono" style="color:var(--green);font-weight:600">${t.revertidos || 0}</td>
+        <td class="mono" style="color:var(--red);font-weight:600">${t.cancelados || 0}</td>
       </tr>`;
     }).join('')
     : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Sem dados no período</td></tr>`;
@@ -5358,21 +5340,21 @@ function renderRetencao(data) {
   if (pedBadge) pedBadge.textContent = `${ultimos.length} registros`;
   const desfechoBadge = (d, motivo) => {
     const tip = motivo ? ` title="${motivo}"` : '';
-    if (d === 'revertido') return `<span class="badge b-green"${tip}>Reverteu cancelamento</span>`;
-    if (d === 'cancelado') return `<span class="badge b-red"${tip}>Cancelamento</span>`;
-    return `<span class="badge b-amber"${tip}>Pendente</span>`;
+    if (d === 'revertido') return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--green);background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);border-radius:6px;padding:2px 8px"${tip}><i class="fas fa-check" style="font-size:9px"></i>Reverteu</span>`;
+    if (d === 'cancelado') return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--red);background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);border-radius:6px;padding:2px 8px"${tip}><i class="fas fa-times" style="font-size:9px"></i>Cancelou</span>`;
+    if (d === null) return `<span style="font-size:11px;color:var(--text3);font-style:italic">em aberto</span>`;
+    return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--amber);background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);border-radius:6px;padding:2px 8px"${tip}><i class="fas fa-clock" style="font-size:9px"></i>Pendente</span>`;
   };
   if (pedTbl) {
     pedTbl.innerHTML = ultimos.length ? ultimos.map(p => `<tr>
-      <td style="font-weight:500;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.cliente}</td>
-      <td style="font-size:12px">${p.atendente}</td>
-      <td style="font-size:12px;color:var(--text2)">${p.origem || '—'}</td>
+      <td style="font-weight:600;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${p.cliente}">${p.cliente}</td>
+      <td style="font-size:11px;color:var(--text2)">${p.atendente}</td>
       <td>${_retFiltroTipoCancel && p.motivoFechamento
-        ? `<span class="badge b-amber" title="${p.motivoFechamento}">${(p.motivoFechamento||'').slice(0,30)}${p.motivoFechamento?.length>30?'…':''}</span>`
+        ? `<span style="font-size:11px;color:var(--text2)" title="${p.motivoFechamento}">${(p.motivoFechamento||'').slice(0,28)}${(p.motivoFechamento||'').length>28?'…':''}</span>`
         : desfechoBadge(p.desfecho, p.resumo)}</td>
-      <td style="font-size:12px;color:var(--text3)">${p.data ? new Date(p.data).toLocaleDateString('pt-BR') : '—'}</td>
+      <td style="font-size:11px;color:var(--text3);white-space:nowrap">${p.data ? new Date(p.data).toLocaleDateString('pt-BR') : '—'}</td>
     </tr>`).join('')
-    : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Nenhum pedido no período</td></tr>`;
+    : `<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Nenhum pedido no período</td></tr>`;
   }
   // Atualiza tabela de motivos e cidade conforme filtros ativos
   _renderCancelServTbl(_retFiltroAt, _retFiltroTipoCancel, _retFiltroCidade);
@@ -6680,15 +6662,66 @@ function _renderRetTipoCancel(data, atendente) {
     ? `<i class="fas fa-phone-slash" style="color:var(--accent);margin-right:5px"></i>Tipo — ${atendente.split(' ')[0]}`
     : `<i class="fas fa-phone-slash" style="color:var(--accent);margin-right:5px"></i>Tipo de Atendimento`;
 
-  tbl.innerHTML = rows.length ? rows.map((r, i) => {
-    const isActive = _retFiltroTipoCancel === r.tipo;
-    return `<tr onclick="filtrarRetTipoCancel('${r.tipo.replace(/'/g,"&#39;")}')" style="cursor:pointer;${isActive ? 'background:rgba(91,106,240,.08);outline:1px solid var(--accent);' : ''}">
-      <td style="color:var(--text3)">${i+1}</td>
-      <td style="font-weight:500;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:${isActive ? 'var(--accent)' : ''}" title="${r.tipo}">${r.tipo}${isActive ? ' <span style="font-size:10px">✕</span>' : ''}</td>
-      <td class="mono" style="font-weight:700;color:var(--accent)">${r.total}</td>
-    </tr>`;
-  }).join('')
-  : '<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:20px">Nenhum atendimento</td></tr>';
+  // Renderiza cards visuais clicáveis (não tabela)
+  if (!rows.length) {
+    tbl.innerHTML = '<div style="color:var(--text3);padding:20px;font-size:12px">Nenhum atendimento</div>';
+    return;
+  }
+  const totalGeral2 = rows.reduce((s, r) => s + r.total, 0);
+  // Cards fixos entre os tipos: REVERTIDOS e CANCELADOS
+  const revertVal = document.getElementById('ret-ped-revert')?.textContent || (data?.revertidos ?? '—');
+  const revertidosCard = `<div style="flex:1;min-width:220px;border-radius:12px;padding:20px 22px 16px;
+      background:rgba(34,197,94,.07);border:2px solid rgba(34,197,94,.3);position:relative;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <i class="fas fa-check-circle" style="color:var(--green);font-size:13px"></i>
+      <span style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px">Revertidos</span>
+    </div>
+    <div id="ret-ped-revert-card" style="font-size:42px;font-weight:800;color:var(--green);line-height:1;margin-bottom:6px">${revertVal}</div>
+    <div style="font-size:11px;color:var(--text3)">clientes mantidos</div>
+    <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(34,197,94,.3)"></div>
+  </div>`;
+  const canceladosCard = `<div style="flex:1;min-width:220px;border-radius:12px;padding:20px 22px 16px;
+      background:rgba(239,68,68,.07);border:2px solid rgba(239,68,68,.3);position:relative;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <i class="fas fa-times-circle" style="color:var(--red);font-size:13px"></i>
+      <span style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px">Cancelados</span>
+    </div>
+    <div id="ret-canc-passivo" style="font-size:42px;font-weight:800;color:var(--red);line-height:1;margin-bottom:6px">—</div>
+    <div style="font-size:11px;color:var(--text3)">pedido pelo cliente</div>
+    <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(239,68,68,.3)"></div>
+  </div>`;
+
+  const cards = rows.map((r, idx) => {
+    const isInfo    = r.tipo.toUpperCase().includes('INFORMA');
+    const color     = isInfo ? 'var(--amber)' : 'var(--accent)';
+    const pct       = totalGeral2 > 0 ? Math.round(r.total / totalGeral2 * 100) : 0;
+    const icon      = isInfo ? 'fa-info-circle' : 'fa-ban';
+    return `<div
+      style="flex:1;min-width:220px;border-radius:12px;padding:20px 22px 16px;
+             background:var(--surface);border:2px solid var(--border);
+             position:relative;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <i class="fas ${icon}" style="color:${color};font-size:13px"></i>
+        <span style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px">${r.tipo}</span>
+      </div>
+      <div style="font-size:42px;font-weight:800;color:${color};line-height:1;margin-bottom:6px">${r.total}</div>
+      <div style="font-size:11px;color:var(--text3)">${pct}% dos atendimentos do período</div>
+      <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--border)">
+        <div style="height:100%;width:${pct}%;background:${color};opacity:.7;transition:width .4s"></div>
+      </div>
+    </div>`;
+  });
+
+  // Injeta REVERTIDOS e CANCELADOS entre SOLICITAÇÃO (idx 0) e INFORMAÇÃO (idx 1)
+  if (cards.length >= 2) cards.splice(1, 0, revertidosCard, canceladosCard);
+  else if (cards.length === 1) cards.push(revertidosCard, canceladosCard);
+  tbl.innerHTML = cards.join('');
+
+  // Preenche valores se as fontes já carregaram
+  const cpEl = document.getElementById('ret-canc-passivo');
+  if (cpEl && window._cancelServData) cpEl.textContent = window._cancelServData.total_passivo ?? '—';
+  const rvEl = document.getElementById('ret-ped-revert-card');
+  if (rvEl && window._retData) rvEl.textContent = window._retData.revertidos ?? '—';
 }
 
 function _buildPorCidade(nomesFiltro) {
@@ -6716,27 +6749,70 @@ function _getNomesByCidade(cidade) {
 }
 
 function _renderRetCidade(nomesFiltro) {
-  const tbl    = document.getElementById('retCidadeTbl');
+  const container = document.getElementById('retCidadeTbl');
   const badge  = document.getElementById('ret-cidade-badge');
   const titulo = document.getElementById('ret-cidade-titulo');
-  if (!tbl) return;
+  if (!container) return;
   const cidades = _buildPorCidade(nomesFiltro);
   const total   = cidades.reduce((s, c) => s + c.total, 0);
-  if (badge) badge.textContent = cidades.length;
+  if (badge) badge.textContent = cidades.length || '0';
   if (titulo) titulo.innerHTML = _retFiltroCidade
     ? `<i class="fas fa-map-marker-alt" style="color:var(--cyan);margin-right:5px"></i>Por Cidade — ${_retFiltroCidade} <span style="font-size:10px">✕</span>`
     : `<i class="fas fa-map-marker-alt" style="color:var(--cyan);margin-right:5px"></i>Por Cidade`;
-  tbl.innerHTML = cidades.length ? cidades.map((c, i) => {
+
+  if (!cidades.length) {
+    container.innerHTML = '<div style="text-align:center;color:var(--text3);padding:40px;font-size:12px">Sem dados</div>';
+    return;
+  }
+
+  const PAL = ['#06b6d4','#5b6af0','#f43f5e','#f59e0b','#22c55e','#a78bfa','#f97316','#ec4899','#8b5cf6','#14b8a6'];
+  const cx = 90, cy = 90, R = 78, ri = 46;
+  let ang = -Math.PI / 2;
+
+  const segs = cidades.map((c, i) => {
+    const sweep = cidades.length === 1 ? 2 * Math.PI - 0.001 : (c.total / total) * 2 * Math.PI;
+    const end   = ang + sweep;
+    const x1 = cx + R  * Math.cos(ang),  y1 = cy + R  * Math.sin(ang);
+    const x2 = cx + R  * Math.cos(end),  y2 = cy + R  * Math.sin(end);
+    const xi1= cx + ri * Math.cos(ang),  yi1= cy + ri * Math.sin(ang);
+    const xi2= cx + ri * Math.cos(end),  yi2= cy + ri * Math.sin(end);
+    const lg = sweep > Math.PI ? 1 : 0;
+    const d  = `M${x1},${y1} A${R},${R} 0 ${lg},1 ${x2},${y2} L${xi2},${yi2} A${ri},${ri} 0 ${lg},0 ${xi1},${yi1} Z`;
+    const r = { d, color: PAL[i % PAL.length], cidade: c.cidade, total: c.total };
+    ang = end;
+    return r;
+  });
+
+  const paths = segs.map(s => {
+    const act = _retFiltroCidade === s.cidade;
+    const esc = s.cidade.replace(/'/g,"&#39;");
+    return `<path d="${s.d}" fill="${s.color}" opacity="${act?1:.78}" stroke="var(--bg2)" stroke-width="2"
+      onclick="filtrarRetCidade('${esc}')" style="cursor:pointer;transition:opacity .15s,transform .15s"
+      onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=${act?1:.78}"/>`;
+  }).join('');
+
+  const legend = cidades.map((c, i) => {
     const pct = total > 0 ? Math.round(c.total / total * 100) : 0;
-    const isActive = _retFiltroCidade === c.cidade;
-    return `<tr onclick="filtrarRetCidade('${c.cidade.replace(/'/g,"&#39;")}')" style="cursor:pointer;${isActive ? 'background:rgba(6,182,212,.08);outline:1px solid var(--cyan);' : ''}">
-      <td style="color:var(--text3)">${i+1}</td>
-      <td style="font-weight:500;color:${isActive ? 'var(--cyan)' : ''}">${c.cidade}</td>
-      <td style="font-weight:700;color:var(--red)">${c.total}</td>
-      <td style="color:var(--text3)">${pct}%</td>
-    </tr>`;
-  }).join('')
-  : '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Sem dados</td></tr>';
+    const act = _retFiltroCidade === c.cidade;
+    const esc = c.cidade.replace(/'/g,"&#39;");
+    return `<div onclick="filtrarRetCidade('${esc}')" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;${act?'background:rgba(255,255,255,.07);outline:1px solid rgba(255,255,255,.1);':''}">
+      <div style="width:10px;height:10px;border-radius:50%;background:${PAL[i%PAL.length]};flex-shrink:0"></div>
+      <span style="font-size:12px;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.cidade}${act?' <span style="opacity:.5;font-size:10px">✕</span>':''}</span>
+      <span style="font-size:13px;font-weight:800;color:${PAL[i%PAL.length]}">${c.total}</span>
+      <span style="font-size:11px;color:var(--text3);min-width:30px;text-align:right">${pct}%</span>
+    </div>`;
+  }).join('');
+
+  container.innerHTML = `<div style="display:flex;gap:12px;align-items:center;padding:16px 18px 14px">
+    <svg width="180" height="180" viewBox="0 0 180 180" style="flex-shrink:0">
+      ${paths}
+      <text x="${cx}" y="${cy+2}" text-anchor="middle" fill="var(--text)" font-size="24" font-weight="800" font-family="Inter,sans-serif">${total}</text>
+      <text x="${cx}" y="${cy+18}" text-anchor="middle" fill="var(--text3)" font-size="10" font-family="Inter,sans-serif">cancelamentos</text>
+    </svg>
+    <div style="flex:1;max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:2px">
+      ${legend}
+    </div>
+  </div>`;
 }
 
 function filtrarRetCidade(cidade) {
