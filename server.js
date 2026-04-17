@@ -972,7 +972,7 @@ const RET_CACHE_TTL = 5 * 60 * 1000;
 // ── Retenção — pedidos de cancelamento (atendimentos) por período ─
 app.get('/api/retencao', async (req, res) => {
   try {
-    const { data_inicio, data_fim, all } = req.query;
+    const { data_inicio, data_fim, all, nocache } = req.query;
     const agora  = new Date();
     const iniMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
     const fimMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 0, 23, 59, 59, 999);
@@ -981,16 +981,21 @@ app.get('/api/retencao', async (req, res) => {
 
     // 1) Cache em memória
     const retKey = `${ini.slice(0,10)}-${fim.slice(0,10)}-${all||'false'}`;
-    const retCached = _retCacheMap[retKey];
-    if (retCached && (Date.now() - retCached.ts) < RET_CACHE_TTL) {
-      return res.json({ ...retCached.data, cache: true });
-    }
-    // 2) Cache no PostgreSQL
-    const dbRetKey = `cache:retencao:${retKey}`;
-    const dbRetCached = await dbCacheGet(dbRetKey, RET_CACHE_TTL);
-    if (dbRetCached) {
-      _retCacheMap[retKey] = { data: dbRetCached, ts: Date.now() };
-      return res.json({ ...dbRetCached, cache: 'db' });
+    if (!nocache) {
+      const retCached = _retCacheMap[retKey];
+      if (retCached && (Date.now() - retCached.ts) < RET_CACHE_TTL) {
+        return res.json({ ...retCached.data, cache: true });
+      }
+      // 2) Cache no PostgreSQL
+      const dbRetKey = `cache:retencao:${retKey}`;
+      const dbRetCached = await dbCacheGet(dbRetKey, RET_CACHE_TTL);
+      if (dbRetCached) {
+        _retCacheMap[retKey] = { data: dbRetCached, ts: Date.now() };
+        return res.json({ ...dbRetCached, cache: 'db' });
+      }
+    } else {
+      // Limpa cache em memória para esta chave
+      delete _retCacheMap[retKey];
     }
 
     // Fetch all atendimentos in period (parallel pagination)
