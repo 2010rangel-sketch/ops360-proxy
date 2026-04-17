@@ -487,7 +487,7 @@ app.get('/api/debug-retencao', async (req, res) => {
     const agora = new Date();
     const ini = data_inicio || agora.toISOString().slice(0,10);
     const fim = data_fim    || agora.toISOString().slice(0,10);
-    const first = await hubsoftPost('v1/atendimento/consultar/paginado/500?page=1', { data_inicio: ini, data_fim: fim, relacoes: ['origem_contato'] });
+    const first = await hubsoftPost('v1/atendimento/consultar/paginado/500?page=1', { data_inicio: ini, data_fim: fim, relacoes: ['origem_contato', 'motivo_fechamento_atendimento'] });
     const totalPages = first?.atendimentos?.last_page || first?.atendimento?.last_page || first?.last_page || 1;
     let lista = first?.atendimentos?.data || first?.atendimento?.data || first?.data || [];
     // Busca todas as páginas
@@ -996,7 +996,8 @@ app.get('/api/retencao', async (req, res) => {
     // Fetch all atendimentos in period (parallel pagination)
     const extractAtend = d => d?.atendimentos?.data || d?.atendimento?.data || d?.data || [];
     const extractPages = d => d?.atendimentos?.last_page || d?.atendimento?.last_page || d?.last_page || 1;
-    const first = await hubsoftPost('v1/atendimento/consultar/paginado/500?page=1', { data_inicio: ini, data_fim: fim, relacoes: ['origem_contato'] });
+    const relacoes = ['origem_contato', 'motivo_fechamento_atendimento'];
+    const first = await hubsoftPost('v1/atendimento/consultar/paginado/500?page=1', { data_inicio: ini, data_fim: fim, relacoes });
     const lista1     = extractAtend(first);
     const totalPages = extractPages(first);
     let lista = [...lista1];
@@ -1004,7 +1005,7 @@ app.get('/api/retencao', async (req, res) => {
       const pages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
       const results = await Promise.all(pages.map(async pg => {
         try {
-          const d = await hubsoftPost(`v1/atendimento/consultar/paginado/500?page=${pg}`, { data_inicio: ini, data_fim: fim, relacoes: ['origem_contato'] });
+          const d = await hubsoftPost(`v1/atendimento/consultar/paginado/500?page=${pg}`, { data_inicio: ini, data_fim: fim, relacoes });
           return extractAtend(d);
         } catch { return []; }
       }));
