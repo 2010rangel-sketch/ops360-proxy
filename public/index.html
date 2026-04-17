@@ -6669,7 +6669,7 @@ function _renderRetTipoCancel(data, atendente) {
   // Cards fixos entre os tipos: REVERTIDOS e CANCELADOS
   const revertVal = document.getElementById('ret-ped-revert')?.textContent || (data?.revertidos ?? '—');
   const revertidosCard = `<div style="flex:1;min-width:220px;border-radius:12px;padding:20px 22px 16px;
-      background:rgba(34,197,94,.07);border:2px solid rgba(34,197,94,.3);position:relative;overflow:hidden">
+      background:var(--surface);border:2px solid rgba(34,197,94,.3);position:relative;overflow:hidden">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
       <i class="fas fa-check-circle" style="color:var(--green);font-size:13px"></i>
       <span style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px">Revertidos</span>
@@ -6679,7 +6679,7 @@ function _renderRetTipoCancel(data, atendente) {
     <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(34,197,94,.3)"></div>
   </div>`;
   const canceladosCard = `<div style="flex:1;min-width:220px;border-radius:12px;padding:20px 22px 16px;
-      background:rgba(239,68,68,.07);border:2px solid rgba(239,68,68,.3);position:relative;overflow:hidden">
+      background:var(--surface);border:2px solid rgba(239,68,68,.3);position:relative;overflow:hidden">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
       <i class="fas fa-times-circle" style="color:var(--red);font-size:13px"></i>
       <span style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px">Cancelados</span>
