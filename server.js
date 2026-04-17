@@ -1089,18 +1089,16 @@ app.get('/api/retencao', async (req, res) => {
       const u = norm(tipo);
       return u.includes('INFORMA') && u.includes('CANCELAMENTO');
     };
-    // Desfecho para INFORMAÇÃO SOBRE CANCELAMENTO: só conta se fechamento for explícito.
-    // revertido → conta como revertido; cancelado → conta como cancelado; demais → null (não conta).
+    // Desfecho para INFORMAÇÃO SOBRE CANCELAMENTO: só conta se status_fechamento for explícito.
+    // Os IDs de motivo (MOTIVO_REVERTIDO/MOTIVO_CANCELADO) foram calibrados para SOLICITAÇÃO e não
+    // se aplicam a INFORMAÇÃO — mesmos IDs têm semântica diferente nesse tipo de atendimento.
     const desfechoExplicito = (a) => {
       const sp = (a.status?.prefixo || '').toLowerCase();
       const sf = (a.status_fechamento || '').toLowerCase();
       if (!sf || sf.includes('pendente') || sp.includes('pendente') || sp.includes('aguardando')) return null;
       if (sf.includes('revert')) return 'revertido';
       if (sf.includes('cancel') || sf.includes('rescis')) return 'cancelado';
-      const idMotivo = a.id_motivo_fechamento_atendimento;
-      if (idMotivo && MOTIVO_CANCELADO.has(idMotivo)) return 'cancelado';
-      if (idMotivo && MOTIVO_REVERTIDO.has(idMotivo)) return 'revertido';
-      return null; // fechamento não-explícito → não conta
+      return null; // qualquer outro fechamento → não conta para INFORMAÇÃO
     };
     const mapaTipoCancel = {};
     const todosAtendCancel = []; // registros individuais de ambos os tipos
