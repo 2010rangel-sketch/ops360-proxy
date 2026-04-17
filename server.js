@@ -519,19 +519,11 @@ app.get('/api/debug-retencao', async (req, res) => {
       total_todos: lista.length,
       total_solicitacoes: solicitacoes.length,
       combinacoes_desfecho: combinacoes,
-      amostra: solicitacoes.slice(0, 10).map(a => ({
+      amostra: lista.slice(0, 15).map(a => ({
+        tipo: a.tipo_atendimento?.descricao || '?',
         cliente: a.cliente_servico?.cliente?.nome_razaosocial || a.cliente_servico?.display || '?',
-        origem_contato: a.origem_contato,
-        ingressado: a.ingressado,
-        origem_detectada: (() => {
-          const norm = s => (s||'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-          const oc = norm(a.origem_contato?.descricao||a.origem_contato?.nome||a.origem_contato||'');
-          if(oc) return `campo: ${oc}`;
-          const txt = norm((a.descricao_abertura||'')+' '+(a.descricao_fechamento||''));
-          if(txt.includes('CHATMIX')||txt.includes('CHAT MIX')) return 'texto: ChatMix';
-          return 'Origem ausente';
-        })(),
-        descricao_abertura_inicio: (a.descricao_abertura || '').slice(0, 80),
+        origem_contato_raw: a.origem_contato,
+        origem_contato_keys: a.origem_contato && typeof a.origem_contato === 'object' ? Object.keys(a.origem_contato) : typeof a.origem_contato,
       })),
     });
   } catch(e) { res.json({ ok: false, erro: e.message }); }
@@ -1030,13 +1022,18 @@ app.get('/api/retencao', async (req, res) => {
 
     // Detecta origem: campo oficial primeiro, depois busca em texto
     const detectaOrigem = (a) => {
-      const oc = norm(a.origem_contato?.descricao || a.origem_contato?.nome || a.origem_contato || '');
+      const raw = a.origem_contato;
+      // Extrai label do campo origem_contato — Hubsoft pode retornar objeto com várias chaves ou string direta
+      const rawLabel = typeof raw === 'string'
+        ? raw
+        : (raw?.descricao || raw?.nome || raw?.name || raw?.label || raw?.titulo || raw?.title || raw?.value || '');
+      const oc = norm(rawLabel);
       if (oc.includes('CHATMIX') || oc.includes('CHAT MIX') || oc.includes('CHAT')) return 'ChatMix (WhatsApp)';
       if (oc.includes('PRESENCIAL')) return 'Presencial';
       if (oc.includes('LIGA') || oc.includes('FONE') || oc.includes('TELEF')) return 'Ligação';
       if (oc.includes('WHATSAPP') || oc.includes('WHATS')) return 'WhatsApp';
-      if (oc && oc !== '') return a.origem_contato?.descricao || a.origem_contato?.nome || oc;
-      // fallback: busca no texto
+      if (oc && oc !== '') return rawLabel;
+      // fallback: busca no texto de abertura/fechamento
       const txt = norm((a.descricao_abertura || '') + ' ' + (a.descricao_fechamento || ''));
       if (txt.includes('CHATMIX') || txt.includes('CHAT MIX')) return 'ChatMix (WhatsApp)';
       if (txt.includes('PRESENCIAL')) return 'Presencial';
@@ -1112,8 +1109,8 @@ app.get('/api/retencao', async (req, res) => {
       mapaTipoCancel[tipo].total++;
       mapaTipoCancel[tipo].por_atendente[at] = (mapaTipoCancel[tipo].por_atendente[at] || 0) + 1;
       // Registro individual — INFORMAÇÃO usa desfecho explícito (sem fallback), SOLICITAÇÃO usa o padrão
+      // INFORMAÇÃO sempre aparece na lista de clientes; desfecho null = pendente/sem fechamento explícito
       const desfecho = isInformacaoCancelamento(tipo) ? desfechoExplicito(a) : desfechoOf(a);
-      if (isInformacaoCancelamento(tipo) && desfecho === null) continue; // não contabiliza INFORMAÇÃO sem fechamento explícito
       const cli  = a.cliente_servico?.cliente;
       const cliente = cli?.nome_razaosocial || cli?.display || a.cliente_servico?.display || 'Sem cliente';
       const data = a.data_fechamento || a.data_cadastro || null;
