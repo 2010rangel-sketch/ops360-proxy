@@ -1026,7 +1026,7 @@ app.get('/api/retencao', async (req, res) => {
     // Revertidos = mesmos pedidos fechados como "reverteu cancelamento"
     const norm = s => (s || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-    // Detecta origem: campo oficial primeiro, depois busca em texto
+    // Detecta origem: campo oficial primeiro, fallback em texto da descrição
     const detectaOrigem = (a) => {
       const raw = a.origem_contato;
       // Hubsoft retorna origem_contato como array (multiselect) ou objeto ou string
@@ -1040,6 +1040,11 @@ app.get('/api/retencao', async (req, res) => {
       if (oc.includes('LIGA') || oc.includes('FONE') || oc.includes('TELEF')) return 'Ligação';
       if (oc.includes('WHATSAPP') || oc.includes('WHATS')) return 'WhatsApp';
       if (oc && oc !== '') return rawLabel; // outro valor cadastrado — retorna como está
+      // Fallback: analisa texto da descrição quando origem_contato não está preenchido
+      const txt = norm((a.descricao_abertura || '') + ' ' + (a.descricao_fechamento || ''));
+      if (txt.includes('CHATMIX') || txt.includes('CHAT MIX')) return 'ChatMix (WhatsApp)';
+      if (txt.includes('PRESENCIALMENTE') || txt.includes('PRESENCIAL')) return 'Presencial';
+      if (txt.includes('WHATSAPP') || txt.includes('WHATS APP')) return 'WhatsApp';
       return 'Origem ausente';
     };
 
