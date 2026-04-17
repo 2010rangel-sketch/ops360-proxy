@@ -7630,13 +7630,23 @@ async function loadRemocoes() {
       : '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem remoções no período</div>';
     }
 
-    // Guarda todas as remoções e reseta filtro ao recarregar
+    // Guarda todas as remoções e reaaplica filtro ativo (se houver)
     const ultimas = data.ultimas || [];
     _remocAllUltimas = ultimas;
-    _remocTecFiltro  = null;
     const titleEl = document.getElementById('remoc-tbl-title');
-    if (titleEl) titleEl.textContent = 'Remoções do período';
-    _renderRemocTbl(ultimas);
+    if (titleEl) titleEl.textContent = _remocTecFiltro || 'Remoções do período';
+    if (_remocTecFiltro) {
+      // Re-aplica highlight nas barras recém-construídas
+      document.querySelectorAll('#remoc-tec-bars .remoc-bar-row').forEach(d => {
+        const sel = d.dataset.tec === _remocTecFiltro;
+        d.style.background = sel ? 'var(--bg3)' : '';
+        d.style.outline    = sel ? '1px solid var(--amber)' : '';
+        ['remoc-bar-fill','remoc-bar-name','remoc-bar-num'].forEach(cls => {
+          const e = d.querySelector('.'+cls); if (e) e.style.opacity = sel ? '1' : '0.3';
+        });
+      });
+    }
+    _renderRemocTbl(_remocTecFiltro ? ultimas.filter(c => c.tec === _remocTecFiltro) : ultimas);
   } catch(e) {
     if (e.name === 'AbortError') return;
     if (mySeq !== _remocSeq) return;
@@ -8183,16 +8193,7 @@ function renderSaudeBase(d) {
     const lbl = document.getElementById('saude-periodo-label');
     if (lbl) lbl.textContent = `Últimos ${d.periodo.dias} dias · ${d.periodo.dataIni} → ${d.periodo.dataFim}`;
   }
-  _saudeFiltroStatus = null;
-  _saudeFiltroVista  = 'todos';
-  _saudeSearchTxt    = '';
-  _saudeSortCol      = 'osFech';
-  _saudeSortAsc      = false;
-  const si = document.getElementById('saude-search');
-  if (si) si.value = '';
-  document.querySelectorAll('[id^="saude-f-"]').forEach(b => b.className = 'btn btn-sm btn-ghost');
-  const todos = document.getElementById('saude-f-todos');
-  if (todos) todos.className = 'btn btn-sm btn-primary';
+  // Não reseta filtros no auto-refresh — preserva seleção do usuário
   _saudeAtualizarHeaders();
   renderSaudeTbl();
 }
