@@ -869,33 +869,21 @@ input[type="text"]::placeholder { color:var(--text3); }
       <!-- ── CARDS POR CATEGORIA (hoje + acumulado mês) ── -->
       <div id="catCards" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px"></div>
 
-      <!-- ── LINHA: STATUS AO VIVO + CIDADES ── -->
-      <div style="display:grid;grid-template-columns:1fr 268px;gap:12px;margin-bottom:14px;align-items:stretch">
-
-        <!-- STATUS AO VIVO — board kanban visual -->
-        <div class="tbl-card" style="margin-bottom:0;display:flex;flex-direction:column">
-          <div class="tbl-header" style="padding-bottom:10px;flex-shrink:0">
-            <span class="tbl-title">Chamados em andamento agora</span>
-            <span class="badge b-blue" id="liveCount">0 pendentes</span>
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;padding:0 4px 4px;flex:1" id="statusLanes"></div>
+      <!-- ── KANBAN AO VIVO (full width) ── -->
+      <div class="tbl-card" style="margin-bottom:10px;display:flex;flex-direction:column">
+        <div class="tbl-header" style="padding-bottom:10px;flex-shrink:0">
+          <span class="tbl-title">Chamados em andamento agora</span>
+          <span class="badge b-blue" id="liveCount">0 pendentes</span>
         </div>
-
-        <!-- POR CIDADE — lateral direita -->
-        <div class="tbl-card" style="margin-bottom:0;display:flex;flex-direction:column">
-          <div class="tbl-header" style="flex-shrink:0">
-            <span class="tbl-title">Por cidade</span>
-            <span class="badge b-purple" id="cidadeCount">0 cidades</span>
-          </div>
-          <div id="cidadeList" style="padding:0 4px 4px;overflow-y:auto;flex:1"></div>
-        </div>
+        <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;padding:0 4px 4px;flex:1" id="statusLanes"></div>
       </div>
 
+
       <!-- ── FEED AO VIVO + TABELA COMPLETA ── -->
-      <div style="display:grid;grid-template-columns:300px 1fr;gap:12px">
+      <div style="display:grid;grid-template-columns:290px 1fr;gap:12px">
 
         <!-- Feed de eventos ao vivo -->
-        <div class="tbl-card" style="margin-bottom:0;max-height:420px;display:flex;flex-direction:column">
+        <div class="tbl-card" style="margin-bottom:0;display:flex;flex-direction:column;align-self:start;max-height:480px">
           <div class="tbl-header" style="flex-shrink:0">
             <span class="tbl-title">Feed ao vivo</span>
             <div class="live-pill"><div class="live-dot"></div> Live</div>
@@ -914,6 +902,7 @@ input[type="text"]::placeholder { color:var(--text3); }
               <button class="chip active" onclick="filterSt('todos',this)">Todos</button>
               <button class="chip" onclick="filterSt('execucao',this)">Em execução</button>
               <button class="chip" onclick="filterSt('aguardando',this)">Aguardando</button>
+              <button class="chip" onclick="filterSt('deslocamento',this)" style="color:var(--cyan)"><i class="fas fa-car" style="margin-right:4px;font-size:10px"></i>Deslocamento</button>
               <button class="chip" onclick="filterSt('atrasado',this)" style="color:var(--red)">⚠ Atrasados</button>
               <button class="chip" onclick="filterSt('finalizado',this)">Finalizados</button>
               <button class="chip" onclick="filterSt('retrabalho',this)" style="color:var(--orange)">⟳ Retrabalho</button>
@@ -1026,8 +1015,8 @@ input[type="text"]::placeholder { color:var(--text3); }
         </div>
       </div>
 
-      <!-- Produção por técnico + Chamados por cidade -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;margin-bottom:12px">
+      <!-- Produção por técnico + Chamados por cidade + Por cidade (lista) -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 220px;gap:12px;margin-top:12px;margin-bottom:12px">
         <div class="tbl-card" style="margin-bottom:0">
           <div class="tbl-header">
             <span class="tbl-title">Produção por técnico</span>
@@ -1054,6 +1043,16 @@ input[type="text"]::placeholder { color:var(--text3); }
             </div>
           </div>
         </div>
+
+        <!-- Por cidade — lista filtrável -->
+        <div class="tbl-card" style="margin-bottom:0;display:flex;flex-direction:column">
+          <div class="tbl-header" style="flex-shrink:0">
+            <span class="tbl-title"><i class="fas fa-map-marker-alt" style="color:var(--purple);margin-right:6px"></i>Por cidade</span>
+            <span class="badge b-purple" id="cidadeCount">0</span>
+          </div>
+          <div id="cidadeList" style="overflow-y:auto;flex:1;padding:6px 0"></div>
+        </div>
+
       </div>
 
     </div>
@@ -3231,11 +3230,12 @@ function setCatFilter(cat) {
 // ── RENDER: LANES DE STATUS (kanban visual) ────────────────────────────────
 function renderStatusLanes() {
   const lanes = [
-    {st:'execucao',  label:'Em Execução', color:'var(--accent)',  icon:'fa-circle-notch fa-spin'},
-    {st:'aguardando',label:'Aguardando',  color:'var(--amber)',   icon:'fa-clock'},
-    {st:'atrasado',  label:'Atrasados',   color:'var(--red)',     icon:'fa-exclamation-triangle'},
-    {st:'reagendado',label:'Reagendados', color:'var(--purple)',  icon:'fa-calendar-alt'},
-    {st:'finalizado',label:'Finalizados', color:'var(--green)',   icon:'fa-check-circle'},
+    {st:'execucao',    label:'Em Execução',    color:'var(--accent)',  icon:'fa-circle-notch fa-spin'},
+    {st:'aguardando',  label:'Aguardando',     color:'var(--amber)',   icon:'fa-clock'},
+    {st:'deslocamento',label:'Em Deslocamento',color:'var(--cyan)',    icon:'fa-car'},
+    {st:'atrasado',    label:'Atrasados',      color:'var(--red)',     icon:'fa-exclamation-triangle'},
+    {st:'reagendado',  label:'Reagendados',    color:'var(--purple)', icon:'fa-calendar-alt'},
+    {st:'finalizado',  label:'Finalizados',    color:'var(--green)',  icon:'fa-check-circle'},
   ];
   const el = document.getElementById('statusLanes');
   if(!el) return;
@@ -3271,7 +3271,7 @@ function renderStatusLanes() {
       // aguardando, atrasado, reagendado: mais antigo no topo (esperou mais tempo)
       return new Date(a.dataProgramada||0) - new Date(b.dataProgramada||0);
     });
-    const laneMax = 5;
+    const laneMax = 7;
     const preview = items.slice(0, laneMax);
     return `
     <div style="background:var(--bg3);border-radius:var(--r);padding:8px;display:flex;flex-direction:column">
@@ -3344,28 +3344,31 @@ function renderCidades() {
   document.getElementById('cidadeCount').textContent = `${cidades.length} cidades`;
   const maxT = Math.max(...cidades.map(([,v])=>v.total),1);
   const cidAtual = document.getElementById('filtCidade')?.value || '';
+  const CAT_COLORS = {instalacao:'var(--accent)',reparo:'var(--orange)',remocao:'var(--red)',mudanca:'var(--purple)',retrabalho:'#f43f5e'};
   el.innerHTML = cidades.map(([nome,d])=>{
     const ativo = cidAtual === nome;
-    return `<div onclick="filtrarChamadosCidade('${nome.replace(/'/g,"\\'")}')" style="padding:9px 12px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s;${d.total===0?'opacity:0.45':''}${ativo?';background:var(--bg3);outline:1px solid var(--accent);border-radius:4px':''}" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background='${ativo?'var(--bg3)':''}'" >
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
-        <div style="display:flex;align-items:center;gap:6px">
-          <i class="fas fa-map-marker-alt" style="font-size:10px;color:${ativo?'var(--accent)':'var(--purple)'}"></i>
-          <span style="font-size:12.5px;font-weight:600;color:${ativo?'var(--accent)':'var(--text)'}">${nome}</span>
-          ${ativo?`<span style="font-size:9px;color:var(--accent);opacity:.8">● filtrado</span>`:''}
-        </div>
-        <div style="display:flex;gap:5px;align-items:center">
+    const esc   = nome.replace(/'/g,"\\'");
+    const vazia = d.total === 0;
+    const barW  = maxT > 0 ? (d.total / maxT * 100).toFixed(1) : 0;
+    const catTags = Object.entries(d.cats).sort((a,b)=>b[1]-a[1]).map(([cat,n])=>{
+      const cor = CAT_COLORS[cat] || 'var(--text3)';
+      const label = cat ? cat.charAt(0).toUpperCase()+cat.slice(1) : 'Sem tipo';
+      return `<span style="font-size:10px;color:${cor};font-weight:600">${label} ${n}</span>`;
+    }).join('');
+    const bc   = ativo ? 'rgba(91,106,240,.1)' : 'transparent';
+    const bord = ativo ? 'border-left:2px solid var(--accent);' : 'border-left:2px solid transparent;';
+    return `<div onclick="filtrarChamadosCidade('${esc}')" style="padding:7px 14px 7px 12px;cursor:pointer;${bord}background:${bc};opacity:${vazia?.5:1};transition:background .1s" onmouseenter="this.style.background='rgba(255,255,255,.04)'" onmouseleave="this.style.background='${bc}'">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+        <span style="font-size:12px;font-weight:700;color:${ativo?'var(--accent)':'var(--text)'}">${nome}</span>
+        <div style="display:flex;align-items:center;gap:5px">
           ${d.atrasado>0?`<span style="font-size:10px;color:var(--red);font-weight:700">⚠${d.atrasado}</span>`:''}
-          ${(d.execucao||0)>0?`<span style="font-size:10px;color:var(--accent)">●${d.execucao}</span>`:''}
-          <span style="font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--text)">${d.total}</span>
+          <span style="font-size:13px;font-weight:800;font-family:'JetBrains Mono',monospace;color:${vazia?'var(--text3)':'var(--text)'}">${d.total}</span>
         </div>
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:2px;margin-bottom:5px">
-        ${d.total===0
-          ? `<span style="font-size:9.5px;color:var(--text3)">Sem chamados no período</span>`
-          : Object.entries(tiposConfig).map(([k,v])=>d.cats[k]?`<span style="font-size:9.5px;background:${v.color}18;color:${v.color};padding:1px 5px;border-radius:3px">${v.label.split(' ')[0]} ${d.cats[k]}</span>`:'').join('')
-        }
+      ${catTags ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px">${catTags}</div>` : ''}
+      <div style="height:2px;background:rgba(255,255,255,.06);border-radius:2px">
+        <div style="width:${barW}%;height:100%;background:var(--purple);border-radius:2px"></div>
       </div>
-      <div class="prog"><div class="prog-fill" style="width:${Math.round(d.total/maxT*100)}%;background:${ativo?'var(--accent)':'var(--purple)'}"></div></div>
     </div>`;
   }).join('');
 }
@@ -3483,11 +3486,11 @@ function renderFeed() {
           <span style="font-size:11px;color:${cfg.color}">${cfg.text}</span>
         </div>
         <div style="font-size:11.5px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.cli}</div>
-        <div style="display:flex;align-items:center;gap:6px;margin-top:3px">
-          <span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--accent)">${e.id}</span>
-          <span style="font-size:10px;background:${tCfg?.color||''}18;color:${tCfg?.color||'var(--text3)'};padding:1px 5px;border-radius:3px">${tCfg?.label||e.cat}</span>
-          <i class="fas fa-map-marker-alt" style="font-size:9px;color:var(--purple)"></i>
-          <span style="font-size:10px;color:var(--text3)">${e.cidade}</span>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:3px;overflow:hidden">
+          <span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--accent);flex-shrink:0">${e.id}</span>
+          <span style="font-size:10px;background:${tCfg?.color||''}18;color:${tCfg?.color||'var(--text3)'};padding:1px 5px;border-radius:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">${tCfg?.label||e.cat}</span>
+          <i class="fas fa-map-marker-alt" style="font-size:9px;color:var(--purple);flex-shrink:0"></i>
+          <span style="font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.cidade}</span>
         </div>
       </div>
       <div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--text3);flex-shrink:0;margin-top:2px">${e.tempo}</div>

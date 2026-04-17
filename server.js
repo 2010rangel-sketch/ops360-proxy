@@ -287,6 +287,7 @@ function bodyConsultaOS({ data_inicio, data_fim, tecnicos = [], cidades = [], st
     periodos:                 [],
     pop:                      [],
     prioridade:               [],
+    relacoes:                 ['reservas'],
     reservada:                null,
     servico:                  [],
     servico_status:           [],
@@ -623,12 +624,19 @@ function _normalizarChamados(lista) {
     const cidId  = end?.endereco_numero?.id_cidade || end?.id_cidade || end?.cidade?.id_cidade || null;
     const cli    = cs?.display || cs?.cliente?.nome_razaosocial || cs?.cliente?.display || 'Cliente';
     const stBase = normalizarStatus(os.status || '');
-    const execAtiva = stBase === 'aguardando' && (os.executando === true || (Array.isArray(os.reservas) && os.reservas.some(r => r.servico_iniciado && !r.desreservada)));
-    const stVal = execAtiva ? 'em_execucao' : (os.status || '');
+    // Em Execução: reserva ativa COM servico_iniciado=true, ou flag executando=true
+    const execAtiva = (stBase === 'aguardando' || stBase === 'deslocamento') &&
+      (os.executando === true || (Array.isArray(os.reservas) && os.reservas.some(r => r.servico_iniciado && !r.desreservada)));
+    // Em Deslocamento: aguardando + qualquer reserva ativa (não desreservada)
+    const deslocAtiva = !execAtiva && stBase === 'aguardando' &&
+      Array.isArray(os.reservas) && os.reservas.some(r => !r.desreservada);
+    const stVal = execAtiva ? 'em_execucao' : deslocAtiva ? 'em_deslocamento' : (os.status || '');
+    const reservaAtiva = Array.isArray(os.reservas) ? os.reservas.find(r => !r.desreservada) : null;
+    const abDesloc = reservaAtiva?.data_reserva ? formatarHora(reservaAtiva.data_reserva) : null;
     return {
       id: `#${os.id_ordem_servico || os.id}`, cli,
       cat: normalizarTipo(tipo), tipo, tec, cidade, cidadeId: cidId,
-      ab: (os.hora_inicio_programado || '').slice(0, 5) || formatarHora(os.data_inicio_programado || os.data_cadastro),
+      ab: deslocAtiva && abDesloc ? abDesloc : ((os.hora_inicio_programado || '').slice(0, 5) || formatarHora(os.data_inicio_programado || os.data_cadastro)),
       dataProgramada: os.data_inicio_programado || os.data_cadastro || null,
       slaMin: os.tipo_ordem_servico?.prazo_execucao || 240,
       inicioExec: (os.hora_inicio_executado || '').slice(0, 5) || null,
@@ -1971,6 +1979,7 @@ app.get('/api/resumo', async (req, res) => {
 function normalizarStatus(status) {
   if (!status) return 'aguardando';
   const s = status.toLowerCase();
+  if (s === 'em_deslocamento' || s.includes('reservad')) return 'deslocamento';
   if (s.includes('execu') || s.includes('andamento') || s.includes('iniciado')) return 'execucao';
   if (s.includes('conclu') || s.includes('finaliz') || s.includes('fechado') || s.includes('remov')) return 'finalizado';
   if (s.includes('atraso') || s.includes('vencido') || s.includes('prazo')) return 'atrasado';
