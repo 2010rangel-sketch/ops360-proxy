@@ -522,8 +522,10 @@ app.get('/api/debug-retencao', async (req, res) => {
       amostra: lista.slice(0, 15).map(a => ({
         tipo: a.tipo_atendimento?.descricao || '?',
         cliente: a.cliente_servico?.cliente?.nome_razaosocial || a.cliente_servico?.display || '?',
+        status_prefixo: a.status?.prefixo,
+        status_fechamento: a.status_fechamento,
         origem_contato_raw: a.origem_contato,
-        origem_contato_keys: a.origem_contato && typeof a.origem_contato === 'object' ? Object.keys(a.origem_contato) : typeof a.origem_contato,
+        origem_contato_tipo: Array.isArray(a.origem_contato) ? `array[${a.origem_contato.length}]` : typeof a.origem_contato,
       })),
     });
   } catch(e) { res.json({ ok: false, erro: e.message }); }
@@ -1004,7 +1006,8 @@ app.get('/api/retencao', async (req, res) => {
     const desfechoOf = (a) => {
       const sp = (a.status?.prefixo || '').toLowerCase();
       const sf = (a.status_fechamento || '').toLowerCase();
-      if (!sf || sf === 'pendente' || sp === 'pendente' || sp === 'aguardando_analise') return 'pendente';
+      // "Pendente (Abertura de OS)" e similares têm prefixo como 'pendente_abertura_os' — usar includes
+      if (!sf || sf.includes('pendente') || sp.includes('pendente') || sp.includes('aguardando')) return 'pendente';
       // Verificar revertido ANTES de cancelado — "reverteu cancelamento" contém "cancel"
       if (sf.includes('revert')) return 'revertido';
       if (sf.includes('cancel') || sf.includes('rescis')) return 'cancelado';
@@ -1083,7 +1086,7 @@ app.get('/api/retencao', async (req, res) => {
     const desfechoExplicito = (a) => {
       const sp = (a.status?.prefixo || '').toLowerCase();
       const sf = (a.status_fechamento || '').toLowerCase();
-      if (!sf || sf === 'pendente' || sp === 'pendente' || sp === 'aguardando_analise') return null;
+      if (!sf || sf.includes('pendente') || sp.includes('pendente') || sp.includes('aguardando')) return null;
       if (sf.includes('revert')) return 'revertido';
       if (sf.includes('cancel') || sf.includes('rescis')) return 'cancelado';
       const idMotivo = a.id_motivo_fechamento_atendimento;
