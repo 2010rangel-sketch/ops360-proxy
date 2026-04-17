@@ -7412,7 +7412,6 @@ async function loadComercial() {
     if (noEp) noEp.style.display = 'none';
 
     _comData = data;
-    _comFiltro = { type: '', val: '' };
     if (!data._stale) { try { localStorage.setItem('ops360_com_cache', JSON.stringify({ data, ts: Date.now() })); } catch {} }
     if (typeof buildNotificacoes === 'function') buildNotificacoes();
 
