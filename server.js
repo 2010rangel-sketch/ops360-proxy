@@ -2156,17 +2156,53 @@ async function saveTasks(tasks) {
 }
 
 // ── CRUD ─────────────────────────────────────────────────────────
-app.get('/api/tasks', async (req, res) => res.json(await loadTasks()));
+// Helper: extrai usuário autenticado do request
+async function _getUserFromReq(req) {
+  const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
+  const userId = _validarToken(token);
+  if (!userId) return null;
+  return _getUser(userId);
+}
+
+// Lista de usuários para atribuição de tarefas (qualquer usuário autenticado)
+app.get('/api/tasks/users', async (req, res) => {
+  const user = await _getUserFromReq(req);
+  if (!user) return res.status(401).json({ ok: false });
+  try {
+    const pool = getPool();
+    if (pool) {
+      const r = await pool.query('SELECT id, nome FROM ops360_users WHERE ativo=TRUE ORDER BY nome');
+      return res.json({ ok: true, users: r.rows });
+    }
+    const users = _usersCarregarArq().filter(u => u.ativo).map(u => ({ id: u.id, nome: u.nome }));
+    res.json({ ok: true, users });
+  } catch(e) { res.json({ ok: false, motivo: e.message }); }
+});
+
+app.get('/api/tasks', async (req, res) => {
+  const user = await _getUserFromReq(req);
+  const tasks = await loadTasks();
+  if (!user) return res.json([]);
+  // Admin vê tudo; outros veem só as suas + atribuídas
+  const visible = user.admin
+    ? tasks
+    : tasks.filter(t => !t.createdBy || t.createdBy === user.id || (Array.isArray(t.assignedTo) && t.assignedTo.includes(user.id)));
+  res.json(visible);
+});
 
 app.post('/api/tasks', async (req, res) => {
+  const user = await _getUserFromReq(req);
+  if (!user) return res.status(401).json({ ok: false });
   const tasks = await loadTasks();
-  const t = { ...req.body, id: Date.now().toString(), done: false, createdAt: new Date().toISOString() };
+  const t = { ...req.body, id: Date.now().toString(), createdBy: user.id, done: false, createdAt: new Date().toISOString() };
   tasks.push(t);
   await saveTasks(tasks);
   res.json(t);
 });
 
 app.put('/api/tasks/:id', async (req, res) => {
+  const user = await _getUserFromReq(req);
+  if (!user) return res.status(401).json({ ok: false });
   const tasks = await loadTasks();
   const idx = tasks.findIndex(t => t.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
@@ -2214,7 +2250,12 @@ app.put('/api/tasks/:id', async (req, res) => {
 });
 
 app.delete('/api/tasks/:id', async (req, res) => {
+  const user = await _getUserFromReq(req);
+  if (!user) return res.status(401).json({ ok: false });
   let tasks = await loadTasks();
+  const task = tasks.find(t => t.id === req.params.id);
+  if (task && !user.admin && task.createdBy && task.createdBy !== user.id)
+    return res.status(403).json({ ok: false, motivo: 'Sem permissão' });
   tasks = tasks.filter(t => t.id !== req.params.id);
   await saveTasks(tasks);
   res.json({ ok: true });

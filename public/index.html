@@ -2274,6 +2274,14 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
             <div class="form-group"><label><i class="fas fa-paper-plane" style="color:var(--accent);margin-right:4px"></i>Notificar pessoa (e-mail ao concluir)</label><input type="text" id="kb-notify-to" placeholder="email@exemplo.com" autocomplete="off"></div>
           </div>
 
+          <!-- Atribuir para (só admin vê) -->
+          <div id="kb-assign-section" style="display:none;margin-bottom:14px">
+            <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px"><i class="fas fa-user-tag" style="color:var(--cyan);margin-right:5px"></i>Atribuir para</div>
+            <div id="kb-assign-users" style="display:flex;flex-wrap:wrap;gap:8px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px;min-height:36px">
+              <span style="font-size:11px;color:var(--text3)">Carregando usuários...</span>
+            </div>
+          </div>
+
           <!-- Checklist -->
           <div style="margin-bottom:14px">
             <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px"><i class="fas fa-check-square" style="color:var(--accent);margin-right:5px"></i>Checklist</div>
@@ -5994,10 +6002,19 @@ function renderDashRh() {
 // TASKS
 // ── TAREFAS — API-backed ──────────────────────────────────────────
 let tasks = [];
+let _taskUsers = []; // lista de usuários para atribuição
+
+function _taskAuthHeader() {
+  return { 'Authorization': 'Bearer ' + (_authToken ? _authToken() : localStorage.getItem('ops360_auth_token') || '') };
+}
+function _taskFetch(url, opts = {}) {
+  opts.headers = { ...opts.headers, ..._taskAuthHeader() };
+  return fetch(url, opts);
+}
 
 async function loadTasksFromAPI() {
   try {
-    const r = await fetch('/api/tasks');
+    const r = await _taskFetch('/api/tasks');
     tasks = await r.json();
     renderTasks();
     loadNotifConfig();
@@ -6131,7 +6148,7 @@ function kbDragLeave(e) {
 async function kbAdvanceTask(id, status) {
   const isDone = status === 'done';
   try {
-    const r = await fetch(`/api/tasks/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status, done:isDone}) });
+    const r = await _taskFetch(`/api/tasks/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status, done:isDone}) });
     const result = await r.json();
     const { _proximaTarefa, ...updated } = result;
     tasks = tasks.map(x => x.id===id ? updated : x);
@@ -6149,7 +6166,7 @@ async function kbDrop(e, status) {
   if (!t || taskStatus(t)===status) return;
   const isDone = status==='done';
   try {
-    const r = await fetch(`/api/tasks/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status, done:isDone}) });
+    const r = await _taskFetch(`/api/tasks/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status, done:isDone}) });
     const result = await r.json();
     const { _proximaTarefa, ...updated } = result;
     tasks = tasks.map(x=>x.id===id ? updated : x);
@@ -6192,9 +6209,36 @@ function kbOpenModal(id, defaultStatus='todo') {
   }
 
   kbRenderModalCL();
+
+  // Painel de atribuição: só admins veem
+  const assignSection = document.getElementById('kb-assign-section');
+  if (_authUser?.admin) {
+    assignSection.style.display = '';
+    kbLoadAssignUsers(id ? tasks.find(x=>x.id===id)?.assignedTo || [] : []);
+  } else {
+    assignSection.style.display = 'none';
+  }
+
   const overlay = document.getElementById('kbModalOverlay');
   overlay.classList.add('open');
   setTimeout(()=>g('kb-title').focus(), 80);
+}
+
+async function kbLoadAssignUsers(selectedIds) {
+  const el = document.getElementById('kb-assign-users');
+  if (!el) return;
+  try {
+    if (!_taskUsers.length) {
+      const r = await _taskFetch('/api/tasks/users');
+      const d = await r.json();
+      _taskUsers = d.users || [];
+    }
+    el.innerHTML = _taskUsers.map(u => `
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:4px 10px;font-size:12px">
+        <input type="checkbox" data-uid="${u.id}" ${selectedIds.includes(u.id) ? 'checked' : ''} style="cursor:pointer">
+        <span>${u.nome}</span>
+      </label>`).join('');
+  } catch(e) { el.innerHTML = '<span style="font-size:11px;color:var(--red)">Erro ao carregar usuários</span>'; }
 }
 
 function kbCloseModal() {
@@ -6244,17 +6288,20 @@ async function kbSaveTask() {
     checklist:  _kbTempCL,
     status:     _kbTargetSt,
     done:       _kbTargetSt==='done',
+    assignedTo: _authUser?.admin
+      ? Array.from(document.querySelectorAll('#kb-assign-users input[type=checkbox]:checked')).map(el => parseInt(el.dataset.uid))
+      : undefined,
   };
 
   try {
     if (_kbEditId) {
-      const r = await fetch(`/api/tasks/${_kbEditId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+      const r = await _taskFetch(`/api/tasks/${_kbEditId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
       const result = await r.json();
       const { _proximaTarefa, ...updated } = result;
       tasks = tasks.map(x=>x.id===_kbEditId ? updated : x);
       if (_proximaTarefa) tasks.push(_proximaTarefa);
     } else {
-      const r = await fetch('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+      const r = await _taskFetch('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
       tasks.push(await r.json());
     }
     renderKanban();
@@ -6265,7 +6312,7 @@ async function kbSaveTask() {
 async function kbDelTask(id) {
   if (!confirm('Excluir esta tarefa?')) return;
   try {
-    await fetch(`/api/tasks/${id}`, { method:'DELETE' });
+    await _taskFetch(`/api/tasks/${id}`, { method:'DELETE' });
     tasks = tasks.filter(x=>x.id!==id);
     renderKanban();
   } catch(e) { console.error(e); }
@@ -6276,7 +6323,7 @@ async function kbToggleCheck(taskId, itemId, done) {
   if (!t||!t.checklist) return;
   t.checklist = t.checklist.map(i=>i.id===itemId?{...i,done}:i);
   try {
-    await fetch(`/api/tasks/${taskId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({checklist:t.checklist}) });
+    await _taskFetch(`/api/tasks/${taskId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({checklist:t.checklist}) });
     renderKanban();
   } catch(e) { console.error(e); }
 }
@@ -6420,7 +6467,7 @@ async function toggleTask(id) {
   if(!t) return;
   const ns = taskStatus(t)==='done'?'todo':'done';
   try {
-    const r = await fetch(`/api/tasks/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:ns,done:ns==='done'})});
+    const r = await _taskFetch(`/api/tasks/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:ns,done:ns==='done'})});
     const result = await r.json();
     const {_proximaTarefa,...updated}=result;
     tasks=tasks.map(x=>x.id===id?updated:x);
