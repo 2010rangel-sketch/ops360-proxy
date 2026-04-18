@@ -2340,13 +2340,13 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
                 <span style="font-size:13px;font-weight:700">WhatsApp</span>
                 <span id="waConfigBadge" class="badge" style="font-size:10px">não configurado</span>
               </div>
-              <div style="background:var(--bg3);border-radius:8px;padding:10px;margin-bottom:10px;font-size:11.5px;color:var(--text2);line-height:1.7">
-                <b>Passo 1:</b> Salve <b>+34 644 75 55 56</b> na agenda como "CallMeBot"<br>
-                <b>Passo 2:</b> Envie <span style="background:var(--surface);padding:1px 5px;border-radius:3px;font-family:monospace">I allow callmebot to send me messages</span> por WhatsApp<br>
-                <b>Passo 3:</b> Você receberá sua <b>API Key</b> em segundos
+              <div style="background:var(--bg3);border-radius:8px;padding:10px;margin-bottom:10px;font-size:11.5px;color:var(--text2);line-height:1.8">
+                <b>Passo 1:</b> Acesse <b>fonnte.com</b> e crie uma conta grátis<br>
+                <b>Passo 2:</b> Clique em <b>"Add Device"</b> e escaneie o QR code com seu WhatsApp<br>
+                <b>Passo 3:</b> Copie o <b>Token</b> que aparece no painel e cole abaixo
               </div>
-              <div class="form-group" style="margin-bottom:8px"><label>Seu número (+55DDDnúmero)</label><input type="text" id="cfg-wa-phone" placeholder="5511999999999"></div>
-              <div class="form-group" style="margin-bottom:10px"><label>API Key CallMeBot</label><input type="text" id="cfg-wa-key" placeholder="123456"></div>
+              <div class="form-group" style="margin-bottom:8px"><label>Seu número WhatsApp (+55DDDnúmero)</label><input type="text" id="cfg-wa-phone" placeholder="5591999999999"></div>
+              <div class="form-group" style="margin-bottom:10px"><label>Token Fonnte</label><input type="text" id="cfg-wa-key" placeholder="Cole o token do painel Fonnte"></div>
               <div style="display:flex;gap:8px">
                 <button class="btn btn-primary btn-sm" onclick="saveNotifConfig()"><i class="fas fa-save"></i> Salvar</button>
                 <button class="btn btn-sm" onclick="testNotif('whatsapp')"><i class="fab fa-whatsapp"></i> Testar WA</button>
@@ -6505,8 +6505,8 @@ function saveNotifConfig() {
     NOTIF_EMAIL: document.getElementById('cfg-email')?.value?.trim(),
     SMTP_USER:   document.getElementById('cfg-smtp-user')?.value?.trim(),
     SMTP_PASS:   document.getElementById('cfg-smtp-pass')?.value?.trim(),
-    WA_PHONE:    document.getElementById('cfg-wa-phone')?.value?.trim(),
-    WA_CALLMEBOT_KEY: document.getElementById('cfg-wa-key')?.value?.trim(),
+    WA_PHONE:        document.getElementById('cfg-wa-phone')?.value?.trim(),
+    WA_FONNTE_TOKEN: document.getElementById('cfg-wa-key')?.value?.trim(),
   };
   const lines = Object.entries(vars).filter(([,v])=>v).map(([k,v])=>`${k}=${v}`).join('\n');
   navigator.clipboard.writeText(lines).then(() => {

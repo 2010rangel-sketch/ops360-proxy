@@ -2269,8 +2269,8 @@ function getNotifConfig() {
     smtpPass:    process.env.SMTP_PASS         || '',
     smtpHost:    (process.env.SMTP_HOST || 'smtp.gmail.com').trim().replace(/^=+/, ''),
     smtpPort:    parseInt((process.env.SMTP_PORT||'587').trim().replace(/^=+/, '')),
-    waPhone:     process.env.WA_PHONE          || '',  // ex: 5511999999999
-    waApiKey:    process.env.WA_CALLMEBOT_KEY  || '',
+    waPhone:     process.env.WA_PHONE          || '',  // ex: 5591999999999
+    waApiKey:    process.env.WA_FONNTE_TOKEN   || process.env.WA_CALLMEBOT_KEY || '',
   };
 }
 
@@ -2312,12 +2312,18 @@ async function sendEmailToRecipient(to, subject, html) {
   return true;
 }
 
-// ── WhatsApp via CallMeBot ────────────────────────────────────────
+// ── WhatsApp via Fonnte ───────────────────────────────────────────
 async function sendWhatsApp(message) {
   const c = getNotifConfig();
   if (!c.waPhone || !c.waApiKey) return false;
-  const url = `https://api.callmebot.com/whatsapp.php?phone=${c.waPhone}&text=${encodeURIComponent(message)}&apikey=${c.waApiKey}`;
-  await axios.get(url, { timeout: 8000 });
+  await axios.post('https://api.fonnte.com/send', {
+    target: c.waPhone,
+    message,
+    countryCode: '55',
+  }, {
+    headers: { Authorization: c.waApiKey },
+    timeout: 10000,
+  });
   return true;
 }
 
