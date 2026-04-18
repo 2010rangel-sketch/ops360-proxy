@@ -2409,27 +2409,40 @@ cron.schedule('* * * * *', async () => {
     const due     = new Date(t.dueAt).getTime();
     const diffMin = Math.round((due - now) / 60000);
     const alarm   = t.notifyMin || 15;
-
-    // Avisa quando falta exatamente `alarm` minutos (janela ±1 min)
-    if (Math.abs(diffMin - alarm) > 1) continue;
-
-    const key = `${t.id}-${alarm}`;
-    if (notifSent.has(key)) continue;
-    notifSent.add(key);
-
     const titulo  = t.title || t.t || 'Tarefa';
     const hora    = new Date(t.dueAt).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', timeZone:'America/Sao_Paulo' });
-    const msg     = `⏰ OPS360 — Lembrete: *${titulo}* às ${hora} (em ${alarm} min)`;
+    const tag     = t.tag ? ` [${t.tag}]` : '';
+    const desc    = t.desc ? `\n📝 ${t.desc}` : '';
 
-    if (t.notifEmail !== false) sendEmail(`⏰ Lembrete: ${titulo}`,
-      `<h3>Lembrete de tarefa</h3><p><b>${titulo}</b></p><p>Prevista para <b>${hora}</b></p><p>Categoria: ${t.tag||'—'}</p>`
-    ).catch(console.error);
+    // Alerta antecipado: falta `alarm` minutos
+    if (Math.abs(diffMin - alarm) <= 1) {
+      const key = `${t.id}-pre-${alarm}`;
+      if (!notifSent.has(key)) {
+        notifSent.add(key);
+        const msg = `⏰ *Lembrete${tag}*\n*${titulo}*\nPrevista para *${hora}* (em ${alarm} min)${desc}`;
+        if (t.notifEmail !== false) sendEmail(`⏰ Lembrete: ${titulo}`,
+          `<h3>Lembrete de tarefa</h3><p><b>${titulo}</b></p><p>Prevista para <b>${hora}</b></p><p>Categoria: ${t.tag||'—'}</p>${t.desc?`<p>${t.desc}</p>`:''}`
+        ).catch(console.error);
+        if (t.notifWA !== false) sendWhatsApp(msg).catch(console.error);
+      }
+    }
 
-    if (t.notifWA !== false) sendWhatsApp(msg).catch(console.error);
+    // Alerta no horário: chegou a hora
+    if (Math.abs(diffMin) <= 1) {
+      const key = `${t.id}-due`;
+      if (!notifSent.has(key)) {
+        notifSent.add(key);
+        const msg = `🔔 *AGORA${tag}*\n*${titulo}*\nHorário: *${hora}*${desc}`;
+        if (t.notifEmail !== false) sendEmail(`🔔 Agora: ${titulo}`,
+          `<h3>Tarefa no horário!</h3><p><b>${titulo}</b></p><p>Estava prevista para <b>${hora}</b></p>${t.desc?`<p>${t.desc}</p>`:''}`
+        ).catch(console.error);
+        if (t.notifWA !== false) sendWhatsApp(msg).catch(console.error);
+      }
+    }
   }
 
-  // Limpa chaves antigas após 2h
-  if (notifSent.size > 500) notifSent.clear();
+  // Limpa chaves antigas
+  if (notifSent.size > 1000) notifSent.clear();
 });
 
 // ── DEBUG: estrutura de endereço/geo de uma OS real ──────────────
