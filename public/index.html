@@ -899,9 +899,6 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         </div>
       </div>
 
-      <!-- ── CARDS POR CATEGORIA (hoje + acumulado mês) ── -->
-      <div id="catCards" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px"></div>
-
       <!-- ── KANBAN AO VIVO (full width) ── -->
       <div class="tbl-card" id="dch-kanban-section" style="margin-bottom:10px;display:flex;flex-direction:column">
         <div class="tbl-header" style="padding-bottom:10px;flex-shrink:0">
@@ -912,6 +909,9 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;padding:0 4px 4px;flex:1" id="statusLanes"></div>
       </div>
 
+
+      <!-- ── CARDS POR CATEGORIA (hoje + acumulado mês) ── -->
+      <div id="catCards" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px"></div>
 
       <!-- ── FEED AO VIVO + TABELA COMPLETA ── -->
       <div id="dch-tabela-section" style="display:grid;grid-template-columns:290px 1fr;gap:12px">
@@ -3163,6 +3163,7 @@ function labelPeriodo() {
 
 // ── RENDER: CARDS POR CATEGORIA ────────────────────────────────────────────
 let _catCardsExpanded = false;
+let _catCardsWasExpanded = false;
 
 function _makeCatCard(key, cfg, tmi, periodoLabel) {
   const fil     = chamadosFiltrados.filter(c=>c.cat===key);
@@ -3175,10 +3176,10 @@ function _makeCatCard(key, cfg, tmi, periodoLabel) {
   return `<div style="background:var(--surface);border:1px solid var(--border);border-top:3px solid ${cfg.color};border-radius:var(--r-lg);padding:14px 16px;cursor:pointer;transition:.15s;min-width:130px;flex-shrink:0" onclick="setCatFilter('${key}')" onmouseover="this.style.borderColor='${cfg.color}'" onmouseout="this.style.borderTopColor='${cfg.color}';this.style.borderColor='';this.style.borderTopColor='${cfg.color}'">
     <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
       <div style="width:26px;height:26px;border-radius:6px;background:${cfg.color}20;color:${cfg.color};display:grid;place-items:center;font-size:11px;flex-shrink:0"><i class="fas ${cfg.icon}"></i></div>
-      <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text3)">${cfg.label}</span>
+      <span style="font-size:12px;font-weight:600;color:var(--text2)">${cfg.label}</span>
     </div>
     <div style="margin-bottom:8px">
-      <div style="font-size:9.5px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">${periodoLabel}</div>
+      <div style="font-size:10px;color:var(--text3);margin-bottom:3px">${periodoLabel}</div>
       <div style="display:flex;align-items:baseline;gap:6px">
         <span style="font-size:26px;font-weight:700;font-family:'JetBrains Mono',monospace;color:${cfg.color};line-height:1">${total}</span>
         <div style="display:flex;flex-direction:column;gap:1px">
@@ -3190,7 +3191,7 @@ function _makeCatCard(key, cfg, tmi, periodoLabel) {
     </div>
     <div class="prog" style="margin-bottom:8px"><div class="prog-fill" style="width:${pct_ok}%;background:${cfg.color}"></div></div>
     <div style="display:flex;justify-content:space-between;align-items:center">
-      <span style="font-size:10px;color:var(--text3)">TMA (tempo médio)</span>
+      <span style="font-size:11px;color:var(--text3)">TMA (tempo médio)</span>
       <span style="font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;color:${tmiVal?cfg.color:'var(--text3)'}">${tmiVal||'--'}</span>
     </div>
   </div>`;
@@ -3200,6 +3201,7 @@ function expandCatCards() {
   const el = document.getElementById('catCards');
   if (!el) return;
   _catCardsExpanded = true;
+  _catCardsWasExpanded = true;
   // Remove o card "Outros" (último filho) e injeta os cards ocultos + recolher
   const outrosCard = el.querySelector('#catOutrosBtn');
   if (outrosCard) outrosCard.remove();
@@ -3207,7 +3209,7 @@ function expandCatCards() {
   const periodoLabel = labelPeriodo();
   const catsReais = [...new Set([...Object.keys(tiposConfig), ...chamadosDB.map(c=>c.cat)])].filter(Boolean);
   const todos = catsReais.map(k=>[k,tiposConfig[k],chamadosFiltrados.filter(c=>c.cat===k).length]).filter(([,v])=>v).sort((a,b)=>b[2]-a[2]);
-  const ocultos = todos.slice(14);
+  const ocultos = todos.slice(5);
   const div = document.createElement('div');
   div.id = 'catExtras';
   div.style.display = 'contents';
@@ -3221,6 +3223,7 @@ function expandCatCards() {
 
 function collapseCatCards() {
   _catCardsExpanded = false;
+  _catCardsWasExpanded = false;
   const extras = document.getElementById('catExtras');
   if (extras) extras.remove();
   // Reinsere o card Outros
@@ -3237,7 +3240,7 @@ function renderCatCards() {
     .sort((a,b) => b[2] - a[2]);
   if(!tipos.length) { el.innerHTML=''; return; }
 
-  const MAX = 14;
+  const MAX = 5;
   const visivel = tipos.slice(0, MAX);
   const ocultos = tipos.slice(MAX);
   const totalOcultos = ocultos.reduce((s,[,,n])=>s+n, 0);
@@ -3271,6 +3274,8 @@ function renderCatCards() {
 
   el.innerHTML = html;
   _catCardsExpanded = false;
+  // Se estava expandido antes do refresh, re-expande
+  if (_catCardsWasExpanded) expandCatCards();
 }
 
 function setCatFilter(cat) {
