@@ -2183,10 +2183,10 @@ app.get('/api/tasks', async (req, res) => {
   const user = await _getUserFromReq(req);
   const tasks = await loadTasks();
   if (!user) return res.json([]);
-  // Admin vê tudo; outros veem só as suas + atribuídas
+  // Admin vê tudo; outros veem só as suas + explicitamente atribuídas
   const visible = user.admin
     ? tasks
-    : tasks.filter(t => !t.createdBy || t.createdBy === user.id || (Array.isArray(t.assignedTo) && t.assignedTo.includes(user.id)));
+    : tasks.filter(t => t.createdBy === user.id || (Array.isArray(t.assignedTo) && t.assignedTo.includes(user.id)));
   res.json(visible);
 });
 
