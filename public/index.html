@@ -8309,43 +8309,47 @@ function renderCancelHistChart(meses) {
   const badge  = document.getElementById('ret-ch-badge');
   if (!chart || !meses || !meses.length) return;
 
-  const valores = meses.map(m => m.cancelados);
-  const maxVal  = Math.max(...valores, 1);
-  const minVal  = Math.min(...valores);
-  const ALTURA  = 120;
-  const totalGeral = valores.reduce((s, v) => s + v, 0);
+  const COR_INADIMP = '#f97316'; // laranja
+  const COR_OUTROS  = '#8b5cf6'; // roxo
+  const COR_PARCIAL = '#94a3b8'; // cinza azulado
+
+  const valores    = meses.map(m => m.cancelados);
+  const maxVal     = Math.max(...valores, 1);
+  const ALTURA     = 120;
+  const totalGeral    = valores.reduce((s, v) => s + v, 0);
+  const totalInadimpl = meses.reduce((s, m) => s + (m.cancelados_inadimp||0), 0);
+  const totalOutros   = meses.reduce((s, m) => s + (m.cancelados_outros||0), 0);
   if (badge) badge.textContent = totalGeral;
 
   chart.innerHTML = meses.map((m, i) => {
     const v       = m.cancelados;
-    const pct     = v / maxVal;
-    const h       = Math.max(Math.round(pct * ALTURA), 2);
-    const isMax   = v === maxVal && !m.parcial;
-    const isMin   = v === minVal && !m.parcial;
-    const cor     = m.parcial ? '#60a5fa' : isMax ? '#e11d48' : isMin ? '#fda4af' : '#f43f5e';
-    const corTxt  = m.parcial ? '#60a5fa' : isMax ? '#e11d48' : '#f43f5e';
-    const tooltip = `${m.label}${m.parcial ? ' (parcial)' : ''}: ${v} cancelamentos`;
+    const inadimp = m.cancelados_inadimp || 0;
+    const outros  = m.cancelados_outros  || (v - inadimp);
+    const hTotal  = v > 0 ? Math.max(Math.round((v / maxVal) * ALTURA), 2) : 0;
+    const hInad   = v > 0 ? Math.round((inadimp / v) * hTotal) : 0;
+    const hOut    = hTotal - hInad;
+    const tooltip = `${m.label}${m.parcial?' (parcial)':''}: ${v} cancelamentos\nInadimplência: ${inadimp} · Outros: ${outros}`;
     const anoLbl  = (i === 0 || meses[i-1].ano !== m.ano)
       ? `<div style="font-size:9px;color:var(--text3);margin-bottom:2px;font-weight:600">${m.ano}</div>`
       : '<div style="font-size:9px;color:transparent">·</div>';
-    const barStyle = m.parcial
-      ? `width:100%;height:${h}px;background:${cor};border-radius:3px 3px 0 0;margin-top:2px;opacity:.7;border:1px dashed #93c5fd;box-sizing:border-box`
-      : `width:100%;height:${h}px;background:${cor};border-radius:3px 3px 0 0;margin-top:2px;${isMax?'box-shadow:0 0 0 2px #fff3':''}`;
-    const labelExtra = m.parcial ? `<div style="font-size:8px;color:#60a5fa;font-weight:600;margin-top:1px">parcial</div>` : '';
+    const opac   = m.parcial ? '.55' : '1';
+    const barOut  = hOut > 0  ? `<div style="width:100%;height:${hOut}px;background:${m.parcial?COR_PARCIAL:COR_OUTROS};opacity:${opac};border-radius:3px 3px 0 0"></div>` : '';
+    const barInad = hInad > 0 ? `<div style="width:100%;height:${hInad}px;background:${m.parcial?COR_PARCIAL:COR_INADIMP};opacity:${opac}"></div>` : '';
+    const corTxt  = m.parcial ? COR_PARCIAL : (inadimp >= outros ? COR_INADIMP : COR_OUTROS);
+    const labelExtra = m.parcial ? `<div style="font-size:8px;color:${COR_PARCIAL};font-weight:600;margin-top:1px">parcial</div>` : '';
     return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:28px;max-width:52px;cursor:default" title="${tooltip}">
       ${anoLbl}
-      <div style="font-size:9px;color:${corTxt};font-weight:700;line-height:1.2">${v}</div>
-      <div style="${barStyle}"></div>
+      <div style="font-size:9px;color:${corTxt};font-weight:700;line-height:1.2">${v||''}</div>
+      <div style="width:100%;display:flex;flex-direction:column;margin-top:2px">${barOut}${barInad}</div>
       <div style="font-size:9px;color:var(--text3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center">${m.label}</div>
       ${labelExtra}
     </div>`;
   }).join('');
 
   if (legend) legend.innerHTML = `
-    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#e11d48;display:inline-block"></span> Maior cancelamento (${maxVal})</span>
-    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#fda4af;display:inline-block"></span> Menor cancelamento (${minVal})</span>
-    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#f43f5e;display:inline-block"></span> Cancelados</span>
-    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#60a5fa;display:inline-block;border:1px dashed #93c5fd"></span> Mês parcial</span>`;
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:${COR_OUTROS};display:inline-block"></span> Outros motivos (${totalOutros})</span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:${COR_INADIMP};display:inline-block"></span> Inadimplência (${totalInadimpl})</span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:${COR_PARCIAL};display:inline-block"></span> Mês parcial</span>`;
 }
 
 function renderTempoMedioHist(meses) {

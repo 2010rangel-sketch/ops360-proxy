@@ -2968,8 +2968,9 @@ async function buildAdicaoLiquida() {
         const iniMs = new Date(iniStr).getTime();
         const fimMs = new Date(fimStr + 'T23:59:59').getTime();
         const seen  = new Set();
-        let cancelados = 0;
+        let cancelados = 0, cancelados_inadimp = 0, cancelados_outros = 0;
         const cancelLista = [];
+        const isInadimpAL = m => normAL(m).includes('inadimp');
         for (const cli of [...cNao, ...cSim]) {
           for (const s of (cli.servicos || [])) {
             const dc = parseDate(s.data_cancelamento);
@@ -2979,6 +2980,8 @@ async function buildAdicaoLiquida() {
             if (seen.has(chave)) continue;
             seen.add(chave);
             cancelados++;
+            if (isInadimpAL(s.motivo_cancelamento)) cancelados_inadimp++;
+            else cancelados_outros++;
             cancelLista.push({ motivo_cancelamento: s.motivo_cancelamento, data_habilitacao: s.data_habilitacao, data_cancelamento: s.data_cancelamento });
           }
         }
@@ -2998,7 +3001,7 @@ async function buildAdicaoLiquida() {
         }
         const adicao_liquida = novas + reativacoes - cancelados;
         return {
-          ano, mes, iniStr, fimStr, label, parcial: parcial || false, novas, reativacoes, cancelados, adicao_liquida,
+          ano, mes, iniStr, fimStr, label, parcial: parcial || false, novas, reativacoes, cancelados, cancelados_inadimp, cancelados_outros, adicao_liquida,
           tempo_medio_meses: tempoMedioMeses !== null ? Math.round(tempoMedioMeses * 10) / 10 : null,
           tempo_medio_fmt:   tempoMedioMeses !== null ? fmtTempoFin(tempoMedioMeses) : '—',
         };
