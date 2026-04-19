@@ -6207,7 +6207,7 @@ function kbOpenModal(id, defaultStatus='todo') {
     g('kb-title').value  = t.title||t.t||'';
     g('kb-pri').value    = t.p||'m';
     g('kb-tag').value    = t.tag||'Operações';
-    g('kb-date').value   = t.dueAt ? t.dueAt.slice(0,16) : '';
+    g('kb-date').value   = t.dueAt ? new Date(t.dueAt).toLocaleString('sv',{timeZone:'America/Sao_Paulo'}).slice(0,16) : '';
     g('kb-alarm').value  = t.notifyMin||15;
     g('kb-rec').value    = t.recorrencia||'';
     g('kb-desc').value   = t.desc||'';
@@ -6292,7 +6292,7 @@ async function kbSaveTask() {
     title, t: title,
     p:          g('kb-pri').value,
     tag:        g('kb-tag').value,
-    dueAt:      g('kb-date').value || null,
+    dueAt:      g('kb-date').value ? new Date(g('kb-date').value).toISOString() : null,
     notifyMin:  parseInt(g('kb-alarm').value),
     recorrencia:g('kb-rec').value || '',
     desc:       g('kb-desc').value.trim() || null,
