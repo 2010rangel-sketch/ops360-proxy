@@ -1764,6 +1764,40 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         </div>
       </div>
 
+      <!-- 1ª Mensalidade Cheia em Risco -->
+      <div class="tbl-card" style="margin-top:14px;border-top:3px solid #ef4444" id="rmoc-prim-card">
+        <div class="tbl-header">
+          <span class="tbl-title"><i class="fas fa-exclamation-triangle" style="color:#ef4444;margin-right:6px"></i>1ª Mensalidade Cheia em Risco</span>
+          <span class="badge b-red" id="rmoc-prim-count">—</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border)">
+          <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">Novos (60d)</div><div style="font-size:16px;font-weight:700;color:var(--text)" id="rmoc-prim-novos">—</div></div>
+          <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">Não pagou</div><div style="font-size:16px;font-weight:700;color:#ef4444" id="rmoc-prim-np">—</div></div>
+          <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">% de risco</div><div style="font-size:16px;font-weight:700;color:var(--amber)" id="rmoc-prim-pct">—</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:280px 1fr;min-height:180px">
+          <div style="border-right:1px solid var(--border)">
+            <div style="padding:8px 12px;font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border)">Por Vendedor</div>
+            <div style="overflow-y:auto;max-height:280px">
+              <table class="tbl" style="font-size:11px"><thead><tr><th>Vendedor</th><th>Novos</th><th>Risco</th><th>%</th></tr></thead>
+              <tbody id="rmoc-prim-vend"></tbody></table>
+            </div>
+          </div>
+          <div>
+            <div style="padding:8px 12px;font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+              <span id="rmoc-prim-titulo">Todos os clientes em risco</span>
+              <button id="rmoc-prim-limpar" onclick="renderPrimMensalidadeRemoc(null)" style="display:none;background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:0">✕ ver todos</button>
+            </div>
+            <div style="overflow-y:auto;max-height:280px">
+              <table class="tbl" style="font-size:11px">
+                <thead><tr><th>Cliente</th><th>Plano</th><th>Mensalidade</th><th>Cidade</th><th>Desde</th></tr></thead>
+                <tbody id="rmoc-prim-clientes"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Histórico mensal de remoções -->
       <div class="tbl-card" style="margin-top:14px;border-top:3px solid #f59e0b" id="rem-hist-card">
         <div class="tbl-header">
@@ -8915,7 +8949,7 @@ async function _autoRefreshPagina() {
       case 'atendimento': loadAtendimentos(); chatmixLoad(); break;
       case 'chamados':    autoRefresh();      break;
       case 'retencao':    loadRetencaoAtend(); loadCancelServico(); if (_alData) renderCancelHistChart(_alData.meses); renderPrimMensalidadeRet(null); if (!window._primVendedores) loadFinanceiro(); break;
-      case 'remocao':     loadRemocoes(); if (!_remHist) loadRemocoesMensais(); break;
+      case 'remocao':     loadRemocoes(); if (!_remHist) loadRemocoesMensais(); renderPrimMensalidadeRemoc(null); if (!window._primVendedores) loadFinanceiro(); break;
       case 'financeiro':  loadFinanceiro();   break;
       case 'saude':       loadSaudeBase();    loadFinanceiro(); break;
       case 'rh':          loadRh();           break;
@@ -8987,56 +9021,45 @@ function abrirRiscoVendedor(idx) {
   filtrarPrimMensalidade(idx);
 }
 
-function renderPrimMensalidadeRet(filtroIdx) {
+function _renderPrimCard(pfx, filtroIdx) {
   const pv    = window._primVendedores || [];
   const todos = window._primTodosClientes || [];
-  const card  = document.getElementById('ret-prim-card');
+  const card  = document.getElementById(`${pfx}-prim-card`);
   if (!card) return;
   if (!pv.length && !todos.length) { card.style.display = 'none'; return; }
   card.style.display = '';
-
-  const fev2 = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  const fv = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
   const pm = window._primData || {};
-  fev2('ret-prim-count', pm.total_nao_pagou || todos.length);
-  fev2('ret-prim-novos', pm.total_novos || '—');
-  fev2('ret-prim-np',    pm.total_nao_pagou || todos.length);
-  fev2('ret-prim-pct',   `${pm.pct || 0}%`);
-
-  // Tabela vendedores
-  const vend = document.getElementById('ret-prim-vend');
-  if (vend) {
-    vend.innerHTML = pv.length ? pv.map((v, idx) => {
-      const cor = v.pct >= 30 ? '#ef4444' : v.pct >= 15 ? 'var(--amber)' : '#22c55e';
-      return `<tr onclick="renderPrimMensalidadeRet(${idx})" style="cursor:pointer" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
-        <td style="font-weight:500">${v.vendedor} <i class="fas fa-chevron-right" style="font-size:9px;opacity:.4;margin-left:3px"></i></td>
-        <td class="mono">${v.novos}</td>
-        <td class="mono" style="color:#ef4444">${v.nao_pagou}</td>
-        <td class="mono" style="color:${cor}">${v.pct}%</td>
-      </tr>`;
-    }).join('') : `<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:12px">Sem dados</td></tr>`;
-  }
-
-  // Tabela clientes
-  const titulo  = document.getElementById('ret-prim-titulo');
-  const btnLimp = document.getElementById('ret-prim-limpar');
-  const lista   = filtroIdx === null || filtroIdx === undefined ? todos : (pv[filtroIdx]?.lista || []).map(c => ({ ...c, vendedor: pv[filtroIdx].vendedor }));
-  if (titulo) titulo.textContent = filtroIdx === null || filtroIdx === undefined ? `Todos os clientes em risco (${todos.length})` : `${pv[filtroIdx]?.vendedor} · ${lista.length} em risco`;
+  fv(`${pfx}-prim-count`, pm.total_nao_pagou || todos.length);
+  fv(`${pfx}-prim-novos`, pm.total_novos || '—');
+  fv(`${pfx}-prim-np`,    pm.total_nao_pagou || todos.length);
+  fv(`${pfx}-prim-pct`,   `${pm.pct || 0}%`);
+  const vend = document.getElementById(`${pfx}-prim-vend`);
+  if (vend) vend.innerHTML = pv.length ? pv.map((v, idx) => {
+    const cor = v.pct >= 30 ? '#ef4444' : v.pct >= 15 ? 'var(--amber)' : '#22c55e';
+    return `<tr onclick="_renderPrimCard('${pfx}',${idx})" style="cursor:pointer" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
+      <td style="font-weight:500">${v.vendedor} <i class="fas fa-chevron-right" style="font-size:9px;opacity:.4;margin-left:3px"></i></td>
+      <td class="mono">${v.novos}</td>
+      <td class="mono" style="color:#ef4444">${v.nao_pagou}</td>
+      <td class="mono" style="color:${cor}">${v.pct}%</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:12px">Sem dados</td></tr>`;
+  const lista = (filtroIdx === null || filtroIdx === undefined) ? todos : (pv[filtroIdx]?.lista || []).map(c => ({ ...c, vendedor: pv[filtroIdx].vendedor }));
+  const titulo  = document.getElementById(`${pfx}-prim-titulo`);
+  const btnLimp = document.getElementById(`${pfx}-prim-limpar`);
+  if (titulo) titulo.textContent = (filtroIdx === null || filtroIdx === undefined) ? `Todos os clientes em risco (${todos.length})` : `${pv[filtroIdx]?.vendedor} · ${lista.length} em risco`;
   if (btnLimp) btnLimp.style.display = (filtroIdx === null || filtroIdx === undefined) ? 'none' : '';
-  const tbody = document.getElementById('ret-prim-clientes');
-  if (tbody) {
-    tbody.innerHTML = lista.length ? lista.map(c => {
-      const data  = c.dataHab ? new Date(c.dataHab).toLocaleDateString('pt-BR') : '—';
-      const valor = c.valor ? 'R$ ' + Number(c.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '—';
-      return `<tr>
-        <td style="font-weight:500;font-size:11px">${c.nome || '—'}</td>
-        <td style="font-size:10px;color:var(--text3)">${c.plano || '—'}</td>
-        <td class="mono" style="color:var(--amber);font-size:11px">${valor}</td>
-        <td style="font-size:10px;color:var(--text3)">${c.cidade || '—'}</td>
-        <td style="font-size:10px;color:var(--text3)">${data}</td>
-      </tr>`;
-    }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Nenhum cliente</td></tr>';
-  }
+  const tbody = document.getElementById(`${pfx}-prim-clientes`);
+  if (tbody) tbody.innerHTML = lista.length ? lista.map(c => {
+    const data  = c.dataHab ? new Date(c.dataHab).toLocaleDateString('pt-BR') : '—';
+    const valor = c.valor ? 'R$ ' + Number(c.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '—';
+    return `<tr><td style="font-weight:500;font-size:11px">${c.nome||'—'}</td><td style="font-size:10px;color:var(--text3)">${c.plano||'—'}</td><td class="mono" style="color:var(--amber);font-size:11px">${valor}</td><td style="font-size:10px;color:var(--text3)">${c.cidade||'—'}</td><td style="font-size:10px;color:var(--text3)">${data}</td></tr>`;
+  }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Nenhum cliente</td></tr>';
 }
+
+function renderPrimMensalidadeRemoc(idx) { _renderPrimCard('rmoc', idx); }
+
+function renderPrimMensalidadeRet(filtroIdx) { _renderPrimCard('ret', filtroIdx); }
 
 function _renderPrimClientesLista(lista) {
   const tbody = document.getElementById('fin-prim-clientes');
