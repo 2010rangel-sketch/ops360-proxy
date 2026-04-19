@@ -7784,8 +7784,8 @@ function renderRemocoes() {
   const cobrTecs = allTecs.filter(([n]) =>  _isCobr(n));
   const maxTec   = tecs[0]?.[1] || 1;
   const maxCobr  = cobrTecs[0]?.[1] || 1;
-  ev('remoc-tec-count',  tecs.length);
-  ev('remoc-cobr-count', cobrTecs.length);
+  ev('remoc-tec-count',  tecs.reduce((s,[,q])=>s+q,0));
+  ev('remoc-cobr-count', cobrTecs.reduce((s,[,q])=>s+q,0));
 
   const _renderBarList = (lista, max, cor) => {
     const total = lista.reduce((s,[,q])=>s+q,0);
@@ -7936,8 +7936,8 @@ async function loadRemocoes() {
     const cobrTecs = allTecs2.filter(t =>  _isCb(t.tec));
     const maxTec   = tecs[0]?.total || 1;
     const maxCobr  = cobrTecs[0]?.total || 1;
-    ev('remoc-tec-count',  tecs.length);
-    ev('remoc-cobr-count', cobrTecs.length);
+    ev('remoc-tec-count',  tecs.reduce((s,t)=>s+t.total,0));
+    ev('remoc-cobr-count', cobrTecs.reduce((s,t)=>s+t.total,0));
 
     const _mkBars = (lista, max, cor, clickable) => {
       const total = lista.reduce((s,t)=>s+t.total,0);
