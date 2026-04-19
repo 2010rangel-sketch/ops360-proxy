@@ -1541,21 +1541,24 @@ async function buildRemocoesMensais() {
         const lista = [...extrairLista(d1)];
         const { lastPage, total, perPage } = extrairPaginacao(d1);
         let totalPages = lastPage || (total && perPage ? Math.ceil(total / perPage) : 1);
-        totalPages = Math.min(totalPages, 5);
+        totalPages = Math.min(totalPages, 8);
         if (totalPages > 1) {
           const pages = Array.from({ length: totalPages - 1 }, (_, k) => k + 2);
           const res = await Promise.all(pages.map(pg => _hPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=${pg}`, body).then(extrairLista)));
           for (const r of res) lista.push(...r);
         }
+        const _extrairMf = os => { const m = os.motivo_fechamento; if (!m) return ''; if (typeof m === 'string') return m; if (Array.isArray(m)) return m.map(x => x?.descricao||x?.nome||'').join(','); return m?.descricao||m?.nome||''; };
         let total_rem = 0;
         for (const os of lista) {
-          const mf = (() => { const m = os.motivo_fechamento; if (!m) return ''; if (typeof m === 'string') return m; if (Array.isArray(m)) return m.map(x => x?.descricao||x?.nome||'').join(','); return m?.descricao||m?.nome||''; })();
-          if (!normStr(mf).includes('removid')) continue;
-          const fechRaw = os.data_termino_executado || os.data_inicio_programado || os.data_cadastro;
-          const fechMs  = fechRaw ? new Date(fechRaw).getTime() : 0;
-          if (!fechMs || fechMs < iniMs || fechMs > fimMs) continue;
+          const mf = normStr(_extrairMf(os));
+          if (!mf.includes('removid')) continue;
+          // data real do fechamento — aceita qualquer campo disponível
+          const fechRaw = os.data_termino_executado || os.data_fechamento || os.data_inicio_programado || os.data_cadastro;
+          const fechMs  = fechRaw ? new Date(fechRaw.replace(' ','T')).getTime() : 0;
+          if (fechMs && (fechMs < iniMs - 86400000 || fechMs > fimMs + 86400000)) continue;
           total_rem++;
         }
+        console.log(`[rem-hist] ${iniStr}: ${lista.length} OS buscadas, ${total_rem} removidas (pgs:${totalPages})`);
         return { ano, mes, label, parcial, total: total_rem };
       } catch(e) {
         console.warn(`[remocoes-hist] erro ${iniStr}:`, e.message);
