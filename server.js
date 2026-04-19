@@ -1566,6 +1566,94 @@ async function buildRemocoesMensais() {
   return { ok: true, meses: resultados };
 }
 
+// ── CHAMADOS HISTÓRICO MENSAL ────────────────────────────────────
+let _chHistCache = null;
+let _chHistFetchedAt = 0;
+const CH_HIST_TTL = 2 * 60 * 60 * 1000; // 2h
+
+async function buildChamadosMensais() {
+  const agora     = new Date();
+  const limiteAno = agora.getFullYear();
+  const limiteMes = agora.getMonth();
+  const _df = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+  const meses = [];
+  for (let y = 2025; y <= limiteAno; y++) {
+    const mFim = (y === limiteAno) ? limiteMes : 11;
+    for (let m = 0; m <= mFim; m++) {
+      const ini = new Date(y, m, 1);
+      const isCurrent = y === limiteAno && m === limiteMes;
+      const fim = isCurrent ? agora : new Date(y, m + 1, 0);
+      meses.push({ ano: y, mes: m, iniStr: _df(ini), fimStr: _df(fim),
+        label: ini.toLocaleString('pt-BR', { month:'short', year:'2-digit' }).replace('. ','/'),
+        parcial: isCurrent });
+    }
+  }
+
+  const resultados = [];
+  for (let i = 0; i < meses.length; i += 3) {
+    const lote = meses.slice(i, i + 3);
+    const loteRes = await Promise.all(lote.map(async ({ ano, mes, iniStr, fimStr, label, parcial }) => {
+      try {
+        const iniMs = new Date(iniStr).getTime();
+        const fimMs = new Date(fimStr + 'T23:59:59').getTime();
+        const qIni  = new Date(iniMs).toISOString();
+        const qFim  = new Date(fimMs).toISOString();
+        const body  = {
+          data_inicio: qIni, data_fim: qFim,
+          agendas: [], assinatura_cliente: null, bairros: null, cidades: [],
+          condominios: null, grupos_clientes: [], grupos_clientes_servicos: [],
+          motivo_fechamento: [], order_by: 'data_inicio_programado', order_by_key: 'DESC',
+          participantes: [], periodos: [], pop: [], prioridade: [], reservada: null,
+          servico: [], servico_status: [], status_ordem_servico: [], tecnicos: [],
+          tipo_ordem_servico: [], turno: null,
+        };
+        const PAGE_SIZE = 500;
+        const d1 = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=1`, body);
+        const lista = [...extrairLista(d1)];
+        const { lastPage, total, perPage } = extrairPaginacao(d1);
+        let totalPages = lastPage || (total && perPage ? Math.ceil(total / perPage) : 1);
+        totalPages = Math.min(totalPages, 30);
+        if (totalPages > 1) {
+          for (let pg = 2; pg <= totalPages; pg++) {
+            try {
+              const extra = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=${pg}`, body);
+              lista.push(...extrairLista(extra));
+            } catch(ep) { break; }
+          }
+        }
+        console.log(`[ch-hist] ${iniStr}: ${lista.length} chamados (pgs:${totalPages})`);
+        return { ano, mes, label, parcial, total: lista.length };
+      } catch(e) {
+        console.warn(`[ch-hist] erro ${iniStr}:`, e.message);
+        return { ano, mes, label, parcial, total: 0, erro: true };
+      }
+    }));
+    resultados.push(...loteRes);
+  }
+  return { ok: true, meses: resultados };
+}
+
+app.get('/api/chamados/historico', async (req, res) => {
+  try {
+    const force = req.query.force === '1';
+    if (!force && _chHistCache && (Date.now() - _chHistFetchedAt) < CH_HIST_TTL) return res.json(_chHistCache);
+    if (force) { _chHistCache = null; _chHistFetchedAt = 0; }
+    if (!force) {
+      const dbH = await dbCacheGet('cache:chamados:historico', CH_HIST_TTL);
+      if (dbH) { _chHistCache = dbH; _chHistFetchedAt = Date.now(); return res.json({ ...dbH, cache: 'db' }); }
+    }
+    const result = await buildChamadosMensais();
+    _chHistCache = result; _chHistFetchedAt = Date.now();
+    dbCacheSet('cache:chamados:historico', result).catch(() => {});
+    res.json(result);
+  } catch(e) {
+    console.error('[/api/chamados/historico]', e.message);
+    if (_chHistCache) return res.json({ ..._chHistCache, aviso: e.message });
+    res.json({ ok: false, motivo: e.message });
+  }
+});
+
 app.get('/api/remocoes/historico', async (req, res) => {
   try {
     const force = req.query.force === '1';
@@ -1805,6 +1893,9 @@ async function warmupComercial() {
     // Remoções mensais históricas
     const remH = await dbCacheRestore('cache:remocoes:historico');
     if (remH) { _remHistCache = remH; _remHistFetchedAt = Date.now(); console.log('[boot] remocoes-historico restaurado'); }
+    // Chamados históricos mensais
+    const chH = await dbCacheRestore('cache:chamados:historico');
+    if (chH) { _chHistCache = chH; _chHistFetchedAt = Date.now(); console.log('[boot] chamados-historico restaurado'); }
   } catch(e) { console.warn('[boot] restauração do banco falhou:', e.message); }
 })();
 
@@ -1853,6 +1944,25 @@ setInterval(async () => {
     console.log('[adicao-liquida] cron 1h45 OK');
   } catch(e) { console.warn('[adicao-liquida] cron falhou:', e.message); }
 }, 105 * 60 * 1000);
+// Warm-up chamados históricos (150s)
+setTimeout(async () => {
+  try {
+    if (_chHistCache) return;
+    const r = await buildChamadosMensais();
+    _chHistCache = r; _chHistFetchedAt = Date.now();
+    dbCacheSet('cache:chamados:historico', r);
+    console.log('[ch-hist] warm-up OK + salvo no banco');
+  } catch(e) { console.warn('[ch-hist] warm-up falhou:', e.message); }
+}, 150000);
+// Renova chamados históricos a cada 3h
+setInterval(async () => {
+  try {
+    const r = await buildChamadosMensais();
+    _chHistCache = r; _chHistFetchedAt = Date.now();
+    dbCacheSet('cache:chamados:historico', r);
+    console.log('[ch-hist] cron 3h OK');
+  } catch(e) { console.warn('[ch-hist] cron falhou:', e.message); }
+}, 3 * 60 * 60 * 1000);
 // Warm-up remoções históricas (120s)
 setTimeout(async () => {
   try {

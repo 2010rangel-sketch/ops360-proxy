@@ -960,6 +960,20 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         </div>
       </div>
 
+      <!-- Chamados Mensal (histórico) -->
+      <div class="tbl-card" style="margin-top:14px;border-top:3px solid var(--accent)" id="ch-hist-card">
+        <div class="tbl-header">
+          <span class="tbl-title"><i class="fas fa-chart-bar" style="color:var(--accent);margin-right:5px"></i>Chamados por Mês</span>
+          <span class="badge b-blue" id="ch-hist-badge">—</span>
+          <button class="btn btn-sm" onclick="loadChamadosHistorico(true)" style="margin-left:auto"><i class="fas fa-sync-alt"></i> Atualizar</button>
+        </div>
+        <div style="padding:18px 20px 10px;overflow-x:auto">
+          <div id="ch-hist-chart" style="min-height:140px;display:flex;align-items:flex-end;justify-content:flex-start;gap:4px;min-width:600px">
+            <div style="color:var(--text3);font-size:12px;padding:40px;text-align:center;width:100%">Carregando histórico de chamados...</div>
+          </div>
+        </div>
+      </div>
+
       <!-- Painel retrabalho insight (oculto por padrão) -->
       <div id="rtbInsight" style="display:none;margin-top:12px">
         <div class="tbl-card" style="margin-bottom:0">
@@ -2816,6 +2830,8 @@ function goPage(id, el, skipHistory) {
     // DOM já está atualizado pelo autoRefresh — só força rebuild se ainda sem dados
     if (chamadosDB.length === 0) buscarPeriodo();
     else { renderTecChart(); renderCidadeChart(); renderChamadosDash(); }
+    if (_chHist) renderChamadosHistorico(_chHist);
+    else loadChamadosHistorico();
   }
   if (id === 'atendimento') {
     const { ini: _atIni } = getAtendDates();
@@ -8559,6 +8575,73 @@ function renderRemocoesMensais(d) {
     <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:${COR_BAR};display:inline-block"></span> Remoções (total: ${totalGeral})</span>
     <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#d97706;display:inline-block"></span> Mês com mais remoções (${maxMes})</span>
     <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:${COR_PARCIAL};display:inline-block"></span> Mês parcial</span>`;
+}
+
+// ─── CHAMADOS MENSAIS (HISTÓRICO) ────────────────────────────────────────────
+let _chHist = null;
+
+async function loadChamadosHistorico(force = false) {
+  const badge = document.getElementById('ch-hist-badge');
+  const chart = document.getElementById('ch-hist-chart');
+  if (badge) { badge.textContent = 'Carregando...'; badge.className = 'badge b-amber'; }
+  if (chart && !_chHist) chart.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:40px;text-align:center;width:100%">Buscando histórico de chamados… pode levar até 60s na primeira vez.</div>';
+  try {
+    const r = await fetch(`${PROXY_URL}/api/chamados/historico${force ? '?force=1' : ''}`);
+    const d = await r.json();
+    if (!d.ok) {
+      if (badge) { badge.textContent = d.motivo || 'Erro'; badge.className = 'badge b-red'; }
+      if (chart) chart.innerHTML = `<div style="color:var(--text3);font-size:12px;padding:40px;text-align:center;width:100%">${d.motivo || 'Erro'}</div>`;
+      return;
+    }
+    _chHist = d;
+    renderChamadosHistorico(d);
+    if (badge) {
+      const hora = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+      badge.textContent = `Atualizado ${hora}`;
+      badge.className = 'badge b-green';
+    }
+  } catch(e) {
+    if (badge) { badge.textContent = 'Erro de conexão'; badge.className = 'badge b-red'; }
+  }
+}
+
+function renderChamadosHistorico(d) {
+  const meses = d.meses || [];
+  if (!meses.length) return;
+  const chart = document.getElementById('ch-hist-chart');
+  const badge = document.getElementById('ch-hist-badge');
+
+  const COR_BAR     = '#5b6af0'; // accent
+  const COR_MAX     = '#7c3aed';
+  const COR_PARCIAL = '#94a3b8';
+
+  const valores  = meses.map(m => m.total);
+  const maxVal   = Math.max(...valores, 1);
+  const maxMes   = Math.max(...valores);
+  const ALTURA   = 120;
+  const totalGeral = valores.reduce((s,v) => s+v, 0);
+  if (badge) { badge.textContent = totalGeral.toLocaleString('pt-BR'); badge.className = 'badge b-blue'; }
+
+  if (!chart) return;
+  chart.innerHTML = meses.map((m, i) => {
+    const v       = m.total;
+    const h       = v > 0 ? Math.max(Math.round((v / maxVal) * ALTURA), 2) : 0;
+    const isMax   = v === maxMes && !m.parcial;
+    const cor     = m.parcial ? COR_PARCIAL : isMax ? COR_MAX : COR_BAR;
+    const tooltip = `${m.label}${m.parcial?' (parcial)':''}: ${v} chamados`;
+    const anoLbl  = (i === 0 || meses[i-1].ano !== m.ano)
+      ? `<div style="font-size:9px;color:var(--text3);margin-bottom:2px;font-weight:600">${m.ano}</div>`
+      : '<div style="font-size:9px;color:transparent">·</div>';
+    const barStyle = `width:100%;height:${h}px;background:${cor};border-radius:3px 3px 0 0;margin-top:2px${m.parcial?';opacity:.6':''}${isMax?';box-shadow:0 0 0 2px #fff3':''}`;
+    const labelExtra = m.parcial ? `<div style="font-size:8px;color:${COR_PARCIAL};font-weight:600;margin-top:1px">parcial</div>` : '';
+    return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:28px;max-width:52px;cursor:default" title="${tooltip}">
+      ${anoLbl}
+      <div style="font-size:9px;color:${cor};font-weight:700;line-height:1.2">${v||''}</div>
+      <div style="${barStyle}"></div>
+      <div style="font-size:9px;color:var(--text3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center">${m.label}</div>
+      ${labelExtra}
+    </div>`;
+  }).join('');
 }
 
 function renderTempoMedioHist(meses) {
