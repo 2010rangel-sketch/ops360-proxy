@@ -1721,6 +1721,21 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         </div>
       </div>
 
+      <!-- Histórico mensal de remoções -->
+      <div class="tbl-card" style="margin-top:14px;border-top:3px solid #f59e0b" id="rem-hist-card">
+        <div class="tbl-header">
+          <span class="tbl-title"><i class="fas fa-chart-bar" style="color:#f59e0b;margin-right:6px"></i>Remoções Mensais <span style="font-weight:400;color:var(--text3)">(jan/25 → atual)</span></span>
+          <span class="badge b-amber" id="rem-hist-badge">—</span>
+          <button class="btn btn-sm" onclick="loadRemocoesMensais(true)" style="margin-left:auto"><i class="fas fa-sync-alt"></i> Atualizar</button>
+        </div>
+        <div style="padding:12px 16px 4px">
+          <div id="rem-hist-chart" style="display:flex;align-items:flex-end;gap:4px;min-height:140px;overflow-x:auto;padding-bottom:4px">
+            <div style="color:var(--text3);font-size:12px;padding:40px;text-align:center;width:100%">Carregando…</div>
+          </div>
+          <div id="rem-hist-legend" style="display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--text3);margin-top:8px;padding-bottom:4px"></div>
+        </div>
+      </div>
+
     </div>
 
     <!-- ═══ FINANCEIRO ═══ -->
@@ -8344,6 +8359,79 @@ function renderCancelHistChart(meses) {
     <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:${COR_PARCIAL};display:inline-block"></span> Mês parcial</span>`;
 }
 
+// ─── REMOÇÕES MENSAIS ────────────────────────────────────────────────────────
+let _remHist = null;
+
+async function loadRemocoesMensais(force = false) {
+  const badge = document.getElementById('rem-hist-badge');
+  const chart = document.getElementById('rem-hist-chart');
+  if (badge) { badge.textContent = 'Carregando...'; badge.className = 'badge b-amber'; }
+  if (chart && !_remHist) chart.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:40px;text-align:center;width:100%">Buscando dados históricos… pode levar até 60s na primeira vez.</div>';
+  try {
+    const r = await fetch(`${PROXY_URL}/api/remocoes/historico${force ? '?force=1' : ''}`);
+    const d = await r.json();
+    if (!d.ok) {
+      if (badge) { badge.textContent = d.motivo || 'Erro'; badge.className = 'badge b-red'; }
+      if (chart) chart.innerHTML = `<div style="color:var(--text3);font-size:12px;padding:40px;text-align:center;width:100%">${d.motivo || 'Erro'}</div>`;
+      return;
+    }
+    _remHist = d;
+    renderRemocoesMensais(d);
+    if (badge) {
+      const hora = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+      badge.textContent = `Atualizado ${hora}`;
+      badge.className = 'badge b-green';
+    }
+  } catch(e) {
+    if (badge) { badge.textContent = 'Erro de conexão'; badge.className = 'badge b-red'; }
+  }
+}
+
+function renderRemocoesMensais(d) {
+  const meses = d.meses || [];
+  if (!meses.length) return;
+  const chart  = document.getElementById('rem-hist-chart');
+  const legend = document.getElementById('rem-hist-legend');
+  const badge  = document.getElementById('rem-hist-badge');
+
+  const COR_BAR    = '#f59e0b'; // amber
+  const COR_PARCIAL= '#94a3b8'; // cinza
+
+  const valores = meses.map(m => m.total);
+  const maxVal  = Math.max(...valores, 1);
+  const maxMes  = Math.max(...valores);
+  const ALTURA  = 120;
+  const totalGeral = valores.reduce((s,v) => s+v, 0);
+  if (badge) badge.textContent = totalGeral;
+
+  if (chart) {
+    chart.innerHTML = meses.map((m, i) => {
+      const v       = m.total;
+      const h       = v > 0 ? Math.max(Math.round((v / maxVal) * ALTURA), 2) : 0;
+      const isMax   = v === maxMes && !m.parcial;
+      const cor     = m.parcial ? COR_PARCIAL : isMax ? '#d97706' : COR_BAR;
+      const tooltip = `${m.label}${m.parcial?' (parcial)':''}: ${v} remoções`;
+      const anoLbl  = (i === 0 || meses[i-1].ano !== m.ano)
+        ? `<div style="font-size:9px;color:var(--text3);margin-bottom:2px;font-weight:600">${m.ano}</div>`
+        : '<div style="font-size:9px;color:transparent">·</div>';
+      const barStyle = `width:100%;height:${h}px;background:${cor};border-radius:3px 3px 0 0;margin-top:2px${m.parcial?';opacity:.6':''}${isMax?';box-shadow:0 0 0 2px #fff3':''}`;
+      const labelExtra = m.parcial ? `<div style="font-size:8px;color:${COR_PARCIAL};font-weight:600;margin-top:1px">parcial</div>` : '';
+      return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:28px;max-width:52px;cursor:default" title="${tooltip}">
+        ${anoLbl}
+        <div style="font-size:9px;color:${cor};font-weight:700;line-height:1.2">${v||''}</div>
+        <div style="${barStyle}"></div>
+        <div style="font-size:9px;color:var(--text3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center">${m.label}</div>
+        ${labelExtra}
+      </div>`;
+    }).join('');
+  }
+
+  if (legend) legend.innerHTML = `
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:${COR_BAR};display:inline-block"></span> Remoções (total: ${totalGeral})</span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#d97706;display:inline-block"></span> Mês com mais remoções (${maxMes})</span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:${COR_PARCIAL};display:inline-block"></span> Mês parcial</span>`;
+}
+
 function renderTempoMedioHist(meses) {
   const comDados = meses.filter(m => m.tempo_medio_meses != null);
   const chart = document.getElementById('fin-tempo-chart');
@@ -8746,7 +8834,7 @@ async function _autoRefreshPagina() {
       case 'atendimento': loadAtendimentos(); chatmixLoad(); break;
       case 'chamados':    autoRefresh();      break;
       case 'retencao':    loadRetencaoAtend(); loadCancelServico(); if (_alData) renderCancelHistChart(_alData.meses); break;
-      case 'remocao':     loadRemocoes();     break;
+      case 'remocao':     loadRemocoes(); if (!_remHist) loadRemocoesMensais(); break;
       case 'financeiro':  loadFinanceiro();   break;
       case 'saude':       loadSaudeBase();    loadFinanceiro(); break;
       case 'rh':          loadRh();           break;
