@@ -1548,10 +1548,9 @@ async function buildRemocoesMensais() {
         for (const os of lista) {
           const mf = normStr(_extrairMf(os));
           if (!mf.includes('removid')) continue;
-          // data real do fechamento — aceita qualquer campo disponível
-          const fechRaw = os.data_termino_executado || os.data_fechamento || os.data_inicio_programado || os.data_cadastro;
-          const fechMs  = fechRaw ? new Date(fechRaw.replace(' ','T')).getTime() : 0;
-          if (fechMs && (fechMs < iniMs - 86400000 || fechMs > fimMs + 86400000)) continue;
+          const fechRaw = os.data_termino_executado || os.data_inicio_programado || os.data_cadastro;
+          const fechMs  = fechRaw ? new Date(fechRaw).getTime() : 0;
+          if (!fechMs || fechMs < iniMs || fechMs > fimMs) continue;
           total_rem++;
         }
         console.log(`[rem-hist] ${iniStr}: ${lista.length} OS buscadas, ${total_rem} removidas (pgs:${totalPages})`);
