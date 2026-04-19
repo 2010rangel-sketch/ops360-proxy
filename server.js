@@ -1530,14 +1530,21 @@ async function buildRemocoesMensais() {
           tipo_ordem_servico: [], turno: null,
         };
         const PAGE_SIZE = 500;
-        const d1 = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=1`, body);
+        const _hPost = (ep, bd) => {
+          const tok = getToken().then(token => axios.post(`${HUBSOFT_HOST}/api/${ep}`, bd, {
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            timeout: 25000,
+          })).then(r => r.data);
+          return tok;
+        };
+        const d1 = await _hPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=1`, body);
         const lista = [...extrairLista(d1)];
         const { lastPage, total, perPage } = extrairPaginacao(d1);
         let totalPages = lastPage || (total && perPage ? Math.ceil(total / perPage) : 1);
-        totalPages = Math.min(totalPages, 10);
+        totalPages = Math.min(totalPages, 5);
         if (totalPages > 1) {
           const pages = Array.from({ length: totalPages - 1 }, (_, k) => k + 2);
-          const res = await Promise.all(pages.map(pg => hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=${pg}`, body).then(extrairLista)));
+          const res = await Promise.all(pages.map(pg => _hPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=${pg}`, body).then(extrairLista)));
           for (const r of res) lista.push(...r);
         }
         let total_rem = 0;
