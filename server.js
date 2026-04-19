@@ -1494,14 +1494,13 @@ async function buildRemocoesMensais() {
   const agora     = new Date();
   const limiteAno = agora.getFullYear();
   const limiteMes = agora.getMonth();
+  const PORT      = process.env.PORT || 3000;
   const _df = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  const normStr = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
 
   const meses = [];
   for (let y = 2025; y <= limiteAno; y++) {
-    const mIni = (y === 2025) ? 0 : 0;
     const mFim = (y === limiteAno) ? limiteMes : 11;
-    for (let m = mIni; m <= mFim; m++) {
+    for (let m = 0; m <= mFim; m++) {
       const ini = new Date(y, m, 1);
       const isCurrent = y === limiteAno && m === limiteMes;
       const fim = isCurrent ? agora : new Date(y, m + 1, 0);
@@ -1516,47 +1515,14 @@ async function buildRemocoesMensais() {
     const lote = meses.slice(i, i + 3);
     const loteRes = await Promise.all(lote.map(async ({ ano, mes, iniStr, fimStr, label, parcial }) => {
       try {
-        const iniMs  = new Date(iniStr).getTime();
-        const fimMs  = new Date(fimStr + 'T23:59:59').getTime();
-        const qIni   = new Date(iniMs - 14 * 86400000).toISOString();
-        const qFim   = new Date(fimMs + 86400000).toISOString();
-        const body   = {
-          data_inicio: qIni, data_fim: qFim,
-          agendas: [], assinatura_cliente: null, bairros: null, cidades: [],
-          condominios: null, grupos_clientes: [], grupos_clientes_servicos: [],
-          motivo_fechamento: [], order_by: 'data_inicio_programado', order_by_key: 'DESC',
-          participantes: [], periodos: [], pop: [], prioridade: [], reservada: null,
-          servico: [], servico_status: [], status_ordem_servico: ['finalizado'], tecnicos: [],
-          tipo_ordem_servico: [], turno: null,
-        };
-        const PAGE_SIZE = 500;
-        const d1 = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=1`, body);
-        const lista = [...extrairLista(d1)];
-        const { lastPage, total, perPage } = extrairPaginacao(d1);
-        let totalPages = lastPage || (total && perPage ? Math.ceil(total / perPage) : 1);
-        totalPages = Math.min(totalPages, 20);
-        if (totalPages > 1) {
-          for (let pg = 2; pg <= totalPages; pg++) {
-            try {
-              const extra = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=${pg}`, body);
-              lista.push(...extrairLista(extra));
-            } catch(ep) { break; }
-          }
-        }
-        const _extrairMf = os => { const m = os.motivo_fechamento; if (!m) return ''; if (typeof m === 'string') return m; if (Array.isArray(m)) return m.map(x => x?.descricao||x?.nome||'').join(','); return m?.descricao||m?.nome||''; };
-        let total_rem = 0;
-        for (const os of lista) {
-          const mf = normStr(_extrairMf(os));
-          if (!mf.includes('removid')) continue;
-          const fechRaw = os.data_termino_executado || os.data_inicio_programado || os.data_cadastro;
-          const fechMs  = fechRaw ? new Date(fechRaw).getTime() : 0;
-          if (!fechMs || fechMs < iniMs || fechMs > fimMs) continue;
-          total_rem++;
-        }
-        console.log(`[rem-hist] ${iniStr}: ${lista.length} OS buscadas, ${total_rem} removidas (pgs:${totalPages})`);
-        return { ano, mes, label, parcial, total: total_rem };
+        // Reutiliza /api/remocoes internamente — garante contagem idêntica ao painel
+        const r = await fetch(`http://localhost:${PORT}/api/remocoes?data_inicio=${iniStr}&data_fim=${fimStr}`);
+        const d = await r.json();
+        const total = d.ok ? (d.total ?? 0) : 0;
+        console.log(`[rem-hist] ${iniStr}→${fimStr}: ${total} remoções`);
+        return { ano, mes, label, parcial, total };
       } catch(e) {
-        console.warn(`[remocoes-hist] erro ${iniStr}:`, e.message);
+        console.warn(`[rem-hist] erro ${iniStr}:`, e.message);
         return { ano, mes, label, parcial, total: 0, erro: true };
       }
     }));
