@@ -8955,7 +8955,7 @@ async function _autoRefreshPagina() {
       case 'comercial':   loadComercial();   break;
       case 'atendimento': loadAtendimentos(); chatmixLoad(); break;
       case 'chamados':    autoRefresh();      break;
-      case 'retencao':    loadRetencaoAtend(); loadCancelServico(); if (_alData) renderCancelHistChart(_alData.meses); break;
+      case 'retencao':    loadRetencaoAtend(); loadCancelServico(); loadAdicaoLiquida(); break;
       case 'remocao':     loadRemocoes(); if (!_remHist) loadRemocoesMensais(); renderPrimMensalidadeRemoc(null); if (!window._primVendedores) loadFinanceiro(); break;
       case 'financeiro':  loadFinanceiro();   break;
       case 'saude':       loadSaudeBase();    loadFinanceiro(); break;
