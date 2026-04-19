@@ -1756,9 +1756,20 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
               <span class="tbl-title"><i class="fas fa-list" style="color:var(--text3);margin-right:5px"></i><span id="remoc-tbl-title">Remoções do período</span></span>
               <span class="badge b-blue" id="remoc-tbl-count" style="display:none"></span>
             </div>
-            <div style="overflow-x:auto;max-height:440px;overflow-y:auto;flex:1">
-              <table style="table-layout:fixed;width:100%"><thead><tr><th style="width:26%">Cliente</th><th style="width:18%">Cidade</th><th style="width:18%">Técnico</th><th style="width:22%">Tipo</th><th style="width:16%">Data</th></tr></thead>
-              <tbody id="remocTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">—</td></tr></tbody></table>
+            <div style="padding:6px 10px;border-bottom:1px solid var(--border)">
+              <input id="remoc-search" type="text" placeholder="🔍 Buscar por cliente, cidade, técnico, tipo ou data..." oninput="applyRemocFilters()" style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:5px 10px;color:var(--text);font-size:11px;font-family:'Inter',sans-serif;outline:none">
+            </div>
+            <div style="overflow-x:auto;max-height:400px;overflow-y:auto;flex:1">
+              <table style="table-layout:fixed;width:100%">
+                <thead><tr>
+                  <th style="width:26%;cursor:pointer;user-select:none" onclick="sortRemocTbl('cli')" id="remoc-th-cli">Cliente <span id="remoc-si-cli"></span></th>
+                  <th style="width:18%;cursor:pointer;user-select:none" onclick="sortRemocTbl('cidade')" id="remoc-th-cidade">Cidade <span id="remoc-si-cidade"></span></th>
+                  <th style="width:18%;cursor:pointer;user-select:none" onclick="sortRemocTbl('tec')" id="remoc-th-tec">Técnico <span id="remoc-si-tec"></span></th>
+                  <th style="width:22%;cursor:pointer;user-select:none" onclick="sortRemocTbl('tipo')" id="remoc-th-tipo">Tipo <span id="remoc-si-tipo"></span></th>
+                  <th style="width:16%;cursor:pointer;user-select:none" onclick="sortRemocTbl('data')" id="remoc-th-data">Data <span id="remoc-si-data"></span></th>
+                </tr></thead>
+                <tbody id="remocTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">—</td></tr></tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -7889,10 +7900,40 @@ function filtrarRemocTec(nome) {
   // Atualiza título da tabela
   const titleEl = document.getElementById('remoc-tbl-title');
   if (titleEl) titleEl.textContent = _remocTecFiltro || 'Remoções do período';
-  // Re-renderiza tabela
-  const lista = _remocTecFiltro
-    ? _remocAllUltimas.filter(c => c.tec === _remocTecFiltro)
-    : _remocAllUltimas;
+  applyRemocFilters();
+}
+
+let _remocSortCol = null, _remocSortDir = 1;
+
+function sortRemocTbl(col) {
+  if (_remocSortCol === col) { _remocSortDir *= -1; } else { _remocSortCol = col; _remocSortDir = 1; }
+  ['cli','cidade','tec','tipo','data'].forEach(c => {
+    const el = document.getElementById(`remoc-si-${c}`);
+    if (el) el.textContent = c === col ? (_remocSortDir === 1 ? ' ▲' : ' ▼') : '';
+  });
+  applyRemocFilters();
+}
+
+function applyRemocFilters() {
+  const q = (document.getElementById('remoc-search')?.value || '').toLowerCase().trim();
+  const tec = _remocTecFiltro;
+  let lista = [..._remocAllUltimas];
+  if (tec) lista = lista.filter(c => c.tec === tec);
+  if (q)   lista = lista.filter(c =>
+    (c.cli||'').toLowerCase().includes(q) ||
+    (c.cidade||'').toLowerCase().includes(q) ||
+    (c.tec||'').toLowerCase().includes(q) ||
+    (c.tipo||'').toLowerCase().includes(q) ||
+    (c.data ? new Date(c.data).toLocaleDateString('pt-BR') : '').includes(q)
+  );
+  if (_remocSortCol) {
+    lista.sort((a, b) => {
+      let va, vb;
+      if (_remocSortCol === 'data') { va = new Date(a.data||0).getTime(); vb = new Date(b.data||0).getTime(); }
+      else { va = (a[_remocSortCol]||'').toLowerCase(); vb = (b[_remocSortCol]||'').toLowerCase(); }
+      return va < vb ? -_remocSortDir : va > vb ? _remocSortDir : 0;
+    });
+  }
   _renderRemocTbl(lista);
 }
 
