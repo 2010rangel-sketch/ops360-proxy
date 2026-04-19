@@ -1704,7 +1704,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
               <span class="tbl-title"><i class="fas fa-hard-hat" style="color:var(--amber);margin-right:5px"></i>Técnico que mais removeu</span>
               <span class="badge b-amber" id="remoc-tec-count">—</span>
             </div>
-            <div id="remoc-tec-bars" style="padding:12px 16px;flex:1;overflow-y:auto;min-height:0">
+            <div id="remoc-tec-bars" style="padding:12px 16px;max-height:220px;overflow-y:auto">
               <div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem dados</div>
             </div>
           </div>
@@ -1713,7 +1713,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
               <span class="tbl-title"><i class="fas fa-list" style="color:var(--text3);margin-right:5px"></i><span id="remoc-tbl-title">Remoções do período</span></span>
               <span class="badge b-blue" id="remoc-tbl-count" style="display:none"></span>
             </div>
-            <div style="overflow-x:auto;flex:1;overflow-y:auto;min-height:0">
+            <div style="overflow-x:auto;max-height:220px;overflow-y:auto">
               <table><thead><tr><th>Cliente</th><th>Cidade</th><th>Técnico</th><th>Tipo de Abertura</th><th>Data</th></tr></thead>
               <tbody id="remocTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">—</td></tr></tbody></table>
             </div>
