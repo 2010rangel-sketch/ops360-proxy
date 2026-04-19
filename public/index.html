@@ -7730,16 +7730,18 @@ function renderRemocoes() {
   if (tb) {
     const ultimas = [...remocoes].sort((a,b) => new Date(b.dataProgramada||0) - new Date(a.dataProgramada||0)).slice(0,50);
     tb.innerHTML = ultimas.length ? ultimas.map(c => {
-      const data      = c.dataProgramada ? new Date(c.dataProgramada).toLocaleDateString('pt-BR') : '—';
-      const tipoLabel = c.tipo || c.cat || '—';
-      const catKey    = categorizaTipo(c.tipo);
-      const tagColor  = catKey === 'canc' ? 'var(--red)' : catKey === 'cobr' ? 'var(--accent)' : catKey === 'spc' ? 'var(--cyan)' : 'var(--text3)';
+      const data     = c.dataProgramada ? new Date(c.dataProgramada).toLocaleDateString('pt-BR') : '—';
+      const catKey   = categorizaTipo(c.tipo);
+      const cor      = catKey==='canc'?'#ef4444':catKey==='cobr'?'#f97316':catKey==='spc'?'#06b6d4':'#94a3b8';
+      const bg       = catKey==='canc'?'rgba(239,68,68,.12)':catKey==='cobr'?'rgba(249,115,22,.12)':catKey==='spc'?'rgba(6,182,212,.12)':'rgba(148,163,184,.1)';
+      const bdr      = catKey==='canc'?'rgba(239,68,68,.3)':catKey==='cobr'?'rgba(249,115,22,.3)':catKey==='spc'?'rgba(6,182,212,.3)':'rgba(148,163,184,.25)';
+      const lbl      = (c.tipo||'—').length>18?(c.tipo||'—').slice(0,18)+'…':(c.tipo||'—');
       return `<tr>
-        <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.cli||''}">${c.cli||'—'}</td>
-        <td>${c.cidade||'—'}</td>
-        <td>${c.tec||'—'}</td>
-        <td><span style="font-size:10px;color:${tagColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:120px" title="${tipoLabel}">${tipoLabel}</span></td>
-        <td style="white-space:nowrap">${data}</td>
+        <td style="font-weight:600;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${c.cli||''}">${c.cli||'—'}</td>
+        <td style="font-size:11px;color:var(--text2)">${c.cidade||'—'}</td>
+        <td style="font-size:11px;color:var(--text2)">${c.tec||'—'}</td>
+        <td><span style="display:inline-flex;align-items:center;font-size:11px;font-weight:600;color:${cor};background:${bg};border:1px solid ${bdr};border-radius:6px;padding:2px 8px;white-space:nowrap" title="${c.tipo||''}">${lbl}</span></td>
+        <td style="font-size:11px;color:var(--text3);white-space:nowrap">${data}</td>
       </tr>`;
     }).join('')
     : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Sem remoções no período</td></tr>';
@@ -7765,15 +7767,18 @@ function _renderRemocTbl(lista) {
   const ct = document.getElementById('remoc-tbl-count');
   if (ct) { ct.textContent = lista.length; ct.style.display = _remocTecFiltro ? '' : 'none'; }
   el.innerHTML = lista.length ? lista.map(c => {
-    const dt      = c.data ? new Date(c.data).toLocaleDateString('pt-BR') : '—';
-    const catKey  = _catR(c.tipo);
-    const tagColor = catKey==='canc'?'var(--red)':catKey==='cobr'?'var(--accent)':catKey==='spc'?'var(--cyan)':'var(--text3)';
+    const dt     = c.data ? new Date(c.data).toLocaleDateString('pt-BR') : '—';
+    const catKey = _catR(c.tipo);
+    const cor    = catKey==='canc'?'#ef4444':catKey==='cobr'?'#f97316':catKey==='spc'?'#06b6d4':'#94a3b8';
+    const bg     = catKey==='canc'?'rgba(239,68,68,.12)':catKey==='cobr'?'rgba(249,115,22,.12)':catKey==='spc'?'rgba(6,182,212,.12)':'rgba(148,163,184,.1)';
+    const bdr    = catKey==='canc'?'rgba(239,68,68,.3)':catKey==='cobr'?'rgba(249,115,22,.3)':catKey==='spc'?'rgba(6,182,212,.3)':'rgba(148,163,184,.25)';
+    const lbl    = (c.tipo||'—').length>18?(c.tipo||'—').slice(0,18)+'…':(c.tipo||'—');
     return `<tr>
-      <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.cli||''}">${c.cli||'—'}</td>
-      <td>${c.cidade||'—'}</td>
-      <td>${c.tec||'—'}</td>
-      <td><span style="font-size:10px;color:${tagColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:120px" title="${c.tipo}">${c.tipo}</span></td>
-      <td style="white-space:nowrap">${dt}</td>
+      <td style="font-weight:600;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${c.cli||''}">${c.cli||'—'}</td>
+      <td style="font-size:11px;color:var(--text2)">${c.cidade||'—'}</td>
+      <td style="font-size:11px;color:var(--text2)">${c.tec||'—'}</td>
+      <td><span style="display:inline-flex;align-items:center;font-size:11px;font-weight:600;color:${cor};background:${bg};border:1px solid ${bdr};border-radius:6px;padding:2px 8px;white-space:nowrap" title="${c.tipo||''}">${lbl}</span></td>
+      <td style="font-size:11px;color:var(--text3);white-space:nowrap">${dt}</td>
     </tr>`;
   }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Sem remoções no período</td></tr>';
 }
