@@ -612,20 +612,24 @@ async function _fetchChamadosHubsoft(data_inicio, data_fim, all) {
   return lista;
 }
 
-async function _fetchChamadosHubsoftLimitado(data_inicio, data_fim, maxPags = 5) {
+async function _fetchChamadosHubsoftLimitado(data_inicio, data_fim, maxPags = 3) {
   const PAGE_SIZE = 500;
-  const body1 = bodyConsultaOS({ data_inicio, data_fim });
-  const data1 = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=1`, body1);
+  const token = await getToken();
+  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+  const postPag = (pg) => axios.post(
+    `${HUBSOFT_HOST}/api/v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=${pg}`,
+    bodyConsultaOS({ data_inicio, data_fim }),
+    { headers, timeout: 20000 }
+  ).then(r => r.data);
+
+  const data1 = await postPag(1);
   const lista = [...extrairLista(data1)];
   const { lastPage, total, perPage } = extrairPaginacao(data1);
   let totalPages = lastPage || (total && perPage ? Math.ceil(total / perPage) : 1);
   totalPages = Math.min(totalPages, maxPags);
   if (totalPages > 1) {
     const pages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
-    const results = await Promise.all(pages.map(pg =>
-      hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=${pg}`, bodyConsultaOS({ data_inicio, data_fim }))
-        .then(extrairLista)
-    ));
+    const results = await Promise.all(pages.map(pg => postPag(pg).then(extrairLista).catch(() => [])));
     for (const r of results) lista.push(...r);
   }
   return lista;
