@@ -8322,8 +8322,8 @@ function renderCancelHistChart(meses) {
     const h       = Math.max(Math.round(pct * ALTURA), 2);
     const isMax   = v === maxVal && !m.parcial;
     const isMin   = v === minVal && !m.parcial;
-    const cor     = m.parcial ? '#60a5fa' : isMax ? '#be123c' : isMin ? '#fca5a5' : '#ef4444';
-    const corTxt  = m.parcial ? '#60a5fa' : isMax ? '#be123c' : '#ef4444';
+    const cor     = m.parcial ? '#60a5fa' : isMax ? '#e11d48' : isMin ? '#fda4af' : '#f43f5e';
+    const corTxt  = m.parcial ? '#60a5fa' : isMax ? '#e11d48' : '#f43f5e';
     const tooltip = `${m.label}${m.parcial ? ' (parcial)' : ''}: ${v} cancelamentos`;
     const anoLbl  = (i === 0 || meses[i-1].ano !== m.ano)
       ? `<div style="font-size:9px;color:var(--text3);margin-bottom:2px;font-weight:600">${m.ano}</div>`
@@ -8342,9 +8342,9 @@ function renderCancelHistChart(meses) {
   }).join('');
 
   if (legend) legend.innerHTML = `
-    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#be123c;display:inline-block"></span> Maior cancelamento (${maxVal})</span>
-    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#fca5a5;display:inline-block"></span> Menor cancelamento (${minVal})</span>
-    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#ef4444;display:inline-block"></span> Cancelados</span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#e11d48;display:inline-block"></span> Maior cancelamento (${maxVal})</span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#fda4af;display:inline-block"></span> Menor cancelamento (${minVal})</span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#f43f5e;display:inline-block"></span> Cancelados</span>
     <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#60a5fa;display:inline-block;border:1px dashed #93c5fd"></span> Mês parcial</span>`;
 }
 
