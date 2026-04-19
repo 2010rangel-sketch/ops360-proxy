@@ -1831,6 +1831,47 @@ setInterval(() => {
     console.log('[financeiro] cron 25min OK');
   }).catch(e => { _finFetching = false; console.warn('[financeiro] cron falhou:', e.message); });
 }, 25 * 60 * 1000);
+// Warm-up adição líquida (90s — depois do financeiro; buildAdicaoLiquida depende de _comAllClientes)
+setTimeout(async () => {
+  try {
+    if (_alCache) return;
+    if (!_comAllClientes) await warmupComercial();
+    if (!_comAllClientes) { console.warn('[adicao-liquida] warm-up pulado (sem clientes)'); return; }
+    const r = await buildAdicaoLiquida();
+    _alCache = r; _alFetchedAt = Date.now();
+    dbCacheSet('cache:adicao-liquida', r);
+    console.log('[adicao-liquida] warm-up OK + salvo no banco');
+  } catch(e) { console.warn('[adicao-liquida] warm-up falhou:', e.message); }
+}, 90000);
+// Renova adição líquida a cada 1h45 (antes do TTL de 2h)
+setInterval(async () => {
+  try {
+    if (!_comAllClientes) return;
+    const r = await buildAdicaoLiquida();
+    _alCache = r; _alFetchedAt = Date.now();
+    dbCacheSet('cache:adicao-liquida', r);
+    console.log('[adicao-liquida] cron 1h45 OK');
+  } catch(e) { console.warn('[adicao-liquida] cron falhou:', e.message); }
+}, 105 * 60 * 1000);
+// Warm-up remoções históricas (120s)
+setTimeout(async () => {
+  try {
+    if (_remHistCache) return;
+    const r = await buildRemocoesMensais();
+    _remHistCache = r; _remHistFetchedAt = Date.now();
+    dbCacheSet('cache:remocoes:historico', r);
+    console.log('[rem-hist] warm-up OK + salvo no banco');
+  } catch(e) { console.warn('[rem-hist] warm-up falhou:', e.message); }
+}, 120000);
+// Renova remoções históricas a cada 3h
+setInterval(async () => {
+  try {
+    const r = await buildRemocoesMensais();
+    _remHistCache = r; _remHistFetchedAt = Date.now();
+    dbCacheSet('cache:remocoes:historico', r);
+    console.log('[rem-hist] cron 3h OK');
+  } catch(e) { console.warn('[rem-hist] cron falhou:', e.message); }
+}, 3 * 60 * 60 * 1000);
 // Warm-up retenção mês atual (20s)
 setTimeout(async () => {
   try {
