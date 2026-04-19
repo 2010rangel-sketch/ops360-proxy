@@ -1571,8 +1571,13 @@ app.get('/api/remocoes/historico', async (req, res) => {
     const force = req.query.force === '1';
     if (!force && _remHistCache && (Date.now() - _remHistFetchedAt) < REM_HIST_TTL) return res.json(_remHistCache);
     if (force) { _remHistCache = null; _remHistFetchedAt = 0; }
+    if (!force) {
+      const dbH = await dbCacheGet('cache:remocoes:historico', REM_HIST_TTL);
+      if (dbH) { _remHistCache = dbH; _remHistFetchedAt = Date.now(); return res.json({ ...dbH, cache: 'db' }); }
+    }
     const result = await buildRemocoesMensais();
     _remHistCache = result; _remHistFetchedAt = Date.now();
+    dbCacheSet('cache:remocoes:historico', result).catch(() => {});
     res.json(result);
   } catch(e) {
     console.error('[/api/remocoes/historico]', e.message);
@@ -1794,6 +1799,12 @@ async function warmupComercial() {
     // Resultado processado do comercial (mês atual) — pequeno, restaura para boot rápido
     const comRes = await dbCacheRestore('cache:comercial:mesatual');
     if (comRes) { _comResultCache = comRes; console.log('[boot] comercial resultado restaurado do banco'); }
+    // Adição líquida mensal
+    const alH = await dbCacheRestore('cache:adicao-liquida');
+    if (alH) { _alCache = alH; _alFetchedAt = Date.now(); console.log('[boot] adicao-liquida restaurada'); }
+    // Remoções mensais históricas
+    const remH = await dbCacheRestore('cache:remocoes:historico');
+    if (remH) { _remHistCache = remH; _remHistFetchedAt = Date.now(); console.log('[boot] remocoes-historico restaurado'); }
   } catch(e) { console.warn('[boot] restauração do banco falhou:', e.message); }
 })();
 
@@ -3179,6 +3190,10 @@ app.get('/api/adicao-liquida', async (req, res) => {
     const agora = Date.now();
     if (!force && _alCache && (agora - _alFetchedAt) < AL_CACHE_TTL) return res.json(_alCache);
     if (force) { _alCache = null; _alFetchedAt = 0; }
+    if (!force) {
+      const dbAL = await dbCacheGet('cache:adicao-liquida', AL_CACHE_TTL);
+      if (dbAL) { _alCache = dbAL; _alFetchedAt = Date.now(); return res.json({ ...dbAL, cache: 'db' }); }
+    }
     if (!_comAllClientes) {
       warmupComercial().catch(console.warn);
       return res.json({ ok: false, motivo: 'cache_warmup', warming: true, info: 'Base de clientes sendo carregada. Tente em 60s.' });
@@ -3186,6 +3201,7 @@ app.get('/api/adicao-liquida', async (req, res) => {
     const result  = await buildAdicaoLiquida();
     _alCache      = result;
     _alFetchedAt  = agora;
+    dbCacheSet('cache:adicao-liquida', result).catch(() => {});
     res.json(result);
   } catch(e) {
     console.error('[/api/adicao-liquida]', e.message);

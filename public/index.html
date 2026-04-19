@@ -1644,40 +1644,6 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         </div>
       </div>
 
-      <!-- 1ª Mensalidade Cheia em Risco (espelho do Saúde da Base) -->
-      <div class="tbl-card" style="margin-bottom:14px;border-top:3px solid #ef4444" id="ret-prim-card">
-        <div class="tbl-header">
-          <span class="tbl-title"><i class="fas fa-exclamation-triangle" style="color:#ef4444;margin-right:6px"></i>1ª Mensalidade Cheia em Risco</span>
-          <span class="badge b-red" id="ret-prim-count">—</span>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border)">
-          <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">Novos (60d)</div><div style="font-size:16px;font-weight:700;color:var(--text)" id="ret-prim-novos">—</div></div>
-          <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">Não pagou</div><div style="font-size:16px;font-weight:700;color:#ef4444" id="ret-prim-np">—</div></div>
-          <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">% de risco</div><div style="font-size:16px;font-weight:700;color:var(--amber)" id="ret-prim-pct">—</div></div>
-        </div>
-        <div style="display:grid;grid-template-columns:280px 1fr;min-height:180px">
-          <div style="border-right:1px solid var(--border)">
-            <div style="padding:8px 12px;font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border)">Por Vendedor</div>
-            <div style="overflow-y:auto;max-height:280px">
-              <table class="tbl" style="font-size:11px"><thead><tr><th>Vendedor</th><th>Novos</th><th>Risco</th><th>%</th></tr></thead>
-              <tbody id="ret-prim-vend"></tbody></table>
-            </div>
-          </div>
-          <div>
-            <div style="padding:8px 12px;font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
-              <span id="ret-prim-titulo">Todos os clientes em risco</span>
-              <button id="ret-prim-limpar" onclick="renderPrimMensalidadeRet(null)" style="display:none;background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:0">✕ ver todos</button>
-            </div>
-            <div style="overflow-y:auto;max-height:280px">
-              <table class="tbl" style="font-size:11px">
-                <thead><tr><th>Cliente</th><th>Plano</th><th>Mensalidade</th><th>Cidade</th><th>Desde</th></tr></thead>
-                <tbody id="ret-prim-clientes"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- Serviços Cancelados (Cancelamento Geral) -->
       <div class="tbl-card" style="margin-bottom:20px;border-top:3px solid #e11d48">
         <div class="tbl-header">
@@ -8989,7 +8955,7 @@ async function _autoRefreshPagina() {
       case 'comercial':   loadComercial();   break;
       case 'atendimento': loadAtendimentos(); chatmixLoad(); break;
       case 'chamados':    autoRefresh();      break;
-      case 'retencao':    loadRetencaoAtend(); loadCancelServico(); if (_alData) renderCancelHistChart(_alData.meses); renderPrimMensalidadeRet(null); if (!window._primVendedores) loadFinanceiro(); break;
+      case 'retencao':    loadRetencaoAtend(); loadCancelServico(); if (_alData) renderCancelHistChart(_alData.meses); break;
       case 'remocao':     loadRemocoes(); if (!_remHist) loadRemocoesMensais(); renderPrimMensalidadeRemoc(null); if (!window._primVendedores) loadFinanceiro(); break;
       case 'financeiro':  loadFinanceiro();   break;
       case 'saude':       loadSaudeBase();    loadFinanceiro(); break;
