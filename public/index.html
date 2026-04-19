@@ -8333,16 +8333,21 @@ function renderLtvTabela(lista, q) {
 let _alData = null;
 
 async function loadAdicaoLiquida(force = false) {
-  const badge = document.getElementById('fin-al-badge');
+  const badge    = document.getElementById('fin-al-badge');
+  const chart    = document.getElementById('fin-al-chart');
+  const retChart = document.getElementById('ret-ch-chart');
   if (badge) { badge.textContent = 'Carregando...'; badge.className = 'badge b-amber'; }
-  const chart = document.getElementById('fin-al-chart');
-  if (chart && !_alData) chart.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:40px;text-align:center;width:100%">Buscando dados históricos do Hubsoft… pode levar até 60s na primeira vez.</div>';
+  const loadMsg = '<div style="color:var(--text3);font-size:12px;padding:40px;text-align:center;width:100%">Buscando dados históricos do Hubsoft… pode levar até 60s na primeira vez.</div>';
+  if (chart && !_alData) chart.innerHTML = loadMsg;
+  if (retChart && !_alData) retChart.innerHTML = loadMsg;
   try {
     const r = await fetch(`${PROXY_URL}/api/adicao-liquida${force ? '?force=1' : ''}`);
     const d = await r.json();
     if (!d.ok) {
+      const errMsg = `<div style="color:var(--text3);font-size:12px;padding:40px;text-align:center;width:100%">${d.info || d.motivo}</div>`;
       if (badge) { badge.textContent = d.info || d.motivo || 'Erro'; badge.className = 'badge b-red'; }
-      if (chart) chart.innerHTML = `<div style="color:var(--text3);font-size:12px;padding:40px;text-align:center;width:100%">${d.info || d.motivo}</div>`;
+      if (chart) chart.innerHTML = errMsg;
+      if (retChart) retChart.innerHTML = errMsg;
       if (d.warming) setTimeout(() => loadAdicaoLiquida(), 30000);
       return;
     }
