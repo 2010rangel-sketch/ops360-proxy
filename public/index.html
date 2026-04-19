@@ -1322,6 +1322,66 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
           <tbody id="cm-tbl-setores"><tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px">—</td></tr></tbody></table>
         </div>
       </div>
+
+      <!-- ── Auditoria POP ─────────────────────────────────────────── -->
+      <div style="display:flex;align-items:center;gap:10px;margin:22px 0 12px">
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">
+          <i class="fas fa-clipboard-check"></i> Auditoria POP
+          <span style="font-size:10px;font-weight:400;color:var(--text3)" id="aud-last-update"></span>
+          <button class="btn btn-sm" onclick="auditoriaLoad()" style="padding:2px 10px;font-size:11px"><i class="fas fa-sync-alt"></i></button>
+        </div>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+      </div>
+
+      <!-- KPIs Auditoria -->
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px">
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:#f59e0b"></div><div class="kpi-mini-label">Total Auditados</div><div class="kpi-mini-val" style="color:#f59e0b" id="aud-total">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">Score Médio</div><div class="kpi-mini-val" style="color:var(--green)" id="aud-score-medio">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Comercial</div><div class="kpi-mini-val" style="color:var(--accent)" id="aud-score-comercial">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--cyan)"></div><div class="kpi-mini-label">Suporte</div><div class="kpi-mini-val" style="color:var(--cyan)" id="aud-score-suporte">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--purple,#8b5cf6)"></div><div class="kpi-mini-label">Recepção</div><div class="kpi-mini-val" style="color:var(--purple,#8b5cf6)" id="aud-score-recepcao">—</div></div>
+        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Abaixo de 60%</div><div class="kpi-mini-val" style="color:var(--red)" id="aud-baixo">—</div></div>
+      </div>
+
+      <!-- Filtros + tabela -->
+      <div class="tbl-card" style="margin-bottom:14px">
+        <div class="tbl-header">
+          <span class="tbl-title"><i class="fas fa-list-check" style="color:#f59e0b;margin-right:6px"></i>Atendimentos Auditados</span>
+          <span class="badge" style="background:#f59e0b22;color:#f59e0b;border:1px solid #f59e0b44" id="aud-badge">—</span>
+          <div style="display:flex;gap:6px;align-items:center;margin-left:auto">
+            <select id="aud-filtro-setor" onchange="auditoriaRender()" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:4px 8px;color:var(--text);font-size:11px">
+              <option value="">Todos os setores</option>
+              <option value="Comercial">Comercial</option>
+              <option value="Suporte">Suporte</option>
+              <option value="Recepcao">Recepção</option>
+            </select>
+            <input type="text" id="aud-filtro-atend" oninput="auditoriaRender()" placeholder="Filtrar atendente..." style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:4px 8px;color:var(--text);font-size:11px;width:150px">
+          </div>
+        </div>
+        <div style="overflow-x:auto;max-height:420px;overflow-y:auto">
+          <table style="font-size:11px"><thead><tr>
+            <th>Data</th><th>Atendente</th><th>Setor</th><th>Cliente</th><th>POP Aplicado</th><th style="text-align:center">Score</th><th style="text-align:center">Regras</th><th>TMA</th>
+          </tr></thead>
+          <tbody id="aud-tbl"><tr><td colspan="8" style="text-align:center;color:var(--text3);padding:30px">
+            <i class="fas fa-clipboard-check" style="display:block;font-size:24px;margin-bottom:8px;color:var(--border)"></i>
+            Sem dados. Use o script <b>push_to_ops360.py</b> no PC com o ChatMix para enviar auditorias.
+          </td></tr></tbody></table>
+        </div>
+      </div>
+
+      <!-- Por Atendente (auditoria) -->
+      <div class="tbl-card" style="margin-bottom:0">
+        <div class="tbl-header">
+          <span class="tbl-title"><i class="fas fa-user-check" style="color:#f59e0b;margin-right:6px"></i>Ranking de Atendentes — POP</span>
+        </div>
+        <div style="overflow-x:auto;max-height:320px;overflow-y:auto">
+          <table style="font-size:11px"><thead><tr>
+            <th>#</th><th>Atendente</th><th>Setor</th><th style="text-align:center">Auditorias</th><th style="text-align:center">Score Médio</th><th style="text-align:center">Melhor POP</th>
+          </tr></thead>
+          <tbody id="aud-tbl-atend"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">—</td></tr></tbody></table>
+        </div>
+      </div>
     </div>
 
 
@@ -6384,6 +6444,101 @@ async function chatmixRefresh() {
   } catch(e) { console.error('[ChatMix]', e); }
 }
 
+// ── Auditoria POP ─────────────────────────────────────────────────────────
+let _auditoriaData = null;
+
+async function auditoriaLoad() {
+  try {
+    const r = await fetch('/api/chatmix/auditoria', { headers: { Authorization: `Bearer ${_authToken}` } });
+    const d = await r.json();
+    _auditoriaData = d;
+    auditoriaRender();
+    const el = document.getElementById('aud-last-update');
+    if (el && d.atualizado_em) el.textContent = 'Atualizado ' + new Date(d.atualizado_em).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+  } catch(e) { console.error('[Auditoria]', e); }
+}
+
+function auditoriaRender() {
+  const d = _auditoriaData;
+  const resultados = d?.resultados || [];
+  const setFv = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+
+  // Filtros
+  const filtroSetor = (document.getElementById('aud-filtro-setor')?.value || '').toLowerCase();
+  const filtroAtend = (document.getElementById('aud-filtro-atend')?.value || '').toLowerCase();
+  const lista = resultados.filter(r => {
+    const setor = (r.setor_chatmix || r.setor || '').toLowerCase();
+    const atend = (r.atendente || '').toLowerCase();
+    if (filtroSetor && !setor.includes(filtroSetor)) return false;
+    if (filtroAtend && !atend.includes(filtroAtend)) return false;
+    return true;
+  });
+
+  // KPIs globais (sem filtro)
+  const scoreMedio = s => s.length ? Math.round(s.reduce((a, r) => a + (r.score_pop || 0), 0) / s.length) : null;
+  const setores = ['comercial', 'suporte', 'recepcao'];
+  const porSetor = s => resultados.filter(r => (r.setor_chatmix || r.setor || '').toLowerCase().includes(s));
+  const fmt = v => v != null ? v + '%' : '—';
+  setFv('aud-total', resultados.length);
+  setFv('aud-score-medio', fmt(scoreMedio(resultados)));
+  setFv('aud-score-comercial', fmt(scoreMedio(porSetor('comercial'))));
+  setFv('aud-score-suporte',   fmt(scoreMedio(porSetor('suporte'))));
+  setFv('aud-score-recepcao',  fmt(scoreMedio(porSetor('recep'))));
+  setFv('aud-baixo', resultados.filter(r => (r.score_pop || 0) < 60).length);
+  setFv('aud-badge', lista.length);
+
+  // Tabela principal
+  const tbl = document.getElementById('aud-tbl');
+  if (tbl) {
+    if (!lista.length) {
+      tbl.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:30px">Nenhum registro encontrado</td></tr>`;
+    } else {
+      const corScore = s => s >= 80 ? '#22c55e' : s >= 60 ? '#f59e0b' : '#ef4444';
+      tbl.innerHTML = lista.slice().sort((a,b) => (b.inicio||b.fim||'') > (a.inicio||a.fim||'') ? 1 : -1).map(r => {
+        const score = r.score_pop ?? '—';
+        const cor   = typeof score === 'number' ? corScore(score) : 'var(--text3)';
+        const data  = (r.inicio || r.fim || '').slice(0, 10);
+        const tma   = r.chatmix_tma || r.duracao || '—';
+        return `<tr>
+          <td class="mono" style="color:var(--text3)">${data}</td>
+          <td style="font-weight:600">${r.atendente || '—'}</td>
+          <td><span style="font-size:10px;padding:1px 6px;border-radius:10px;background:var(--bg3);color:var(--text2)">${r.setor_chatmix || r.setor || '—'}</span></td>
+          <td style="color:var(--text2)">${r.cliente || '—'}</td>
+          <td style="color:var(--text3);font-size:10px">${r.pop_aplicado || '—'}</td>
+          <td style="text-align:center;font-weight:700;color:${cor}">${typeof score === 'number' ? score + '%' : score}</td>
+          <td style="text-align:center;color:var(--text3)">${r.regras_pop_cumpridas ?? '—'}/${r.regras_pop_total ?? '—'}</td>
+          <td class="mono" style="color:var(--text3)">${tma}</td>
+        </tr>`;
+      }).join('');
+    }
+  }
+
+  // Ranking por atendente
+  const rankTbl = document.getElementById('aud-tbl-atend');
+  if (rankTbl) {
+    const mapaAtend = {};
+    for (const r of resultados) {
+      const k = r.atendente || '—';
+      if (!mapaAtend[k]) mapaAtend[k] = { atendente: k, setor: r.setor_chatmix || r.setor || '—', scores: [], pops: {} };
+      mapaAtend[k].scores.push(r.score_pop || 0);
+      const p = r.pop_aplicado || 'Geral';
+      mapaAtend[k].pops[p] = (mapaAtend[k].pops[p] || 0) + 1;
+    }
+    const ranking = Object.values(mapaAtend)
+      .map(a => ({ ...a, media: Math.round(a.scores.reduce((s,v)=>s+v,0)/a.scores.length), melhor: Object.entries(a.pops).sort((x,y)=>y[1]-x[1])[0]?.[0] || '—' }))
+      .sort((a,b) => b.media - a.media);
+    const corScore = s => s >= 80 ? '#22c55e' : s >= 60 ? '#f59e0b' : '#ef4444';
+    rankTbl.innerHTML = ranking.length ? ranking.map((a,i) => `<tr>
+      <td style="color:var(--text3)">${i+1}</td>
+      <td style="font-weight:600">${a.atendente}</td>
+      <td><span style="font-size:10px;padding:1px 6px;border-radius:10px;background:var(--bg3);color:var(--text2)">${a.setor}</span></td>
+      <td style="text-align:center">${a.scores.length}</td>
+      <td style="text-align:center;font-weight:700;color:${corScore(a.media)}">${a.media}%</td>
+      <td style="font-size:10px;color:var(--text3)">${a.melhor}</td>
+    </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">—</td></tr>';
+  }
+}
+
 function _chatmixRender() {
   if (!_cmData) return;
   const d = _cmData;
@@ -8743,7 +8898,7 @@ async function _autoRefreshPagina() {
   try {
     switch (_curPage) {
       case 'comercial':   loadComercial();   break;
-      case 'atendimento': loadAtendimentos(); chatmixLoad(); break;
+      case 'atendimento': loadAtendimentos(); chatmixLoad(); auditoriaLoad(); break;
       case 'chamados':    autoRefresh();      break;
       case 'retencao':    loadRetencaoAtend(); loadCancelServico(); if (_alData) renderCancelHistChart(_alData.meses); break;
       case 'remocao':     loadRemocoes();     break;

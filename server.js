@@ -4648,6 +4648,36 @@ app.post('/api/chatmix/ingest', (req, res) => {
   res.json({ ok: true });
 });
 
+// ── Auditoria POP (dados do sistema Python chatmix_auditoria) ─────────────
+let _auditoriaCache = null;
+let _auditoriaLastUpdate = null;
+
+// Restaura auditoria do banco ao iniciar
+setTimeout(async () => {
+  try {
+    const saved = await dbCacheRestore('cache:chatmix:auditoria');
+    if (saved) { _auditoriaCache = saved.resultados; _auditoriaLastUpdate = saved.atualizado_em; console.log(`[auditoria] restaurado: ${_auditoriaCache?.length} registros`); }
+  } catch(e) {}
+}, 3000);
+
+app.get('/api/chatmix/auditoria', _validarToken, (req, res) => {
+  if (!_auditoriaCache) return res.json({ ok: false, vazio: true, resultados: [], atualizado_em: null });
+  res.json({ ok: true, total: _auditoriaCache.length, resultados: _auditoriaCache, atualizado_em: _auditoriaLastUpdate });
+});
+
+app.post('/api/chatmix/auditoria', async (req, res) => {
+  const secret = req.headers['x-agent-secret'];
+  if (secret !== (process.env.CHATMIX_AGENT_SECRET || 'chatmix-agent-2026')) return res.status(401).json({ error: 'não autorizado' });
+  const body = req.body;
+  if (!Array.isArray(body) && !Array.isArray(body?.resultados)) return res.status(400).json({ error: 'body deve ser array ou { resultados: [] }' });
+  const lista = Array.isArray(body) ? body : body.resultados;
+  _auditoriaCache = lista;
+  _auditoriaLastUpdate = new Date().toISOString();
+  dbCacheSet('cache:chatmix:auditoria', { resultados: lista, atualizado_em: _auditoriaLastUpdate });
+  console.log(`[auditoria] recebido: ${lista.length} registros`);
+  res.json({ ok: true, total: lista.length, atualizado_em: _auditoriaLastUpdate });
+});
+
 app.get('/api/chatmix/debug', async (req, res) => {
   const results = {};
   // Tenta login
