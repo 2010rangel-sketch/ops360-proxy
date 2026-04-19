@@ -8309,9 +8309,8 @@ function renderCancelHistChart(meses) {
   const badge  = document.getElementById('ret-ch-badge');
   if (!chart || !meses || !meses.length) return;
 
-  const COR_INADIMP = '#3b82f6'; // azul
-  const COR_OUTROS  = '#e11d48'; // vermelho
-  const COR_PARCIAL = '#94a3b8'; // cinza azulado
+  const COR_BAR    = '#fb7185'; // vermelho suave (rose-400)
+  const COR_PARCIAL= '#94a3b8'; // cinza — mês atual
 
   const valores    = meses.map(m => m.cancelados);
   const maxVal     = Math.max(...valores, 1);
@@ -8325,30 +8324,25 @@ function renderCancelHistChart(meses) {
     const v       = m.cancelados;
     const inadimp = m.cancelados_inadimp || 0;
     const outros  = m.cancelados_outros  || (v - inadimp);
-    const hTotal  = v > 0 ? Math.max(Math.round((v / maxVal) * ALTURA), 2) : 0;
-    const hInad   = v > 0 ? Math.round((inadimp / v) * hTotal) : 0;
-    const hOut    = hTotal - hInad;
-    const tooltip = `${m.label}${m.parcial?' (parcial)':''}: ${v} cancelamentos\nInadimplência: ${inadimp} · Outros: ${outros}`;
+    const h       = v > 0 ? Math.max(Math.round((v / maxVal) * ALTURA), 2) : 0;
+    const cor     = m.parcial ? COR_PARCIAL : COR_BAR;
+    const tooltip = `${m.label}${m.parcial?' (parcial)':''}: ${v} cancelamentos — Inadimplência: ${inadimp} | Outros: ${outros}`;
     const anoLbl  = (i === 0 || meses[i-1].ano !== m.ano)
       ? `<div style="font-size:9px;color:var(--text3);margin-bottom:2px;font-weight:600">${m.ano}</div>`
       : '<div style="font-size:9px;color:transparent">·</div>';
-    const opac   = m.parcial ? '.55' : '1';
-    const barOut  = hOut > 0  ? `<div style="width:100%;height:${hOut}px;background:${m.parcial?COR_PARCIAL:COR_OUTROS};opacity:${opac};border-radius:3px 3px 0 0"></div>` : '';
-    const barInad = hInad > 0 ? `<div style="width:100%;height:${hInad}px;background:${m.parcial?COR_PARCIAL:COR_INADIMP};opacity:${opac}"></div>` : '';
-    const corTxt  = m.parcial ? COR_PARCIAL : (inadimp >= outros ? COR_INADIMP : COR_OUTROS);
+    const barStyle = `width:100%;height:${h}px;background:${cor};border-radius:3px 3px 0 0;margin-top:2px${m.parcial?';opacity:.6':''}`;
     const labelExtra = m.parcial ? `<div style="font-size:8px;color:${COR_PARCIAL};font-weight:600;margin-top:1px">parcial</div>` : '';
     return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:28px;max-width:52px;cursor:default" title="${tooltip}">
       ${anoLbl}
-      <div style="font-size:9px;color:${corTxt};font-weight:700;line-height:1.2">${v||''}</div>
-      <div style="width:100%;display:flex;flex-direction:column;margin-top:2px">${barOut}${barInad}</div>
+      <div style="font-size:9px;color:${cor};font-weight:700;line-height:1.2">${v||''}</div>
+      <div style="${barStyle}"></div>
       <div style="font-size:9px;color:var(--text3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center">${m.label}</div>
       ${labelExtra}
     </div>`;
   }).join('');
 
   if (legend) legend.innerHTML = `
-    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:${COR_OUTROS};display:inline-block"></span> Outros motivos (${totalOutros})</span>
-    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:${COR_INADIMP};display:inline-block"></span> Inadimplência (${totalInadimpl})</span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:${COR_BAR};display:inline-block"></span> Total cancelados (${totalGeral}) — passe o mouse para ver inadimplência vs outros</span>
     <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:${COR_PARCIAL};display:inline-block"></span> Mês parcial</span>`;
 }
 
