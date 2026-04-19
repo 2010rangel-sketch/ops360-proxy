@@ -7706,17 +7706,23 @@ function renderRemocoes() {
 
   const barsEl = document.getElementById('remoc-tec-bars');
   if (barsEl) {
-    barsEl.innerHTML = tecs.length ? tecs.map(([nome, qtd]) => `
-      <div style="margin-bottom:10px">
-        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
-          <span style="color:var(--text);font-weight:500">${nome}</span>
-          <span style="color:var(--amber);font-weight:700">${qtd}</span>
+    const totalTec = tecs.reduce((s,[,q])=>s+q,0);
+    barsEl.innerHTML = tecs.length ? `<div style="padding:4px 10px 2px">${tecs.map(([nome, qtd],i)=>{
+      const pct = totalTec>0?Math.round(qtd/totalTec*100):0;
+      const barW = totalTec>0?(qtd/maxTec*100).toFixed(1):0;
+      const lbl = nome.length>26?nome.slice(0,26)+'…':nome;
+      return `<div style="display:grid;grid-template-columns:140px 1fr 58px;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:12px;font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${nome}">${lbl}</span>
+        <div style="height:20px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden">
+          <div style="height:100%;width:${barW}%;background:var(--amber);border-radius:4px;opacity:.85"></div>
         </div>
-        <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden">
-          <div style="width:${Math.round(qtd/maxTec*100)}%;height:100%;background:var(--amber);border-radius:4px;transition:width .4s"></div>
+        <div style="text-align:right;line-height:1.2">
+          <span style="font-size:14px;font-weight:800;color:var(--amber)">${qtd}</span>
+          <span style="display:block;font-size:10px;color:var(--text3)">${pct}%</span>
         </div>
-      </div>`).join('')
-      : '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem remoções no período</div>';
+      </div>`;
+    }).join('')}</div>`
+    : '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem remoções no período</div>';
   }
 
   // Tabela das últimas remoções
@@ -7835,21 +7841,25 @@ async function loadRemocoes() {
     ev('remoc-tec-count', tecs.length);
     const barsEl = document.getElementById('remoc-tec-bars');
     if (barsEl) {
-      barsEl.innerHTML = tecs.length ? tecs.map(t => {
+      const totalTec = tecs.reduce((s,t)=>s+t.total,0);
+      barsEl.innerHTML = tecs.length ? `<div style="padding:4px 10px 2px">${tecs.map(t=>{
         const tecEsc = t.tec.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+        const pct = totalTec>0?Math.round(t.total/totalTec*100):0;
+        const barW = maxTec>0?(t.total/maxTec*100).toFixed(1):0;
+        const lbl = t.tec.length>26?t.tec.slice(0,26)+'…':t.tec;
         return `<div class="remoc-bar-row" data-tec="${t.tec.replace(/"/g,'&quot;')}" onclick="filtrarRemocTec('${tecEsc}')"
-          style="margin-bottom:8px;cursor:pointer;padding:5px 6px;border-radius:5px;transition:background .15s,outline .15s"
-          onmouseenter="this.style.background='var(--bg3)'"
-          onmouseleave="if(_remocTecFiltro!=='${tecEsc}')this.style.background=''">
-          <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
-            <span class="remoc-bar-name" style="color:var(--text);font-weight:500">${t.tec}</span>
-            <span class="remoc-bar-num" style="color:var(--amber);font-weight:700">${t.total}</span>
+          style="display:grid;grid-template-columns:140px 1fr 58px;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer"
+          onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background=''">
+          <span class="remoc-bar-name" style="font-size:12px;font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.tec}">${lbl}</span>
+          <div style="height:20px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden">
+            <div class="remoc-bar-fill" style="height:100%;width:${barW}%;background:var(--amber);border-radius:4px;opacity:.85"></div>
           </div>
-          <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden">
-            <div class="remoc-bar-fill" style="width:${Math.round(t.total/maxTec*100)}%;height:100%;background:var(--amber);border-radius:4px;transition:width .4s"></div>
+          <div style="text-align:right;line-height:1.2">
+            <span class="remoc-bar-num" style="font-size:14px;font-weight:800;color:var(--amber)">${t.total}</span>
+            <span style="display:block;font-size:10px;color:var(--text3)">${pct}%</span>
           </div>
         </div>`;
-      }).join('')
+      }).join('')}</div>`
       : '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem remoções no período</div>';
     }
 
