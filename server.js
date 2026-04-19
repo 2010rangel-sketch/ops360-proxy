@@ -612,6 +612,25 @@ async function _fetchChamadosHubsoft(data_inicio, data_fim, all) {
   return lista;
 }
 
+async function _fetchChamadosHubsoftLimitado(data_inicio, data_fim, maxPags = 5) {
+  const PAGE_SIZE = 500;
+  const body1 = bodyConsultaOS({ data_inicio, data_fim });
+  const data1 = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=1`, body1);
+  const lista = [...extrairLista(data1)];
+  const { lastPage, total, perPage } = extrairPaginacao(data1);
+  let totalPages = lastPage || (total && perPage ? Math.ceil(total / perPage) : 1);
+  totalPages = Math.min(totalPages, maxPags);
+  if (totalPages > 1) {
+    const pages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+    const results = await Promise.all(pages.map(pg =>
+      hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=${pg}`, bodyConsultaOS({ data_inicio, data_fim }))
+        .then(extrairLista)
+    ));
+    for (const r of results) lista.push(...r);
+  }
+  return lista;
+}
+
 function _normalizarChamados(lista) {
   return lista.map(os => {
     const tipo  = os.tipo_ordem_servico?.descricao || os.tipo_os?.nome || 'Sem tipo';
@@ -3153,8 +3172,8 @@ app.get('/api/saude-base', async (req, res) => {
       return res.json({ ..._saudeCache[cacheKey].data, cache: true });
     }
 
-    // Busca OS do período
-    const lista = await _fetchChamadosHubsoft(dataIni, dataFim, true);
+    // Busca OS do período — limitado a 5 páginas (2500 OS) para não estourar timeout
+    const lista = await _fetchChamadosHubsoftLimitado(dataIni, dataFim, 5);
 
     // Mapa de status de contrato (de _comAllClientes se disponível)
     const statusContratoMap = {};
