@@ -1764,6 +1764,21 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         </div>
       </div>
 
+      <!-- Histórico mensal de remoções -->
+      <div class="tbl-card" style="margin-top:14px;border-top:3px solid #f59e0b" id="rem-hist-card">
+        <div class="tbl-header">
+          <span class="tbl-title"><i class="fas fa-chart-bar" style="color:#f59e0b;margin-right:6px"></i>Remoções Mensais <span style="font-weight:400;color:var(--text3)">(jan/25 → atual)</span></span>
+          <span class="badge b-amber" id="rem-hist-badge">—</span>
+          <button class="btn btn-sm" onclick="loadRemocoesMensais(true)" style="margin-left:auto"><i class="fas fa-sync-alt"></i> Atualizar</button>
+        </div>
+        <div style="padding:12px 16px 4px">
+          <div id="rem-hist-chart" style="display:flex;align-items:flex-end;gap:4px;min-height:140px;overflow-x:auto;padding-bottom:4px">
+            <div style="color:var(--text3);font-size:12px;padding:40px;text-align:center;width:100%">Carregando…</div>
+          </div>
+          <div id="rem-hist-legend" style="display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--text3);margin-top:8px;padding-bottom:4px"></div>
+        </div>
+      </div>
+
       <!-- 1ª Mensalidade Cheia em Risco -->
       <div class="tbl-card" style="margin-top:14px;border-top:3px solid #ef4444" id="rmoc-prim-card">
         <div class="tbl-header">
@@ -1795,21 +1810,6 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
               </table>
             </div>
           </div>
-        </div>
-      </div>
-
-      <!-- Histórico mensal de remoções -->
-      <div class="tbl-card" style="margin-top:14px;border-top:3px solid #f59e0b" id="rem-hist-card">
-        <div class="tbl-header">
-          <span class="tbl-title"><i class="fas fa-chart-bar" style="color:#f59e0b;margin-right:6px"></i>Remoções Mensais <span style="font-weight:400;color:var(--text3)">(jan/25 → atual)</span></span>
-          <span class="badge b-amber" id="rem-hist-badge">—</span>
-          <button class="btn btn-sm" onclick="loadRemocoesMensais(true)" style="margin-left:auto"><i class="fas fa-sync-alt"></i> Atualizar</button>
-        </div>
-        <div style="padding:12px 16px 4px">
-          <div id="rem-hist-chart" style="display:flex;align-items:flex-end;gap:4px;min-height:140px;overflow-x:auto;padding-bottom:4px">
-            <div style="color:var(--text3);font-size:12px;padding:40px;text-align:center;width:100%">Carregando…</div>
-          </div>
-          <div id="rem-hist-legend" style="display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--text3);margin-top:8px;padding-bottom:4px"></div>
         </div>
       </div>
 
