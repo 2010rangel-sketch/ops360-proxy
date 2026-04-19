@@ -2832,6 +2832,8 @@ function goPage(id, el, skipHistory) {
     loadRetencaoAtend();
     loadCancelServico();
     loadRemocoes();
+    if (_alData) renderCancelHistChart(_alData.meses);
+    else loadAdicaoLiquida();
   }
   if (id === 'comercial') {
     // Se já tem dados em cache, mostra o horário da última sincronização imediatamente
