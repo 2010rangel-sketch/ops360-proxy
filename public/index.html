@@ -1629,6 +1629,21 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         </div>
       </div>
 
+      <!-- Cancelados Geral Mensal (histórico) -->
+      <div class="tbl-card" style="margin-bottom:14px;border-top:3px solid #e11d48" id="ret-cancel-hist-card">
+        <div class="tbl-header">
+          <span class="tbl-title"><i class="fas fa-chart-bar" style="color:#e11d48;margin-right:5px"></i>Cancelados Geral Mensal</span>
+          <span class="badge b-red" id="ret-ch-badge">—</span>
+          <button class="btn btn-sm" onclick="loadAdicaoLiquida(true).then(()=>renderCancelHistChart(_alData&&_alData.meses))" style="margin-left:auto"><i class="fas fa-sync-alt"></i> Atualizar</button>
+        </div>
+        <div style="padding:16px 16px 8px;overflow-x:auto">
+          <div id="ret-ch-chart" style="min-height:140px;display:flex;align-items:flex-end;justify-content:flex-start;gap:4px;min-width:600px">
+            <div style="color:var(--text3);font-size:12px;padding:40px;text-align:center;width:100%">Clique em <b>Atualizar</b> para carregar histórico de cancelamentos.</div>
+          </div>
+          <div id="ret-ch-legend" style="display:flex;gap:16px;justify-content:center;margin-top:6px;flex-wrap:wrap;font-size:11px;color:var(--text3)"></div>
+        </div>
+      </div>
+
       <!-- Serviços Cancelados (Cancelamento Geral) -->
       <div class="tbl-card" style="margin-bottom:20px;border-top:3px solid #e11d48">
         <div class="tbl-header">
@@ -8283,8 +8298,54 @@ function renderAdicaoLiquida(d) {
   const nota = document.getElementById('fin-al-proj-nota');
   if (nota) nota.innerHTML = `Baseado em <b>${p.meses_fechados} meses fechados</b> de 2026. Estimativa de encerrar dezembro/26 com <b style="color:${p.estimativa_final>=0?'#22c55e':'#ef4444'}">${sinal(p.estimativa_final)} clientes líquidos</b> no ano.`;
 
-  // Renderiza gráfico de tempo médio de vida
+  // Renderiza gráfico de tempo médio de vida + histórico cancelados
   renderTempoMedioHist(d.meses || []);
+  renderCancelHistChart(d.meses || []);
+}
+
+function renderCancelHistChart(meses) {
+  const chart = document.getElementById('ret-ch-chart');
+  const legend = document.getElementById('ret-ch-legend');
+  const badge  = document.getElementById('ret-ch-badge');
+  if (!chart || !meses || !meses.length) return;
+
+  const valores = meses.map(m => m.cancelados);
+  const maxVal  = Math.max(...valores, 1);
+  const minVal  = Math.min(...valores);
+  const ALTURA  = 120;
+  const totalGeral = valores.reduce((s, v) => s + v, 0);
+  if (badge) badge.textContent = totalGeral;
+
+  chart.innerHTML = meses.map((m, i) => {
+    const v       = m.cancelados;
+    const pct     = v / maxVal;
+    const h       = Math.max(Math.round(pct * ALTURA), 2);
+    const isMax   = v === maxVal && !m.parcial;
+    const isMin   = v === minVal && !m.parcial;
+    const cor     = m.parcial ? '#60a5fa' : isMax ? '#be123c' : isMin ? '#fca5a5' : '#ef4444';
+    const corTxt  = m.parcial ? '#60a5fa' : isMax ? '#be123c' : '#ef4444';
+    const tooltip = `${m.label}${m.parcial ? ' (parcial)' : ''}: ${v} cancelamentos`;
+    const anoLbl  = (i === 0 || meses[i-1].ano !== m.ano)
+      ? `<div style="font-size:9px;color:var(--text3);margin-bottom:2px;font-weight:600">${m.ano}</div>`
+      : '<div style="font-size:9px;color:transparent">·</div>';
+    const barStyle = m.parcial
+      ? `width:100%;height:${h}px;background:${cor};border-radius:3px 3px 0 0;margin-top:2px;opacity:.7;border:1px dashed #93c5fd;box-sizing:border-box`
+      : `width:100%;height:${h}px;background:${cor};border-radius:3px 3px 0 0;margin-top:2px;${isMax?'box-shadow:0 0 0 2px #fff3':''}`;
+    const labelExtra = m.parcial ? `<div style="font-size:8px;color:#60a5fa;font-weight:600;margin-top:1px">parcial</div>` : '';
+    return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:28px;max-width:52px;cursor:default" title="${tooltip}">
+      ${anoLbl}
+      <div style="font-size:9px;color:${corTxt};font-weight:700;line-height:1.2">${v}</div>
+      <div style="${barStyle}"></div>
+      <div style="font-size:9px;color:var(--text3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center">${m.label}</div>
+      ${labelExtra}
+    </div>`;
+  }).join('');
+
+  if (legend) legend.innerHTML = `
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#be123c;display:inline-block"></span> Maior cancelamento (${maxVal})</span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#fca5a5;display:inline-block"></span> Menor cancelamento (${minVal})</span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#ef4444;display:inline-block"></span> Cancelados</span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#60a5fa;display:inline-block;border:1px dashed #93c5fd"></span> Mês parcial</span>`;
 }
 
 function renderTempoMedioHist(meses) {
@@ -8688,7 +8749,7 @@ async function _autoRefreshPagina() {
       case 'comercial':   loadComercial();   break;
       case 'atendimento': loadAtendimentos(); chatmixLoad(); break;
       case 'chamados':    autoRefresh();      break;
-      case 'retencao':    loadRetencaoAtend(); loadCancelServico(); break;
+      case 'retencao':    loadRetencaoAtend(); loadCancelServico(); if (_alData) renderCancelHistChart(_alData.meses); break;
       case 'remocao':     loadRemocoes();     break;
       case 'financeiro':  loadFinanceiro();   break;
       case 'saude':       loadSaudeBase();    loadFinanceiro(); break;
