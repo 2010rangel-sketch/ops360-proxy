@@ -1757,7 +1757,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
               <span class="badge b-blue" id="remoc-tbl-count" style="display:none"></span>
             </div>
             <div style="overflow-x:auto;max-height:440px;overflow-y:auto;flex:1">
-              <table><thead><tr><th>Cliente</th><th>Cidade</th><th>Técnico</th><th>Tipo de Abertura</th><th>Data</th></tr></thead>
+              <table style="table-layout:fixed;width:100%"><thead><tr><th style="width:26%">Cliente</th><th style="width:18%">Cidade</th><th style="width:18%">Técnico</th><th style="width:22%">Tipo</th><th style="width:16%">Data</th></tr></thead>
               <tbody id="remocTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">—</td></tr></tbody></table>
             </div>
           </div>
@@ -7823,7 +7823,7 @@ function renderRemocoes() {
       const cor      = catKey==='canc'?'#ef4444':catKey==='cobr'?'#f97316':catKey==='spc'?'#06b6d4':'#94a3b8';
       const bg       = catKey==='canc'?'rgba(239,68,68,.12)':catKey==='cobr'?'rgba(249,115,22,.12)':catKey==='spc'?'rgba(6,182,212,.12)':'rgba(148,163,184,.1)';
       const bdr      = catKey==='canc'?'rgba(239,68,68,.3)':catKey==='cobr'?'rgba(249,115,22,.3)':catKey==='spc'?'rgba(6,182,212,.3)':'rgba(148,163,184,.25)';
-      const lbl      = (c.tipo||'—').length>18?(c.tipo||'—').slice(0,18)+'…':(c.tipo||'—');
+      const lbl      = (c.tipo||'—').length>12?(c.tipo||'—').slice(0,12)+'…':(c.tipo||'—');
       return `<tr>
         <td style="font-weight:600;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${c.cli||''}">${c.cli||'—'}</td>
         <td style="font-size:11px;color:var(--text2)">${c.cidade||'—'}</td>
@@ -7860,7 +7860,7 @@ function _renderRemocTbl(lista) {
     const cor    = catKey==='canc'?'#ef4444':catKey==='cobr'?'#f97316':catKey==='spc'?'#06b6d4':'#94a3b8';
     const bg     = catKey==='canc'?'rgba(239,68,68,.12)':catKey==='cobr'?'rgba(249,115,22,.12)':catKey==='spc'?'rgba(6,182,212,.12)':'rgba(148,163,184,.1)';
     const bdr    = catKey==='canc'?'rgba(239,68,68,.3)':catKey==='cobr'?'rgba(249,115,22,.3)':catKey==='spc'?'rgba(6,182,212,.3)':'rgba(148,163,184,.25)';
-    const lbl    = (c.tipo||'—').length>18?(c.tipo||'—').slice(0,18)+'…':(c.tipo||'—');
+    const lbl    = (c.tipo||'—').length>12?(c.tipo||'—').slice(0,12)+'…':(c.tipo||'—');
     return `<tr>
       <td style="font-weight:600;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${c.cli||''}">${c.cli||'—'}</td>
       <td style="font-size:11px;color:var(--text2)">${c.cidade||'—'}</td>
