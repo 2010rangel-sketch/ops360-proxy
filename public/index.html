@@ -2880,6 +2880,10 @@ function goPage(id, el, skipHistory) {
   }
   if (id === 'remocao') {
     loadRemocoes();
+    if (_remHist) renderRemocoesMensais(_remHist);
+    else loadRemocoesMensais();
+    renderPrimMensalidadeRemoc(null);
+    if (!window._primVendedores) loadFinanceiro();
   }
 }
 
