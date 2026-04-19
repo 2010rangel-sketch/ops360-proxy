@@ -7839,18 +7839,18 @@ function _renderRemocTbl(lista) {
 
 function filtrarRemocTec(nome) {
   _remocTecFiltro = (_remocTecFiltro === nome) ? null : nome;
-  // Atualiza highlight das barras
-  document.querySelectorAll('#remoc-tec-bars .remoc-bar-row').forEach(d => {
-    const sel = d.dataset.tec === _remocTecFiltro;
-    d.style.background   = (sel && _remocTecFiltro) ? 'var(--bg3)' : '';
-    d.style.outline      = (sel && _remocTecFiltro) ? '1px solid var(--amber)' : '';
-    const fill = d.querySelector('.remoc-bar-fill');
-    const name = d.querySelector('.remoc-bar-name');
-    const num  = d.querySelector('.remoc-bar-num');
-    const op   = (!_remocTecFiltro || sel) ? '1' : '0.3';
-    if (fill) fill.style.opacity = op;
-    if (name) name.style.opacity = op;
-    if (num)  num.style.opacity  = op;
+  // Atualiza highlight nas duas listas de barras
+  ['#remoc-tec-bars .remoc-bar-row', '#remoc-cobr-bars .remoc-bar-row'].forEach(sel => {
+    document.querySelectorAll(sel).forEach(d => {
+      const isSelected = d.dataset.tec === _remocTecFiltro;
+      const cor = sel.includes('cobr') ? 'var(--accent)' : 'var(--amber)';
+      d.style.background = (isSelected && _remocTecFiltro) ? 'var(--bg3)' : '';
+      d.style.outline    = (isSelected && _remocTecFiltro) ? `1px solid ${cor}` : '';
+      const op = (!_remocTecFiltro || isSelected) ? '1' : '0.3';
+      ['remoc-bar-fill','remoc-bar-name','remoc-bar-num'].forEach(cls => {
+        const e = d.querySelector('.'+cls); if (e) e.style.opacity = op;
+      });
+    });
   });
   // Atualiza título da tabela
   const titleEl = document.getElementById('remoc-tbl-title');
@@ -7931,7 +7931,7 @@ async function loadRemocoes() {
     const barsEl = document.getElementById('remoc-tec-bars');
     if (barsEl) barsEl.innerHTML = _mkBars(tecs, maxTec, 'var(--amber)', true);
     const cobrEl = document.getElementById('remoc-cobr-bars');
-    if (cobrEl) cobrEl.innerHTML = _mkBars(cobrTecs, maxCobr, 'var(--accent)', false);
+    if (cobrEl) cobrEl.innerHTML = _mkBars(cobrTecs, maxCobr, 'var(--accent)', true);
 
     // Guarda todas as remoções e reaaplica filtro ativo (se houver)
     const ultimas = data.ultimas || [];
