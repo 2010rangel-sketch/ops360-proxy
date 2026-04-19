@@ -1698,7 +1698,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
 
       <!-- Conteúdo por aba -->
       <div id="remoc-view-remocao">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
           <div class="tbl-card" style="margin-bottom:0;display:flex;flex-direction:column">
             <div class="tbl-header">
               <span class="tbl-title"><i class="fas fa-hard-hat" style="color:var(--amber);margin-right:5px"></i>Técnico que mais removeu</span>
@@ -1710,13 +1710,22 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
           </div>
           <div class="tbl-card" style="margin-bottom:0;display:flex;flex-direction:column">
             <div class="tbl-header">
-              <span class="tbl-title"><i class="fas fa-list" style="color:var(--text3);margin-right:5px"></i><span id="remoc-tbl-title">Remoções do período</span></span>
-              <span class="badge b-blue" id="remoc-tbl-count" style="display:none"></span>
+              <span class="tbl-title"><i class="fas fa-file-invoice-dollar" style="color:var(--accent);margin-right:5px"></i>Cobrador que mais removeu</span>
+              <span class="badge b-blue" id="remoc-cobr-count">—</span>
             </div>
-            <div style="overflow-x:auto;max-height:440px;overflow-y:auto">
-              <table><thead><tr><th>Cliente</th><th>Cidade</th><th>Técnico</th><th>Tipo de Abertura</th><th>Data</th></tr></thead>
-              <tbody id="remocTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">—</td></tr></tbody></table>
+            <div id="remoc-cobr-bars" style="padding:12px 16px;max-height:440px;overflow-y:auto">
+              <div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem dados</div>
             </div>
+          </div>
+        </div>
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <span class="tbl-title"><i class="fas fa-list" style="color:var(--text3);margin-right:5px"></i><span id="remoc-tbl-title">Remoções do período</span></span>
+            <span class="badge b-blue" id="remoc-tbl-count" style="display:none"></span>
+          </div>
+          <div style="overflow-x:auto;max-height:440px;overflow-y:auto">
+            <table><thead><tr><th>Cliente</th><th>Cidade</th><th>Técnico</th><th>Tipo de Abertura</th><th>Data</th></tr></thead>
+            <tbody id="remocTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">—</td></tr></tbody></table>
           </div>
         </div>
       </div>
@@ -7694,36 +7703,47 @@ function renderRemocoes() {
   ev('remoc-tipo-outro',  tipoOutro);
   ev('remoc-total-badge', total);
 
-  // Ranking por técnico
+  // Ranking por técnico — cobradores separados
+  const COBRADORES = ['ronald', 'murilo'];
+  const _isCobr = nome => COBRADORES.some(k => (nome||'').toLowerCase().includes(k));
   const tecMap = {};
   for (const c of remocoes) {
     const tec = c.tec || 'Sem técnico';
     tecMap[tec] = (tecMap[tec] || 0) + 1;
   }
-  const tecs   = Object.entries(tecMap).sort((a,b) => b[1]-a[1]);
-  const maxTec = tecs[0]?.[1] || 1;
-  ev('remoc-tec-count', tecs.length);
+  const allTecs  = Object.entries(tecMap).sort((a,b) => b[1]-a[1]);
+  const tecs     = allTecs.filter(([n]) => !_isCobr(n));
+  const cobrTecs = allTecs.filter(([n]) =>  _isCobr(n));
+  const maxTec   = tecs[0]?.[1] || 1;
+  const maxCobr  = cobrTecs[0]?.[1] || 1;
+  ev('remoc-tec-count',  tecs.length);
+  ev('remoc-cobr-count', cobrTecs.length);
 
-  const barsEl = document.getElementById('remoc-tec-bars');
-  if (barsEl) {
-    const totalTec = tecs.reduce((s,[,q])=>s+q,0);
-    barsEl.innerHTML = tecs.length ? `<div style="padding:4px 10px 2px">${tecs.map(([nome, qtd],i)=>{
-      const pct = totalTec>0?Math.round(qtd/totalTec*100):0;
-      const barW = totalTec>0?(qtd/maxTec*100).toFixed(1):0;
+  const _renderBarList = (lista, max, cor) => {
+    const total = lista.reduce((s,[,q])=>s+q,0);
+    return lista.length ? `<div style="padding:4px 10px 2px">${lista.map(([nome, qtd])=>{
+      const pct = total>0?Math.round(qtd/total*100):0;
+      const barW = max>0?(qtd/max*100).toFixed(1):0;
       const lbl = nome.length>26?nome.slice(0,26)+'…':nome;
       return `<div style="display:grid;grid-template-columns:140px 1fr 58px;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
         <span style="font-size:12px;font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${nome}">${lbl}</span>
         <div style="height:20px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden">
-          <div style="height:100%;width:${barW}%;background:var(--amber);border-radius:4px;opacity:.85"></div>
+          <div style="height:100%;width:${barW}%;background:${cor};border-radius:4px;opacity:.85"></div>
         </div>
         <div style="text-align:right;line-height:1.2">
-          <span style="font-size:14px;font-weight:800;color:var(--amber)">${qtd}</span>
+          <span style="font-size:14px;font-weight:800;color:${cor}">${qtd}</span>
           <span style="display:block;font-size:10px;color:var(--text3)">${pct}%</span>
         </div>
       </div>`;
     }).join('')}</div>`
     : '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem remoções no período</div>';
-  }
+  };
+
+  const barsEl = document.getElementById('remoc-tec-bars');
+  if (barsEl) barsEl.innerHTML = _renderBarList(tecs, maxTec, 'var(--amber)');
+
+  const cobrEl = document.getElementById('remoc-cobr-bars');
+  if (cobrEl) cobrEl.innerHTML = _renderBarList(cobrTecs, maxCobr, 'var(--accent)');
 
   // Tabela das últimas remoções
   const tb = document.getElementById('remocTbl');
@@ -7841,32 +7861,43 @@ async function loadRemocoes() {
     ev('remoc-pct-spc',   pct(data.tipo_spc));
     ev('remoc-pct-outro', pct(data.tipo_outro));
 
-    const tecs   = data.por_tecnico || [];
-    const maxTec = tecs[0]?.total || 1;
-    ev('remoc-tec-count', tecs.length);
-    const barsEl = document.getElementById('remoc-tec-bars');
-    if (barsEl) {
-      const totalTec = tecs.reduce((s,t)=>s+t.total,0);
-      barsEl.innerHTML = tecs.length ? `<div style="padding:4px 10px 2px">${tecs.map(t=>{
+    const _COBR = ['ronald','murilo'];
+    const _isCb = n => _COBR.some(k=>(n||'').toLowerCase().includes(k));
+    const allTecs2 = data.por_tecnico || [];
+    const tecs     = allTecs2.filter(t => !_isCb(t.tec));
+    const cobrTecs = allTecs2.filter(t =>  _isCb(t.tec));
+    const maxTec   = tecs[0]?.total || 1;
+    const maxCobr  = cobrTecs[0]?.total || 1;
+    ev('remoc-tec-count',  tecs.length);
+    ev('remoc-cobr-count', cobrTecs.length);
+
+    const _mkBars = (lista, max, cor, clickable) => {
+      const total = lista.reduce((s,t)=>s+t.total,0);
+      return lista.length ? `<div style="padding:4px 10px 2px">${lista.map(t=>{
         const tecEsc = t.tec.replace(/'/g,"\\'").replace(/"/g,'&quot;');
-        const pct = totalTec>0?Math.round(t.total/totalTec*100):0;
-        const barW = maxTec>0?(t.total/maxTec*100).toFixed(1):0;
-        const lbl = t.tec.length>26?t.tec.slice(0,26)+'…':t.tec;
-        return `<div class="remoc-bar-row" data-tec="${t.tec.replace(/"/g,'&quot;')}" onclick="filtrarRemocTec('${tecEsc}')"
-          style="display:grid;grid-template-columns:140px 1fr 58px;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer"
+        const pct  = total>0?Math.round(t.total/total*100):0;
+        const barW = max>0?(t.total/max*100).toFixed(1):0;
+        const lbl  = t.tec.length>26?t.tec.slice(0,26)+'…':t.tec;
+        const clk  = clickable ? `class="remoc-bar-row" data-tec="${t.tec.replace(/"/g,'&quot;')}" onclick="filtrarRemocTec('${tecEsc}')" style="cursor:pointer"` : '';
+        return `<div ${clk} style="display:grid;grid-template-columns:140px 1fr 58px;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)"
           onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background=''">
           <span class="remoc-bar-name" style="font-size:12px;font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.tec}">${lbl}</span>
           <div style="height:20px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden">
-            <div class="remoc-bar-fill" style="height:100%;width:${barW}%;background:var(--amber);border-radius:4px;opacity:.85"></div>
+            <div class="remoc-bar-fill" style="height:100%;width:${barW}%;background:${cor};border-radius:4px;opacity:.85"></div>
           </div>
           <div style="text-align:right;line-height:1.2">
-            <span class="remoc-bar-num" style="font-size:14px;font-weight:800;color:var(--amber)">${t.total}</span>
+            <span class="remoc-bar-num" style="font-size:14px;font-weight:800;color:${cor}">${t.total}</span>
             <span style="display:block;font-size:10px;color:var(--text3)">${pct}%</span>
           </div>
         </div>`;
       }).join('')}</div>`
       : '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem remoções no período</div>';
-    }
+    };
+
+    const barsEl = document.getElementById('remoc-tec-bars');
+    if (barsEl) barsEl.innerHTML = _mkBars(tecs, maxTec, 'var(--amber)', true);
+    const cobrEl = document.getElementById('remoc-cobr-bars');
+    if (cobrEl) cobrEl.innerHTML = _mkBars(cobrTecs, maxCobr, 'var(--accent)', false);
 
     // Guarda todas as remoções e reaaplica filtro ativo (se houver)
     const ultimas = data.ultimas || [];
