@@ -3136,13 +3136,22 @@ setTimeout(() => _refreshChamadosHoje().catch(console.warn), 3000);
 const STATUS_CONTRATO_SUSPENSO = new Set(['suspenso_debito','suspenso_pedido_cliente','bloqueio_temporario','suspenso_judicial']);
 const STATUS_CONTRATO_PARCIAL  = new Set(['suspenso_parcialmente','suspenso_parcial','bloqueio_parcial']);
 
+const _saudeCache = {};
+const SAUDE_CACHE_TTL = 15 * 60 * 1000; // 15 min
+
 app.get('/api/saude-base', async (req, res) => {
   try {
-    const dias = parseInt(req.query.dias) || 30;
+    const dias  = parseInt(req.query.dias) || 30;
+    const force = req.query.force === '1';
     const agora = new Date();
     const agoraBRT = new Date(agora.getTime() - 3*60*60*1000);
     const dataFim = agoraBRT.toISOString().slice(0, 10);
     const dataIni = new Date(agoraBRT.getTime() - dias * 86400000).toISOString().slice(0, 10);
+
+    const cacheKey = `${dataIni}-${dataFim}`;
+    if (!force && _saudeCache[cacheKey] && (Date.now() - _saudeCache[cacheKey].ts) < SAUDE_CACHE_TTL) {
+      return res.json({ ..._saudeCache[cacheKey].data, cache: true });
+    }
 
     // Busca OS do período
     const lista = await _fetchChamadosHubsoft(dataIni, dataFim, true);
@@ -3223,9 +3232,13 @@ app.get('/api/saude-base', async (req, res) => {
     // Padrão: mais OS fechadas primeiro
     resultado.sort((a, b) => b.osFech - a.osFech);
 
-    res.json({ ok: true, periodo: { dataIni, dataFim, dias }, total: resultado.length, clientes: resultado });
+    const resposta = { ok: true, periodo: { dataIni, dataFim, dias }, total: resultado.length, clientes: resultado };
+    _saudeCache[cacheKey] = { data: resposta, ts: Date.now() };
+    res.json(resposta);
   } catch(e) {
     console.error('[/api/saude-base]', e.message);
+    const stale = Object.values(_saudeCache).sort((a,b) => b.ts - a.ts)[0];
+    if (stale) return res.json({ ...stale.data, cache: 'stale', aviso: e.message });
     res.json({ ok: false, motivo: e.message });
   }
 });
