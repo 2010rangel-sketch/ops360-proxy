@@ -2000,11 +2000,6 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
           <div class="kpi-mini-label">Atenção</div>
           <div class="kpi-mini-val" id="saude-kpi-atenc" style="color:var(--amber)">—</div>
         </div>
-        <div class="kpi-mini" style="cursor:pointer" onclick="saudeFiltrarStatus('normal')">
-          <div class="kpi-mini-bar" style="background:var(--green)"></div>
-          <div class="kpi-mini-label">Normal</div>
-          <div class="kpi-mini-val" id="saude-kpi-norm" style="color:var(--green)">—</div>
-        </div>
       </div>
 
       <!-- Filtros de visualização -->
@@ -8744,7 +8739,6 @@ function renderSaudeBase(d) {
   set('saude-kpi-total', clientes.length);
   set('saude-kpi-crit',  clientes.filter(c => c.status === 'critico').length);
   set('saude-kpi-atenc', clientes.filter(c => c.status === 'atencao').length);
-  set('saude-kpi-norm',  clientes.filter(c => c.status === 'normal').length);
   if (d.periodo) {
     const lbl = document.getElementById('saude-periodo-label');
     if (lbl) lbl.textContent = `Últimos ${d.periodo.dias} dias · ${d.periodo.dataIni} → ${d.periodo.dataFim}`;
@@ -8801,8 +8795,8 @@ function renderSaudeTbl() {
   if (wrap)  wrap.style.display  = 'block';
   const body = document.getElementById('saude-tbl-body');
   if (!body) return;
-  const COR   = { critico:'var(--red)', atencao:'var(--amber)', normal:'var(--green)' };
-  const LABEL = { critico:'CRÍTICO', atencao:'ATENÇÃO', normal:'NORMAL' };
+  const COR   = { critico:'var(--red)', atencao:'var(--amber)' };
+  const LABEL = { critico:'CRÍTICO', atencao:'ATENÇÃO' };
   const SC_COR = { ativo:'var(--green)', parcial:'var(--amber)', suspenso:'var(--red)' };
   const SC_LBL = { ativo:'Ativo', parcial:'Parcial', suspenso:'Suspenso' };
   body.innerHTML = lista.map((c, idx) => {

@@ -3478,37 +3478,20 @@ app.get('/api/saude-base', async (req, res) => {
     const cxMap = {};
     for (const c of cxClientes) cxMap[c.id] = c;
 
-    // Inclui clientes offline/alerta sem OS
-    for (const cx of cxClientes) {
-      if (LC_VIRTUAL.test(cx.nome || '')) continue;
-      if (!porCliente[cx.id] && (!cx.online || cx.alerta)) {
-        porCliente[cx.id] = { id: cx.id, nome: cx.nome, cidade: cx.cidade, osPend: 0, osFech: 0, categorias: {} };
-      }
-    }
-
-    const agora_ms = Date.now();
     const resultado = Object.values(porCliente).map(cli => {
-      const cx         = cxMap[cli.id] || {};
-      const online     = cx.online ?? true;
-      const alerta     = cx.alerta || false;
-      const desconexoes = (cx.alertaMsgs || []).length; // proxy para desconexões recentes
+      const cx             = cxMap[cli.id] || {};
+      const online         = cx.online ?? true;
+      const alerta         = cx.alerta || false;
       const statusContrato = statusContratoMap[cli.id] || 'ativo';
 
-      // Tempo offline em horas
-      const offlineTs  = _offlineInicioMap.get(cli.id);
-      const offlineHoras = (offlineTs && !online) ? Math.floor((agora_ms - offlineTs) / 3600000) : 0;
-
-      // Score de saúde (0–100)
+      // Score de saúde (0–100): apenas OS
       let score = 100;
       score -= Math.min(cli.osPend * 20, 50);
       if (cli.osFech > 3) score -= Math.min((cli.osFech - 3) * 5, 15);
-      if (!online) score -= 20;
-      if (alerta)  score -= 10;
-      if (desconexoes > 2) score -= Math.min((desconexoes - 2) * 5, 15);
       score = Math.max(0, Math.min(100, score));
 
-      const status = score >= 80 ? 'normal' : score >= 50 ? 'atencao' : 'critico';
-      return { ...cli, online, alerta, desconexoes, offlineHoras, statusContrato, score, status };
+      const status = score >= 80 ? 'atencao' : 'critico';
+      return { ...cli, online, alerta, statusContrato, score, status };
     });
 
     // Padrão: mais OS fechadas primeiro
