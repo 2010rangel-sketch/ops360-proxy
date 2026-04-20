@@ -3430,13 +3430,39 @@ app.get('/api/saude-base', async (req, res) => {
     const dataFim = agoraBRT.toISOString().slice(0, 10);
     const dataIni = new Date(agoraBRT.getTime() - dias * 86400000).toISOString().slice(0, 10);
 
-    const cacheKey = `${dataIni}-${dataFim}`;
+    const cacheKey = `${dataIni}-${dataFim}-${dias}`;
     if (!force && _saudeCache[cacheKey] && (Date.now() - _saudeCache[cacheKey].ts) < SAUDE_CACHE_TTL) {
       return res.json({ ..._saudeCache[cacheKey].data, cache: true });
     }
+    if (!force) {
+      const dbS = await dbCacheGet(`cache:saude:${dias}d`, SAUDE_CACHE_TTL);
+      if (dbS) { _saudeCache[cacheKey] = { data: dbS, ts: Date.now() }; return res.json({ ...dbS, cache: 'db' }); }
+    }
 
-    // Busca OS do período — limitado a 5 páginas (2500 OS) para não estourar timeout
-    const lista = await _fetchChamadosHubsoftLimitado(dataIni, dataFim, 5);
+    // Busca OS via hubsoftPost (padrão robusto com retry/token automático)
+    const body = {
+      data_inicio: new Date(dataIni).toISOString(),
+      data_fim:    new Date(dataFim + 'T23:59:59').toISOString(),
+      agendas: [], assinatura_cliente: null, bairros: null, cidades: [],
+      condominios: null, grupos_clientes: [], grupos_clientes_servicos: [],
+      motivo_fechamento: [], order_by: 'data_inicio_programado', order_by_key: 'DESC',
+      participantes: [], periodos: [], pop: [], prioridade: [], reservada: null,
+      servico: [], servico_status: [], status_ordem_servico: [], tecnicos: [],
+      tipo_ordem_servico: [], turno: null,
+    };
+    const PAGE_SIZE = 500;
+    const d1 = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=1`, body);
+    const lista = [...extrairLista(d1)];
+    const { lastPage, total, perPage } = extrairPaginacao(d1);
+    let totalPages = lastPage || (total && perPage ? Math.ceil(total / perPage) : 1);
+    totalPages = Math.min(totalPages, 10);
+    if (totalPages > 1) {
+      for (let pg = 2; pg <= totalPages; pg++) {
+        try { lista.push(...extrairLista(await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=${pg}`, body))); }
+        catch(ep) { break; }
+      }
+    }
+    console.log(`[saude-base] ${dias}d: ${lista.length} OS (pgs:${totalPages})`);
 
     // Mapa de status de contrato (de _comAllClientes se disponível)
     const statusContratoMap = {};
@@ -3499,6 +3525,7 @@ app.get('/api/saude-base', async (req, res) => {
 
     const resposta = { ok: true, periodo: { dataIni, dataFim, dias }, total: resultado.length, clientes: resultado };
     _saudeCache[cacheKey] = { data: resposta, ts: Date.now() };
+    dbCacheSet(`cache:saude:${dias}d`, resposta).catch(() => {});
     res.json(resposta);
   } catch(e) {
     console.error('[/api/saude-base]', e.message);

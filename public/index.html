@@ -8709,7 +8709,10 @@ async function loadSaudeBase(force = false) {
   const badge = document.getElementById('saude-sync-badge');
   if (badge) { badge.textContent = 'Carregando...'; badge.className = 'badge b-blue'; }
   try {
-    const r = await fetch(`${PROXY_URL}/api/saude-base?dias=${_saudeDias}${force ? '&force=1' : ''}`);
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 60000);
+    const r = await fetch(`${PROXY_URL}/api/saude-base?dias=${_saudeDias}${force ? '&force=1' : ''}`, { signal: ctrl.signal });
+    clearTimeout(tid);
     const d = await r.json();
     _saudeData = d;
     renderSaudeBase(d);
@@ -8719,7 +8722,8 @@ async function loadSaudeBase(force = false) {
       badge.className = d.ok ? 'badge b-green' : 'badge b-red';
     }
   } catch(e) {
-    if (badge) { badge.textContent = 'Erro de conexão'; badge.className = 'badge b-red'; }
+    const msg = e.name === 'AbortError' ? 'Timeout (60s)' : 'Erro de conexão';
+    if (badge) { badge.textContent = msg; badge.className = 'badge b-red'; }
   }
 }
 
