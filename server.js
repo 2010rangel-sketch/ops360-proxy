@@ -3478,7 +3478,7 @@ app.get('/api/saude-base', async (req, res) => {
     const cxMap = {};
     for (const c of cxClientes) cxMap[c.id] = c;
 
-    const resultado = Object.values(porCliente).map(cli => {
+    const resultado = Object.values(porCliente).filter(cli => (cli.osPend + cli.osFech) > 2).map(cli => {
       const cx             = cxMap[cli.id] || {};
       const online         = cx.online ?? true;
       const alerta         = cx.alerta || false;
