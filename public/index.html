@@ -2004,13 +2004,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
 
       <!-- Filtros de visualização -->
       <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
-        <span style="font-size:11px;color:var(--text3)">Ver:</span>
-        <button class="btn btn-sm btn-primary" id="saude-f-todos"    onclick="saudeFiltrarVista('todos',this)">Todos</button>
-        <button class="btn btn-sm btn-ghost"   id="saude-f-offline"  onclick="saudeFiltrarVista('offline',this)">Offline</button>
-        <button class="btn btn-sm btn-ghost"   id="saude-f-off72"    onclick="saudeFiltrarVista('off72',this)">Offline +72h</button>
-        <button class="btn btn-sm btn-ghost"   id="saude-f-pend"     onclick="saudeFiltrarVista('pend',this)">Com OS pendente</button>
-        <button class="btn btn-sm btn-ghost"   id="saude-f-semOS"    onclick="saudeFiltrarVista('semOS',this)">Sem OS no período</button>
-        <input type="text" placeholder="Buscar cliente..." id="saude-search" class="search-input" style="margin-left:auto;width:200px" oninput="saudeSearch(this.value)">
+        <input type="text" placeholder="Buscar cliente..." id="saude-search" class="search-input" style="width:220px" oninput="saudeSearch(this.value)">
       </div>
 
       <!-- Tabela -->
@@ -2022,8 +2016,8 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         </div>
         <div id="saude-empty-msg" style="padding:40px;text-align:center;color:var(--text3)">
           <i class="fas fa-heartbeat" style="font-size:32px;margin-bottom:12px;opacity:.3;display:block"></i>
-          <div style="font-size:14px;font-weight:600;margin-bottom:6px">Selecione um período e clique em Atualizar</div>
-          <div style="font-size:12px;color:var(--text3)">Analisa OS, conexão e alertas para gerar o score de saúde de cada cliente</div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:6px">Carregando análise de clientes...</div>
+          <div style="font-size:12px;color:var(--text3)">Analisa OS para gerar o score de saúde de cada cliente</div>
         </div>
         <div style="overflow-x:auto;max-height:600px;overflow-y:auto;display:none" id="saude-tbl-wrap">
           <table class="tbl" style="min-width:900px">
@@ -2031,11 +2025,8 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
               <th style="min-width:200px">Cliente</th>
               <th style="min-width:110px">Cidade</th>
               <th style="text-align:center;min-width:80px">Contrato</th>
-              <th style="text-align:center;min-width:90px">Conexão</th>
               <th style="text-align:center;min-width:80px;cursor:pointer" onclick="saudeOrdenar('osPend')" id="saude-th-pend">OS Pend. ↕</th>
               <th style="text-align:center;min-width:80px;cursor:pointer" onclick="saudeOrdenar('osFech')" id="saude-th-fech">OS Fech. ↓</th>
-              <th style="text-align:center;min-width:90px;cursor:pointer" onclick="saudeOrdenar('desconexoes')" id="saude-th-desc">Descon. 24h ↕</th>
-              <th style="text-align:center;min-width:80px;cursor:pointer" onclick="saudeOrdenar('offlineHoras')" id="saude-th-off">Offline (h) ↕</th>
               <th style="text-align:center;min-width:100px;cursor:pointer" onclick="saudeOrdenar('score')" id="saude-th-saude">Saúde ↕</th>
               <th style="text-align:center;min-width:85px">Status</th>
             </tr></thead>
@@ -8764,10 +8755,6 @@ function _saudeFiltrado() {
   if (!_saudeData?.clientes) return [];
   let lista = [..._saudeData.clientes];
   if (_saudeFiltroStatus) lista = lista.filter(c => c.status === _saudeFiltroStatus);
-  if (_saudeFiltroVista === 'offline')  lista = lista.filter(c => !c.online);
-  if (_saudeFiltroVista === 'off72')    lista = lista.filter(c => c.offlineHoras >= 72);
-  if (_saudeFiltroVista === 'pend')     lista = lista.filter(c => c.osPend > 0);
-  if (_saudeFiltroVista === 'semOS')    lista = lista.filter(c => c.osPend === 0 && c.osFech === 0);
   if (_saudeSearchTxt) {
     const q = _saudeSearchTxt.toLowerCase();
     lista = lista.filter(c => c.nome.toLowerCase().includes(q) || (c.cidade||'').toLowerCase().includes(q));
@@ -8815,11 +8802,8 @@ function renderSaudeTbl() {
       </td>
       <td style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.cidade}</td>
       <td style="text-align:center"><span style="font-size:10px;font-weight:700;color:${scCor}">${SC_LBL[c.statusContrato] || 'Ativo'}</span></td>
-      <td style="text-align:center"><span style="font-size:10px;font-weight:700;color:${c.online ? 'var(--green)' : 'var(--red)'}">${c.online ? '● Online' : '● Offline'}</span></td>
       <td class="mono" style="text-align:center;font-weight:${c.osPend > 0?'700':'400'};color:${c.osPend>0?'var(--red)':'var(--text3)'}">${c.osPend||'—'}</td>
       <td class="mono" style="text-align:center;font-weight:600;color:${c.osFech>0?'var(--cyan)':'var(--text3)'}">${c.osFech||'—'}</td>
-      <td class="mono" style="text-align:center;color:${c.desconexoes>2?'var(--amber)':'var(--text3)'}">${c.desconexoes||'—'}</td>
-      <td style="text-align:center">${offStr}</td>
       <td style="text-align:center;padding:6px 8px">
         <span style="font-size:12px;font-weight:700;color:${cor}">${pct}%</span>
         <div style="width:100%;height:3px;background:var(--bg3);border-radius:3px;margin-top:3px">
@@ -8831,12 +8815,12 @@ function renderSaudeTbl() {
       </td>
     </tr>
     <tr id="${rowId}" style="display:none;background:var(--bg3)">
-      <td colspan="10" style="padding:8px 16px">
+      <td colspan="7" style="padding:8px 16px">
         <div style="font-size:11px;color:var(--text3);margin-bottom:4px">OS por categoria:</div>
         <div>${catsHtml}</div>
       </td>
     </tr>`;
-  }).join('') || '<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:24px">Nenhum cliente encontrado</td></tr>';
+  }).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Nenhum cliente encontrado</td></tr>';
 }
 
 function saudeToggleDetalhe(rowId, tr) {
