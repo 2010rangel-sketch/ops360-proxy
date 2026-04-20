@@ -260,6 +260,7 @@ async function hubsoftPost(endpoint, body = {}) {
   const token = await getToken();
   const res = await axios.post(`${HUBSOFT_HOST}/api/${endpoint}`, body, {
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    timeout: 30000,
   });
   return res.data;
 }
@@ -3451,13 +3452,15 @@ app.get('/api/saude-base', async (req, res) => {
       tipo_ordem_servico: [], turno: null,
     };
     const PAGE_SIZE = 500;
+    const saudeDeadline = Date.now() + 50000; // 50s hard limit para toda a paginação
     const d1 = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=1`, body);
     const lista = [...extrairLista(d1)];
     const { lastPage, total, perPage } = extrairPaginacao(d1);
     let totalPages = lastPage || (total && perPage ? Math.ceil(total / perPage) : 1);
-    totalPages = Math.min(totalPages, 10);
+    totalPages = Math.min(totalPages, 5);
     if (totalPages > 1) {
       for (let pg = 2; pg <= totalPages; pg++) {
+        if (Date.now() > saudeDeadline) { console.warn('[saude-base] deadline atingido na pag', pg); break; }
         try { lista.push(...extrairLista(await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=${pg}`, body))); }
         catch(ep) { break; }
       }
