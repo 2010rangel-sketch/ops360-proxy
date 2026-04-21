@@ -6343,7 +6343,7 @@ function kbRenderModalCL() {
     ? _kbTempCL.map((item,i)=>`
       <div style="display:flex;align-items:center;gap:7px;padding:6px 10px;background:var(--bg3);border-radius:7px">
         <input type="checkbox" ${item.done?'checked':''} onchange="_kbTempCL[${i}].done=this.checked" style="cursor:pointer;accent-color:var(--green)">
-        <span style="flex:1;font-size:12px;color:var(--text)">${item.text}</span>
+        <input type="text" value="${item.text.replace(/"/g,'&quot;')}" onchange="_kbTempCL[${i}].text=this.value" onblur="if(!this.value.trim()){_kbTempCL.splice(${i},1);kbRenderModalCL()}" style="flex:1;font-size:12px;color:var(--text);background:transparent;border:none;border-bottom:1px solid transparent;outline:none;padding:2px 4px;border-radius:4px;cursor:text" onfocus="this.style.borderBottomColor='var(--accent)';this.style.background='var(--bg2)'" onblur="this.style.borderBottomColor='transparent';this.style.background='transparent';if(!this.value.trim()){_kbTempCL.splice(${i},1);kbRenderModalCL()}">
         <button onclick="_kbTempCL.splice(${i},1);kbRenderModalCL()" style="background:none;border:none;color:var(--text3);cursor:pointer;padding:0 4px;font-size:12px" title="Remover"><i class="fas fa-times"></i></button>
       </div>`).join('')
     : '<div style="font-size:11px;color:var(--text3);padding:4px 2px">Nenhum item. Adicione abaixo.</div>';
