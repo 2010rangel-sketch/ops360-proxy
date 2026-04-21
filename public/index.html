@@ -2174,6 +2174,17 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
 
         </div>
 
+        <!-- Linha 1b: Evolução Mensal de Colaboradores -->
+        <div class="tbl-card" style="margin-bottom:14px">
+          <div class="tbl-header">
+            <span class="tbl-title"><i class="fas fa-chart-line" style="color:var(--accent);margin-right:6px"></i>Evolução Mensal de Colaboradores</span>
+            <span class="badge b-blue" id="rh-evolucao-badge">todos</span>
+          </div>
+          <div style="padding:12px 16px 8px;overflow-x:auto">
+            <div id="rh-evolucao-chart" style="min-width:600px;height:180px"></div>
+          </div>
+        </div>
+
         <!-- Linha 2: Admissões vs Desligamentos -->
         <div class="tbl-card" style="margin-bottom:14px">
           <div class="tbl-header"><span class="tbl-title">Admissões vs Desligamentos</span><span class="badge b-blue">últimos 6 meses</span></div>
@@ -9631,6 +9642,7 @@ function renderRhDashboard(emps) {
   renderRhAniversarios(ativos);
   renderRhCNH(ativos);
   renderRhNR();
+  renderRhEvolucao();
 }
 
 let _rhSetorAtivo = null;
@@ -9642,6 +9654,7 @@ function rhFiltrarCidade(el_ou_cidade) {
   const cidade = !el_ou_cidade ? null : (typeof el_ou_cidade === 'string') ? el_ou_cidade : el_ou_cidade?.dataset?.rhCidade;
   _rhCidadeAtiva = _rhCidadeAtiva === cidade ? null : cidade;
   renderRhColaboradores();
+  renderRhEvolucao();
   document.querySelectorAll('[data-rh-cidade]').forEach(el => {
     const ativo = el.dataset.rhCidade === _rhCidadeAtiva;
     el.style.background   = ativo ? 'rgba(99,102,241,.15)' : '';
@@ -9654,6 +9667,7 @@ function rhFiltrarCidade(el_ou_cidade) {
 function rhFiltrarEmpresa(empresa) {
   _rhEmpresaAtiva = empresa;
   renderRhColaboradores();
+  renderRhEvolucao();
   document.querySelectorAll('[data-rh-empresa]').forEach(el => {
     el.style.background = el.dataset.rhEmpresa === empresa ? 'rgba(99,102,241,.15)' : '';
     el.style.borderRadius = '6px';
@@ -9665,6 +9679,7 @@ function rhFiltrarEmpresa(empresa) {
 function rhFiltrarSetor(setor) {
   _rhSetorAtivo = setor;
   renderRhColaboradores();
+  renderRhEvolucao();
   // atualiza visual dos itens do setor
   document.querySelectorAll('[data-rh-setor]').forEach(el => {
     const ativo = el.dataset.rhSetor === setor;
@@ -9673,6 +9688,137 @@ function rhFiltrarSetor(setor) {
   });
   const limpar = document.getElementById('rh-col-limpar');
   if (limpar) limpar.style.display = setor ? '' : 'none';
+}
+
+function renderRhEvolucao() {
+  const el = document.getElementById('rh-evolucao-chart');
+  const badge = document.getElementById('rh-evolucao-badge');
+  if (!el) return;
+  const todos = window._rhEmployees || [];
+  if (!todos.length) { el.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:40px;text-align:center">Sem dados</div>'; return; }
+
+  // Aplica os filtros ativos
+  let emps = todos;
+  if (_rhCidadeAtiva)  emps = emps.filter(e => (e.cidade||'') === _rhCidadeAtiva);
+  if (_rhSetorAtivo)   emps = emps.filter(e => (e.setor||'') === _rhSetorAtivo);
+  if (_rhEmpresaAtiva) emps = emps.filter(e => (e.empresa||'') === _rhEmpresaAtiva);
+
+  const filtroLabel = _rhCidadeAtiva || _rhSetorAtivo || _rhEmpresaAtiva || 'todos';
+  if (badge) { badge.textContent = filtroLabel; badge.className = filtroLabel === 'todos' ? 'badge b-blue' : 'badge b-accent'; }
+
+  // Determina intervalo: primeiro admitido até mês atual
+  const parseD = s => { if (!s) return null; const d = new Date(s.includes('T') ? s : s + 'T12:00:00'); return isNaN(d) ? null : d; };
+  const agora = new Date();
+  const mesAtual = new Date(agora.getFullYear(), agora.getMonth(), 1);
+  let mesInicio = new Date(mesAtual.getFullYear() - 2, mesAtual.getMonth(), 1); // padrão: 2 anos
+  emps.forEach(e => {
+    const d = parseD(e.data_admissao);
+    if (d && d < mesInicio) mesInicio = new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+
+  // Gera lista de meses
+  const meses = [];
+  let m = new Date(mesInicio);
+  while (m <= mesAtual) {
+    meses.push(new Date(m));
+    m.setMonth(m.getMonth() + 1);
+  }
+
+  // Para cada mês conta quantos colaboradores estavam ativos
+  const contagens = meses.map(mes => {
+    const fimMes = new Date(mes.getFullYear(), mes.getMonth() + 1, 0, 23, 59, 59);
+    return emps.filter(e => {
+      const adm  = parseD(e.data_admissao);
+      const desl = parseD(e.data_desligamento);
+      if (!adm || adm > fimMes) return false;
+      if (desl && desl < mes) return false;
+      return true;
+    }).length;
+  });
+
+  const maxVal = Math.max(...contagens, 1);
+  const minVal = Math.min(...contagens);
+  const W = el.clientWidth || 700;
+  const H = 180;
+  const PAD_L = 36, PAD_R = 16, PAD_T = 24, PAD_B = 32;
+  const plotW = W - PAD_L - PAD_R;
+  const plotH = H - PAD_T - PAD_B;
+  const n = meses.length;
+
+  const xOf = i => PAD_L + (n <= 1 ? plotW / 2 : i / (n - 1) * plotW);
+  const yOf = v => PAD_T + plotH - ((v - minVal) / (maxVal - minVal || 1)) * plotH;
+
+  // Gera path com bezier suave (Catmull-Rom → bezier)
+  const pts = contagens.map((v, i) => ({ x: xOf(i), y: yOf(v) }));
+  let d = `M ${pts[0].x},${pts[0].y}`;
+  for (let i = 1; i < pts.length; i++) {
+    const p0 = pts[i - 2] || pts[i - 1];
+    const p1 = pts[i - 1];
+    const p2 = pts[i];
+    const p3 = pts[i + 1] || p2;
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = p1.y + (p2.y - p0.y) / 6;
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C ${cp1x},${cp1y} ${cp2x},${cp2y} ${p2.x},${p2.y}`;
+  }
+
+  // Área preenchida
+  const areaD = d + ` L ${pts[pts.length-1].x},${PAD_T+plotH} L ${pts[0].x},${PAD_T+plotH} Z`;
+
+  // Labels eixo Y
+  const yTicks = 4;
+  let yLabels = '';
+  for (let i = 0; i <= yTicks; i++) {
+    const v = Math.round(minVal + (maxVal - minVal) * (i / yTicks));
+    const y = yOf(v);
+    yLabels += `<text x="${PAD_L - 5}" y="${y + 4}" text-anchor="end" fill="var(--text3)" font-size="10">${v}</text>`;
+    yLabels += `<line x1="${PAD_L}" y1="${y}" x2="${W - PAD_R}" y2="${y}" stroke="var(--border2)" stroke-width="1" opacity=".5"/>`;
+  }
+
+  // Labels eixo X (a cada N meses para não sobrepor)
+  const step = n > 24 ? 3 : n > 12 ? 2 : 1;
+  let xLabels = '';
+  meses.forEach((mes, i) => {
+    if (i % step !== 0 && i !== n - 1) return;
+    const x = xOf(i);
+    const lbl = mes.toLocaleString('pt-BR', { month:'short', year:'2-digit' }).replace('. ','').replace('.','');
+    xLabels += `<text x="${x}" y="${H - 6}" text-anchor="middle" fill="var(--text3)" font-size="9">${lbl}</text>`;
+  });
+
+  // Pontos e tooltips
+  let dots = '';
+  contagens.forEach((v, i) => {
+    const x = xOf(i), y = yOf(v);
+    const lbl = meses[i].toLocaleString('pt-BR', { month:'long', year:'numeric' });
+    dots += `<circle cx="${x}" cy="${y}" r="4" fill="var(--accent)" stroke="var(--bg)" stroke-width="2" opacity=".9">
+      <title>${lbl}: ${v} colaboradores</title></circle>`;
+  });
+
+  // Valor máximo e mínimo destacados
+  const iMax = contagens.indexOf(maxVal);
+  const iMin = contagens.indexOf(minVal);
+  const labelDest = (i, v, cor) => {
+    const x = xOf(i), y = yOf(v);
+    const offset = v === maxVal ? -10 : 14;
+    return `<text x="${x}" y="${y + offset}" text-anchor="middle" fill="${cor}" font-size="10" font-weight="700">${v}</text>`;
+  };
+
+  el.innerHTML = `<svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <defs>
+      <linearGradient id="rh-ev-grad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="var(--accent)" stop-opacity=".35"/>
+        <stop offset="100%" stop-color="var(--accent)" stop-opacity=".02"/>
+      </linearGradient>
+    </defs>
+    ${yLabels}
+    <path d="${areaD}" fill="url(#rh-ev-grad)"/>
+    <path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    ${dots}
+    ${labelDest(iMax, maxVal, 'var(--green)')}
+    ${iMin !== iMax ? labelDest(iMin, minVal, 'var(--red)') : ''}
+    ${xLabels}
+  </svg>`;
 }
 
 function renderRhEmpresa(ativos) {
