@@ -2124,11 +2124,11 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
           <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--purple)"></div><div class="kpi-mini-label">Empresas</div><div class="kpi-mini-val" id="rh-kpi-empresas" style="color:var(--purple)">—</div></div>
         </div>
 
-        <!-- Linha 1: Por Cidade + Por Setor | Colaboradores | Por Empresa + Tempo Médio -->
-        <div style="display:grid;grid-template-columns:220px 1fr 230px;gap:12px;margin-bottom:14px;align-items:start">
+        <!-- Linha 1: Por Cidade + Por Setor | Colaboradores | Por Empresa + Tempo Médio (redimensionável) -->
+        <div id="rh-main-flex" style="display:flex;gap:0;margin-bottom:14px;align-items:start;user-select:none">
 
-          <!-- Coluna 1: Por Cidade (clicável) + Por Setor (clicável) -->
-          <div style="display:flex;flex-direction:column;gap:8px;height:calc(100vh - 160px)">
+          <!-- Coluna 1 -->
+          <div id="rh-col1" style="display:flex;flex-direction:column;gap:8px;height:calc(100vh - 160px);width:220px;min-width:120px;flex-shrink:0">
             <div class="tbl-card" style="margin-bottom:0;flex:1;min-height:0;display:flex;flex-direction:column" id="rh-cidade-card">
               <div class="tbl-header" style="flex-shrink:0">
                 <span class="tbl-title">Por Cidade</span>
@@ -2142,23 +2142,35 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
             </div>
           </div>
 
-          <!-- Coluna 2: Colaboradores (dinâmico por setor/cidade) -->
-          <div class="tbl-card" style="margin-bottom:0">
-            <div class="tbl-header">
-              <span class="tbl-title" id="rh-col-titulo">Todos os Colaboradores</span>
-              <span class="badge b-blue" id="rh-col-count">—</span>
-              <button id="rh-col-limpar" onclick="rhFiltrarSetor(null)" style="display:none;background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:0;margin-left:4px">✕ ver todos</button>
-            </div>
-            <div style="overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 235px)">
-              <table class="tbl" style="font-size:11px">
-                <thead><tr><th>Colaborador</th><th>Cargo</th><th>Admissão</th><th>Tempo</th><th>Pendências</th></tr></thead>
-                <tbody id="rh-col-tbl"></tbody>
-              </table>
+          <!-- Divisor 1 -->
+          <div class="rh-divider" data-target="rh-col1" style="width:8px;cursor:col-resize;flex-shrink:0;height:calc(100vh - 160px);display:flex;align-items:center;justify-content:center">
+            <div style="width:3px;height:40px;background:var(--border2);border-radius:2px;transition:background .2s" onmouseover="this.style.background='var(--accent)'" onmouseout="this.style.background='var(--border2)'"></div>
+          </div>
+
+          <!-- Coluna 2 -->
+          <div id="rh-col2" style="flex:1;min-width:200px">
+            <div class="tbl-card" style="margin-bottom:0">
+              <div class="tbl-header">
+                <span class="tbl-title" id="rh-col-titulo">Todos os Colaboradores</span>
+                <span class="badge b-blue" id="rh-col-count">—</span>
+                <button id="rh-col-limpar" onclick="rhFiltrarSetor(null)" style="display:none;background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:0;margin-left:4px">✕ ver todos</button>
+              </div>
+              <div style="overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 235px)">
+                <table class="tbl" style="font-size:11px">
+                  <thead><tr><th>Colaborador</th><th>Cargo</th><th>Admissão</th><th>Tempo</th><th>Pendências</th></tr></thead>
+                  <tbody id="rh-col-tbl"></tbody>
+                </table>
+              </div>
             </div>
           </div>
 
-          <!-- Coluna 3: Por Empresa + Tempo Médio por Setor (compactos) -->
-          <div style="display:flex;flex-direction:column;gap:8px">
+          <!-- Divisor 2 -->
+          <div class="rh-divider" data-target="rh-col3" style="width:8px;cursor:col-resize;flex-shrink:0;height:calc(100vh - 160px);display:flex;align-items:center;justify-content:center">
+            <div style="width:3px;height:40px;background:var(--border2);border-radius:2px;transition:background .2s" onmouseover="this.style.background='var(--accent)'" onmouseout="this.style.background='var(--border2)'"></div>
+          </div>
+
+          <!-- Coluna 3 -->
+          <div id="rh-col3" style="display:flex;flex-direction:column;gap:8px;width:230px;min-width:120px;flex-shrink:0">
             <div class="tbl-card" style="margin-bottom:0">
               <div class="tbl-header" style="padding:8px 12px">
                 <span class="tbl-title" style="font-size:11px">Por Empresa</span>
@@ -9564,6 +9576,43 @@ function renderRhDashboard(emps) {
 let _rhSetorAtivo = null;
 let _rhEmpresaAtiva = null;
 let _rhCidadeAtiva = null;
+
+// ── Drag-to-resize colunas RH ──────────────────────────────────────────────
+(function() {
+  function initRhDividers() {
+    document.querySelectorAll('.rh-divider').forEach(div => {
+      div.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        const targetId = this.dataset.target;
+        const target = document.getElementById(targetId);
+        if (!target) return;
+        const startX = e.clientX;
+        const startW = target.offsetWidth;
+        const isLeft = targetId === 'rh-col1'; // col1: arrastar expande direita; col3: arrastar expande esquerda
+        document.body.style.cursor = 'col-resize';
+        function onMove(e) {
+          const dx = e.clientX - startX;
+          const newW = Math.max(120, startW + (isLeft ? dx : -dx));
+          target.style.width = newW + 'px';
+          target.style.flex = 'none';
+        }
+        function onUp() {
+          document.body.style.cursor = '';
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+        }
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+    });
+  }
+  // Inicializa quando a página RH ficar visível
+  const obs = new MutationObserver(() => {
+    if (document.getElementById('rh-main-flex')) { initRhDividers(); obs.disconnect(); }
+  });
+  obs.observe(document.body, { childList: true, subtree: true });
+  if (document.getElementById('rh-main-flex')) initRhDividers();
+})();
 
 function rhFiltrarCidade(el_ou_cidade) {
   // Aceita elemento DOM (vem do onclick(this)), string ou null (botão limpar)
