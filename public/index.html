@@ -2326,7 +2326,22 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
             <span><i class="fas fa-check-circle" style="margin-right:7px;opacity:.8"></i>Finalizado</span>
             <span class="kb-col-count" id="cnt-done">0</span>
           </div>
-          <div class="kb-cards" id="cards-done"></div>
+          <!-- Barra de filtro + toggle (oculta quando colapsado) -->
+          <div id="done-toolbar" style="display:none;padding:8px 10px 4px;gap:6px;flex-direction:column">
+            <input type="text" id="done-search" placeholder="Filtrar finalizados..." oninput="kbFilterDone()" style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px 10px;color:var(--text);font-size:12px;outline:none">
+            <div style="display:flex;gap:4px;flex-wrap:wrap" id="done-tag-filters">
+              <button class="chip active" onclick="kbDoneTag(null,this)">Todos</button>
+              <button class="chip" onclick="kbDoneTag('Operações',this)">Operações</button>
+              <button class="chip" onclick="kbDoneTag('Chamados',this)">Chamados</button>
+              <button class="chip" onclick="kbDoneTag('Retenção',this)">Retenção</button>
+              <button class="chip" onclick="kbDoneTag('Reunião',this)">Reunião</button>
+              <button class="chip" onclick="kbDoneTag('Outro',this)">Outro</button>
+            </div>
+          </div>
+          <div id="done-toggle-bar" style="padding:8px 10px">
+            <button onclick="kbToggleDone()" style="width:100%;background:rgba(34,197,94,.1);border:1px dashed rgba(34,197,94,.4);color:var(--green);border-radius:6px;padding:7px;font-size:12px;cursor:pointer"><i class="fas fa-eye" style="margin-right:5px"></i>Ver finalizados (<span id="cnt-done-btn">0</span>)</button>
+          </div>
+          <div class="kb-cards" id="cards-done" style="display:none"></div>
         </div>
 
       </div>
@@ -6203,8 +6218,18 @@ function renderKanban() {
     const el  = document.getElementById(`cards-${s}`);
     const cnt = document.getElementById(`cnt-${s}`);
     const list = cols[s] || [];
-    if (el)  el.innerHTML  = list.length ? list.map(renderCard).join('') : `<div style="color:var(--text3);font-size:12px;padding:12px 4px;text-align:center;opacity:.6">Arraste uma tarefa aqui</div>`;
-    if (cnt) cnt.textContent = list.length;
+    if (s === 'done') {
+      // Guarda lista original para filtro; mantém cards ocultos por padrão
+      window._kbDoneAll = list;
+      if (el) el.innerHTML = list.map(renderCard).join('');
+      if (cnt) cnt.textContent = list.length;
+      const btn = document.getElementById('cnt-done-btn');
+      if (btn) btn.textContent = list.length;
+      // Mantém visibilidade atual (não força fechar se já aberto)
+    } else {
+      if (el)  el.innerHTML  = list.length ? list.map(renderCard).join('') : `<div style="color:var(--text3);font-size:12px;padding:12px 4px;text-align:center;opacity:.6">Arraste uma tarefa aqui</div>`;
+      if (cnt) cnt.textContent = list.length;
+    }
   });
 
   const active = tasks.filter(t=>taskStatus(t)!=='done').length;
@@ -6216,6 +6241,41 @@ function renderKanban() {
   if(el('tk-co')) el('tk-co').textContent=done;
 }
 function renderTasks() { renderKanban(); }
+
+// ── Finalizado: toggle + filtro ────────────────────────────────────
+let _kbDoneOpen = false;
+let _kbDoneTag  = null;
+
+function kbToggleDone() {
+  _kbDoneOpen = !_kbDoneOpen;
+  const cardsEl   = document.getElementById('cards-done');
+  const toolbar   = document.getElementById('done-toolbar');
+  const toggleBar = document.getElementById('done-toggle-bar');
+  if (cardsEl)   cardsEl.style.display   = _kbDoneOpen ? '' : 'none';
+  if (toolbar)   toolbar.style.display   = _kbDoneOpen ? 'flex' : 'none';
+  if (toggleBar) toggleBar.style.display = _kbDoneOpen ? 'none' : '';
+  if (_kbDoneOpen) { document.getElementById('done-search').value=''; _kbDoneTag=null; kbFilterDone(); }
+}
+
+function kbFilterDone() {
+  const q   = (document.getElementById('done-search')?.value || '').toLowerCase();
+  const all = window._kbDoneAll || [];
+  const filteredIds = new Set(all.filter(t => {
+    const matchTag = !_kbDoneTag || (t.tag||t.category||'') === _kbDoneTag;
+    const matchQ   = !q || (t.title||'').toLowerCase().includes(q) || (t.desc||'').toLowerCase().includes(q);
+    return matchTag && matchQ;
+  }).map(t => t.id));
+  const el = document.getElementById('cards-done');
+  if (!el) return;
+  el.querySelectorAll('.kb-card').forEach(c => { c.style.display = filteredIds.has(c.dataset.id) ? '' : 'none'; });
+}
+
+function kbDoneTag(tag, btn) {
+  _kbDoneTag = tag;
+  document.querySelectorAll('#done-tag-filters .chip').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  kbFilterDone();
+}
 
 // ── Drag & Drop ────────────────────────────────────────────────────
 function kbDragStart(e) {
