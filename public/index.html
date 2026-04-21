@@ -2329,13 +2329,14 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
           <!-- Barra de filtro + toggle (oculta quando colapsado) -->
           <div id="done-toolbar" style="display:none;padding:8px 10px 4px;gap:6px;flex-direction:column">
             <input type="text" id="done-search" placeholder="Filtrar finalizados..." oninput="kbFilterDone()" style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px 10px;color:var(--text);font-size:12px;outline:none">
-            <div style="display:flex;gap:4px;flex-wrap:wrap" id="done-tag-filters">
+            <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center" id="done-tag-filters">
               <button class="chip active" onclick="kbDoneTag(null,this)">Todos</button>
               <button class="chip" onclick="kbDoneTag('Operações',this)">Operações</button>
               <button class="chip" onclick="kbDoneTag('Chamados',this)">Chamados</button>
               <button class="chip" onclick="kbDoneTag('Retenção',this)">Retenção</button>
               <button class="chip" onclick="kbDoneTag('Reunião',this)">Reunião</button>
               <button class="chip" onclick="kbDoneTag('Outro',this)">Outro</button>
+              <button onclick="kbToggleDone()" title="Recolher" style="margin-left:auto;background:none;border:1px solid var(--border2);color:var(--text3);border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer"><i class="fas fa-eye-slash"></i> Recolher</button>
             </div>
           </div>
           <div id="done-toggle-bar" style="padding:8px 10px">
