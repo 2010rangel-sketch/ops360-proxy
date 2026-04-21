@@ -9840,9 +9840,12 @@ async function _nrRestoreFromServer() {
     if (Array.isArray(lista) && lista.length > 0) {
       localStorage.setItem('rhNRCerts', JSON.stringify(lista));
       renderRhNR();
-      // Esconde botão de recuperação se já tem dados
       const btn = document.getElementById('nr-migrate-btn');
       if (btn) btn.style.display = 'none';
+    } else {
+      // Servidor sem dados — sobe localStorage para o servidor (sincroniza PC → servidor)
+      const local = _nrGetLista();
+      if (local.length > 0) _nrSyncServer(local);
     }
   } catch {}
 }
