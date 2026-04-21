@@ -9940,7 +9940,12 @@ function renderRhNR() {
     }
   }
   if (!lista.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">Nenhuma certificação · clique em <b>+ Manual</b> ou <b>Subir PDFs</b></td></tr>'; return; }
-  tbody.innerHTML = lista.map((c, i) => {
+  const listaOrd = [...lista].sort((a, b) => {
+    const da = a.vencimento ? new Date(a.vencimento) : new Date('9999-12-31');
+    const db = b.vencimento ? new Date(b.vencimento) : new Date('9999-12-31');
+    return da - db; // vencidas/mais próximas primeiro
+  });
+  tbody.innerHTML = listaOrd.map((c, i) => {
     const vencDate = c.vencimento ? new Date(c.vencimento) : null;
     const emissDate = c.emissao ? new Date(c.emissao) : null;
     const diff = vencDate ? Math.ceil((vencDate - hoje) / (1000 * 60 * 60 * 24)) : null;
