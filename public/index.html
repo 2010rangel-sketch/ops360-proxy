@@ -2124,103 +2124,70 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
           <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--purple)"></div><div class="kpi-mini-label">Empresas</div><div class="kpi-mini-val" id="rh-kpi-empresas" style="color:var(--purple)">—</div></div>
         </div>
 
-        <!-- Linha 1: redimensionável em largura e altura -->
-        <div id="rh-main-flex" style="display:flex;gap:0;margin-bottom:6px;align-items:stretch;user-select:none">
+        <!-- Linha 1: Por Cidade + Por Setor | Colaboradores | Por Empresa + Tempo Médio -->
+        <div style="display:grid;grid-template-columns:220px 1fr 230px;gap:12px;margin-bottom:14px">
 
-          <!-- Coluna 1 -->
-          <div id="rh-col1" style="display:flex;flex-direction:column;width:220px;min-width:100px;flex-shrink:0">
-            <div class="tbl-card" id="rh-cidade-card" style="margin-bottom:0;display:flex;flex-direction:column;height:280px;min-height:80px">
-              <div class="tbl-header" style="flex-shrink:0">
+          <!-- Coluna 1: Por Cidade (clicável) + Por Setor (clicável) -->
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div class="tbl-card" style="margin-bottom:0" id="rh-cidade-card">
+              <div class="tbl-header">
                 <span class="tbl-title">Por Cidade</span>
                 <button id="rh-cid-limpar" onclick="rhFiltrarCidade(null)" style="display:none;background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:0">✕</button>
               </div>
-              <div style="padding:6px 0;overflow-y:auto;flex:1;min-height:0" id="rh-por-cidade"></div>
+              <div style="padding:6px 0;overflow-y:auto;max-height:200px" id="rh-por-cidade"></div>
             </div>
-            <!-- Divisor vertical col1 -->
-            <div class="rh-vdivider" data-top="rh-cidade-card" style="height:8px;cursor:row-resize;display:flex;align-items:center;justify-content:center">
-              <div style="height:3px;width:40px;background:var(--border2);border-radius:2px;transition:background .2s" onmouseover="this.style.background='var(--accent)'" onmouseout="this.style.background='var(--border2)'"></div>
-            </div>
-            <div class="tbl-card" id="rh-setor-card" style="margin-bottom:0;display:flex;flex-direction:column;flex:1;min-height:80px">
-              <div class="tbl-header" style="flex-shrink:0"><span class="tbl-title">Por Setor</span><span class="badge b-blue" id="rh-setor-badge">ativos</span></div>
-              <div style="padding:6px 0;overflow-y:auto;flex:1;min-height:0" id="rh-por-setor"></div>
+            <div class="tbl-card" style="margin-bottom:0">
+              <div class="tbl-header"><span class="tbl-title">Por Setor</span><span class="badge b-blue" id="rh-setor-badge">ativos</span></div>
+              <div style="padding:6px 0;overflow-y:auto;max-height:260px" id="rh-por-setor"></div>
             </div>
           </div>
 
-          <!-- Divisor horizontal col1→col2 -->
-          <div class="rh-divider" data-target="rh-col1" data-dir="left" style="width:8px;cursor:col-resize;flex-shrink:0;display:flex;align-items:center;justify-content:center">
-            <div style="width:3px;height:40px;background:var(--border2);border-radius:2px;transition:background .2s" onmouseover="this.style.background='var(--accent)'" onmouseout="this.style.background='var(--border2)'"></div>
-          </div>
-
-          <!-- Coluna 2 -->
-          <div id="rh-col2" style="flex:1;min-width:180px;display:flex;flex-direction:column">
-            <div class="tbl-card" id="rh-colab-card" style="margin-bottom:0;display:flex;flex-direction:column;height:300px;min-height:120px">
-              <div class="tbl-header" style="flex-shrink:0">
-                <span class="tbl-title" id="rh-col-titulo">Todos os Colaboradores</span>
-                <span class="badge b-blue" id="rh-col-count">—</span>
-                <button id="rh-col-limpar" onclick="rhFiltrarSetor(null)" style="display:none;background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:0;margin-left:4px">✕ ver todos</button>
-              </div>
-              <div style="overflow-x:auto;overflow-y:auto;flex:1;min-height:0">
-                <table class="tbl" style="font-size:11px">
-                  <thead><tr><th>Colaborador</th><th>Cargo</th><th>Admissão</th><th>Tempo</th><th>Pendências</th></tr></thead>
-                  <tbody id="rh-col-tbl"></tbody>
-                </table>
-              </div>
+          <!-- Coluna 2: Colaboradores (dinâmico por setor/cidade) -->
+          <div class="tbl-card" style="margin-bottom:0">
+            <div class="tbl-header">
+              <span class="tbl-title" id="rh-col-titulo">Todos os Colaboradores</span>
+              <span class="badge b-blue" id="rh-col-count">—</span>
+              <button id="rh-col-limpar" onclick="rhFiltrarSetor(null)" style="display:none;background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:0;margin-left:4px">✕ ver todos</button>
+            </div>
+            <div style="overflow-y:auto;max-height:300px">
+              <table class="tbl" style="font-size:11px">
+                <thead><tr><th>Colaborador</th><th>Cargo</th><th>Admissão</th><th>Tempo</th><th>Pendências</th></tr></thead>
+                <tbody id="rh-col-tbl"></tbody>
+              </table>
             </div>
           </div>
 
-          <!-- Divisor horizontal col2→col3 -->
-          <div class="rh-divider" data-target="rh-col3" data-dir="right" style="width:8px;cursor:col-resize;flex-shrink:0;display:flex;align-items:center;justify-content:center">
-            <div style="width:3px;height:40px;background:var(--border2);border-radius:2px;transition:background .2s" onmouseover="this.style.background='var(--accent)'" onmouseout="this.style.background='var(--border2)'"></div>
-          </div>
-
-          <!-- Coluna 3 -->
-          <div id="rh-col3" style="display:flex;flex-direction:column;width:230px;min-width:100px;flex-shrink:0">
-            <div class="tbl-card" id="rh-empresa-card" style="margin-bottom:0;display:flex;flex-direction:column;height:120px;min-height:60px">
-              <div class="tbl-header" style="padding:8px 12px;flex-shrink:0">
+          <!-- Coluna 3: Por Empresa + Tempo Médio por Setor (compactos) -->
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div class="tbl-card" style="margin-bottom:0">
+              <div class="tbl-header" style="padding:8px 12px">
                 <span class="tbl-title" style="font-size:11px">Por Empresa</span>
                 <button id="rh-emp-limpar" onclick="rhFiltrarEmpresa(null)" style="display:none;background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:0">✕</button>
               </div>
-              <div style="padding:6px 12px;overflow-y:auto;flex:1;min-height:0" id="rh-por-empresa"></div>
+              <div style="padding:6px 12px" id="rh-por-empresa"></div>
             </div>
-            <!-- Divisor vertical col3 -->
-            <div class="rh-vdivider" data-top="rh-empresa-card" style="height:8px;cursor:row-resize;display:flex;align-items:center;justify-content:center">
-              <div style="height:3px;width:40px;background:var(--border2);border-radius:2px;transition:background .2s" onmouseover="this.style.background='var(--accent)'" onmouseout="this.style.background='var(--border2)'"></div>
-            </div>
-            <div class="tbl-card" id="rh-tempo-card" style="margin-bottom:0;display:flex;flex-direction:column;flex:1;min-height:80px">
-              <div class="tbl-header" style="padding:8px 12px;flex-shrink:0"><span class="tbl-title" style="font-size:11px">Tempo Médio / Setor</span></div>
-              <div style="padding:6px 12px;overflow-y:auto;flex:1;min-height:0" id="rh-tempo-setor"></div>
+            <div class="tbl-card" style="margin-bottom:0">
+              <div class="tbl-header" style="padding:8px 12px"><span class="tbl-title" style="font-size:11px">Tempo Médio / Setor</span></div>
+              <div style="padding:6px 12px" id="rh-tempo-setor"></div>
             </div>
           </div>
 
         </div>
 
-        <!-- Divisor de altura da seção principal (arraste para cima/baixo) -->
-        <div class="rh-vdivider" data-top="rh-colab-card" data-also="rh-col1,rh-col3" style="height:8px;cursor:row-resize;display:flex;align-items:center;justify-content:center;margin-bottom:6px;border-radius:4px;background:var(--bg3)">
-          <div style="height:3px;width:80px;background:var(--border2);border-radius:2px;transition:background .2s" onmouseover="this.style.background='var(--accent)'" onmouseout="this.style.background='var(--border2)'"></div>
+        <!-- Linha 2: Admissões vs Desligamentos -->
+        <div class="tbl-card" style="margin-bottom:14px">
+          <div class="tbl-header"><span class="tbl-title">Admissões vs Desligamentos</span><span class="badge b-blue">últimos 6 meses</span></div>
+          <div style="padding:14px 16px">
+            <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px" id="rh-movimentacao"></div>
+          </div>
         </div>
 
-        <!-- Linha 2: Admissões vs Desligamentos + Turnover lado a lado (redimensionável) -->
-        <div id="rh-bot-flex" style="display:flex;gap:0;margin-bottom:14px;user-select:none">
-          <div id="rh-bot-col1" style="flex:1;min-width:200px">
-            <div class="tbl-card" style="margin-bottom:0">
-              <div class="tbl-header"><span class="tbl-title">Admissões vs Desligamentos</span><span class="badge b-blue">últimos 6 meses</span></div>
-              <div style="padding:14px 16px">
-                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px" id="rh-movimentacao"></div>
-              </div>
-            </div>
-          </div>
-          <!-- Divisor linha 2 -->
-          <div class="rh-divider" data-target="rh-bot-col2" data-dir="right" style="width:8px;cursor:col-resize;flex-shrink:0;display:flex;align-items:center;justify-content:center">
-            <div style="width:3px;height:40px;background:var(--border2);border-radius:2px;transition:background .2s" onmouseover="this.style.background='var(--accent)'" onmouseout="this.style.background='var(--border2)'"></div>
-          </div>
-          <div id="rh-bot-col2" style="width:320px;min-width:150px;flex-shrink:0">
-            <div class="tbl-card" style="margin-bottom:0">
-              <div class="tbl-header"><span class="tbl-title">Turnover por Setor</span><span class="badge b-red">últimos 12 meses</span></div>
-              <div style="overflow-x:auto;overflow-y:auto;max-height:220px">
-                <table class="tbl"><thead><tr><th>Setor</th><th>Ativos</th><th>Saídas (12m)</th><th>Turnover</th></tr></thead>
-                <tbody id="rh-turnover-setor"></tbody></table>
-              </div>
-            </div>
+        <!-- Linha 3: Turnover por Setor -->
+        <div class="tbl-card" style="margin-bottom:14px">
+          <div class="tbl-header"><span class="tbl-title">Turnover por Setor</span><span class="badge b-red">últimos 12 meses</span></div>
+          <div style="overflow-x:auto;max-height:200px;overflow-y:auto">
+            <table class="tbl"><thead><tr><th>Setor</th><th>Ativos</th><th>Saídas (12m)</th><th>Turnover</th></tr></thead>
+            <tbody id="rh-turnover-setor"></tbody></table>
           </div>
         </div>
 
@@ -9597,65 +9564,6 @@ function renderRhDashboard(emps) {
 let _rhSetorAtivo = null;
 let _rhEmpresaAtiva = null;
 let _rhCidadeAtiva = null;
-
-// ── Drag-to-resize painéis RH (largura e altura) ───────────────────────────
-(function() {
-  function initRhDividers() {
-    // Largura (horizontal) — arrastar entre colunas
-    document.querySelectorAll('.rh-divider').forEach(div => {
-      div.addEventListener('mousedown', function(e) {
-        e.preventDefault();
-        const target = document.getElementById(this.dataset.target);
-        if (!target) return;
-        const dir = this.dataset.dir || 'left'; // left = col à esquerda do handle, right = col à direita
-        const startX = e.clientX;
-        const startW = target.offsetWidth;
-        document.body.style.cursor = 'col-resize';
-        function onMove(e) {
-          const dx = e.clientX - startX;
-          const newW = Math.max(100, startW + (dir === 'left' ? dx : -dx));
-          target.style.width = newW + 'px';
-          target.style.flex = 'none';
-        }
-        function onUp() { document.body.style.cursor = ''; document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); }
-        document.addEventListener('mousemove', onMove);
-        document.addEventListener('mouseup', onUp);
-      });
-    });
-    // Altura (vertical) — arrastar entre painéis empilhados
-    document.querySelectorAll('.rh-vdivider').forEach(div => {
-      div.addEventListener('mousedown', function(e) {
-        e.preventDefault();
-        const topEl = document.getElementById(this.dataset.top);
-        if (!topEl) return;
-        const also = (this.dataset.also || '').split(',').filter(Boolean); // ids extras para redimensionar junto
-        const startY = e.clientY;
-        const startH = topEl.offsetHeight;
-        document.body.style.cursor = 'row-resize';
-        function onMove(e) {
-          const dy = e.clientY - startY;
-          const newH = Math.max(60, startH + dy);
-          topEl.style.height = newH + 'px';
-          topEl.style.flex = 'none';
-          // Se for o divisor principal (data-also), redimensiona a col de colaboradores E as alturas das col1/col3
-          also.forEach(id => {
-            const el = document.getElementById(id);
-            if (!el) return;
-            el.style.height = newH + 'px';
-          });
-        }
-        function onUp() { document.body.style.cursor = ''; document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); }
-        document.addEventListener('mousemove', onMove);
-        document.addEventListener('mouseup', onUp);
-      });
-    });
-  }
-  const obs = new MutationObserver(() => {
-    if (document.getElementById('rh-main-flex')) { initRhDividers(); obs.disconnect(); }
-  });
-  obs.observe(document.body, { childList: true, subtree: true });
-  if (document.getElementById('rh-main-flex')) initRhDividers();
-})();
 
 function rhFiltrarCidade(el_ou_cidade) {
   // Aceita elemento DOM (vem do onclick(this)), string ou null (botão limpar)
