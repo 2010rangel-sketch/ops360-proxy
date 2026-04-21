@@ -3346,7 +3346,14 @@ app.get('/api/adicao-liquida', async (req, res) => {
       warmupComercial().catch(console.warn);
       return res.json({ ok: false, motivo: 'cache_warmup', warming: true, info: 'Base de clientes sendo carregada. Tente em 60s.' });
     }
-    const result  = await buildAdicaoLiquida();
+    const oldCache = _alCache || (await dbCacheGet('cache:adicao-liquida', AL_CACHE_TTL * 10));
+    const result   = await buildAdicaoLiquida();
+    // Preserva meses com erro: substitui pelo valor do cache anterior se existir
+    if (oldCache && Array.isArray(oldCache.meses) && Array.isArray(result.meses)) {
+      const oldMap = {};
+      for (const m of oldCache.meses) oldMap[m.iniStr] = m;
+      result.meses = result.meses.map(m => (m.erro && oldMap[m.iniStr] && !oldMap[m.iniStr].erro) ? oldMap[m.iniStr] : m);
+    }
     _alCache      = result;
     _alFetchedAt  = agora;
     dbCacheSet('cache:adicao-liquida', result).catch(() => {});

@@ -3161,13 +3161,18 @@ async function buscarPeriodo() {
   const chamados = await buscarChamadosHubsoft(params);
   // Se um fetch mais recente já completou, descarta este resultado (anti-race)
   if (mySeq !== _fetchSeq) { setBtns('Buscar', false); return; }
-  // Aplica mesmo se vazio (null = erro de rede; [] = período sem OS — ambos devem atualizar a UI)
   if (chamados !== null) {
     filtros.rangeIni = new Date(ini);
     filtros.rangeFim = new Date(fim);
     salvarCache(chamados, periodoSnapshot);
     _chamadosPeriodo = periodoSnapshot;
     aplicarDados(chamados);
+  } else {
+    // Erro de rede ou servidor aquecendo — retry automático em 20s se tela estiver vazia
+    if (chamadosDB.length === 0) {
+      setBtns('Retry em 20s...', true);
+      setTimeout(() => { if (chamadosDB.length === 0) buscarPeriodo(); }, 20000);
+    }
   }
   setBtns('Buscar', false);
 }
@@ -5350,11 +5355,14 @@ async function loadRetencaoAtend() {
       renderRetencao(data);
       renderDashRetencao();
       if (typeof buildNotificacoes === 'function') buildNotificacoes();
+    } else {
+      if (badge) { badge.textContent = 'Retry em 20s...'; badge.className = 'badge b-amber'; }
+      if (!_retData) setTimeout(() => loadRetencaoAtend(), 20000);
     }
-    else if (badge) { badge.textContent = 'Erro'; badge.className = 'badge b-red'; }
   } catch(e) {
     console.warn('Erro retencao atend:', e.message);
-    if (badge) { badge.textContent = 'Erro'; badge.className = 'badge b-red'; }
+    if (badge) { badge.textContent = 'Retry em 20s...'; badge.className = 'badge b-amber'; }
+    if (!_retData) setTimeout(() => loadRetencaoAtend(), 20000);
   }
 }
 
@@ -8428,7 +8436,8 @@ async function loadAdicaoLiquida(force = false) {
       badge.className = 'badge b-green';
     }
   } catch(e) {
-    if (badge) { badge.textContent = 'Erro de conexão'; badge.className = 'badge b-red'; }
+    if (badge) { badge.textContent = 'Retry em 20s...'; badge.className = 'badge b-amber'; }
+    if (!_finData) setTimeout(() => loadFinanceiro(), 20000);
   }
 }
 
@@ -8640,8 +8649,9 @@ async function loadChamadosHistorico(force = false) {
     const r = await fetch(`${PROXY_URL}/api/chamados/historico${force ? '?force=1' : ''}`);
     const d = await r.json();
     if (!d.ok) {
-      if (badge) { badge.textContent = d.motivo || 'Erro'; badge.className = 'badge b-red'; }
-      if (chart) chart.innerHTML = `<div style="color:var(--text3);font-size:12px;padding:40px;text-align:center;width:100%">${d.motivo || 'Erro'}</div>`;
+      if (badge) { badge.textContent = 'Retry em 20s...'; badge.className = 'badge b-amber'; }
+      if (chart && !_chHist) chart.innerHTML = `<div style="color:var(--text3);font-size:12px;padding:40px;text-align:center;width:100%">${d.motivo || 'Aguardando servidor...'}</div>`;
+      if (!_chHist) setTimeout(() => loadChamadosHistorico(), 20000);
       return;
     }
     _chHist = d;
@@ -8652,7 +8662,8 @@ async function loadChamadosHistorico(force = false) {
       badge.className = 'badge b-green';
     }
   } catch(e) {
-    if (badge) { badge.textContent = 'Erro de conexão'; badge.className = 'badge b-red'; }
+    if (badge) { badge.textContent = 'Retry em 20s...'; badge.className = 'badge b-amber'; }
+    if (!_chHist) setTimeout(() => loadChamadosHistorico(), 20000);
   }
 }
 
