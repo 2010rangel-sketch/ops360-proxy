@@ -1660,7 +1660,13 @@ app.get('/api/remocoes/historico', async (req, res) => {
       const dbH = await dbCacheGet('cache:remocoes:historico', REM_HIST_TTL);
       if (dbH) { _remHistCache = dbH; _remHistFetchedAt = Date.now(); return res.json({ ...dbH, cache: 'db' }); }
     }
+    const oldCache = _remHistCache || (await dbCacheGet('cache:remocoes:historico', REM_HIST_TTL * 10));
     const result = await buildRemocoesMensais();
+    if (oldCache && Array.isArray(oldCache.meses) && Array.isArray(result.meses)) {
+      const oldMap = {};
+      for (const m of oldCache.meses) oldMap[`${m.ano}-${m.mes}`] = m;
+      result.meses = result.meses.map(m => (m.erro && oldMap[`${m.ano}-${m.mes}`] && !oldMap[`${m.ano}-${m.mes}`].erro) ? oldMap[`${m.ano}-${m.mes}`] : m);
+    }
     _remHistCache = result; _remHistFetchedAt = Date.now();
     dbCacheSet('cache:remocoes:historico', result).catch(() => {});
     res.json(result);

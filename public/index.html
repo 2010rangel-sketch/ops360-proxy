@@ -2174,6 +2174,17 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
 
         </div>
 
+        <!-- Linha 1b: Evolução de Colaboradores -->
+        <div class="tbl-card" style="margin-bottom:14px">
+          <div class="tbl-header">
+            <span class="tbl-title"><i class="fas fa-chart-line" style="color:var(--accent);margin-right:6px"></i>Evolução de Colaboradores por Mês</span>
+            <span class="badge b-blue" id="rh-evolucao-badge">jan/25 → atual</span>
+          </div>
+          <div style="padding:16px 20px 8px;overflow-x:auto">
+            <div id="rh-evolucao-chart" style="min-width:560px;height:200px"></div>
+          </div>
+        </div>
+
         <!-- Linha 2: Admissões vs Desligamentos -->
         <div class="tbl-card" style="margin-bottom:14px">
           <div class="tbl-header"><span class="tbl-title">Admissões vs Desligamentos</span><span class="badge b-blue">últimos 6 meses</span></div>
@@ -8576,8 +8587,9 @@ async function loadRemocoesMensais(force = false) {
     const r = await fetch(`${PROXY_URL}/api/remocoes/historico${force ? '?force=1' : ''}`);
     const d = await r.json();
     if (!d.ok) {
-      if (badge) { badge.textContent = d.motivo || 'Erro'; badge.className = 'badge b-red'; }
-      if (chart) chart.innerHTML = `<div style="color:var(--text3);font-size:12px;padding:40px;text-align:center;width:100%">${d.motivo || 'Erro'}</div>`;
+      if (badge) { badge.textContent = 'Retry em 20s...'; badge.className = 'badge b-amber'; }
+      if (chart && !_remHist) chart.innerHTML = `<div style="color:var(--text3);font-size:12px;padding:40px;text-align:center;width:100%">${d.motivo || 'Aguardando servidor...'}</div>`;
+      if (!_remHist) setTimeout(() => loadRemocoesMensais(), 20000);
       return;
     }
     _remHist = d;
@@ -8588,7 +8600,8 @@ async function loadRemocoesMensais(force = false) {
       badge.className = 'badge b-green';
     }
   } catch(e) {
-    if (badge) { badge.textContent = 'Erro de conexão'; badge.className = 'badge b-red'; }
+    if (badge) { badge.textContent = 'Retry em 20s...'; badge.className = 'badge b-amber'; }
+    if (!_remHist) setTimeout(() => loadRemocoesMensais(), 20000);
   }
 }
 
@@ -8612,18 +8625,23 @@ function renderRemocoesMensais(d) {
   if (chart) {
     chart.innerHTML = meses.map((m, i) => {
       const v       = m.total;
-      const h       = v > 0 ? Math.max(Math.round((v / maxVal) * ALTURA), 2) : 0;
+      const isErro  = m.erro && v === 0;
+      const hVal    = isErro ? Math.round(ALTURA * 0.3) : (v > 0 ? Math.max(Math.round((v / maxVal) * ALTURA), 2) : 0);
       const isMax   = v === maxMes && !m.parcial;
       const cor     = m.parcial ? COR_PARCIAL : isMax ? '#d97706' : COR_BAR;
-      const tooltip = `${m.label}${m.parcial?' (parcial)':''}: ${v} remoções`;
+      const tooltip = isErro ? `${m.label}: dado indisponível (erro de cálculo)` : `${m.label}${m.parcial?' (parcial)':''}: ${v} remoções`;
       const anoLbl  = (i === 0 || meses[i-1].ano !== m.ano)
         ? `<div style="font-size:9px;color:var(--text3);margin-bottom:2px;font-weight:600">${m.ano}</div>`
         : '<div style="font-size:9px;color:transparent">·</div>';
-      const barStyle = `width:100%;height:${h}px;background:${cor};border-radius:3px 3px 0 0;margin-top:2px${m.parcial?';opacity:.6':''}${isMax?';box-shadow:0 0 0 2px #fff3':''}`;
-      const labelExtra = m.parcial ? `<div style="font-size:8px;color:${COR_PARCIAL};font-weight:600;margin-top:1px">parcial</div>` : '';
+      const barStyle = isErro
+        ? `width:100%;height:${hVal}px;background:repeating-linear-gradient(45deg,rgba(245,158,11,.25),rgba(245,158,11,.25) 3px,transparent 3px,transparent 6px);border:1px dashed rgba(245,158,11,.5);border-radius:3px 3px 0 0;margin-top:2px`
+        : `width:100%;height:${hVal}px;background:${cor};border-radius:3px 3px 0 0;margin-top:2px${m.parcial?';opacity:.6':''}${isMax?';box-shadow:0 0 0 2px #fff3':''}`;
+      const labelExtra = isErro
+        ? `<div style="font-size:8px;color:var(--amber);font-weight:600;margin-top:1px">?</div>`
+        : m.parcial ? `<div style="font-size:8px;color:${COR_PARCIAL};font-weight:600;margin-top:1px">parcial</div>` : '';
       return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:28px;max-width:52px;cursor:default" title="${tooltip}">
         ${anoLbl}
-        <div style="font-size:9px;color:${cor};font-weight:700;line-height:1.2">${v||''}</div>
+        <div style="font-size:9px;color:${isErro?'var(--amber)':cor};font-weight:700;line-height:1.2">${isErro?'?':(v||'')}</div>
         <div style="${barStyle}"></div>
         <div style="font-size:9px;color:var(--text3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center">${m.label}</div>
         ${labelExtra}
@@ -9631,6 +9649,7 @@ function renderRhDashboard(emps) {
   renderRhAniversarios(ativos);
   renderRhCNH(ativos);
   renderRhNR();
+  renderRhEvolucao();
 }
 
 let _rhSetorAtivo = null;
@@ -9642,6 +9661,7 @@ function rhFiltrarCidade(el_ou_cidade) {
   const cidade = !el_ou_cidade ? null : (typeof el_ou_cidade === 'string') ? el_ou_cidade : el_ou_cidade?.dataset?.rhCidade;
   _rhCidadeAtiva = _rhCidadeAtiva === cidade ? null : cidade;
   renderRhColaboradores();
+  renderRhEvolucao();
   document.querySelectorAll('[data-rh-cidade]').forEach(el => {
     const ativo = el.dataset.rhCidade === _rhCidadeAtiva;
     el.style.background   = ativo ? 'rgba(99,102,241,.15)' : '';
@@ -9654,6 +9674,7 @@ function rhFiltrarCidade(el_ou_cidade) {
 function rhFiltrarEmpresa(empresa) {
   _rhEmpresaAtiva = empresa;
   renderRhColaboradores();
+  renderRhEvolucao();
   document.querySelectorAll('[data-rh-empresa]').forEach(el => {
     el.style.background = el.dataset.rhEmpresa === empresa ? 'rgba(99,102,241,.15)' : '';
     el.style.borderRadius = '6px';
@@ -9665,6 +9686,7 @@ function rhFiltrarEmpresa(empresa) {
 function rhFiltrarSetor(setor) {
   _rhSetorAtivo = setor;
   renderRhColaboradores();
+  renderRhEvolucao();
   // atualiza visual dos itens do setor
   document.querySelectorAll('[data-rh-setor]').forEach(el => {
     const ativo = el.dataset.rhSetor === setor;
@@ -9673,6 +9695,111 @@ function rhFiltrarSetor(setor) {
   });
   const limpar = document.getElementById('rh-col-limpar');
   if (limpar) limpar.style.display = setor ? '' : 'none';
+}
+
+function renderRhEvolucao() {
+  const el    = document.getElementById('rh-evolucao-chart');
+  const badge = document.getElementById('rh-evolucao-badge');
+  if (!el) return;
+  const todos = window._rhEmployees || [];
+  if (!todos.length) { el.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:60px;text-align:center">Sem dados</div>'; return; }
+
+  // Aplica filtros ativos
+  let emps = todos;
+  if (window._rhCidadeAtiva)  emps = emps.filter(e => (e.cidade||'') === _rhCidadeAtiva);
+  if (window._rhSetorAtivo)   emps = emps.filter(e => (e.setor||'')  === _rhSetorAtivo);
+  if (window._rhEmpresaAtiva) emps = emps.filter(e => (e.empresa||'') === _rhEmpresaAtiva);
+
+  const filtro = _rhCidadeAtiva || _rhSetorAtivo || _rhEmpresaAtiva || 'jan/25 → atual';
+  if (badge) { badge.textContent = filtro; badge.className = filtro === 'jan/25 → atual' ? 'badge b-blue' : 'badge b-accent'; }
+
+  const agora = new Date();
+
+  // Meses: jan/2025 até mês atual
+  const meses = [];
+  let cur = new Date(2025, 0, 1);
+  const fimRange = new Date(agora.getFullYear(), agora.getMonth(), 1);
+  while (cur <= fimRange) { meses.push(new Date(cur)); cur.setMonth(cur.getMonth()+1); }
+
+  // Conta colaboradores ativos no FINAL de cada mês
+  // Admitido até o último dia do mês E sem demissão OU demissão após o último dia
+  const vals = meses.map(mes => {
+    const fimMes = new Date(mes.getFullYear(), mes.getMonth()+1, 0, 23,59,59);
+    return emps.filter(e => {
+      const adm  = e.admissao instanceof Date ? e.admissao : null;
+      const desl = e.demissao instanceof Date ? e.demissao : null;
+      if (!adm || adm > fimMes) return false;      // ainda não tinha entrado
+      if (desl && desl <= fimMes) return false;   // já tinha saído até o fim do mês
+      if (!desl && !e.ativo) return false;         // sem demissão mas marcado inativo no CSV
+      return true;
+    }).length;
+  });
+
+  const n      = meses.length;
+  const maxVal = Math.max(...vals, 1);
+  const minVal = Math.min(...vals);
+  const W = el.clientWidth || 900;
+  const H = 200;
+  const PL = 4, PR = 4, PT = 36, PB = 24;
+  const pw = W - PL - PR, ph = H - PT - PB;
+
+  const xOf = i => PL + (n <= 1 ? pw/2 : i/(n-1)*pw);
+  const yOf = v => PT + ph - ((v - minVal) / (maxVal - minVal || 1)) * ph;
+
+  // Linha curva Catmull-Rom → cubic bezier
+  const pts = vals.map((v,i) => ({x:xOf(i), y:yOf(v)}));
+  let pathD = `M${pts[0].x},${pts[0].y}`;
+  for (let i=1; i<pts.length; i++) {
+    const p0 = pts[i-2]||pts[i-1], p1=pts[i-1], p2=pts[i], p3=pts[i+1]||p2;
+    const cp1x=p1.x+(p2.x-p0.x)/6, cp1y=p1.y+(p2.y-p0.y)/6;
+    const cp2x=p2.x-(p3.x-p1.x)/6, cp2y=p2.y-(p3.y-p1.y)/6;
+    pathD += ` C${cp1x},${cp1y} ${cp2x},${cp2y} ${p2.x},${p2.y}`;
+  }
+  const areaD = pathD + ` L${pts[n-1].x},${PT+ph} L${pts[0].x},${PT+ph} Z`;
+
+  // Labels de valor em cima de cada ponto
+  const labels = vals.map((v,i) => {
+    const x=xOf(i), y=yOf(v);
+    const anchor = i===0?'start':i===n-1?'end':'middle';
+    return `<text x="${x}" y="${y-10}" text-anchor="${anchor}" font-size="11" font-weight="700" fill="var(--text)" font-family="Inter,sans-serif">${v}</text>`;
+  }).join('');
+
+  // Pontos
+  const dots = vals.map((v,i) => {
+    const x=xOf(i), y=yOf(v);
+    return `<circle cx="${x}" cy="${y}" r="5" fill="var(--accent)" stroke="var(--bg2)" stroke-width="2.5"/>`;
+  }).join('');
+
+  // Labels meses — alinhados com o ponto correspondente
+  const step = n > 18 ? 3 : n > 12 ? 2 : 1;
+  const xLabels = meses.map((m,i) => {
+    if (i % step !== 0 && i !== n-1) return '';
+    const x = xOf(i);
+    const lbl = m.toLocaleString('pt-BR',{month:'short',year:'2-digit'}).replace('. ','/').replace('.','');
+    const anchor = i === 0 ? 'start' : i === n-1 ? 'end' : 'middle';
+    return `<text x="${x}" y="${H-4}" text-anchor="${anchor}" font-size="10" fill="var(--text3)" font-family="Inter,sans-serif">${lbl}</text>`;
+  }).join('');
+
+  // Linhas de grade horizontais
+  const gridLines = [0,.25,.5,.75,1].map(t => {
+    const y = PT + ph*(1-t);
+    return `<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="var(--border)" stroke-width="1"/>`;
+  }).join('');
+
+  el.innerHTML = `<svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}">
+    <defs>
+      <linearGradient id="ev-grad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="var(--accent)" stop-opacity=".2"/>
+        <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    ${gridLines}
+    <path d="${areaD}" fill="url(#ev-grad)"/>
+    <path d="${pathD}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"/>
+    ${labels}
+    ${dots}
+    ${xLabels}
+  </svg>`;
 }
 
 function renderRhEmpresa(ativos) {
