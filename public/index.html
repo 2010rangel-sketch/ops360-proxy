@@ -9704,14 +9704,8 @@ function renderRhEvolucao() {
   const todos = window._rhEmployees || [];
   if (!todos.length) { el.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:60px;text-align:center">Sem dados</div>'; return; }
 
-  // Aplica filtros ativos
-  let emps = todos;
-  if (window._rhCidadeAtiva)  emps = emps.filter(e => (e.cidade||'') === _rhCidadeAtiva);
-  if (window._rhSetorAtivo)   emps = emps.filter(e => (e.depto||'')  === _rhSetorAtivo);
-  if (window._rhEmpresaAtiva) emps = emps.filter(e => (e.empresa||'') === _rhEmpresaAtiva);
-
-  const filtro = _rhCidadeAtiva || _rhSetorAtivo || _rhEmpresaAtiva || 'jan/25 → atual';
-  if (badge) { badge.textContent = filtro; badge.className = filtro === 'jan/25 → atual' ? 'badge b-blue' : 'badge b-accent'; }
+  const emps = todos;
+  if (badge) { badge.textContent = 'jan/25 → atual'; badge.className = 'badge b-blue'; }
 
   const agora = new Date();
 
