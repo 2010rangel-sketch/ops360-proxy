@@ -9772,8 +9772,11 @@ function renderRhEvolucao() {
 
   // Labels meses — alinhados com o ponto correspondente
   const step = n > 18 ? 3 : n > 12 ? 2 : 1;
+  // Não forçar último label se estiver a menos de `step` posições do penúltimo exibido
+  const lastRegularIdx = Math.floor((n-2)/step)*step;
+  const showLast = (n-1) - lastRegularIdx >= step;
   const xLabels = meses.map((m,i) => {
-    if (i % step !== 0 && i !== n-1) return '';
+    if (i % step !== 0 && !(i === n-1 && showLast)) return '';
     const x = xOf(i);
     const lbl = m.toLocaleString('pt-BR',{month:'short',year:'2-digit'}).replace('. ','/').replace('.','');
     const anchor = i === 0 ? 'start' : i === n-1 ? 'end' : 'middle';
