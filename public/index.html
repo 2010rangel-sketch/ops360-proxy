@@ -9707,7 +9707,7 @@ function renderRhEvolucao() {
   // Aplica filtros ativos
   let emps = todos;
   if (window._rhCidadeAtiva)  emps = emps.filter(e => (e.cidade||'') === _rhCidadeAtiva);
-  if (window._rhSetorAtivo)   emps = emps.filter(e => (e.setor||'')  === _rhSetorAtivo);
+  if (window._rhSetorAtivo)   emps = emps.filter(e => (e.depto||'')  === _rhSetorAtivo);
   if (window._rhEmpresaAtiva) emps = emps.filter(e => (e.empresa||'') === _rhEmpresaAtiva);
 
   const filtro = _rhCidadeAtiva || _rhSetorAtivo || _rhEmpresaAtiva || 'jan/25 → atual';
