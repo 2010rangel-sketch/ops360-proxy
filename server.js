@@ -1499,18 +1499,16 @@ async function buildRemocoesMensais() {
   const normStr = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
   const extrairMf = os => { const m = os.motivo_fechamento; if (!m) return ''; if (typeof m === 'string') return m; if (Array.isArray(m)) return m.map(x => x?.descricao||x?.nome||'').join(','); return m?.descricao||m?.nome||''; };
 
+  // Últimos 12 meses (incluindo mês atual parcial)
   const meses = [];
-  for (let y = 2025; y <= limiteAno; y++) {
-    const mFim = (y === limiteAno) ? limiteMes : 11;
-    for (let m = 0; m <= mFim; m++) {
-      const ini = new Date(y, m, 1);
-      const isCurrent = y === limiteAno && m === limiteMes;
-      // Usa sempre fim do mês (igual ao /api/remocoes padrão) para consistência
-      const fim = new Date(y, m + 1, 0);
-      meses.push({ ano: y, mes: m, iniStr: _df(ini), fimStr: _df(fim),
-        label: ini.toLocaleString('pt-BR', { month:'short', year:'2-digit' }).replace('. ','/'),
-        parcial: isCurrent });
-    }
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(agora.getFullYear(), agora.getMonth() - i, 1);
+    const ano = d.getFullYear(), mes = d.getMonth();
+    const isCurrent = i === 0;
+    const fim = new Date(ano, mes + 1, 0);
+    meses.push({ ano, mes, iniStr: _df(d), fimStr: _df(fim),
+      label: d.toLocaleString('pt-BR', { month:'short', year:'2-digit' }).replace('. ','/'),
+      parcial: isCurrent });
   }
 
   const buscarMes = async ({ ano, mes, iniStr, fimStr, label, parcial }) => {
@@ -1583,17 +1581,16 @@ async function buildChamadosMensais() {
   const limiteMes = agora.getMonth();
   const _df = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
+  // Últimos 12 meses (incluindo mês atual parcial)
   const meses = [];
-  for (let y = 2025; y <= limiteAno; y++) {
-    const mFim = (y === limiteAno) ? limiteMes : 11;
-    for (let m = 0; m <= mFim; m++) {
-      const ini = new Date(y, m, 1);
-      const isCurrent = y === limiteAno && m === limiteMes;
-      const fim = isCurrent ? agora : new Date(y, m + 1, 0);
-      meses.push({ ano: y, mes: m, iniStr: _df(ini), fimStr: _df(fim),
-        label: ini.toLocaleString('pt-BR', { month:'short', year:'2-digit' }).replace('. ','/'),
-        parcial: isCurrent });
-    }
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(agora.getFullYear(), agora.getMonth() - i, 1);
+    const ano = d.getFullYear(), mes = d.getMonth();
+    const isCurrent = i === 0;
+    const fim = isCurrent ? agora : new Date(ano, mes + 1, 0);
+    meses.push({ ano, mes, iniStr: _df(d), fimStr: _df(fim),
+      label: d.toLocaleString('pt-BR', { month:'short', year:'2-digit' }).replace('. ','/'),
+      parcial: isCurrent });
   }
 
   const buscarMesCh = async ({ ano, mes, iniStr, fimStr, label, parcial }) => {
@@ -3223,23 +3220,15 @@ const ignorarMotAL = m => { const n = normAL(m); return MOTIVOS_IGNORAR_AL.some(
 
 async function buildAdicaoLiquida() {
   const agora = new Date();
-  const INICIO_ANO = 2025;
-  const INICIO_MES = 0; // Janeiro
-  const limiteAno = agora.getFullYear();
-  const limiteMes = agora.getMonth();
   const _dfDate = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
-  // Lista de meses a processar — inclui mês atual (parcial)
+  // Últimos 12 meses (incluindo mês atual parcial)
   const meses = [];
-  for (let y = INICIO_ANO; y <= limiteAno; y++) {
-    const mIni = (y === INICIO_ANO) ? INICIO_MES : 0;
-    const mFim = (y === limiteAno) ? limiteMes : 11;
-    for (let m = mIni; m <= mFim; m++) {
-      const ini = new Date(y, m, 1);
-      const isCurrent = y === limiteAno && m === limiteMes;
-      const fim = isCurrent ? agora : new Date(y, m + 1, 0);
-      meses.push({ ano: y, mes: m, iniStr: _dfDate(ini), fimStr: _dfDate(fim), label: ini.toLocaleString('pt-BR', {month:'short', year:'2-digit'}).replace('. ','/'), parcial: isCurrent });
-    }
+  for (let i = 11; i >= 0; i--) {
+    const ini = new Date(agora.getFullYear(), agora.getMonth() - i, 1);
+    const isCurrent = i === 0;
+    const fim = isCurrent ? agora : new Date(ini.getFullYear(), ini.getMonth() + 1, 0);
+    meses.push({ ano: ini.getFullYear(), mes: ini.getMonth(), iniStr: _dfDate(ini), fimStr: _dfDate(fim), label: ini.toLocaleString('pt-BR', {month:'short', year:'2-digit'}).replace('. ','/'), parcial: isCurrent });
   }
 
   // Garante que o cache de clientes ativos está disponível
