@@ -8680,13 +8680,15 @@ function renderChamadosHistorico(d) {
   const chart = document.getElementById('ch-hist-chart');
   const badge = document.getElementById('ch-hist-badge');
 
-  const COR_BAR     = 'rgba(255,255,255,0.15)';
-  const COR_PARCIAL = 'rgba(148,163,184,0.25)';
-  const COR_NUM     = '#ef4444';
-  const COR_NUM_PAR = '#94a3b8';
+  const COR_BAR     = '#5b6af0';
+  const COR_MAX     = '#7c3aed';
+  const COR_PARCIAL = '#94a3b8';
+  const COR_NUM     = COR_BAR;
+  const COR_NUM_PAR = COR_PARCIAL;
 
   const valores  = meses.map(m => m.total);
   const maxVal   = Math.max(...valores, 1);
+  const maxMes   = Math.max(...valores);
   const ALTURA   = 120;
   const totalGeral = valores.reduce((s,v) => s+v, 0);
   if (badge) { badge.textContent = totalGeral.toLocaleString('pt-BR'); badge.className = 'badge b-blue'; }
@@ -8695,14 +8697,15 @@ function renderChamadosHistorico(d) {
   chart.innerHTML = meses.map((m, i) => {
     const v       = m.total;
     const h       = v > 0 ? Math.max(Math.round((v / maxVal) * ALTURA), 2) : 0;
-    const cor     = m.parcial ? COR_PARCIAL : COR_BAR;
+    const isMax   = v === maxMes && !m.parcial;
+    const cor     = m.parcial ? COR_PARCIAL : isMax ? COR_MAX : COR_BAR;
     const corNum  = m.parcial ? COR_NUM_PAR : COR_NUM;
     const tooltip = `${m.label}${m.parcial?' (parcial)':''}: ${v} chamados`;
     const anoLbl  = (i === 0 || meses[i-1].ano !== m.ano)
       ? `<div style="font-size:9px;color:var(--text3);margin-bottom:2px;font-weight:600">${m.ano}</div>`
       : '<div style="font-size:9px;color:transparent">·</div>';
-    const barStyle = `width:100%;height:${h}px;background:${cor};border-radius:3px 3px 0 0;margin-top:2px;border:1px solid rgba(255,255,255,0.12);box-sizing:border-box${m.parcial?';border-style:dashed':''}`;
-    const labelExtra = m.parcial ? `<div style="font-size:8px;color:${COR_NUM_PAR};font-weight:600;margin-top:1px">parcial</div>` : '';
+    const barStyle = `width:100%;height:${h}px;background:${cor};border-radius:3px 3px 0 0;margin-top:2px${m.parcial?';opacity:.6':''}${isMax?';box-shadow:0 0 0 2px #fff3':''}`;
+    const labelExtra = m.parcial ? `<div style="font-size:8px;color:${COR_PARCIAL};font-weight:600;margin-top:1px">parcial</div>` : '';
     return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:28px;max-width:52px;cursor:default" title="${tooltip}">
       ${anoLbl}
       <div style="font-size:9px;color:${corNum};font-weight:700;line-height:1.2">${v||''}</div>
