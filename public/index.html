@@ -646,8 +646,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
   <div class="nav-item" onclick="goPage('chamados',this)" data-label="Chamados"><i class="fas fa-ticket-alt"></i><span class="sb-label"> Chamados</span></div>
   <div class="nav-item" onclick="goPage('retencao',this)" data-label="Retenção / Cancelamento"><i class="fas fa-user-shield"></i><span class="sb-label"> Retenção / Cancelamento</span></div>
   <div class="nav-item" onclick="goPage('remocao',this)" data-label="Remoção / Cobrança"><i class="fas fa-tools"></i><span class="sb-label"> Remoção / Cobrança</span></div>
-  <div class="nav-item" onclick="goPage('financeiro',this)" data-label="Financeiro"><i class="fas fa-dollar-sign"></i><span class="sb-label"> Financeiro</span></div>
-  <div class="nav-item" onclick="goPage('saude',this)" data-label="Saúde da Base"><i class="fas fa-heartbeat"></i><span class="sb-label"> Saúde da Base</span></div>
+  <div class="nav-item" onclick="goPage('financeiro',this)" data-label="Financeiro"><i class="fas fa-dollar-sign"></i><span class="sb-label"> Financeiro</span></div>
   <div class="nav-item" onclick="goPage('rh',this)" data-label="RH"><i class="fas fa-users"></i><span class="sb-label"> RH</span></div>
 
   <div class="sidebar-section">Spaces</div>
@@ -1938,138 +1937,6 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         </div>
       </div>
 
-    </div>
-
-    <!-- ═══ SAÚDE DA BASE ═══ -->
-    <div class="page" id="page-saude">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap">
-        <div>
-          <div style="font-size:16px;font-weight:700;color:var(--text)">Saúde da Base</div>
-          <div style="font-size:11px;color:var(--text3)" id="saude-periodo-label">Análise inteligente por cliente</div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <span class="badge b-blue" id="saude-sync-badge">—</span>
-          <button class="btn btn-primary btn-sm" onclick="loadSaudeBase(true)"><i class="fas fa-sync-alt"></i> Atualizar</button>
-        </div>
-      </div>
-
-      <!-- Filtros de período -->
-      <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
-        <span style="font-size:11px;color:var(--text3);margin-right:2px">Período:</span>
-        <button class="btn btn-sm btn-primary" data-saude-dias="30"  onclick="saudeFiltrarDias(30,this)">30 dias</button>
-        <button class="btn btn-sm btn-ghost"   data-saude-dias="90"  onclick="saudeFiltrarDias(90,this)">90 dias</button>
-        <button class="btn btn-sm btn-ghost"   data-saude-dias="120" onclick="saudeFiltrarDias(120,this)">120 dias</button>
-        <button class="btn btn-sm btn-ghost"   data-saude-dias="180" onclick="saudeFiltrarDias(180,this)">180 dias</button>
-        <div style="display:flex;gap:4px;align-items:center;margin-left:8px;border-left:1px solid var(--border);padding-left:12px">
-          <span style="font-size:11px;color:var(--text3)">De:</span>
-          <input type="date" id="saude-data-ini" class="search-input" style="width:130px;font-size:11px">
-          <span style="font-size:11px;color:var(--text3)">Até:</span>
-          <input type="date" id="saude-data-fim" class="search-input" style="width:130px;font-size:11px">
-          <button class="btn btn-sm btn-ghost" onclick="saudeFiltrarCustom()">Buscar</button>
-        </div>
-      </div>
-
-      <!-- KPIs -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
-        <div class="kpi-mini" style="cursor:pointer" onclick="saudeFiltrarStatus(null)">
-          <div class="kpi-mini-bar" style="background:var(--accent)"></div>
-          <div class="kpi-mini-label">Total Clientes</div>
-          <div class="kpi-mini-val" id="saude-kpi-total" style="color:var(--accent)">—</div>
-        </div>
-        <div class="kpi-mini" style="cursor:pointer" onclick="saudeFiltrarStatus('critico')">
-          <div class="kpi-mini-bar" style="background:var(--red)"></div>
-          <div class="kpi-mini-label">Crítico</div>
-          <div class="kpi-mini-val" id="saude-kpi-crit" style="color:var(--red)">—</div>
-        </div>
-        <div class="kpi-mini" style="cursor:pointer" onclick="saudeFiltrarStatus('atencao')">
-          <div class="kpi-mini-bar" style="background:var(--amber)"></div>
-          <div class="kpi-mini-label">Atenção</div>
-          <div class="kpi-mini-val" id="saude-kpi-atenc" style="color:var(--amber)">—</div>
-        </div>
-      </div>
-
-      <!-- Filtros de visualização -->
-      <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
-        <input type="text" placeholder="Buscar cliente..." id="saude-search" class="search-input" style="width:220px" oninput="saudeSearch(this.value)">
-      </div>
-
-      <!-- Tabela -->
-      <div class="tbl-card">
-        <div class="tbl-header">
-          <span class="tbl-title" id="saude-tbl-titulo">Clientes</span>
-          <span class="badge b-blue" id="saude-tbl-count">—</span>
-          <span style="font-size:10px;color:var(--text3);margin-left:8px">Clique nas colunas para ordenar · Clique no cliente para ver OS</span>
-        </div>
-        <div id="saude-empty-msg" style="padding:40px;text-align:center;color:var(--text3)">
-          <i class="fas fa-heartbeat" style="font-size:32px;margin-bottom:12px;opacity:.3;display:block"></i>
-          <div style="font-size:14px;font-weight:600;margin-bottom:6px">Carregando análise de clientes...</div>
-          <div style="font-size:12px;color:var(--text3)">Analisa OS para gerar o score de saúde de cada cliente</div>
-        </div>
-        <div style="overflow-x:auto;max-height:600px;overflow-y:auto;display:none" id="saude-tbl-wrap">
-          <table class="tbl" style="min-width:900px">
-            <thead><tr id="saude-thead">
-              <th style="min-width:200px">Cliente</th>
-              <th style="min-width:110px">Cidade</th>
-              <th style="text-align:center;min-width:80px">Contrato</th>
-              <th style="text-align:center;min-width:80px;cursor:pointer" onclick="saudeOrdenar('osPend')" id="saude-th-pend">OS Pend. ↕</th>
-              <th style="text-align:center;min-width:80px;cursor:pointer" onclick="saudeOrdenar('osFech')" id="saude-th-fech">OS Fech. ↓</th>
-              <th style="text-align:center;min-width:100px;cursor:pointer" onclick="saudeOrdenar('score')" id="saude-th-saude">Saúde ↕</th>
-              <th style="text-align:center;min-width:85px">Status</th>
-            </tr></thead>
-            <tbody id="saude-tbl-body"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- 1ª Mensalidade Cheia em Risco -->
-      <div class="tbl-card" style="margin-top:14px" id="fin-mid-grid">
-        <div class="tbl-header">
-          <span class="tbl-title">1ª Mensalidade Cheia em Risco</span>
-          <span class="badge b-red" id="fin-prim-count">—</span>
-        </div>
-        <!-- KPIs -->
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border)">
-          <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">Novos (60d)</div><div style="font-size:16px;font-weight:700;color:var(--text)" id="fin-prim-novos">—</div></div>
-          <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">Não pagou</div><div style="font-size:16px;font-weight:700;color:#ef4444" id="fin-prim-np">—</div></div>
-          <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">% de risco</div><div style="font-size:16px;font-weight:700;color:var(--amber)" id="fin-prim-pct2">—</div></div>
-        </div>
-        <!-- 2 colunas: vendedores | clientes -->
-        <div style="display:grid;grid-template-columns:280px 1fr;min-height:180px">
-          <!-- Coluna esquerda: por vendedor -->
-          <div style="border-right:1px solid var(--border)">
-            <div style="padding:8px 12px;font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border)">Por Vendedor</div>
-            <div style="overflow-y:auto;max-height:300px">
-              <table class="tbl" style="font-size:11px"><thead><tr><th>Vendedor</th><th>Novos</th><th>Risco</th><th>%</th></tr></thead>
-              <tbody id="fin-prim-vend"></tbody></table>
-            </div>
-          </div>
-          <!-- Coluna direita: clientes em risco -->
-          <div>
-            <div style="padding:8px 12px;font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
-              <span id="fin-prim-lista-titulo">Todos os clientes em risco</span>
-              <button id="fin-prim-limpar" onclick="filtrarPrimMensalidade(null)" style="display:none;background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:0">✕ ver todos</button>
-            </div>
-            <div style="overflow-y:auto;max-height:300px">
-              <table class="tbl" style="font-size:11px">
-                <thead><tr><th>Cliente</th><th>Plano</th><th>Mensalidade</th><th>Cidade</th><th>Desde</th></tr></thead>
-                <tbody id="fin-prim-clientes"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Saúde por Vendedor -->
-      <div class="tbl-card" style="margin-top:14px;margin-bottom:0">
-        <div class="tbl-header">
-          <span class="tbl-title">Saúde da Carteira por Vendedor</span>
-          <span class="badge b-blue" id="fin-vend-count">—</span>
-        </div>
-        <div style="max-height:340px;overflow-y:auto">
-          <table class="tbl"><thead><tr><th>Vendedor</th><th>Ativos</th><th>Suspensos</th><th>Cancel. (60d)</th><th>Cancel. Total</th><th>MRR (Rec. Rec. Mensal)</th><th>Saúde</th></tr></thead>
-          <tbody id="fin-vend-lista"></tbody></table>
-        </div>
-      </div>
     </div>
 
     <!-- ═══ RH ═══ -->
