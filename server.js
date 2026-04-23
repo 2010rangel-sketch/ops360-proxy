@@ -1513,49 +1513,58 @@ async function buildRemocoesMensais() {
     }
   }
 
+  const buscarMes = async ({ ano, mes, iniStr, fimStr, label, parcial }) => {
+    const iniMs = new Date(iniStr).getTime();
+    const fimMs = new Date(fimStr + 'T23:59:59').getTime();
+    const queryIni = new Date(iniMs - 14 * 86400000).toISOString();
+    const queryFim = new Date(fimMs + 86400000).toISOString();
+    const body = {
+      data_inicio: queryIni, data_fim: queryFim,
+      agendas: [], assinatura_cliente: null, bairros: null, cidades: [],
+      condominios: null, grupos_clientes: [], grupos_clientes_servicos: [],
+      motivo_fechamento: [], order_by: 'data_inicio_programado', order_by_key: 'DESC',
+      participantes: [], periodos: [], pop: [], prioridade: [], reservada: null,
+      servico: [], servico_status: [], status_ordem_servico: ['finalizado'], tecnicos: [],
+    };
+    const PAGE_SIZE = 500;
+    const d1 = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=1`, body);
+    const lista = [...extrairLista(d1)];
+    const { lastPage, total, perPage } = extrairPaginacao(d1);
+    let totalPages = lastPage || (total && perPage ? Math.ceil(total / perPage) : 1);
+    totalPages = Math.min(totalPages, 50);
+    if (totalPages > 1) {
+      for (let pg = 2; pg <= totalPages; pg++) {
+        try { lista.push(...extrairLista(await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=${pg}`, body))); }
+        catch(ep) { break; }
+      }
+    }
+    let total_rem = 0;
+    for (const os of lista) {
+      if (!normStr(extrairMf(os)).includes('removid')) continue;
+      const fechRaw = os.data_termino_executado || os.data_inicio_programado || os.data_cadastro;
+      const fechMs  = fechRaw ? new Date(fechRaw).getTime() : 0;
+      if (!fechMs || fechMs < iniMs || fechMs > fimMs) continue;
+      total_rem++;
+    }
+    console.log(`[rem-hist] ${iniStr}→${fimStr}: ${total_rem} remoções (${lista.length} OS, pgs:${totalPages})`);
+    return { ano, mes, label, parcial, total: total_rem };
+  };
+
   const resultados = [];
   for (let i = 0; i < meses.length; i += 3) {
     const lote = meses.slice(i, i + 3);
-    const loteRes = await Promise.all(lote.map(async ({ ano, mes, iniStr, fimStr, label, parcial }) => {
+    const loteRes = await Promise.all(lote.map(async (m) => {
       try {
-        const iniMs = new Date(iniStr).getTime();
-        const fimMs = new Date(fimStr + 'T23:59:59').getTime();
-        // Query idêntica ao /api/remocoes: 14 dias antes + 1 dia depois, status finalizado
-        const queryIni = new Date(iniMs - 14 * 86400000).toISOString();
-        const queryFim = new Date(fimMs + 86400000).toISOString();
-        const body = {
-          data_inicio: queryIni, data_fim: queryFim,
-          agendas: [], assinatura_cliente: null, bairros: null, cidades: [],
-          condominios: null, grupos_clientes: [], grupos_clientes_servicos: [],
-          motivo_fechamento: [], order_by: 'data_inicio_programado', order_by_key: 'DESC',
-          participantes: [], periodos: [], pop: [], prioridade: [], reservada: null,
-          servico: [], servico_status: [], status_ordem_servico: ['finalizado'], tecnicos: [],
-        };
-        const PAGE_SIZE = 500;
-        const d1 = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=1`, body);
-        const lista = [...extrairLista(d1)];
-        const { lastPage, total, perPage } = extrairPaginacao(d1);
-        let totalPages = lastPage || (total && perPage ? Math.ceil(total / perPage) : 1);
-        totalPages = Math.min(totalPages, 50);
-        if (totalPages > 1) {
-          for (let pg = 2; pg <= totalPages; pg++) {
-            try { lista.push(...extrairLista(await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=${pg}`, body))); }
-            catch(ep) { break; }
-          }
-        }
-        let total_rem = 0;
-        for (const os of lista) {
-          if (!normStr(extrairMf(os)).includes('removid')) continue;
-          const fechRaw = os.data_termino_executado || os.data_inicio_programado || os.data_cadastro;
-          const fechMs  = fechRaw ? new Date(fechRaw).getTime() : 0;
-          if (!fechMs || fechMs < iniMs || fechMs > fimMs) continue;
-          total_rem++;
-        }
-        console.log(`[rem-hist] ${iniStr}→${fimStr}: ${total_rem} remoções (${lista.length} OS, pgs:${totalPages})`);
-        return { ano, mes, label, parcial, total: total_rem };
+        return await buscarMes(m);
       } catch(e) {
-        console.warn(`[rem-hist] erro ${iniStr}:`, e.message);
-        return { ano, mes, label, parcial, total: 0, erro: true };
+        console.warn(`[rem-hist] erro ${m.iniStr}, tentando retry em 4s:`, e.message);
+        await new Promise(r => setTimeout(r, 4000));
+        try {
+          return await buscarMes(m);
+        } catch(e2) {
+          console.warn(`[rem-hist] retry falhou ${m.iniStr}:`, e2.message);
+          return { ano: m.ano, mes: m.mes, label: m.label, parcial: m.parcial, total: 0, erro: true };
+        }
       }
     }));
     resultados.push(...loteRes);
@@ -1587,43 +1596,53 @@ async function buildChamadosMensais() {
     }
   }
 
+  const buscarMesCh = async ({ ano, mes, iniStr, fimStr, label, parcial }) => {
+    const iniMs = new Date(iniStr).getTime();
+    const fimMs = new Date(fimStr + 'T23:59:59').getTime();
+    const qIni  = new Date(iniMs).toISOString();
+    const qFim  = new Date(fimMs).toISOString();
+    const body  = {
+      data_inicio: qIni, data_fim: qFim,
+      agendas: [], assinatura_cliente: null, bairros: null, cidades: [],
+      condominios: null, grupos_clientes: [], grupos_clientes_servicos: [],
+      motivo_fechamento: [], order_by: 'data_inicio_programado', order_by_key: 'DESC',
+      participantes: [], periodos: [], pop: [], prioridade: [], reservada: null,
+      servico: [], servico_status: [], status_ordem_servico: [], tecnicos: [],
+      tipo_ordem_servico: [], turno: null,
+    };
+    const PAGE_SIZE = 500;
+    const d1 = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=1`, body);
+    const lista = [...extrairLista(d1)];
+    const { lastPage, total, perPage } = extrairPaginacao(d1);
+    let totalPages = lastPage || (total && perPage ? Math.ceil(total / perPage) : 1);
+    totalPages = Math.min(totalPages, 30);
+    if (totalPages > 1) {
+      for (let pg = 2; pg <= totalPages; pg++) {
+        try {
+          const extra = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=${pg}`, body);
+          lista.push(...extrairLista(extra));
+        } catch(ep) { break; }
+      }
+    }
+    console.log(`[ch-hist] ${iniStr}: ${lista.length} chamados (pgs:${totalPages})`);
+    return { ano, mes, label, parcial, total: lista.length };
+  };
+
   const resultados = [];
   for (let i = 0; i < meses.length; i += 3) {
     const lote = meses.slice(i, i + 3);
-    const loteRes = await Promise.all(lote.map(async ({ ano, mes, iniStr, fimStr, label, parcial }) => {
+    const loteRes = await Promise.all(lote.map(async (m) => {
       try {
-        const iniMs = new Date(iniStr).getTime();
-        const fimMs = new Date(fimStr + 'T23:59:59').getTime();
-        const qIni  = new Date(iniMs).toISOString();
-        const qFim  = new Date(fimMs).toISOString();
-        const body  = {
-          data_inicio: qIni, data_fim: qFim,
-          agendas: [], assinatura_cliente: null, bairros: null, cidades: [],
-          condominios: null, grupos_clientes: [], grupos_clientes_servicos: [],
-          motivo_fechamento: [], order_by: 'data_inicio_programado', order_by_key: 'DESC',
-          participantes: [], periodos: [], pop: [], prioridade: [], reservada: null,
-          servico: [], servico_status: [], status_ordem_servico: [], tecnicos: [],
-          tipo_ordem_servico: [], turno: null,
-        };
-        const PAGE_SIZE = 500;
-        const d1 = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=1`, body);
-        const lista = [...extrairLista(d1)];
-        const { lastPage, total, perPage } = extrairPaginacao(d1);
-        let totalPages = lastPage || (total && perPage ? Math.ceil(total / perPage) : 1);
-        totalPages = Math.min(totalPages, 30);
-        if (totalPages > 1) {
-          for (let pg = 2; pg <= totalPages; pg++) {
-            try {
-              const extra = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=${pg}`, body);
-              lista.push(...extrairLista(extra));
-            } catch(ep) { break; }
-          }
-        }
-        console.log(`[ch-hist] ${iniStr}: ${lista.length} chamados (pgs:${totalPages})`);
-        return { ano, mes, label, parcial, total: lista.length };
+        return await buscarMesCh(m);
       } catch(e) {
-        console.warn(`[ch-hist] erro ${iniStr}:`, e.message);
-        return { ano, mes, label, parcial, total: 0, erro: true };
+        console.warn(`[ch-hist] erro ${m.iniStr}, retry em 4s:`, e.message);
+        await new Promise(r => setTimeout(r, 4000));
+        try {
+          return await buscarMesCh(m);
+        } catch(e2) {
+          console.warn(`[ch-hist] retry falhou ${m.iniStr}:`, e2.message);
+          return { ano: m.ano, mes: m.mes, label: m.label, parcial: m.parcial, total: 0, erro: true };
+        }
       }
     }));
     resultados.push(...loteRes);
