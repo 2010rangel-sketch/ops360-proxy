@@ -473,6 +473,13 @@ input[type="text"]::placeholder { color:var(--text3); }
   [style*="grid-template-columns:1fr 1fr 1fr"] {
     grid-template-columns:1fr!important;
   }
+
+  /* RH: linha principal 3 colunas → 1 coluna */
+  .rh-linha1 { grid-template-columns:1fr!important; }
+  /* RH: tabela colaboradores — altura fixa vira auto */
+  #page-rh .tbl-card[style*="height:571px"] { height:auto!important; }
+  /* RH: KPIs 5 colunas → 2 colunas */
+  #page-rh [style*="grid-template-columns:repeat(5,1fr)"] { grid-template-columns:repeat(2,1fr)!important; }
   /* dash-grid específicos */
   [style*="grid-template-columns:1fr 1fr;gap:14px"],
   [style*="grid-template-columns:1fr 1fr;gap:16px"],
@@ -2043,7 +2050,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         </div>
 
         <!-- Linha 1: Por Cidade + Por Setor | Colaboradores | Por Empresa + Tempo Médio -->
-        <div style="display:grid;grid-template-columns:220px 1fr 230px;gap:12px;margin-bottom:14px">
+        <div style="display:grid;grid-template-columns:220px 1fr 230px;gap:12px;margin-bottom:14px" class="rh-linha1">
 
           <!-- Coluna 1: Por Cidade (clicável) + Por Setor (clicável) -->
           <div style="display:flex;flex-direction:column;gap:8px">
