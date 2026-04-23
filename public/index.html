@@ -8538,8 +8538,10 @@ function renderCancelHistChart(meses) {
   const badge  = document.getElementById('ret-ch-badge');
   if (!chart || !meses || !meses.length) return;
 
-  const COR_BAR    = '#f43f5e'; // vermelho médio (rose-500)
-  const COR_PARCIAL= '#94a3b8'; // cinza — mês atual
+  const COR_BAR    = '#f43f5e';
+  const COR_PARCIAL= '#94a3b8';
+  const COR_NUM    = '#f43f5e';
+  const COR_NUM_PAR= '#94a3b8';
 
   const valores    = meses.map(m => m.cancelados);
   const maxVal     = Math.max(...valores, 1);
@@ -8555,15 +8557,16 @@ function renderCancelHistChart(meses) {
     const outros  = m.cancelados_outros  || (v - inadimp);
     const h       = v > 0 ? Math.max(Math.round((v / maxVal) * ALTURA), 2) : 0;
     const cor     = m.parcial ? COR_PARCIAL : COR_BAR;
+    const corNum  = m.parcial ? COR_NUM_PAR : COR_NUM;
     const tooltip = `${m.label}${m.parcial?' (parcial)':''}: ${v} cancelamentos — Inadimplência: ${inadimp} | Outros: ${outros}`;
     const anoLbl  = (i === 0 || meses[i-1].ano !== m.ano)
       ? `<div style="font-size:9px;color:var(--text3);margin-bottom:2px;font-weight:600">${m.ano}</div>`
       : '<div style="font-size:9px;color:transparent">·</div>';
     const barStyle = `width:100%;height:${h}px;background:${cor};border-radius:3px 3px 0 0;margin-top:2px${m.parcial?';opacity:.6':''}`;
-    const labelExtra = m.parcial ? `<div style="font-size:8px;color:${COR_PARCIAL};font-weight:600;margin-top:1px">parcial</div>` : '';
+    const labelExtra = m.parcial ? `<div style="font-size:8px;color:${COR_NUM_PAR};font-weight:600;margin-top:1px">parcial</div>` : '';
     return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:28px;max-width:52px;cursor:default" title="${tooltip}">
       ${anoLbl}
-      <div style="font-size:9px;color:${cor};font-weight:700;line-height:1.2">${v||''}</div>
+      <div style="font-size:9px;color:${corNum};font-weight:700;line-height:1.2">${v||''}</div>
       <div style="${barStyle}"></div>
       <div style="font-size:9px;color:var(--text3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center">${m.label}</div>
       ${labelExtra}
@@ -8691,13 +8694,13 @@ function renderChamadosHistorico(d) {
   const chart = document.getElementById('ch-hist-chart');
   const badge = document.getElementById('ch-hist-badge');
 
-  const COR_BAR     = '#5b6af0'; // accent
-  const COR_MAX     = '#7c3aed';
-  const COR_PARCIAL = '#94a3b8';
+  const COR_BAR     = 'rgba(255,255,255,0.15)';
+  const COR_PARCIAL = 'rgba(148,163,184,0.25)';
+  const COR_NUM     = '#ef4444';
+  const COR_NUM_PAR = '#94a3b8';
 
   const valores  = meses.map(m => m.total);
   const maxVal   = Math.max(...valores, 1);
-  const maxMes   = Math.max(...valores);
   const ALTURA   = 120;
   const totalGeral = valores.reduce((s,v) => s+v, 0);
   if (badge) { badge.textContent = totalGeral.toLocaleString('pt-BR'); badge.className = 'badge b-blue'; }
@@ -8706,17 +8709,17 @@ function renderChamadosHistorico(d) {
   chart.innerHTML = meses.map((m, i) => {
     const v       = m.total;
     const h       = v > 0 ? Math.max(Math.round((v / maxVal) * ALTURA), 2) : 0;
-    const isMax   = v === maxMes && !m.parcial;
-    const cor     = m.parcial ? COR_PARCIAL : isMax ? COR_MAX : COR_BAR;
+    const cor     = m.parcial ? COR_PARCIAL : COR_BAR;
+    const corNum  = m.parcial ? COR_NUM_PAR : COR_NUM;
     const tooltip = `${m.label}${m.parcial?' (parcial)':''}: ${v} chamados`;
     const anoLbl  = (i === 0 || meses[i-1].ano !== m.ano)
       ? `<div style="font-size:9px;color:var(--text3);margin-bottom:2px;font-weight:600">${m.ano}</div>`
       : '<div style="font-size:9px;color:transparent">·</div>';
-    const barStyle = `width:100%;height:${h}px;background:${cor};border-radius:3px 3px 0 0;margin-top:2px${m.parcial?';opacity:.6':''}${isMax?';box-shadow:0 0 0 2px #fff3':''}`;
-    const labelExtra = m.parcial ? `<div style="font-size:8px;color:${COR_PARCIAL};font-weight:600;margin-top:1px">parcial</div>` : '';
+    const barStyle = `width:100%;height:${h}px;background:${cor};border-radius:3px 3px 0 0;margin-top:2px;border:1px solid rgba(255,255,255,0.12);box-sizing:border-box${m.parcial?';border-style:dashed':''}`;
+    const labelExtra = m.parcial ? `<div style="font-size:8px;color:${COR_NUM_PAR};font-weight:600;margin-top:1px">parcial</div>` : '';
     return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:28px;max-width:52px;cursor:default" title="${tooltip}">
       ${anoLbl}
-      <div style="font-size:9px;color:${cor};font-weight:700;line-height:1.2">${v||''}</div>
+      <div style="font-size:9px;color:${corNum};font-weight:700;line-height:1.2">${v||''}</div>
       <div style="${barStyle}"></div>
       <div style="font-size:9px;color:var(--text3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center">${m.label}</div>
       ${labelExtra}
@@ -9732,67 +9735,88 @@ function renderRhEvolucao() {
   const n      = meses.length;
   const maxVal = Math.max(...vals, 1);
   const minVal = Math.min(...vals);
-  // Usa viewBox fixo 1000×200 — SVG width=100% escala para o container sem precisar ler largura do DOM
-  const W = 1000, H = 200;
-  const PL = 8, PR = 8, PT = 36, PB = 24;
+  const W = 1000, H = 220;
+  const PL = 12, PR = 12, PT = 40, PB = 30;
   const pw = W - PL - PR, ph = H - PT - PB;
 
   const xOf = i => PL + (n <= 1 ? pw/2 : i/(n-1)*pw);
   const yOf = v => PT + ph - ((v - minVal) / (maxVal - minVal || 1)) * ph;
 
-  // Linha curva Catmull-Rom → cubic bezier
+  // Catmull-Rom → cubic bezier
   const pts = vals.map((v,i) => ({x:xOf(i), y:yOf(v)}));
   let pathD = `M${pts[0].x},${pts[0].y}`;
   for (let i=1; i<pts.length; i++) {
-    const p0 = pts[i-2]||pts[i-1], p1=pts[i-1], p2=pts[i], p3=pts[i+1]||p2;
+    const p0=pts[i-2]||pts[i-1], p1=pts[i-1], p2=pts[i], p3=pts[i+1]||p2;
     const cp1x=p1.x+(p2.x-p0.x)/6, cp1y=p1.y+(p2.y-p0.y)/6;
     const cp2x=p2.x-(p3.x-p1.x)/6, cp2y=p2.y-(p3.y-p1.y)/6;
     pathD += ` C${cp1x},${cp1y} ${cp2x},${cp2y} ${p2.x},${p2.y}`;
   }
   const areaD = pathD + ` L${pts[n-1].x},${PT+ph} L${pts[0].x},${PT+ph} Z`;
 
-  // Labels de valor em cima de cada ponto
+  // Detecta TODOS os min/max para destacar
+  const idxsMax = new Set(vals.map((v,i)=>v===maxVal?i:-1).filter(i=>i>=0));
+  const idxsMin = new Set(vals.map((v,i)=>v===minVal?i:-1).filter(i=>i>=0));
+
+  // Labels de valor
   const labels = vals.map((v,i) => {
     const x=xOf(i), y=yOf(v);
     const anchor = i===0?'start':i===n-1?'end':'middle';
-    return `<text x="${x}" y="${y-10}" text-anchor="${anchor}" font-size="11" font-weight="700" fill="var(--text)" font-family="Inter,sans-serif">${v}</text>`;
+    const isSpec = idxsMax.has(i)||idxsMin.has(i);
+    const cor = idxsMax.has(i)?'#34d399':idxsMin.has(i)?'#f87171':'rgba(255,255,255,0.85)';
+    const fw = isSpec ? '800' : '600';
+    const fs = isSpec ? '12' : '10.5';
+    return `<text x="${x}" y="${y-12}" text-anchor="${anchor}" font-size="${fs}" font-weight="${fw}" fill="${cor}" font-family="Inter,sans-serif" letter-spacing="-.3">${v}</text>`;
   }).join('');
 
-  // Pontos
+  // Pontos — anel externo sutil + ponto interno
   const dots = vals.map((v,i) => {
     const x=xOf(i), y=yOf(v);
-    return `<circle cx="${x}" cy="${y}" r="5" fill="var(--accent)" stroke="var(--bg2)" stroke-width="2.5"/>`;
+    const isSpec = idxsMax.has(i)||idxsMin.has(i);
+    const fill = idxsMax.has(i)?'#34d399':idxsMin.has(i)?'#f87171':'#818cf8';
+    const r = isSpec ? 5 : 3.5;
+    const ring = isSpec ? `<circle cx="${x}" cy="${y}" r="${r+4}" fill="none" stroke="${fill}" stroke-opacity=".25" stroke-width="1.5"/>` : '';
+    return `${ring}<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}" stroke="#1e2130" stroke-width="2"/>`;
   }).join('');
 
-  // Labels meses — alinhados com o ponto correspondente
+  // Labels meses
   const step = n > 18 ? 3 : n > 12 ? 2 : 1;
-  // Não forçar último label se estiver a menos de `step` posições do penúltimo exibido
   const lastRegularIdx = Math.floor((n-2)/step)*step;
   const showLast = (n-1) - lastRegularIdx >= step;
   const xLabels = meses.map((m,i) => {
     if (i % step !== 0 && !(i === n-1 && showLast)) return '';
     const x = xOf(i);
     const lbl = m.toLocaleString('pt-BR',{month:'short',year:'2-digit'}).replace('. ','/').replace('.','');
-    const anchor = i === 0 ? 'start' : i === n-1 ? 'end' : 'middle';
-    return `<text x="${x}" y="${H-4}" text-anchor="${anchor}" font-size="10" fill="var(--text3)" font-family="Inter,sans-serif">${lbl}</text>`;
+    const anchor = i===0?'start':i===n-1?'end':'middle';
+    return `<text x="${x}" y="${H-6}" text-anchor="${anchor}" font-size="9.5" fill="rgba(148,163,184,.7)" font-family="Inter,sans-serif" letter-spacing=".2">${lbl}</text>`;
   }).join('');
 
-  // Linhas de grade horizontais
-  const gridLines = [0,.25,.5,.75,1].map(t => {
+  // Grade horizontal minimalista
+  const gridLines = [0, .5, 1].map(t => {
     const y = PT + ph*(1-t);
-    return `<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="var(--border)" stroke-width="1"/>`;
+    const op = t===0||t===1 ? '.12' : '.07';
+    return `<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="rgba(255,255,255,${op})" stroke-width="1"/>`;
   }).join('');
 
   el.innerHTML = `<svg width="100%" height="auto" viewBox="0 0 ${W} ${H}" style="display:block">
     <defs>
       <linearGradient id="ev-grad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="var(--accent)" stop-opacity=".2"/>
-        <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+        <stop offset="0%" stop-color="#6366f1" stop-opacity=".18"/>
+        <stop offset="75%" stop-color="#6366f1" stop-opacity=".04"/>
+        <stop offset="100%" stop-color="#6366f1" stop-opacity="0"/>
       </linearGradient>
+      <linearGradient id="ev-line" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#818cf8"/>
+        <stop offset="100%" stop-color="#6366f1"/>
+      </linearGradient>
+      <filter id="ev-glow">
+        <feGaussianBlur stdDeviation="2.5" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
     </defs>
     ${gridLines}
     <path d="${areaD}" fill="url(#ev-grad)"/>
-    <path d="${pathD}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="${pathD}" fill="none" stroke="url(#ev-line)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity=".4" filter="url(#ev-glow)"/>
+    <path d="${pathD}" fill="none" stroke="url(#ev-line)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
     ${labels}
     ${dots}
     ${xLabels}
