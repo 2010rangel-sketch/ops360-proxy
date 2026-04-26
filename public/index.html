@@ -10116,7 +10116,7 @@ function renderRhNR() {
       <td style="text-align:center;font-size:11px;color:var(--text2)">${fmt(emissDate)}</td>
       <td style="text-align:center;font-size:11px;color:${cor}">${fmt(vencDate)}</td>
       <td style="text-align:center"><span class="badge" style="background:${cor}22;color:${cor};border:1px solid ${cor}44;font-size:10px">${status}</span></td>
-      <td style="text-align:center"><button onclick="removerNRCert(${i})" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:2px 4px" title="Remover">✕</button></td>
+      <td style="text-align:center"><button onclick="removerNRCert('${encodeURIComponent(JSON.stringify({nome:c.nome,tipo:c.tipo,emissao:c.emissao,vencimento:c.vencimento}))}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:2px 4px" title="Remover">✕</button></td>
     </tr>`;
   }).join('');
 }
@@ -10171,8 +10171,11 @@ function salvarNRCert() {
   renderRhNR();
 }
 
-function removerNRCert(idx) {
+function removerNRCert(chaveEnc) {
+  const chave = JSON.parse(decodeURIComponent(chaveEnc));
   const lista = _nrGetLista();
+  const idx = lista.findIndex(c => c.nome === chave.nome && c.tipo === chave.tipo && c.emissao === chave.emissao && c.vencimento === chave.vencimento);
+  if (idx === -1) return;
   lista.splice(idx, 1);
   localStorage.setItem('rhNRCerts', JSON.stringify(lista));
   _nrSyncServer(lista);
