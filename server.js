@@ -4740,6 +4740,8 @@ function _raxContexto() {
     if (emDesloc.length) linhas.push(`Em deslocamento: ${emDesloc.map(c=>`${c.tec||'?'} → ${c.cli||'?'} (${c.cidade||'?'})`).join(' | ')}`);
     if (emExec.length)   linhas.push(`Em execução: ${emExec.map(c=>`${c.tec||'?'} → ${c.cli||'?'} (${c.cidade||'?'})`).join(' | ')}`);
     if (aguard.length)   linhas.push(`Aguardando: ${aguard.length} OS`);
+    linhas.push(`\n### Lista completa de OS abertas (ID | cliente | técnico | cidade | tipo | status):`);
+    ch.forEach(c => linhas.push(`- ${c.id||'?'} | ${c.cli||'?'} | tec: ${c.tec||'?'} | ${c.cidade||'?'} | ${c.tipo||c.cat||'?'} | ${c.st||'?'}`));
   }
 
   // ── Comercial ──
@@ -4755,12 +4757,22 @@ function _raxContexto() {
     }
     if (c.cancelados_detalhe?.length) {
       linhas.push(`\n### Cancelamentos do mês (cliente | vendedor | motivo):`);
-      c.cancelados_detalhe.slice(0, 30).forEach(x => {
+      c.cancelados_detalhe.forEach(x => {
         linhas.push(`- ${x.cliente} | vendedor: ${x.vendedor||'?'} | motivo: ${x.motivo||'?'} | venda: ${x.dataVenda||'?'} | cancel: ${x.dataCancelamento||'?'}`);
       });
     }
     if (c.cidades?.length) {
-      linhas.push(`\n### Vendas por cidade: ${c.cidades.slice(0,8).map(x=>`${x.cidade||x.nome}: ${x.total}`).join(' | ')}`);
+      linhas.push(`\n### Vendas por cidade: ${c.cidades.map(x=>`${x.cidade||x.nome}: ${x.total}`).join(' | ')}`);
+    }
+    if (c.planos?.length) {
+      linhas.push(`\n### Vendas por plano: ${c.planos.map(x=>`${x.nome}: ${x.total}`).join(' | ')}`);
+    }
+    if (c.ultimas?.length) {
+      linhas.push(`\n### Lista individual de vendas/clientes do mês (cliente | cidade | plano | vendedor | status | data venda | cancelado):`);
+      c.ultimas.forEach(x => {
+        const status = x.cancelado ? `CANCELADO (${x.dataCancelamento||'?'})` : (x.reativacao ? 'REATIVADO' : 'ATIVO');
+        linhas.push(`- ${x.cliente} | ${x.cidade||'?'} | ${x.plano||'?'} | ${x.vendedor||'?'} | ${status} | venda: ${x.dataVenda||x.dataCad||'?'}`);
+      });
     }
   }
 
@@ -4827,7 +4839,7 @@ ${contexto}
   try {
     const response = await axios.post('https://api.anthropic.com/v1/messages', {
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1024,
+      max_tokens: 2048,
       system,
       messages: messages.map(m => ({ role: m.role, content: m.content }))
     }, {
