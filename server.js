@@ -4722,6 +4722,76 @@ app.post('/api/rh/nr-certs/migrate', async (req, res) => {
 });
 
 // ── RAX — Chat Agent (Claude) ─────────────────────────────────────
+function _raxContexto() {
+  const now = new Date().toLocaleString('pt-BR', { timeZone: 'America/Belem' });
+  const linhas = [`Data/hora atual (Belém/PA): ${now}`];
+
+  // Chamados ao vivo
+  const _chEntry = _chamadosCache.get('hoje') || [..._chamadosCache.values()].sort((a,b)=>b.ts-a.ts)[0];
+  if (_chEntry?.data?.length) {
+    const ch = _chEntry.data;
+    const porSt = {};
+    ch.forEach(c => { porSt[c.st] = (porSt[c.st]||0)+1; });
+    linhas.push(`\n## Chamados ao vivo (${ch.length} OS abertas)`);
+    Object.entries(porSt).forEach(([st,n]) => linhas.push(`- ${st}: ${n}`));
+    const emDeslocamento = ch.filter(c => c.st === 'em_deslocamento' || c.st === 'deslocamento');
+    const emExecucao    = ch.filter(c => c.st === 'em_execucao' || c.st === 'execucao');
+    if (emDeslocamento.length) linhas.push(`Técnicos em deslocamento: ${emDeslocamento.map(c=>`${c.tec||'?'} → ${c.cli||'?'} (${c.cidade||'?'})`).join('; ')}`);
+    if (emExecucao.length)    linhas.push(`Em execução: ${emExecucao.map(c=>`${c.tec||'?'} → ${c.cli||'?'}`).join('; ')}`);
+  }
+
+  // Comercial
+  if (_comResultCache) {
+    const c = _comResultCache;
+    linhas.push(`\n## Comercial (mês atual)`);
+    linhas.push(`- Total vendas: ${c.total_vendas||0} | Novas: ${c.novas||0} | Reativações: ${c.reativacoes||0}`);
+    linhas.push(`- Ativos: ${c.ativos||0} | Cancelados s/ instalar: ${c.cancelados_sem_instalar||0}`);
+    if (c.por_vendedor?.length) {
+      linhas.push(`- Por vendedor: ${c.por_vendedor.slice(0,5).map(v=>`${v.nome||v.vendedor}: ${v.total||v.novas||0} vendas`).join('; ')}`);
+    }
+    if (c.por_cidade?.length) {
+      linhas.push(`- Por cidade: ${c.por_cidade.slice(0,5).map(v=>`${v.cidade}: ${v.total||0}`).join('; ')}`);
+    }
+  }
+
+  // Financeiro
+  if (_finCache) {
+    const f = _finCache;
+    linhas.push(`\n## Financeiro`);
+    if (f.mrr) linhas.push(`- MRR: R$ ${(f.mrr/1000).toFixed(1)}k`);
+    if (f.total_ativos) linhas.push(`- Total ativos: ${f.total_ativos}`);
+    if (f.total_suspensos) linhas.push(`- Suspensos: ${f.total_suspensos}`);
+    if (f.cancelados_60d !== undefined) linhas.push(`- Cancelados 60d: ${f.cancelados_60d}`);
+    if (f.por_vendedor?.length) {
+      linhas.push(`- Saúde carteira top vendedores: ${f.por_vendedor.slice(0,5).map(v=>`${v.vendedor}: ${v.ativos} ativos, ${v.pct_saude}% saúde`).join('; ')}`);
+    }
+  }
+
+  // Retenção — usa o último cache do endpoint
+  const retKeys = Object.keys(_atendCacheMap);
+  if (retKeys.length) {
+    const retEntry = _atendCacheMap[retKeys[0]]?.data;
+    if (retEntry) {
+      linhas.push(`\n## Retenção / Cancelamento`);
+      if (retEntry.total_pedidos !== undefined) linhas.push(`- Total pedidos: ${retEntry.total_pedidos} | Revertidos: ${retEntry.revertidos||0} | Cancelados: ${retEntry.cancelados||0}`);
+      if (retEntry.taxa_reversao) linhas.push(`- Taxa reversão: ${retEntry.taxa_reversao}%`);
+    }
+  }
+
+  // Risco de cancelamento (cache mais recente)
+  const riscoKey = Object.keys(_riscoCache||{}).sort().pop();
+  if (riscoKey && _riscoCache[riscoKey]) {
+    const risco = _riscoCache[riscoKey].data;
+    linhas.push(`\n## Risco de Cancelamento (últimos ${risco.dias}d)`);
+    linhas.push(`- Total clientes em risco: ${risco.total_clientes} | Críticos: ${risco.criticos} | Atenção: ${risco.atencao}`);
+    if (risco.clientes?.length) {
+      linhas.push(`- Top críticos: ${risco.clientes.filter(c=>c.risco==='critico').slice(0,5).map(c=>`${c.nome} (${c.total} ocorr.)`).join('; ')}`);
+    }
+  }
+
+  return linhas.join('\n');
+}
+
 app.post('/api/chat', async (req, res) => {
   const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
   if (!ANTHROPIC_API_KEY) return res.status(500).json({ erro: 'ANTHROPIC_API_KEY não configurada' });
@@ -4729,19 +4799,24 @@ app.post('/api/chat', async (req, res) => {
   const { messages } = req.body;
   if (!Array.isArray(messages) || !messages.length) return res.status(400).json({ erro: 'messages obrigatório' });
 
+  const contexto = _raxContexto();
+
+  const system = `Você é RAX (Rangel Analytics X), assistente de inteligência de dados do sistema OPS360 da LC Fibra — uma empresa provedora de internet (ISP) no Pará, Brasil.
+Responda sempre em português brasileiro, de forma direta e objetiva.
+Quando exibir dados estruturados, use listas ou tabelas markdown.
+Não invente dados — use apenas as informações do contexto abaixo.
+Se não souber algo, diga que não tem essa informação disponível no momento.
+
+======= DADOS EM TEMPO REAL DO OPS360 =======
+${contexto}
+=============================================`;
+
   try {
     const response = await axios.post('https://api.anthropic.com/v1/messages', {
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 1024,
-      system: `Você é RAX (Rangel Analytics X), um agente de análise inteligente integrado ao sistema OPS360 de uma empresa de internet (ISP).
-Responda sempre em português brasileiro de forma direta e objetiva.
-Por padrão, responda apenas em texto simples — não envie imagens, arquivos ou links a menos que o usuário solicite explicitamente.
-Quando precisar exibir dados estruturados, use listas ou tabelas em markdown.
-Você tem acesso ao contexto do sistema OPS360: chamados, atendimento, comercial, cancelamentos, financeiro, RH, conexões.`,
-      messages: messages.map(m => ({
-        role: m.role,
-        content: Array.isArray(m.content) ? m.content : m.content
-      }))
+      system,
+      messages: messages.map(m => ({ role: m.role, content: m.content }))
     }, {
       headers: {
         'x-api-key': ANTHROPIC_API_KEY,
