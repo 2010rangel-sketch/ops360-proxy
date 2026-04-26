@@ -4726,7 +4726,7 @@ function _raxContexto() {
   const now = new Date().toLocaleString('pt-BR', { timeZone: 'America/Belem' });
   const linhas = [`Data/hora atual (Belém/PA): ${now}`];
 
-  // Chamados ao vivo
+  // ── Chamados ao vivo ──
   const _chEntry = _chamadosCache.get('hoje') || [..._chamadosCache.values()].sort((a,b)=>b.ts-a.ts)[0];
   if (_chEntry?.data?.length) {
     const ch = _chEntry.data;
@@ -4734,58 +4734,71 @@ function _raxContexto() {
     ch.forEach(c => { porSt[c.st] = (porSt[c.st]||0)+1; });
     linhas.push(`\n## Chamados ao vivo (${ch.length} OS abertas)`);
     Object.entries(porSt).forEach(([st,n]) => linhas.push(`- ${st}: ${n}`));
-    const emDeslocamento = ch.filter(c => c.st === 'em_deslocamento' || c.st === 'deslocamento');
-    const emExecucao    = ch.filter(c => c.st === 'em_execucao' || c.st === 'execucao');
-    if (emDeslocamento.length) linhas.push(`Técnicos em deslocamento: ${emDeslocamento.map(c=>`${c.tec||'?'} → ${c.cli||'?'} (${c.cidade||'?'})`).join('; ')}`);
-    if (emExecucao.length)    linhas.push(`Em execução: ${emExecucao.map(c=>`${c.tec||'?'} → ${c.cli||'?'}`).join('; ')}`);
+    const emDesloc = ch.filter(c => c.st==='em_deslocamento'||c.st==='deslocamento');
+    const emExec   = ch.filter(c => c.st==='em_execucao'||c.st==='execucao');
+    const aguard   = ch.filter(c => c.st==='aguardando'||c.st==='pendente');
+    if (emDesloc.length) linhas.push(`Em deslocamento: ${emDesloc.map(c=>`${c.tec||'?'} → ${c.cli||'?'} (${c.cidade||'?'})`).join(' | ')}`);
+    if (emExec.length)   linhas.push(`Em execução: ${emExec.map(c=>`${c.tec||'?'} → ${c.cli||'?'} (${c.cidade||'?'})`).join(' | ')}`);
+    if (aguard.length)   linhas.push(`Aguardando: ${aguard.length} OS`);
   }
 
-  // Comercial
+  // ── Comercial ──
   if (_comResultCache) {
     const c = _comResultCache;
     linhas.push(`\n## Comercial (mês atual)`);
-    linhas.push(`- Total vendas: ${c.total_vendas||0} | Novas: ${c.novas||0} | Reativações: ${c.reativacoes||0}`);
-    linhas.push(`- Ativos: ${c.ativos||0} | Cancelados s/ instalar: ${c.cancelados_sem_instalar||0}`);
-    if (c.por_vendedor?.length) {
-      linhas.push(`- Por vendedor: ${c.por_vendedor.slice(0,5).map(v=>`${v.nome||v.vendedor}: ${v.total||v.novas||0} vendas`).join('; ')}`);
+    linhas.push(`- Resumo: ${c.total||0} vendas totais | ${c.novas||0} novas instalações | ${c.reativacoes||0} reativações | ${c.cancelados||0} cancelados s/instalar | ${c.ativos||0} ativos`);
+    if (c.vendedores?.length) {
+      linhas.push(`\n### Vendas por vendedor (nome | total | novas | reativações | ativas na carteira):`);
+      c.vendedores.forEach(v => {
+        linhas.push(`- ${v.nome}: ${v.total} vendas (${v.novas} novas + ${v.reat||0} reat.) | ${v.ativas||0} ativas`);
+      });
     }
-    if (c.por_cidade?.length) {
-      linhas.push(`- Por cidade: ${c.por_cidade.slice(0,5).map(v=>`${v.cidade}: ${v.total||0}`).join('; ')}`);
+    if (c.cancelados_detalhe?.length) {
+      linhas.push(`\n### Cancelamentos do mês (cliente | vendedor | motivo):`);
+      c.cancelados_detalhe.slice(0, 30).forEach(x => {
+        linhas.push(`- ${x.cliente} | vendedor: ${x.vendedor||'?'} | motivo: ${x.motivo||'?'} | venda: ${x.dataVenda||'?'} | cancel: ${x.dataCancelamento||'?'}`);
+      });
+    }
+    if (c.cidades?.length) {
+      linhas.push(`\n### Vendas por cidade: ${c.cidades.slice(0,8).map(x=>`${x.cidade||x.nome}: ${x.total}`).join(' | ')}`);
     }
   }
 
-  // Financeiro
+  // ── Financeiro / Saúde da carteira ──
   if (_finCache) {
     const f = _finCache;
     linhas.push(`\n## Financeiro`);
-    if (f.mrr) linhas.push(`- MRR: R$ ${(f.mrr/1000).toFixed(1)}k`);
-    if (f.total_ativos) linhas.push(`- Total ativos: ${f.total_ativos}`);
+    if (f.mrr)           linhas.push(`- MRR: R$ ${(f.mrr/1000).toFixed(1)}k`);
+    if (f.total_ativos)  linhas.push(`- Clientes ativos: ${f.total_ativos}`);
     if (f.total_suspensos) linhas.push(`- Suspensos: ${f.total_suspensos}`);
-    if (f.cancelados_60d !== undefined) linhas.push(`- Cancelados 60d: ${f.cancelados_60d}`);
+    if (f.cancelados_60d !== undefined) linhas.push(`- Cancelados (60d): ${f.cancelados_60d}`);
     if (f.por_vendedor?.length) {
-      linhas.push(`- Saúde carteira top vendedores: ${f.por_vendedor.slice(0,5).map(v=>`${v.vendedor}: ${v.ativos} ativos, ${v.pct_saude}% saúde`).join('; ')}`);
+      linhas.push(`\n### Saúde da carteira por vendedor (vendedor | ativos | suspensos | cancel.60d | MRR | saúde%):`);
+      f.por_vendedor.slice(0, 15).forEach(v => {
+        linhas.push(`- ${v.vendedor}: ${v.ativos} ativos | ${v.suspensos} susp. | ${v.cancelados60d} cancel. | R$${(v.mrr/1000).toFixed(1)}k MRR | ${v.pct_saude}% saúde`);
+      });
     }
   }
 
-  // Retenção — usa o último cache do endpoint
-  const retKeys = Object.keys(_atendCacheMap);
-  if (retKeys.length) {
-    const retEntry = _atendCacheMap[retKeys[0]]?.data;
-    if (retEntry) {
-      linhas.push(`\n## Retenção / Cancelamento`);
-      if (retEntry.total_pedidos !== undefined) linhas.push(`- Total pedidos: ${retEntry.total_pedidos} | Revertidos: ${retEntry.revertidos||0} | Cancelados: ${retEntry.cancelados||0}`);
-      if (retEntry.taxa_reversao) linhas.push(`- Taxa reversão: ${retEntry.taxa_reversao}%`);
+  // ── Retenção ──
+  const retEntry = Object.values(_atendCacheMap).sort((a,b)=>b.ts-a.ts)[0]?.data;
+  if (retEntry?.total_pedidos !== undefined) {
+    linhas.push(`\n## Retenção / Cancelamento`);
+    linhas.push(`- Pedidos de cancelamento: ${retEntry.total_pedidos} | Revertidos: ${retEntry.revertidos||0} | Confirmados: ${retEntry.cancelados||0}`);
+    if (retEntry.taxa_reversao) linhas.push(`- Taxa de reversão: ${retEntry.taxa_reversao}%`);
+    if (retEntry.por_atendente?.length) {
+      linhas.push(`- Por atendente: ${retEntry.por_atendente.slice(0,5).map(a=>`${a.nome}: ${a.total} pedidos, ${a.revertidos||0} revertidos`).join(' | ')}`);
     }
   }
 
-  // Risco de cancelamento (cache mais recente)
-  const riscoKey = Object.keys(_riscoCache||{}).sort().pop();
-  if (riscoKey && _riscoCache[riscoKey]) {
+  // ── Risco de cancelamento ──
+  const riscoKey = Object.keys(_riscoCache||{}).sort((a,b)=>(_riscoCache[b]?.ts||0)-(_riscoCache[a]?.ts||0))[0];
+  if (riscoKey) {
     const risco = _riscoCache[riscoKey].data;
     linhas.push(`\n## Risco de Cancelamento (últimos ${risco.dias}d)`);
-    linhas.push(`- Total clientes em risco: ${risco.total_clientes} | Críticos: ${risco.criticos} | Atenção: ${risco.atencao}`);
+    linhas.push(`- ${risco.total_clientes} clientes em risco | ${risco.criticos} críticos (3+ ocorr.) | ${risco.atencao} atenção (2 ocorr.)`);
     if (risco.clientes?.length) {
-      linhas.push(`- Top críticos: ${risco.clientes.filter(c=>c.risco==='critico').slice(0,5).map(c=>`${c.nome} (${c.total} ocorr.)`).join('; ')}`);
+      linhas.push(`Clientes críticos: ${risco.clientes.filter(c=>c.risco==='critico').slice(0,8).map(c=>`${c.nome} (${c.totalChamados||0} OS + ${c.totalAtend||0} atend.)`).join(' | ')}`);
     }
   }
 
