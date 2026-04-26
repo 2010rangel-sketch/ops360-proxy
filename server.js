@@ -3475,6 +3475,133 @@ setTimeout(() => _refreshChamadosHoje().catch(console.warn), 3000);
 const STATUS_CONTRATO_SUSPENSO = new Set(['suspenso_debito','suspenso_pedido_cliente','bloqueio_temporario','suspenso_judicial']);
 const STATUS_CONTRATO_PARCIAL  = new Set(['suspenso_parcialmente','suspenso_parcial','bloqueio_parcial']);
 
+// ── RISCO DE CANCELAMENTO ─────────────────────────────────────────
+const _riscoCache = {};
+const RISCO_CACHE_TTL = 10 * 60 * 1000; // 10 min
+
+app.get('/api/risco-cancelamento', async (req, res) => {
+  try {
+    const dias = Math.min(parseInt(req.query.dias) || 30, 180);
+    const cacheKey = `risco:${dias}`;
+    const cached = _riscoCache[cacheKey];
+    if (cached && (Date.now() - cached.ts) < RISCO_CACHE_TTL && !req.query.force)
+      return res.json({ ...cached.data, cache: true });
+
+    const agora = new Date();
+    const ini = new Date(agora.getTime() - dias * 24 * 60 * 60 * 1000);
+    const iniStr = ini.toISOString();
+    const fimStr = agora.toISOString();
+
+    const normT = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().trim();
+    const isRemocao = tipo => normT(tipo).includes('REMOCAO') || normT(tipo).includes('COBRANCA');
+
+    // Busca chamados (OS) e atendimentos em paralelo
+    const iniDate = ini.toISOString().slice(0, 10);
+    const fimDate = agora.toISOString().slice(0, 10);
+    const [listaOS, primeiraAtend] = await Promise.all([
+      _fetchChamadosHubsoft(iniStr, fimStr, true),
+      hubsoftPost(`v1/atendimento/consultar/paginado/500?page=1`, { data_inicio: iniDate, data_fim: fimDate }),
+    ]);
+
+    // Busca todas as páginas de atendimento
+    const totalPgsAtend = primeiraAtend?.atendimentos?.last_page || 1;
+    let listaAtend = Array.isArray(primeiraAtend?.atendimentos?.data) ? primeiraAtend.atendimentos.data : [];
+    if (totalPgsAtend > 1) {
+      const pgs = Array.from({ length: totalPgsAtend - 1 }, (_, i) => i + 2);
+      const res = await Promise.all(pgs.map(pg =>
+        hubsoftPost(`v1/atendimento/consultar/paginado/500?page=${pg}`, { data_inicio: iniDate, data_fim: fimDate })
+          .then(d => Array.isArray(d?.atendimentos?.data) ? d.atendimentos.data : [])
+          .catch(() => [])
+      ));
+      res.forEach(r => listaAtend.push(...r));
+    }
+
+    // Tipos de atendimento de suporte (reclamações técnicas)
+    const isAtendSuporte = tipo => {
+      const t = normT(tipo);
+      return t.includes('LENTIDAO') || t.includes('INSTABILID') || t.includes('QUEDA') ||
+             t.includes('SEM SINAL') || t.includes('SEM INTERNET') || t.includes('MUDANCA DE SENHA') ||
+             t.includes('MUDANCA SENHA') || t.includes('SEM ACESSO') || t.includes('SUPORTE') ||
+             t.includes('NOC') || t.includes('FIBRA');
+    };
+
+    const mapaCli = {};
+    const dtBrFmt = dt => { const d = new Date(dt); return isNaN(d) ? dt : d.toLocaleDateString('pt-BR'); };
+
+    // Processa OS/chamados
+    for (const os of listaOS) {
+      const tipo = os.tipo_ordem_servico?.descricao || os.tipo_os?.nome || os.tipo || '';
+      if (isRemocao(tipo)) continue;
+      const cliObj = os.atendimento?.cliente_servico?.cliente || {};
+      const nome = cliObj.nome_razaosocial || cliObj.nome_fantasia || cliObj.display || os.cli || '';
+      if (!nome) continue;
+      if (normT(nome).startsWith('LC VIRTUAL NET')) continue;
+      const end = os.atendimento?.cliente_servico?.endereco_instalacao;
+      const cidade = end?.endereco_numero?.cidade?.nome || end?.cidade?.nome || os.cidade || '—';
+      const dtAbertura = os.data_abertura || os.data_cadastro || os.created_at || null;
+      if (!mapaCli[nome]) mapaCli[nome] = { nome, cidade, chamados: [], totalChamados: 0, atendimentos: [], totalAtend: 0 };
+      mapaCli[nome].totalChamados++;
+      mapaCli[nome].chamados.push({ id: os.id_ordem_servico || os.id, tipo, dtAbertura, data: dtAbertura ? dtBrFmt(dtAbertura) : '—', status: os.status || '' });
+    }
+
+    // Processa atendimentos de suporte
+    for (const a of listaAtend) {
+      const tipo = a.tipo_atendimento?.descricao || '';
+      if (!isAtendSuporte(tipo)) continue;
+      const cliObj = a.cliente_servico?.cliente || a.cliente || {};
+      const nome = cliObj.nome_razaosocial || cliObj.nome_fantasia || cliObj.nome || '';
+      if (!nome) continue;
+      if (normT(nome).startsWith('LC VIRTUAL NET')) continue;
+      // data_cadastro_br = "DD/MM/YYYY HH:MM" — pega só primeiros 10 chars
+      const dtBrRaw = a.data_cadastro_br ? a.data_cadastro_br.slice(0, 10) : null;
+      const dt = dtBrRaw || a.data_cadastro || null;
+      if (!mapaCli[nome]) {
+        const cidade = a.cliente_servico?.endereco_instalacao?.endereco_numero?.cidade?.nome || '—';
+        mapaCli[nome] = { nome, cidade, chamados: [], totalChamados: 0, atendimentos: [], totalAtend: 0 };
+      }
+      mapaCli[nome].totalAtend++;
+      const dataFmt = dtBrRaw || (a.data_cadastro ? dtBrFmt(a.data_cadastro) : '—');
+      mapaCli[nome].atendimentos.push({ id: a.id_atendimento || a.id, tipo, data: dataFmt });
+    }
+
+    const clientes = Object.values(mapaCli)
+      .filter(c => c.totalChamados >= 2 || c.totalAtend >= 2)
+      .map(c => {
+        const tiposOS   = [...new Set(c.chamados.map(ch => ch.tipo).filter(Boolean))];
+        const tiposAt   = [...new Set(c.atendimentos.map(a => a.tipo).filter(Boolean))];
+        const totalRisco = c.totalChamados + c.totalAtend;
+        return {
+          nome: c.nome,
+          cidade: c.cidade,
+          totalChamados: c.totalChamados,
+          totalAtend: c.totalAtend,
+          total: totalRisco,
+          risco: totalRisco >= 4 || c.totalChamados >= 3 || c.totalAtend >= 3 ? 'critico' : 'atencao',
+          tipos: tiposOS,
+          tiposAtend: tiposAt,
+          chamados: c.chamados.sort((a, b) => (b.dtAbertura || '') > (a.dtAbertura || '') ? 1 : -1),
+          atendimentos: c.atendimentos,
+        };
+      })
+      .sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome));
+
+    const result = {
+      ok: true,
+      dias,
+      total_clientes: clientes.length,
+      criticos: clientes.filter(c => c.risco === 'critico').length,
+      atencao: clientes.filter(c => c.risco === 'atencao').length,
+      clientes,
+      gerado_em: new Date().toISOString(),
+    };
+    _riscoCache[cacheKey] = { data: result, ts: Date.now() };
+    res.json(result);
+  } catch (err) {
+    console.error('/api/risco-cancelamento:', err.message);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 const _saudeCache = {};
 const SAUDE_CACHE_TTL = 15 * 60 * 1000; // 15 min
 
@@ -4427,7 +4554,7 @@ async function dbInit() {
       console.log(`[auth] Admin criado: ${ADMIN_EMAIL} / ${ADMIN_PASS}`);
     } else {
       // Garante que todos os admins têm acesso a todas as páginas ativas
-      const PAGINAS_ADMIN = 'comercial,atendimento,chamados,retencao,remocao,financeiro,rh,saude,tarefas,integracoes';
+      const PAGINAS_ADMIN = 'comercial,atendimento,chamados,retencao,remocao,financeiro,rh,risco,saude,tarefas,integracoes';
       await pool.query(
         `UPDATE ops360_users SET paginas=$1 WHERE admin=TRUE`,
         [PAGINAS_ADMIN]
@@ -4635,7 +4762,7 @@ Você tem acesso ao contexto do sistema OPS360: chamados, atendimento, comercial
 // ── AUTH ──────────────────────────────────────────────────────────
 
 // Usuários em memória (fallback quando banco não disponível)
-const TODAS_PGS = 'comercial,atendimento,chamados,retencao,remocao,financeiro,fiscal,estoque,rh,saude,conexoes,tarefas,integracoes';
+const TODAS_PGS = 'comercial,atendimento,chamados,retencao,remocao,financeiro,fiscal,estoque,rh,risco,saude,conexoes,tarefas,integracoes';
 let _usersMemoria = null; // carregado do arquivo se banco offline
 
 function _usersArquivo() { return path.join(__dirname, 'users.json'); }

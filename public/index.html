@@ -1936,43 +1936,6 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         </div>
       </div>
 
-      <!-- Clientes por Ano (LTV) -->
-      <div class="tbl-card" style="margin-bottom:14px">
-        <div class="tbl-header">
-          <span class="tbl-title">Clientes por Ano de Cadastro</span>
-          <span class="badge b-blue" id="fin-ltv-count">—</span>
-        </div>
-        <!-- Filtro de nome -->
-        <div style="padding:8px 14px;border-bottom:1px solid var(--border)">
-          <div style="position:relative">
-            <i class="fas fa-search" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:12px;pointer-events:none"></i>
-            <input type="text" id="fin-ltv-search" placeholder="Filtrar por nome do cliente..." oninput="filterLtv(this.value)"
-              style="width:100%;box-sizing:border-box;padding:6px 10px 6px 30px;background:var(--bg);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
-          </div>
-        </div>
-        <!-- Tabs por ano -->
-        <div style="padding:10px 14px 0;border-bottom:1px solid var(--border);overflow-x:auto">
-          <div id="fin-ltv-tabs" style="display:flex;gap:4px;flex-wrap:nowrap;min-width:max-content"></div>
-        </div>
-        <!-- Tabela -->
-        <div style="max-height:380px;overflow-y:auto">
-          <table class="tbl" style="table-layout:fixed;width:100%">
-            <colgroup>
-              <col style="width:32px">
-              <col style="width:28%">
-              <col style="width:14%">
-              <col style="width:22%">
-              <col style="width:10%">
-              <col style="width:9%">
-              <col style="width:9%">
-              <col style="width:10%">
-            </colgroup>
-            <thead><tr><th>#</th><th>Cliente</th><th>Cidade</th><th>Plano</th><th>Mensalidade</th><th>Desde</th><th>Tempo</th><th>LTV Est.</th></tr></thead>
-            <tbody id="fin-ltv-lista"></tbody>
-          </table>
-        </div>
-      </div>
-
     </div>
 
     <!-- ═══ SAÚDE DA BASE ═══ -->
@@ -1985,6 +1948,50 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <span class="badge b-blue" id="saude-sync-badge">—</span>
           <button class="btn btn-primary btn-sm" onclick="loadSaudeBase(true)"><i class="fas fa-sync-alt"></i> Atualizar</button>
+        </div>
+      </div>
+
+      <!-- ═══ RISCO DE CANCELAMENTO ═══ -->
+      <div class="tbl-card" style="margin-bottom:14px">
+        <div class="tbl-header">
+          <span class="tbl-title"><i class="fas fa-exclamation-triangle" style="color:var(--red);margin-right:6px"></i>Risco de Cancelamento</span>
+          <span id="risco-periodo-label" style="font-size:11px;color:var(--text3)">últimos 30 dias</span>
+          <div style="display:flex;gap:4px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:3px;margin-left:8px">
+            <button class="chip active risco-chip" data-d="30"  onclick="setRiscoDias(30,this)">30d</button>
+            <button class="chip risco-chip"        data-d="60"  onclick="setRiscoDias(60,this)">60d</button>
+            <button class="chip risco-chip"        data-d="90"  onclick="setRiscoDias(90,this)">90d</button>
+            <button class="chip risco-chip"        data-d="120" onclick="setRiscoDias(120,this)">120d</button>
+          </div>
+          <span class="badge b-red"   id="risco-critico-badge" style="margin-left:8px">—</span>
+          <span class="badge b-amber" id="risco-atencao-badge">—</span>
+          <span class="badge b-blue"  id="risco-tbl-badge" style="margin-left:auto">—</span>
+          <button class="btn btn-primary btn-sm" onclick="loadRisco(true)" style="margin-left:8px"><i class="fas fa-sync-alt"></i></button>
+        </div>
+        <!-- Filtros + KPIs -->
+        <div style="padding:8px 14px;display:flex;gap:10px;align-items:center;border-bottom:1px solid var(--border)">
+          <input id="risco-busca" type="text" placeholder="🔍 Buscar cliente..." oninput="renderRisco()" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 10px;color:var(--text);font-size:12px;width:220px">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer">
+            <input type="checkbox" id="risco-so-critico" onchange="renderRisco()"> Somente Críticos
+          </label>
+          <div style="margin-left:auto;display:flex;gap:20px">
+            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">Críticos</div><div style="font-size:18px;font-weight:700;color:var(--red)" id="risco-n-critico">—</div></div>
+            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">Atenção</div><div style="font-size:18px;font-weight:700;color:var(--amber)" id="risco-n-atencao">—</div></div>
+            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">Total</div><div style="font-size:18px;font-weight:700;color:var(--blue)" id="risco-n-total">—</div></div>
+          </div>
+        </div>
+        <!-- Tabela -->
+        <div style="overflow-x:auto;max-height:380px;overflow-y:auto">
+          <table style="font-size:12px;width:100%"><thead><tr>
+            <th style="width:32px"></th>
+            <th>Cliente</th>
+            <th>Cidade</th>
+            <th style="text-align:center" title="Atendimentos de suporte (lentidão, instabilidade, queda, sem sinal)">Atend.</th>
+            <th style="text-align:center" title="Ordens de serviço abertas">Chamados</th>
+            <th style="text-align:center">Risco</th>
+            <th>Tipos de OS</th>
+          </tr></thead>
+          <tbody id="risco-tbl-body"><tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Carregando...</td></tr></tbody>
+          </table>
         </div>
       </div>
 
@@ -2035,6 +2042,34 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         <div style="max-height:340px;overflow-y:auto">
           <table class="tbl"><thead><tr><th>Vendedor</th><th>Ativos</th><th>Suspensos</th><th>Cancel. (60d)</th><th>Cancel. Total</th><th>MRR (Rec. Rec. Mensal)</th><th>Saúde</th></tr></thead>
           <tbody id="fin-vend-lista"></tbody></table>
+        </div>
+      </div>
+
+      <!-- Clientes por Ano (LTV) — espelho do Financeiro -->
+      <div class="tbl-card" style="margin-top:14px">
+        <div class="tbl-header">
+          <span class="tbl-title">Clientes por Ano de Cadastro</span>
+          <span class="badge b-blue" id="fin-ltv-count2">—</span>
+        </div>
+        <div style="padding:8px 14px;border-bottom:1px solid var(--border)">
+          <div style="position:relative">
+            <i class="fas fa-search" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:12px;pointer-events:none"></i>
+            <input type="text" id="fin-ltv-search2" placeholder="Filtrar por nome do cliente..." oninput="filterLtv2(this.value)"
+              style="width:100%;box-sizing:border-box;padding:6px 10px 6px 30px;background:var(--bg);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
+          </div>
+        </div>
+        <div style="padding:10px 14px 0;border-bottom:1px solid var(--border);overflow-x:auto">
+          <div id="fin-ltv-tabs2" style="display:flex;gap:4px;flex-wrap:nowrap;min-width:max-content"></div>
+        </div>
+        <div style="max-height:380px;overflow-y:auto">
+          <table class="tbl" style="table-layout:fixed;width:100%">
+            <colgroup>
+              <col style="width:32px"><col style="width:28%"><col style="width:14%"><col style="width:22%">
+              <col style="width:10%"><col style="width:9%"><col style="width:9%"><col style="width:10%">
+            </colgroup>
+            <thead><tr><th>#</th><th>Cliente</th><th>Cidade</th><th>Plano</th><th>Mensalidade</th><th>Desde</th><th>Tempo</th><th>LTV Est.</th></tr></thead>
+            <tbody id="fin-ltv-lista2"></tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -2786,7 +2821,7 @@ function goPage(id, el, skipHistory) {
   // Marca o nav-item correspondente como ativo
   const navEl = el || document.querySelector(`.nav-item[onclick*="'${id}'"], .space-item[onclick*="'${id}'"]`);
   if(navEl) navEl.classList.add('active');
-  const titles = {chamados:'Chamados',atendimento:'Atendimento',comercial:'Comercial',retencao:'Retenção / Cancelamento',remocao:'Remoção / Cobrança',financeiro:'Financeiro',rh:'RH',saude:'Saúde da Base',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
+  const titles = {chamados:'Chamados',atendimento:'Atendimento',comercial:'Comercial',retencao:'Retenção / Cancelamento',remocao:'Remoção / Cobrança',financeiro:'Financeiro',rh:'RH',risco:'Risco de Cancelamento',saude:'Saúde da Base',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
   document.getElementById('pageTitle').textContent = titles[id]||id;
   // Reseta pill para "Ao vivo" ao trocar de página (comercial escreve o horário quando carrega)
   const pill = document.getElementById('live-pill-text');
@@ -2836,9 +2871,10 @@ function goPage(id, el, skipHistory) {
     else loadAdicaoLiquida();
   }
   if (id === 'saude') {
+    loadRisco();
     loadSaudeBase();
-    if (_finData) renderFinanceiro(_finData);
-    loadFinanceiro();
+    if (_finData?.ltv_top100) _ltvPopularEspelho(_finData.ltv_top100);
+    else loadFinanceiro();
   }
   if (id === 'rh') {
     loadRh();
@@ -2864,6 +2900,123 @@ function _pageFromPath() {
   const seg = window.location.pathname.replace(/^\//, '').split('/')[0];
   const valid = ['comercial','chamados','atendimento','retencao','remocao','financeiro','rh','saude','tarefas','integracoes'];
   return valid.includes(seg) ? seg : 'comercial';
+}
+
+// ═══ RISCO DE CANCELAMENTO ═══
+let _riscoData = null;
+let _riscoDias = 30;
+
+function setRiscoDias(dias, el) {
+  _riscoDias = dias;
+  document.querySelectorAll('.risco-chip').forEach(c => c.classList.remove('active'));
+  if (el) el.classList.add('active');
+  const lbl = document.getElementById('risco-periodo-label');
+  if (lbl) lbl.textContent = `últimos ${dias} dias`;
+  loadRisco();
+}
+
+async function loadRisco(force = false) {
+  const badge = document.getElementById('risco-sync-badge');
+  if (badge) { badge.textContent = 'Carregando...'; badge.className = 'badge b-blue'; }
+  try {
+    const url = `/api/risco-cancelamento?dias=${_riscoDias}${force ? '&force=1' : ''}`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(r.statusText);
+    _riscoData = await r.json();
+    renderRisco();
+    if (badge) { badge.textContent = 'Atualizado'; badge.className = 'badge b-green'; }
+  } catch(e) {
+    if (badge) { badge.textContent = 'Erro'; badge.className = 'badge b-red'; }
+    console.error('loadRisco error', e);
+  }
+}
+
+function renderRisco() {
+  if (!_riscoData) return;
+  const clientes = _riscoData.clientes || [];
+  const busca = (document.getElementById('risco-busca')?.value || '').toLowerCase().trim();
+  const soCritico = document.getElementById('risco-so-critico')?.checked;
+
+  let lista = clientes;
+  if (soCritico) lista = lista.filter(c => c.risco === 'critico');
+  if (busca) lista = lista.filter(c =>
+    c.nome.toLowerCase().includes(busca) || (c.cidade||'').toLowerCase().includes(busca)
+  );
+
+  const criticos = lista.filter(c => c.risco === 'critico').length;
+  const atencao  = lista.filter(c => c.risco === 'atencao').length;
+  const elCrit  = document.getElementById('risco-n-critico');
+  const elAtenc = document.getElementById('risco-n-atencao');
+  const elTot   = document.getElementById('risco-n-total');
+  const elCritB  = document.getElementById('risco-critico-badge');
+  const elAtencB = document.getElementById('risco-atencao-badge');
+  const elTblB   = document.getElementById('risco-tbl-badge');
+  if (elCrit)  elCrit.textContent  = criticos;
+  if (elAtenc) elAtenc.textContent = atencao;
+  if (elTot)   elTot.textContent   = lista.length;
+  if (elCritB)  elCritB.textContent  = `${criticos} críticos`;
+  if (elAtencB) elAtencB.textContent = `${atencao} atenção`;
+  if (elTblB)   elTblB.textContent   = `${lista.length} clientes`;
+
+  // sort: critico primeiro, depois por qtd desc
+  lista.sort((a,b) => {
+    if (a.risco !== b.risco) return a.risco === 'critico' ? -1 : 1;
+    return b.total - a.total;
+  });
+
+  const tbody = document.getElementById('risco-tbl-body');
+  if (!tbody) return;
+  if (!lista.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">Nenhum cliente encontrado</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = lista.map(c => {
+    const cor = c.risco === 'critico' ? 'var(--red)' : 'var(--amber)';
+    const badge = c.risco === 'critico'
+      ? '<span class="badge b-red">Crítico</span>'
+      : '<span class="badge b-amber">Atenção</span>';
+    const tipos = (c.tipos || []).join(', ');
+    const rowId = 'risco-' + encodeURIComponent(c.nome);
+    const nAt = c.totalAtend || 0;
+    const nCh = c.totalChamados || 0;
+    const atStr = nAt > 0 ? `<span style="font-weight:600;color:var(--cyan)">${nAt}</span>` : '<span style="color:var(--text3)">—</span>';
+    const chStr = nCh > 0 ? `<span style="font-weight:600;color:${cor}">${nCh}</span>` : '<span style="color:var(--text3)">—</span>';
+    return `<tr>
+      <td style="cursor:pointer" onclick="toggleRiscoDetalhe('${rowId}')" title="Expandir detalhes">
+        <i class="fas fa-chevron-right" id="${rowId}-ico" style="color:var(--muted);transition:transform .2s"></i>
+      </td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.nome}">${c.nome}</td>
+      <td>${c.cidade||'—'}</td>
+      <td style="text-align:center">${atStr}</td>
+      <td style="text-align:center">${chStr}</td>
+      <td>${badge}</td>
+      <td style="font-size:11px;color:var(--muted);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${tipos}">${tipos||'—'}</td>
+    </tr>
+    <tr id="${rowId}-det" style="display:none">
+      <td colspan="7" style="padding:0 0 0 32px;background:var(--surface2,#1e1e2e)">
+        <div style="padding:8px 12px;font-size:12px">
+          ${(c.chamados||[]).length ? `<div style="color:var(--text2);font-weight:600;margin-bottom:4px">OS / Chamados</div>` : ''}
+          ${(c.chamados||[]).map(ch =>
+            `<div style="margin-bottom:3px;color:var(--muted)">• <b style="color:var(--text)">${ch.data||''}</b> — ${ch.tipo||''} — ${ch.status||''}</div>`
+          ).join('')}
+          ${(c.atendimentos||[]).length ? `<div style="color:var(--text2);font-weight:600;margin:6px 0 4px">Atendimentos</div>` : ''}
+          ${(c.atendimentos||[]).map(a =>
+            `<div style="margin-bottom:3px;color:var(--muted)">• <b style="color:var(--cyan)">${a.data||''}</b> — ${a.tipo||''}</div>`
+          ).join('')}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function toggleRiscoDetalhe(rowId) {
+  const det = document.getElementById(rowId + '-det');
+  const ico = document.getElementById(rowId + '-ico');
+  if (!det) return;
+  const open = det.style.display !== 'none';
+  det.style.display = open ? 'none' : 'table-row';
+  if (ico) ico.style.transform = open ? '' : 'rotate(90deg)';
 }
 
 // NOTIF
@@ -8194,6 +8347,7 @@ async function loadFinanceiro(force = false) {
     }
     _finData = d;
     try { localStorage.setItem('ops360_fin_cache', JSON.stringify({ data: d, ts: Date.now() })); } catch {}
+    if (d.ltv_top100) _ltvPopularEspelho(d.ltv_top100);
     renderFinanceiro(d);
     renderDashFinanceiro();
     if (badge) {
@@ -8297,6 +8451,8 @@ function renderFinanceiro(d) {
     // Seleciona o primeiro ano automaticamente
     if (_ltvAnos.length) selectLtvAno(_ltvAnos[0]);
   }
+  // Popula espelho na Saúde da Base
+  _ltvPopularEspelho(ltvTodos);
 
   // Saúde por vendedor
   const vendTbl = document.getElementById('fin-vend-lista');
@@ -8426,6 +8582,82 @@ function renderLtvTabela(lista, q) {
   const filtrada = q ? lista.filter(c => c.nome.toLowerCase().includes(q)) : lista;
   const ordenada = filtrada.slice().sort((a, b) => (b.ltvDinheiro || 0) - (a.ltvDinheiro || 0));
   ltvTbl.innerHTML = ordenada.length ? ordenada.map((c, i) => {
+    const st = c.statusTipo || 'ativo';
+    const rowBg  = st === 'suspenso' ? 'rgba(244,63,94,.06)' : st === 'parcial' ? 'rgba(249,115,22,.06)' : '';
+    const nomeCor = st === 'suspenso' ? 'var(--red)' : st === 'parcial' ? 'var(--orange)' : 'var(--text)';
+    const badge  = st === 'suspenso' ? '<span style="font-size:9px;background:var(--red-light);color:var(--red);border-radius:3px;padding:1px 4px;margin-left:4px">SUSP</span>'
+                 : st === 'parcial'  ? '<span style="font-size:9px;background:var(--orange-light);color:var(--orange);border-radius:3px;padding:1px 4px;margin-left:4px">PARC</span>'
+                 : '';
+    return `<tr style="background:${rowBg}">
+      <td class="mono" style="color:var(--text3)">${i+1}</td>
+      <td style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${nomeCor}" title="${c.nome}">${c.nome.length>30?c.nome.substring(0,28)+'…':c.nome}${badge}</td>
+      <td style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.cidade}">${c.cidade}</td>
+      <td style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.plano}">${c.plano}</td>
+      <td class="mono">${fmtBRL(c.valor)}</td>
+      <td style="font-size:11px;color:var(--text3)">${c.dataCad ? c.dataCad.substring(0,10) : '—'}</td>
+      <td style="font-size:11px;color:var(--accent);white-space:nowrap">${c.tempoFmt}</td>
+      <td class="mono" style="font-weight:700;color:#22c55e;white-space:nowrap">${fmtBRLk(c.ltvDinheiro)}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px">${q ? 'Nenhum cliente encontrado' : 'Sem clientes neste ano'}</td></tr>`;
+}
+
+// Espelho de LTV para page-saude
+let _ltvAnoAtivo2 = null;
+
+function _ltvPopularEspelho(ltvTodos) {
+  const por = {};
+  for (const c of ltvTodos) {
+    const ano = c.dataCad ? c.dataCad.substring(0, 4) : 'Sem data';
+    if (!por[ano]) por[ano] = [];
+    por[ano].push(c);
+  }
+  const anos = Object.keys(por).sort();
+  const tabs2 = document.getElementById('fin-ltv-tabs2');
+  const count2 = document.getElementById('fin-ltv-count2');
+  if (count2) count2.textContent = `${ltvTodos.length} clientes`;
+  if (tabs2) {
+    tabs2.dataset.anos = JSON.stringify(anos);
+    tabs2.dataset.dados = JSON.stringify(por);
+    tabs2.innerHTML = anos.map(ano =>
+      `<button onclick="selectLtvAno2('${ano}')" id="fin-ltv-tab2-${ano}" class="chip" style="white-space:nowrap;margin-bottom:6px">
+        ${ano} <span style="color:var(--text3);font-size:10px">(${por[ano].length})</span>
+      </button>`
+    ).join('');
+    if (anos.length) selectLtvAno2(anos[0]);
+  }
+}
+
+function selectLtvAno2(ano) {
+  _ltvAnoAtivo2 = ano;
+  const tabs2 = document.getElementById('fin-ltv-tabs2');
+  if (!tabs2) return;
+  const anos = JSON.parse(tabs2.dataset.anos || '[]');
+  anos.forEach(a => {
+    const btn = document.getElementById(`fin-ltv-tab2-${a}`);
+    if (btn) btn.className = a === ano ? 'chip active' : 'chip';
+  });
+  const q = (document.getElementById('fin-ltv-search2')?.value || '').toLowerCase().trim();
+  renderLtvTabela2(JSON.parse(tabs2.dataset.dados || '{}')[ano] || [], q);
+}
+
+function filterLtv2(txt) {
+  const tabs2 = document.getElementById('fin-ltv-tabs2');
+  if (!tabs2) return;
+  const q = txt.toLowerCase().trim();
+  if (q) {
+    const todos = Object.values(JSON.parse(tabs2.dataset.dados || '{}')).flat();
+    renderLtvTabela2(todos, q);
+  } else {
+    renderLtvTabela2(JSON.parse(tabs2.dataset.dados || '{}')[_ltvAnoAtivo2] || [], '');
+  }
+}
+
+function renderLtvTabela2(lista, q) {
+  const tbl = document.getElementById('fin-ltv-lista2');
+  if (!tbl) return;
+  const filtrada = q ? lista.filter(c => c.nome.toLowerCase().includes(q)) : lista;
+  const ordenada = filtrada.slice().sort((a, b) => (b.ltvDinheiro || 0) - (a.ltvDinheiro || 0));
+  tbl.innerHTML = ordenada.length ? ordenada.map((c, i) => {
     const st = c.statusTipo || 'ativo';
     const rowBg  = st === 'suspenso' ? 'rgba(244,63,94,.06)' : st === 'parcial' ? 'rgba(249,115,22,.06)' : '';
     const nomeCor = st === 'suspenso' ? 'var(--red)' : st === 'parcial' ? 'var(--orange)' : 'var(--text)';
@@ -8840,6 +9072,9 @@ async function loadSaudeBase(force = false) {
     const d = await r.json();
     _saudeData = d;
     renderSaudeBase(d);
+    // Popula tabela LTV se financeiro ainda não carregou
+    if (_finData?.ltv_top100) _ltvPopularEspelho(_finData.ltv_top100);
+    else loadFinanceiro();
     if (badge) {
       const hora = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
       badge.textContent = `Atualizado ${hora}`;

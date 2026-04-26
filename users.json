@@ -1,0 +1,11 @@
+[
+  {
+    "id": 1,
+    "nome": "Administrador",
+    "email": "admin@lcfibra360.com",
+    "senha_hash": "09aec72e501bf9b5f4bf7e194a97787e1eac75270108c78d4704d1e9cf502240",
+    "paginas": "comercial,atendimento,chamados,retencao,remocao,financeiro,risco,fiscal,estoque,rh,saude,conexoes,tarefas,integracoes",
+    "admin": true,
+    "ativo": true
+  }
+]
