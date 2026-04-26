@@ -1665,19 +1665,47 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         </div>
       </div>
 
-      <!-- Serviços Cancelados (Cancelamento Geral) -->
-      <div class="tbl-card" style="margin-bottom:20px;border-top:3px solid #e11d48">
-        <div class="tbl-header">
-          <span class="tbl-title"><i class="fas fa-user-minus" style="color:#e11d48;margin-right:6px"></i>Serviços Cancelados no Período</span>
-          <span style="font-size:10px;color:var(--text3)">cancelamentos reais de serviço · clique nos motivos acima para filtrar</span>
-          <span class="badge b-red" id="ret-servicos-cancel-badge">—</span>
+      <!-- Serviços Cancelados — duas tabelas lado a lado -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+
+        <!-- Tabela 1: Contabilizados -->
+        <div class="tbl-card" style="border-top:3px solid #e11d48">
+          <div class="tbl-header">
+            <span class="tbl-title"><i class="fas fa-user-minus" style="color:#e11d48;margin-right:6px"></i>Cancelamentos Contabilizados</span>
+            <input id="cancelServBusca" type="text" placeholder="🔍 Buscar..." oninput="_renderServicosCancelTbl()" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text);font-size:12px;width:120px;margin-left:10px">
+            <span class="badge b-red" id="ret-servicos-cancel-badge" style="margin-left:auto">—</span>
+          </div>
+          <div style="overflow-x:auto;max-height:380px;overflow-y:auto">
+            <table style="font-size:12px;width:100%"><thead><tr id="cancelServThead">
+              <th onclick="_cancelServSort('nome')" style="cursor:pointer;user-select:none">Cliente <span id="cs-sort-nome"></span></th>
+              <th onclick="_cancelServSort('motivo')" style="cursor:pointer;user-select:none">Motivo <span id="cs-sort-motivo"></span></th>
+              <th onclick="_cancelServSort('cidade')" style="cursor:pointer;user-select:none">Cidade <span id="cs-sort-cidade"></span></th>
+              <th onclick="_cancelServSort('data_venda')" style="cursor:pointer;user-select:none;text-align:center">Dt. Venda <span id="cs-sort-data_venda"></span></th>
+              <th onclick="_cancelServSort('data')" style="cursor:pointer;user-select:none;text-align:center">Cancelamento <span id="cs-sort-data"></span></th>
+            </tr></thead>
+            <tbody id="retServicosCancelTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
+          </div>
         </div>
-        <div style="overflow-x:auto;max-height:380px;overflow-y:auto">
-          <table style="font-size:12px"><thead><tr>
-            <th>Cliente</th><th>Motivo</th><th>Plano / Serviço</th><th>Cidade</th><th>Vendedor</th><th>Data Venda</th><th>Cancelamento</th>
-          </tr></thead>
-          <tbody id="retServicosCancelTbl"><tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
+
+        <!-- Tabela 2: Não contabilizados -->
+        <div class="tbl-card" style="border-top:3px solid #f59e0b">
+          <div class="tbl-header">
+            <span class="tbl-title"><i class="fas fa-ban" style="color:#f59e0b;margin-right:6px"></i>Não Contabilizados</span>
+            <input id="cancelExclBusca" type="text" placeholder="🔍 Buscar..." oninput="_renderExcluidosTbl()" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text);font-size:12px;width:120px;margin-left:10px">
+            <span class="badge b-amber" id="ret-excluidos-badge" style="margin-left:auto">—</span>
+          </div>
+          <div style="overflow-x:auto;max-height:380px;overflow-y:auto">
+            <table style="font-size:12px;width:100%"><thead><tr>
+              <th onclick="_exclSort('nome')" style="cursor:pointer;user-select:none">Cliente <span id="ex-sort-nome"></span></th>
+              <th onclick="_exclSort('motivo')" style="cursor:pointer;user-select:none">Motivo <span id="ex-sort-motivo"></span></th>
+              <th onclick="_exclSort('cidade')" style="cursor:pointer;user-select:none">Cidade <span id="ex-sort-cidade"></span></th>
+              <th onclick="_exclSort('data_venda')" style="cursor:pointer;user-select:none;text-align:center">Dt. Venda <span id="ex-sort-data_venda"></span></th>
+              <th onclick="_exclSort('data')" style="cursor:pointer;user-select:none;text-align:center">Cancelamento <span id="ex-sort-data"></span></th>
+            </tr></thead>
+            <tbody id="retExcluidosTbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Carregando...</td></tr></tbody></table>
+          </div>
         </div>
+
       </div>
 
     </div>
@@ -4999,6 +5027,7 @@ async function loadCancelServico() {
     window._cancelServMotivos = motivos;
     _renderCancelServTbl(_retFiltroAt, _retFiltroTipoCancel, _retFiltroCidade);
     _renderServicosCancelTbl();
+    _renderExcluidosTbl();
     _renderRetCidade();
   } catch(e) {
     if (e.name === 'AbortError') return; // request cancelado — não sobrescreve tabela
@@ -5141,6 +5170,13 @@ function _renderCancelServTbl(atendente, tipoCancel, cidade) {
   }
 }
 
+let _cancelServSortCol = 'data', _cancelServSortDir = -1;
+function _cancelServSort(col) {
+  if (_cancelServSortCol === col) _cancelServSortDir *= -1;
+  else { _cancelServSortCol = col; _cancelServSortDir = col === 'data' || col === 'data_venda' ? -1 : 1; }
+  _renderServicosCancelTbl();
+}
+
 function _renderServicosCancelTbl() {
   const tbl   = document.getElementById('retServicosCancelTbl');
   const badge = document.getElementById('ret-servicos-cancel-badge');
@@ -5155,35 +5191,102 @@ function _renderServicosCancelTbl() {
       clientes.push({ nome: c.nome, motivo: m.motivo, plano: c.plano, cidade: c.cidade, data: c.data, vendedor: c.vendedor, data_venda: c.data_venda });
     }
   }
-  clientes.sort((a, b) => (b.data || '') > (a.data || '') ? 1 : -1);
 
-  if (badge) badge.textContent = clientes.length;
+  // Ordenação por coluna
+  const col = _cancelServSortCol, dir = _cancelServSortDir;
+  const isColunaData = col === 'data' || col === 'data_venda';
+  const toTs = v => {
+    if (!v) return 0;
+    const s = String(v).slice(0, 10);
+    if (s.includes('/')) { const [d,m,y] = s.split('/'); return new Date(`${y}-${m}-${d}`).getTime(); }
+    return new Date(s).getTime();
+  };
+  clientes.sort((a, b) => {
+    if (isColunaData) return (toTs(a[col]) - toTs(b[col])) * dir;
+    const va = (a[col] || '').toLowerCase(), vb = (b[col] || '').toLowerCase();
+    return va < vb ? -dir : va > vb ? dir : 0;
+  });
 
-  if (!clientes.length) {
-    tbl.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">Sem serviços cancelados no período</td></tr>';
+  // Atualiza indicadores de ordenação nos cabeçalhos
+  ['nome','motivo','cidade','data_venda','data'].forEach(c => {
+    const el = document.getElementById('cs-sort-' + c);
+    if (el) el.textContent = c === col ? (dir === 1 ? ' ▲' : ' ▼') : '';
+  });
+
+  const busca = (document.getElementById('cancelServBusca')?.value || '').toLowerCase().trim();
+  const filtrados = busca ? clientes.filter(c => (c.nome || '').toLowerCase().includes(busca)) : clientes;
+
+  if (badge) badge.textContent = filtrados.length;
+
+  if (!filtrados.length) {
+    tbl.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">${busca ? 'Nenhum cliente encontrado' : 'Sem serviços cancelados no período'}</td></tr>`;
     return;
   }
 
-  // Formata data dd/MM/yyyy — aceita tanto "dd/MM/yyyy" quanto "yyyy-MM-dd" e "yyyy-MM-dd HH:mm:ss"
   const fmt = d => {
     if (!d) return '—';
     const s = String(d).slice(0, 10);
-    if (s.includes('/')) return s; // já está no formato br
+    if (s.includes('/')) return s;
     const p = s.split('-');
     return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d;
   };
 
-  tbl.innerHTML = clientes.map(c => `
+  tbl.innerHTML = filtrados.map(c => `
     <tr>
-      <td style="font-weight:600">${c.nome || '—'}</td>
-      <td><span style="display:inline-block;font-size:10px;font-weight:600;color:#e11d48;background:rgba(225,29,72,.08);border:1px solid rgba(225,29,72,.2);border-radius:5px;padding:2px 7px;white-space:nowrap">${c.motivo || '—'}</span></td>
-      <td style="color:var(--text2)">${c.plano || '—'}</td>
-      <td style="color:var(--text3)">${c.cidade || '—'}</td>
-      <td style="color:var(--text3);font-size:11px">${c.vendedor || '—'}</td>
-      <td style="color:var(--text3);font-size:11px;white-space:nowrap">${fmt(c.data_venda)}</td>
-      <td style="font-weight:600;white-space:nowrap;color:var(--red)">${fmt(c.data)}</td>
+      <td style="font-weight:600;font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.nome||''}">${c.nome||'—'}</td>
+      <td style="max-width:130px"><span style="display:inline-block;font-size:10px;font-weight:600;color:#e11d48;background:rgba(225,29,72,.08);border:1px solid rgba(225,29,72,.2);border-radius:5px;padding:2px 7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:125px" title="${c.motivo||''}">${c.motivo||'—'}</span></td>
+      <td style="color:var(--text3);font-size:11px;white-space:nowrap">${c.cidade||'—'}</td>
+      <td style="color:var(--text3);font-size:11px;white-space:nowrap;text-align:center">${fmt(c.data_venda)}</td>
+      <td style="font-weight:600;white-space:nowrap;color:var(--red);text-align:center">${fmt(c.data)}</td>
     </tr>
   `).join('');
+}
+
+let _exclSortCol = 'data', _exclSortDir = -1;
+function _exclSort(col) {
+  if (_exclSortCol === col) _exclSortDir *= -1;
+  else { _exclSortCol = col; _exclSortDir = col === 'data' || col === 'data_venda' ? -1 : 1; }
+  _renderExcluidosTbl();
+}
+
+function _renderExcluidosTbl() {
+  const tbl   = document.getElementById('retExcluidosTbl');
+  const badge = document.getElementById('ret-excluidos-badge');
+  if (!tbl) return;
+  const data = window._cancelServData;
+  if (!data) return;
+
+  const lista = [...(data.excluidos || [])];
+  const isData = _exclSortCol === 'data' || _exclSortCol === 'data_venda';
+  const toTs = v => { if (!v) return 0; const s = String(v).slice(0,10); if (s.includes('/')) { const [d,m,y]=s.split('/'); return new Date(`${y}-${m}-${d}`).getTime(); } return new Date(s).getTime(); };
+  lista.sort((a,b) => {
+    if (isData) return (toTs(a[_exclSortCol]) - toTs(b[_exclSortCol])) * _exclSortDir;
+    const va=(a[_exclSortCol]||'').toLowerCase(), vb=(b[_exclSortCol]||'').toLowerCase();
+    return va < vb ? -_exclSortDir : va > vb ? _exclSortDir : 0;
+  });
+  ['nome','motivo','cidade','data_venda','data'].forEach(c => {
+    const el = document.getElementById('ex-sort-' + c);
+    if (el) el.textContent = c === _exclSortCol ? (_exclSortDir === 1 ? ' ▲' : ' ▼') : '';
+  });
+
+  const busca = (document.getElementById('cancelExclBusca')?.value || '').toLowerCase().trim();
+  const filtrados = busca ? lista.filter(c => (c.nome||'').toLowerCase().includes(busca)) : lista;
+  if (badge) badge.textContent = filtrados.length;
+
+  const fmt = d => { if (!d) return '—'; const s=String(d).slice(0,10); if (s.includes('/')) return s; const p=s.split('-'); return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:d; };
+
+  if (!filtrados.length) {
+    tbl.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">${busca ? 'Nenhum cliente encontrado' : 'Sem registros excluídos'}</td></tr>`;
+    return;
+  }
+  tbl.innerHTML = filtrados.map(c => `
+    <tr>
+      <td style="font-weight:600;font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.nome||''}">${c.nome||'—'}</td>
+      <td style="max-width:130px"><span style="display:inline-block;font-size:10px;font-weight:600;color:#f59e0b;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:5px;padding:2px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:125px" title="${c.motivo||''}">${c.motivo||'—'}</span></td>
+      <td style="color:var(--text3);font-size:11px;white-space:nowrap">${c.cidade||'—'}</td>
+      <td style="color:var(--text3);font-size:11px;white-space:nowrap;text-align:center">${fmt(c.data_venda)}</td>
+      <td style="font-weight:600;white-space:nowrap;color:var(--amber);text-align:center">${fmt(c.data)}</td>
+    </tr>`).join('');
 }
 
 function mostrarClientesCancelamentoFiltro(idx) {

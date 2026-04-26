@@ -1277,52 +1277,86 @@ app.get('/api/cancelamentos-servico', async (req, res) => {
     // Motivos que NÃO devem ser contados como cancelamento nesta aba
     // Usa includes() para ignorar prefixos como asterisco "* Desistência da Instalação"
     const norm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    // 1) Motivos operacionais ignorados independente de data
     const MOTIVOS_IGNORADOS = [
-      'desistencia da instalacao',
       'habilitado o user errado',
       'troca de titularidade',
     ];
     const ignorarMotivo = m => { const n = norm(m); return MOTIVOS_IGNORADOS.some(p => n.includes(p)); };
+    // 2) Cancelamento no mesmo mês da venda = desistência/não-ativação real → não conta
+    const anoMesStr = (s) => {
+      // Extrai "YYYY-MM" diretamente da string sem construir Date (evita problema de timezone)
+      if (!s) return null;
+      const brM = String(s).match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+      if (brM) return `${brM[3]}-${brM[2]}`; // dd/MM/yyyy → "YYYY-MM"
+      const iso = String(s).slice(0, 7); // yyyy-MM-dd → "YYYY-MM"
+      return iso.length === 7 ? iso : null;
+    };
+    const mesmoMesVendaCancel = (s) => {
+      const mv = anoMesStr(s.data_venda);
+      const mc = anoMesStr(s.data_cancelamento);
+      return mv && mc && mv === mc;
+    };
 
     const iniMs = new Date(iniStr).getTime();
     const fimMs = new Date(fimStr + 'T23:59:59').getTime();
     const seen  = new Set();
+    const seenExcl = new Set();
     const mapaMotivo = {};
+    const excluidos = []; // cancelamentos não contabilizados
     let total = 0;
-    let total_ativo  = 0; // apenas inadimplência
-    let total_passivo = 0; // demais motivos (cliente pediu cancelamento)
+    let total_ativo  = 0;
+    let total_passivo = 0;
 
     const isInadimplencia = m => norm(m).includes('inadimp');
 
     for (const cli of todos) {
       const nome = cli.nome_razaosocial || cli.nome_fantasia || '—';
+      // Dedup cross-client: rastreia chaves já vistas em outros registros de cli
+      // Dentro do mesmo cli, serviços diferentes com mesmo plano/data são legítimos (ex: 2 endereços)
+      const seenNesteCli = new Set();
       for (const s of (cli.servicos || [])) {
         const dc = parseDate(s.data_cancelamento);
         if (!dc) continue;
         const dcMs = dc.getTime();
         if (dcMs < iniMs || dcMs > fimMs) continue;
 
-        // Ignora motivos que não são cancelamentos reais (somente nesta aba)
         const motivoRaw = (s.motivo_cancelamento || '').trim();
-        if (ignorarMotivo(motivoRaw)) continue;
-
-        // Dedup: mesmo cliente + plano + data cancelamento
-        const chave = `${nome}|${s.nome||''}|${s.data_cancelamento||''}`;
-        if (seen.has(chave)) continue;
-        seen.add(chave);
-
-        const motivo = motivoRaw || 'Não informado';
-        const plano  = s.nome || '—';
         const endInst = typeof s.endereco_instalacao === 'object' && s.endereco_instalacao
           ? s.endereco_instalacao : {};
         const cidade = endInst.cidade || '—';
+
+        // Chave única por serviço — usa ID se disponível, senão plano+data+end (com índice dentro do cli como fallback)
+        const chaveBase = s.id ? `id:${s.id}` : `${nome}|${s.nome||''}|${s.data_cancelamento||''}|${endInst.id||endInst.cep||endInst.logradouro||''}`;
+        // Permite múltiplos serviços do mesmo cliente com mesma chave (serviços irmãos)
+        let chave = chaveBase, n = 0;
+        while (seenNesteCli.has(chave)) chave = `${chaveBase}#${++n}`;
+        seenNesteCli.add(chave);
+        // Cross-client: pula se outro cli já gerou esta chave exata
+        if (seen.has(chaveBase) && n === 0) continue;
+        seen.add(chave);
+
+        const chaveExcl = chave;
+        // Registros excluídos da contagem
+        if (ignorarMotivo(motivoRaw) || mesmoMesVendaCancel(s)) {
+          if (!seenExcl.has(chaveExcl)) {
+            seenExcl.add(chaveExcl);
+            const motExcl = motivoRaw || 'Não informado';
+            const razao = mesmoMesVendaCancel(s) ? 'Mesmo mês da venda' : (motivoRaw || 'Motivo operacional');
+            excluidos.push({ nome, cidade, motivo: motExcl, razao, data: s.data_cancelamento, data_venda: s.data_venda || null });
+          }
+          continue;
+        }
+
+        const motivo = motivoRaw || 'Não informado';
+        const cidade2 = endInst.cidade || '—';
 
         if (!mapaMotivo[motivo]) mapaMotivo[motivo] = { motivo, total: 0, clientes: [] };
         mapaMotivo[motivo].total++;
         const habilitacao = s.data_habilitacao || s.data_ativacao || null;
         const vendedor = s.vendedor?.nome || null;
         const data_venda = s.data_venda || null;
-        mapaMotivo[motivo].clientes.push({ nome, cidade, plano, motivo, data: s.data_cancelamento, habilitacao, vendedor, data_venda });
+        mapaMotivo[motivo].clientes.push({ nome, cidade: cidade2, plano: s.nome||'—', motivo, data: s.data_cancelamento, habilitacao, vendedor, data_venda });
         total++;
 
         if (isInadimplencia(motivo)) total_ativo++;
@@ -1334,7 +1368,8 @@ app.get('/api/cancelamentos-servico', async (req, res) => {
       .sort((a, b) => b.total - a.total)
       .map(m => ({ ...m, clientes: m.clientes.sort((a,b) => (b.data||'') > (a.data||'') ? 1 : -1) }));
 
-    const result = { ok: true, total, total_ativo, total_passivo, por_motivo, periodo: { ini: iniStr, fim: fimStr } };
+    excluidos.sort((a, b) => (b.data||'') > (a.data||'') ? 1 : -1);
+    const result = { ok: true, total, total_ativo, total_passivo, por_motivo, excluidos, periodo: { ini: iniStr, fim: fimStr } };
     _cancelServCache[cacheKey] = { data: result, ts: Date.now() };
     res.json(result);
   } catch(err) {
