@@ -2125,7 +2125,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
               <div style="padding:6px 0;overflow-y:auto;max-height:200px" id="rh-por-cidade"></div>
             </div>
             <div class="tbl-card" style="margin-bottom:0">
-              <div class="tbl-header"><span class="tbl-title">Por Setor</span><span class="badge b-blue" id="rh-setor-badge">ativos</span></div>
+              <div class="tbl-header"><span class="tbl-title">Por Setor</span><span class="badge b-blue" id="rh-setor-badge">ativos</span><button id="rh-set-limpar" onclick="rhFiltrarSetor(null)" style="display:none;background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:0;margin-left:4px">✕ ver todos</button></div>
               <div style="padding:6px 0;overflow-y:auto;max-height:260px" id="rh-por-setor"></div>
             </div>
           </div>
@@ -9965,6 +9965,8 @@ function rhFiltrarSetor(setor) {
   });
   const limpar = document.getElementById('rh-col-limpar');
   if (limpar) limpar.style.display = setor ? '' : 'none';
+  const limpar2 = document.getElementById('rh-set-limpar');
+  if (limpar2) limpar2.style.display = setor ? '' : 'none';
 }
 
 function renderRhEvolucao() {
