@@ -9785,6 +9785,7 @@ function parseRhCsv(text) {
   for (let i = 1; i < lines.length; i++) {
     const f = splitLine(lines[i]);
     if (!f[iNome] || !f[iNome].trim()) continue;
+    if (f[iNome].trim().toUpperCase() === 'IDCLOUD') continue;
     const demissaoRaw = iDemissao >= 0 ? (f[iDemissao] || '').replace(/"/g, '').trim() : '';
     const ativoRaw    = iAtivo >= 0 ? (f[iAtivo] || '').trim() : '';
     const ativo = !demissaoRaw && (ativoRaw === '1' || ativoRaw === '' || ativoRaw.toLowerCase() === 'true');
