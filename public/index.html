@@ -9964,9 +9964,9 @@ function rhFiltrarSetor(setor) {
     el.style.borderRadius = ativo ? '6px' : '';
   });
   const limpar = document.getElementById('rh-col-limpar');
-  if (limpar) limpar.style.display = setor ? '' : 'none';
+  if (limpar) limpar.style.display = _rhSetorAtivo ? '' : 'none';
   const limpar2 = document.getElementById('rh-set-limpar');
-  if (limpar2) limpar2.style.display = setor ? '' : 'none';
+  if (limpar2) limpar2.style.display = _rhSetorAtivo ? '' : 'none';
 }
 
 function renderRhEvolucao() {
