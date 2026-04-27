@@ -2125,7 +2125,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
               <div style="padding:6px 0;overflow-y:auto;max-height:200px" id="rh-por-cidade"></div>
             </div>
             <div class="tbl-card" style="margin-bottom:0">
-              <div class="tbl-header"><span class="tbl-title">Por Setor</span><button id="rh-set-limpar" onclick="rhFiltrarSetor(null)" style="display:none;background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:0;margin-left:4px">✕ ver todos</button></div>
+              <div class="tbl-header"><span class="tbl-title">Por Setor</span><button id="rh-set-limpar" onclick="rhFiltrarSetor(null)" style="display:none;background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:0;margin-left:4px">✕</button></div>
               <div style="padding:6px 0;overflow-y:auto;max-height:260px" id="rh-por-setor"></div>
             </div>
           </div>
@@ -9954,7 +9954,7 @@ function rhFiltrarEmpresa(empresa) {
 }
 
 function rhFiltrarSetor(setor) {
-  _rhSetorAtivo = setor;
+  _rhSetorAtivo = _rhSetorAtivo === setor ? null : setor;
   renderRhColaboradores();
   renderRhEvolucao();
   // atualiza visual dos itens do setor
@@ -10161,7 +10161,7 @@ function renderRhSetor(ativos) {
   el.innerHTML = sorted.map(([nome, n], i) => {
     const pct = Math.round(n / max * 100);
     const cor = CORES[i % CORES.length];
-    return `<div data-rh-setor="${nome}" onclick="rhFiltrarSetor('${nome.replace(/'/g,"\\'")}'); this.closest('[id=rh-por-setor]').querySelectorAll('[data-rh-setor]').forEach(el=>{el.style.background=el.dataset.rhSetor==='${nome.replace(/'/g,"\\'")}' ? 'rgba(99,102,241,.15)' : '';el.style.borderRadius='6px';})" style="margin-bottom:2px;padding:6px 12px;cursor:pointer;transition:background .15s" onmouseenter="if(_rhSetorAtivo!==this.dataset.rhSetor)this.style.background='var(--bg3)'" onmouseleave="if(_rhSetorAtivo!==this.dataset.rhSetor)this.style.background=''">
+    return `<div data-rh-setor="${nome}" onclick="rhFiltrarSetor('${nome.replace(/'/g,"\\'")}') " style="margin-bottom:2px;padding:6px 12px;cursor:pointer;transition:background .15s" onmouseenter="if(_rhSetorAtivo!==this.dataset.rhSetor)this.style.background='var(--bg3)'" onmouseleave="if(_rhSetorAtivo!==this.dataset.rhSetor)this.style.background=''">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
         <span style="font-size:11px;color:var(--text);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nome}</span>
         <span style="font-size:12px;font-weight:700;color:${cor}">${n}</span>
