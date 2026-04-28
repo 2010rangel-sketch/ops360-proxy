@@ -3110,9 +3110,10 @@ async function buildFinanceiro() {
         // Exclui cancelamentos no mesmo mês da venda
         const _anoMes = d => { if (!d) return null; const p = d.split('/'); return p.length === 3 ? `${p[2]}-${p[1]}` : d.slice(0,7); };
         if (_anoMes(s.data_venda) && _anoMes(s.data_cancelamento) && _anoMes(s.data_venda) === _anoMes(s.data_cancelamento)) continue;
-        const chave = `${nome}|${s.nome||''}|${s.data_cancelamento||''}`;
-        if (seen.has(chave)) continue;
-        seen.add(chave);
+        const endInstFin = typeof s.endereco_instalacao === 'object' && s.endereco_instalacao ? s.endereco_instalacao : {};
+        const chaveFin = s.id ? `id:${s.id}` : `${nome}|${s.nome||''}|${s.data_cancelamento||''}|${endInstFin.id||endInstFin.cep||endInstFin.logradouro||''}`;
+        if (seen.has(chaveFin)) continue;
+        seen.add(chaveFin);
         const dh    = parseDate(s.data_habilitacao);
         const valor = parseFloat(s.valor) || 0;
         const m     = mesesEntre(dh || dc, dc);
@@ -3427,7 +3428,7 @@ app.get('/api/financeiro', async (req, res) => {
   try {
     const agora = Date.now();
     const force = req.query.force === '1';
-    if (force) { _finCache = null; _finFetchedAt = 0; }
+    if (force) { _finCache = null; _finFetchedAt = 0; await dbCacheDel('cache:financeiro').catch(()=>{}); }
 
     // 1) Cache em memória fresco → retorna imediatamente
     if (!force && _finCache && (agora - _finFetchedAt) < FIN_CACHE_TTL) {
