@@ -5460,13 +5460,11 @@ app.get('/api/ia/debug', async (req, res) => {
 });
 
 app.get('/api/ia/status', async (req, res) => {
-  const u = await _getUserFromReq(req); if (!u) return res.status(401).json({ error: 'Não autorizado' });
   const st = await _iaGetStatus();
   res.json(st);
 });
 
 app.post('/api/ia/rodar-agora', async (req, res) => {
-  const u = await _getUserFromReq(req); if (!u) return res.status(401).json({ error: 'Não autorizado' });
   const st = await _iaGetStatus();
   if (st.rodando) return res.json({ ok: true, msg: 'Já está rodando' });
   res.json({ ok: true, msg: 'Análise iniciada' });
