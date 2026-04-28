@@ -3310,9 +3310,11 @@ async function buildAdicaoLiquida() {
             // Exclui cancelamentos no mesmo mês da venda (igual à aba de cancelamentos)
             const mvAL = anoMesAL(s.data_venda); const mcAL = anoMesAL(s.data_cancelamento);
             if (mvAL && mcAL && mvAL === mcAL) continue;
-            const chave = `${cli.nome_razaosocial||''}|${s.nome||''}|${s.data_cancelamento||''}`;
-            if (seen.has(chave)) continue;
-            seen.add(chave);
+            const nome = cli.nome_razaosocial || cli.nome_fantasia || '—';
+            const endInst = typeof s.endereco_instalacao === 'object' && s.endereco_instalacao ? s.endereco_instalacao : {};
+            const chaveBase = s.id ? `id:${s.id}` : `${nome}|${s.nome||''}|${s.data_cancelamento||''}|${endInst.id||endInst.cep||endInst.logradouro||''}`;
+            if (seen.has(chaveBase)) continue;
+            seen.add(chaveBase);
             cancelados++;
             if (isInadimpAL(s.motivo_cancelamento)) cancelados_inadimp++;
             else cancelados_outros++;
