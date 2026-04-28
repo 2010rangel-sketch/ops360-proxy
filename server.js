@@ -3249,7 +3249,7 @@ let _alCache = null;
 let _alFetchedAt = 0;
 const AL_CACHE_TTL = 2 * 60 * 60 * 1000; // 2h
 
-const MOTIVOS_IGNORAR_AL = ['desistencia da instalacao', 'habilitado o user errado', 'troca de titularidade'];
+const MOTIVOS_IGNORAR_AL = ['habilitado o user errado', 'troca de titularidade'];
 const normAL = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 const ignorarMotAL = m => { const n = normAL(m); return MOTIVOS_IGNORAR_AL.some(p => n.includes(p)); };
 
@@ -3298,11 +3298,15 @@ async function buildAdicaoLiquida() {
         let cancelados = 0, cancelados_inadimp = 0, cancelados_outros = 0;
         const cancelLista = [];
         const isInadimpAL = m => normAL(m).includes('inadimp');
+        const anoMesAL = d => { if (!d) return null; const p = d.split('/'); return p.length === 3 ? `${p[2]}-${p[1]}` : d.slice(0,7); };
         for (const cli of [...cNao, ...cSim]) {
           for (const s of (cli.servicos || [])) {
             const dc = parseDate(s.data_cancelamento);
             if (!dc || dc.getTime() < iniMs || dc.getTime() > fimMs) continue;
             if (ignorarMotAL(s.motivo_cancelamento)) continue;
+            // Exclui cancelamentos no mesmo mês da venda (igual à aba de cancelamentos)
+            const mvAL = anoMesAL(s.data_venda); const mcAL = anoMesAL(s.data_cancelamento);
+            if (mvAL && mcAL && mvAL === mcAL) continue;
             const chave = `${cli.nome_razaosocial||''}|${s.nome||''}|${s.data_cancelamento||''}`;
             if (seen.has(chave)) continue;
             seen.add(chave);
