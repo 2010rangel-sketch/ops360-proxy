@@ -2233,9 +2233,8 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
             <span class="tbl-title">Aniversários do Mês</span>
             <span class="badge b-green" id="rh-aniv-badge">—</span>
           </div>
-          <div style="overflow-y:auto;max-height:260px">
-            <table class="tbl sticky-head"><thead><tr><th>Colaborador</th><th>Depto</th><th>Data</th><th>Idade</th></tr></thead>
-            <tbody id="rh-aniversarios"></tbody></table>
+          <div style="padding:14px 16px">
+            <div id="rh-aniversarios" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px"></div>
           </div>
         </div>
 
@@ -10296,25 +10295,36 @@ function renderRhTurnoverSetor(ativos, desl12) {
 function renderRhAniversarios(ativos) {
   const hoje = new Date();
   const mesAtual = hoje.getMonth();
+  const MESES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
   const aniv = ativos.filter(e => e.nascimento && e.nascimento.getMonth() === mesAtual)
     .sort((a, b) => a.nascimento.getDate() - b.nascimento.getDate());
   const badge = document.getElementById('rh-aniv-badge');
   if (badge) badge.textContent = aniv.length + ' aniversariante' + (aniv.length !== 1 ? 's' : '');
-  const tbody = document.getElementById('rh-aniversarios');
-  if (!tbody) return;
-  tbody.innerHTML = aniv.map(e => {
-    const dia  = e.nascimento.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  const el = document.getElementById('rh-aniversarios');
+  if (!el) return;
+  if (!aniv.length) {
+    el.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:8px">Nenhum aniversariante este mês</div>';
+    return;
+  }
+  el.innerHTML = aniv.map(e => {
+    const dia = e.nascimento.getDate();
     const idade = hoje.getFullYear() - e.nascimento.getFullYear();
-    const jaFez = hoje >= new Date(hoje.getFullYear(), e.nascimento.getMonth(), e.nascimento.getDate());
+    const jaFez = hoje >= new Date(hoje.getFullYear(), e.nascimento.getMonth(), dia);
     const idadeReal = jaFez ? idade : idade - 1;
-    const isHoje = e.nascimento.getDate() === hoje.getDate() && e.nascimento.getMonth() === hoje.getMonth();
-    return `<tr${isHoje ? ' style="background:rgba(34,197,94,.08)"' : ''}>
-      <td style="font-size:12px${isHoje ? ';color:var(--green);font-weight:600' : ''}">${e.nome}${isHoje ? ' 🎂' : ''}</td>
-      <td style="font-size:11px;color:var(--text3)">${e.depto || '—'}</td>
-      <td style="font-size:12px;color:var(--text2)">${dia}</td>
-      <td style="font-size:12px;text-align:center;color:var(--accent)">${idadeReal}</td>
-    </tr>`;
-  }).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">Nenhum aniversariante este mês</td></tr>';
+    const isHoje = dia === hoje.getDate();
+    const iniciais = e.nome.split(' ').slice(0,2).map(n=>n[0]).join('').toUpperCase();
+    const primeiroNome = e.nome.split(' ')[0];
+    const cor = isHoje ? 'var(--green)' : 'var(--accent)';
+    const bg  = isHoje ? 'rgba(34,197,94,.12)' : 'rgba(99,102,241,.10)';
+    return `<div style="background:var(--bg3);border:1px solid ${isHoje ? 'rgba(34,197,94,.3)' : 'var(--border)'};border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px${isHoje ? ';box-shadow:0 0 0 1px rgba(34,197,94,.2)' : ''}">
+      <div style="width:38px;height:38px;border-radius:50%;background:${bg};color:${cor};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0">${iniciais}</div>
+      <div style="min-width:0">
+        <div style="font-size:11px;font-weight:600;color:${isHoje ? 'var(--green)' : 'var(--text)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${e.nome}">${primeiroNome}${isHoje ? ' 🎂' : ''}</div>
+        <div style="font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.depto || '—'}</div>
+        <div style="font-size:10px;color:${cor};margin-top:2px;font-weight:600">${dia} ${MESES[mesAtual]} · ${idadeReal} anos</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function renderRhCNH(ativos) {
