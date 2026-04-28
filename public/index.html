@@ -2182,6 +2182,18 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
           </div>
         </div>
 
+        <!-- Últimos Efetivados -->
+        <div class="tbl-card" style="margin-bottom:14px">
+          <div class="tbl-header">
+            <span class="tbl-title"><i class="fas fa-user-check" style="color:var(--green);margin-right:5px"></i>Últimos Efetivados</span>
+            <span class="badge b-green" id="rh-efet-badge">—</span>
+          </div>
+          <div style="overflow-y:auto;max-height:260px">
+            <table class="tbl sticky-head"><thead><tr><th>Colaborador</th><th>Setor</th><th>Admissão</th><th>Efetivado em</th></tr></thead>
+            <tbody id="rh-efetivados-tbl"></tbody></table>
+          </div>
+        </div>
+
         <!-- Linha 3: Turnover por Setor -->
         <div class="tbl-card" style="margin-bottom:14px">
           <div class="tbl-header"><span class="tbl-title">Turnover por Setor</span><span class="badge b-red">últimos 12 meses</span></div>
@@ -9931,6 +9943,7 @@ function renderRhDashboard(emps) {
   renderRhTurnoverSetor(ativos, desl12);
   renderRhAniversarios(ativos);
   renderRhCNH(ativos);
+  renderRhEfetivados(ativos);
   renderRhExperiencia(ativos);
   renderRhNR();
   renderRhEvolucao();
@@ -10319,6 +10332,44 @@ function renderRhCNH(ativos) {
       <td style="text-align:center;font-size:11px;color:var(--text2)">${e.cnhCat || '—'}</td>
       <td style="text-align:center;font-size:11px;color:${cor}">${venc}</td>
       <td style="text-align:center"><span class="badge" style="background:${cor}22;color:${cor};border:1px solid ${cor}44;font-size:10px">${status}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderRhEfetivados(ativos) {
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const badge = document.getElementById('rh-efet-badge');
+  const tbody = document.getElementById('rh-efetivados-tbl');
+  if (!tbody) return;
+
+  // Ativos com admissão há mais de 90 dias = já efetivados
+  const efetivados = ativos.filter(e => {
+    if (!e.admissao) return false;
+    const dias = Math.floor((hoje - e.admissao) / (1000 * 60 * 60 * 24));
+    return dias >= 90;
+  });
+
+  // Ordena do mais recente para o mais antigo (data de efetivação = admissão + 90d)
+  efetivados.sort((a, b) => b.admissao - a.admissao);
+
+  if (badge) {
+    badge.textContent = efetivados.length + ' efetivados';
+  }
+
+  if (!efetivados.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">Nenhum colaborador efetivado</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = efetivados.map(e => {
+    const dataEfet = new Date(e.admissao); dataEfet.setDate(dataEfet.getDate() + 90);
+    const admStr  = e.admissao.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit' });
+    const efetStr = dataEfet.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit' });
+    return `<tr>
+      <td style="font-size:11px">${e.nome}</td>
+      <td style="font-size:11px;color:var(--text2)">${e.depto || '—'}</td>
+      <td style="font-size:11px;color:var(--text2)">${admStr}</td>
+      <td style="font-size:11px"><span class="badge b-green" style="font-size:10px">${efetStr}</span></td>
     </tr>`;
   }).join('');
 }
