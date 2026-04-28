@@ -5359,23 +5359,23 @@ async function _iaSalvar(painel, data, resumo, analise) {
 }
 
 async function _iaRodar() {
-  if (!process.env.ANTHROPIC_API_KEY) { _iaLog('ERRO: ANTHROPIC_API_KEY não configurada.'); return; }
-  if (!_iaAnthropicClient) { _iaLog('ERRO: SDK Anthropic não carregado. Verifique npm install.'); return; }
+  if (!process.env.ANTHROPIC_API_KEY) { await _iaLog('ERRO: ANTHROPIC_API_KEY não configurada.'); return; }
+  if (!_iaAnthropicClient) { await _iaLog('ERRO: SDK Anthropic não carregado.'); return; }
   const hoje = new Date().toISOString().slice(0, 10);
-  _iaLog(`🤖 Iniciando análises — ${hoje}`);
+  await _iaLog(`🤖 Iniciando análises — ${hoje}`);
   for (const p of _IA_PAINEIS) {
     try {
-      _iaLog(`→ ${p.nome}: coletando dados...`);
+      await _iaLog(`→ ${p.nome}: coletando dados...`);
       const dados = await _iaColetarPainel(p);
       const temDados = Object.values(dados).some(v => v !== null && v !== undefined);
-      if (!temDados) { _iaLog(`⚠ ${p.nome}: sem dados retornados.`); continue; }
-      _iaLog(`→ ${p.nome}: dados ok, analisando com Claude...`);
+      if (!temDados) { await _iaLog(`⚠ ${p.nome}: sem dados retornados.`); continue; }
+      await _iaLog(`→ ${p.nome}: dados ok, analisando com Claude...`);
       const { analise, resumo } = await _iaAnalisar(p.nome, p.contexto, dados);
       await _iaSalvar(p.nome, hoje, resumo, analise);
-      _iaLog(`✓ ${p.nome}: salvo.`);
-    } catch(e) { _iaLog(`✗ ${p.nome}: ${e.message}`); }
+      await _iaLog(`✓ ${p.nome}: salvo.`);
+    } catch(e) { await _iaLog(`✗ ${p.nome}: ${e.message}`); }
   }
-  _iaLog('✅ Concluído.');
+  await _iaLog('✅ Concluído.');
 }
 
 // Cron: todo dia às 07:00 (Brasília)
@@ -5417,24 +5417,43 @@ app.get('/api/ia/paineis', async (req, res) => {
   } catch { res.json([]); }
 });
 
-let _iaRodando = false;
-let _iaUltimoLog = [];
+async function _iaSetStatus(rodando, log) {
+  try {
+    const pool = getPool(); if (!pool) return;
+    await pool.query(
+      `INSERT INTO kv_store(key,value,updated_at) VALUES('ia:status',$1,NOW()) ON CONFLICT(key) DO UPDATE SET value=$1,updated_at=NOW()`,
+      [JSON.stringify({ rodando, log, ts: Date.now() })]
+    );
+  } catch(e) { console.error('[IA] setStatus erro:', e.message); }
+}
 
-function _iaLog(msg) {
+async function _iaGetStatus() {
+  try {
+    const pool = getPool(); if (!pool) return { rodando: false, log: [] };
+    const r = await pool.query(`SELECT value FROM kv_store WHERE key='ia:status'`);
+    return r.rows[0] ? JSON.parse(r.rows[0].value) : { rodando: false, log: [] };
+  } catch { return { rodando: false, log: [] }; }
+}
+
+let _iaLog_buf = [];
+async function _iaLog(msg) {
   const linha = `[${new Date().toLocaleTimeString('pt-BR')}] ${msg}`;
   console.log(linha);
-  _iaUltimoLog.push(linha);
-  if (_iaUltimoLog.length > 50) _iaUltimoLog.shift();
+  _iaLog_buf.push(linha);
+  if (_iaLog_buf.length > 50) _iaLog_buf.shift();
+  await _iaSetStatus(true, _iaLog_buf);
 }
 
 app.get('/api/ia/debug', async (req, res) => {
-  const info = { sdk: !!_iaAnthropicClient, apiKey: !!process.env.ANTHROPIC_API_KEY, log: _iaUltimoLog };
+  const info = { sdk: !!_iaAnthropicClient, apiKey: !!process.env.ANTHROPIC_API_KEY };
   try {
     const pool = getPool();
     if (pool) {
       const t = await pool.query('SELECT COUNT(*) as n FROM ia_analises');
       info.tabela_ok = true;
       info.total_analises = parseInt(t.rows[0].n);
+      const st = await _iaGetStatus();
+      info.status_db = st;
     } else { info.tabela_ok = false; info.db_erro = 'sem pool'; }
   } catch(e) { info.tabela_ok = false; info.db_erro = e.message; }
   res.json(info);
@@ -5442,16 +5461,20 @@ app.get('/api/ia/debug', async (req, res) => {
 
 app.get('/api/ia/status', async (req, res) => {
   const u = await _getUserFromReq(req); if (!u) return res.status(401).json({ error: 'Não autorizado' });
-  res.json({ rodando: _iaRodando, log: _iaUltimoLog.slice(-20) });
+  const st = await _iaGetStatus();
+  res.json(st);
 });
 
 app.post('/api/ia/rodar-agora', async (req, res) => {
   const u = await _getUserFromReq(req); if (!u) return res.status(401).json({ error: 'Não autorizado' });
-  if (_iaRodando) return res.json({ ok: true, msg: 'Já está rodando' });
+  const st = await _iaGetStatus();
+  if (st.rodando) return res.json({ ok: true, msg: 'Já está rodando' });
   res.json({ ok: true, msg: 'Análise iniciada' });
-  _iaUltimoLog = [];
-  _iaRodando = true;
-  _iaRodar().catch(e => _iaLog(`ERRO GERAL: ${e.message}`)).finally(() => { _iaRodando = false; });
+  _iaLog_buf = [];
+  await _iaSetStatus(true, []);
+  _iaRodar().catch(async e => { await _iaLog(`ERRO GERAL: ${e.message}`); }).finally(async () => {
+    await _iaSetStatus(false, _iaLog_buf);
+  });
 });
 
 app.get('*', (req, res) => {
