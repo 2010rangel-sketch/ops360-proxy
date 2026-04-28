@@ -1545,6 +1545,40 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         </div>
       </div>
 
+      <!-- Adição Líquida Mensal -->
+      <div class="tbl-card" style="margin-bottom:14px" id="fin-al-card">
+        <div class="tbl-header">
+          <span class="tbl-title"><i class="fas fa-chart-bar" style="color:var(--accent);margin-right:5px"></i>Adição Líquida Mensal</span>
+          <span class="badge b-blue" id="fin-al-badge">—</span>
+          <button class="btn btn-sm" onclick="loadAdicaoLiquida(true)" style="margin-left:auto"><i class="fas fa-sync-alt"></i> Atualizar</button>
+        </div>
+        <div style="padding:16px 16px 4px;overflow-x:auto">
+          <div id="fin-al-chart" style="min-height:140px;display:flex;align-items:flex-end;justify-content:flex-start;gap:4px;min-width:600px">
+            <div style="color:var(--text3);font-size:12px;padding:40px;text-align:center;width:100%">Clique em <b>Atualizar</b> para carregar dados históricos.</div>
+          </div>
+          <div id="fin-al-legend" style="display:flex;gap:16px;justify-content:center;margin-top:6px;flex-wrap:wrap;font-size:11px;color:var(--text3)"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 16px 16px">
+          <div>
+            <div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Adição Líquida Anual</div>
+            <table class="tbl" style="font-size:12px">
+              <thead><tr><th>Ano</th><th>Novas</th><th>Reat.</th><th>Cancel.</th><th>Adição Líq.</th></tr></thead>
+              <tbody id="fin-al-anual"></tbody>
+            </table>
+          </div>
+          <div id="fin-al-proj-wrap">
+            <div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Projeção 2026</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="fin-al-proj-kpis">
+              <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Acumulado (meses fechados)</div><div class="kpi-mini-val" id="fin-al-acumulado" style="color:var(--accent)">—</div></div>
+              <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--cyan)"></div><div class="kpi-mini-label">Média Mensal 2026</div><div class="kpi-mini-val" id="fin-al-media" style="color:var(--cyan)">—</div></div>
+              <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">Projeção Anual (×12)</div><div class="kpi-mini-val" id="fin-al-proj" style="color:var(--green)">—</div></div>
+              <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">Estimativa Dez/26</div><div class="kpi-mini-val" id="fin-al-estimativa" style="color:var(--amber)">—</div></div>
+            </div>
+            <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5" id="fin-al-proj-nota">—</div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <!-- ═══ RETENÇÃO ═══ -->
@@ -1897,44 +1931,6 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Churn Mês Atual</div><div class="kpi-mini-val" id="fin-churn-atual" style="color:var(--red)">—</div></div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--text3)"></div><div class="kpi-mini-label">Churn Mês Anterior</div><div class="kpi-mini-val" id="fin-churn-ant" style="color:var(--text3)">—</div></div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:#ef4444"></div><div class="kpi-mini-label">1ª Mens. Cheia em Risco</div><div class="kpi-mini-val" id="fin-prim" style="color:#ef4444">—</div><div style="font-size:10px;color:var(--text3);text-align:center" id="fin-prim-pct">—</div></div>
-      </div>
-
-      <!-- ═══ ADIÇÃO LÍQUIDA ═══ -->
-      <div class="tbl-card" style="margin-bottom:14px" id="fin-al-card">
-        <div class="tbl-header">
-          <span class="tbl-title"><i class="fas fa-chart-bar" style="color:var(--accent);margin-right:5px"></i>Adição Líquida Mensal</span>
-          <span class="badge b-blue" id="fin-al-badge">—</span>
-          <button class="btn btn-sm" onclick="loadAdicaoLiquida(true)" style="margin-left:auto"><i class="fas fa-sync-alt"></i> Atualizar</button>
-        </div>
-        <!-- Gráfico de barras -->
-        <div style="padding:16px 16px 4px;overflow-x:auto">
-          <div id="fin-al-chart" style="min-height:140px;display:flex;align-items:flex-end;justify-content:flex-start;gap:4px;min-width:600px">
-            <div style="color:var(--text3);font-size:12px;padding:40px;text-align:center;width:100%">Clique em <b>Atualizar</b> para carregar dados históricos.</div>
-          </div>
-          <div id="fin-al-legend" style="display:flex;gap:16px;justify-content:center;margin-top:6px;flex-wrap:wrap;font-size:11px;color:var(--text3)"></div>
-        </div>
-        <!-- Tabela por Ano + Projeção -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 16px 16px">
-          <!-- Totais por ano -->
-          <div>
-            <div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Adição Líquida Anual</div>
-            <table class="tbl" style="font-size:12px">
-              <thead><tr><th>Ano</th><th>Novas</th><th>Reat.</th><th>Cancel.</th><th>Adição Líq.</th></tr></thead>
-              <tbody id="fin-al-anual"></tbody>
-            </table>
-          </div>
-          <!-- Projeção 2026 -->
-          <div id="fin-al-proj-wrap">
-            <div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Projeção 2026</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="fin-al-proj-kpis">
-              <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">Acumulado (meses fechados)</div><div class="kpi-mini-val" id="fin-al-acumulado" style="color:var(--accent)">—</div></div>
-              <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--cyan)"></div><div class="kpi-mini-label">Média Mensal 2026</div><div class="kpi-mini-val" id="fin-al-media" style="color:var(--cyan)">—</div></div>
-              <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--green)"></div><div class="kpi-mini-label">Projeção Anual (×12)</div><div class="kpi-mini-val" id="fin-al-proj" style="color:var(--green)">—</div></div>
-              <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--amber)"></div><div class="kpi-mini-label">Estimativa Dez/26</div><div class="kpi-mini-val" id="fin-al-estimativa" style="color:var(--amber)">—</div></div>
-            </div>
-            <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5" id="fin-al-proj-nota">—</div>
-          </div>
-        </div>
       </div>
 
     </div>
