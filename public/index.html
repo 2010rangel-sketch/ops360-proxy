@@ -2228,20 +2228,20 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
           </div>
         </div>
 
-        <!-- Linha 4: Aniversários | CNH -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
-
-          <!-- Aniversários do Mês -->
-          <div class="tbl-card" style="margin-bottom:0">
-            <div class="tbl-header">
-              <span class="tbl-title">Aniversários do Mês</span>
-              <span class="badge b-green" id="rh-aniv-badge">—</span>
-            </div>
-            <div style="overflow-y:auto;max-height:260px">
-              <table class="tbl sticky-head"><thead><tr><th>Colaborador</th><th>Depto</th><th>Data</th><th>Idade</th></tr></thead>
-              <tbody id="rh-aniversarios"></tbody></table>
-            </div>
+        <!-- Linha 4: Aniversários (largura total) -->
+        <div class="tbl-card" style="margin-bottom:14px">
+          <div class="tbl-header">
+            <span class="tbl-title">Aniversários do Mês</span>
+            <span class="badge b-green" id="rh-aniv-badge">—</span>
           </div>
+          <div style="overflow-y:auto;max-height:260px">
+            <table class="tbl sticky-head"><thead><tr><th>Colaborador</th><th>Depto</th><th>Data</th><th>Idade</th></tr></thead>
+            <tbody id="rh-aniversarios"></tbody></table>
+          </div>
+        </div>
+
+        <!-- Linha 5: CNH | Certificações NR -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
 
           <!-- Controle de CNH -->
           <div class="tbl-card" style="margin-bottom:0">
@@ -2249,35 +2249,35 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
               <span class="tbl-title"><i class="fas fa-id-card" style="color:var(--accent);margin-right:5px"></i>Controle de CNH</span>
               <span class="badge b-amber" id="rh-cnh-badge">—</span>
             </div>
-            <div style="overflow-y:auto;max-height:260px">
+            <div style="overflow-y:auto;max-height:300px">
               <table class="tbl sticky-head"><thead><tr><th>Colaborador</th><th>Cat.</th><th>Vencimento</th><th>Status</th></tr></thead>
               <tbody id="rh-cnh-tbl"></tbody></table>
             </div>
           </div>
 
-        </div>
+          <!-- Certificações NR -->
+          <div class="tbl-card" style="margin-bottom:0">
+            <div class="tbl-header">
+              <span class="tbl-title"><i class="fas fa-certificate" style="color:var(--amber);margin-right:5px"></i>Certificações NR</span>
+              <span class="badge b-amber" id="rh-nr-badge" style="margin-right:auto">—</span>
+              <label class="btn btn-sm" for="nr-pdf-input" style="cursor:pointer;margin:0"><i class="fas fa-file-pdf" style="margin-right:4px"></i>Subir PDFs</label>
+              <input type="file" id="nr-pdf-input" accept=".pdf" multiple style="display:none" onchange="lerPdfNR(event)">
+              <button class="btn btn-sm" onclick="abrirModalNR()"><i class="fas fa-plus"></i> Manual</button>
+              <button class="btn btn-sm" onclick="exportarNRBackup()" style="background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:var(--green)" title="Baixar backup JSON"><i class="fas fa-file-export"></i> Exportar</button>
+              <label class="btn btn-sm" for="nr-import-input" style="cursor:pointer;margin:0;background:rgba(91,106,240,.15);border:1px solid rgba(91,106,240,.4);color:var(--accent)" title="Importar backup JSON"><i class="fas fa-file-import"></i> Importar</label>
+              <input type="file" id="nr-import-input" accept=".json" style="display:none" onchange="importarNRBackup(event)">
+            </div>
+            <!-- Faltando NR -->
+            <div id="rh-nr-faltando-wrap" style="display:none;padding:8px 14px;border-bottom:1px solid var(--border);background:rgba(239,68,68,.06)">
+              <div style="font-size:10px;color:var(--red);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px"><i class="fas fa-exclamation-triangle" style="margin-right:4px"></i>Faltando certificação NR — Suporte Técnico</div>
+              <div id="rh-nr-faltando" style="display:flex;flex-wrap:wrap;gap:4px"></div>
+            </div>
+            <div style="overflow-y:auto;max-height:300px">
+              <table class="tbl sticky-head"><thead><tr><th>Colaborador</th><th>Certificação</th><th>Emissão</th><th>Vencimento</th><th>Status</th><th style="width:28px"></th></tr></thead>
+              <tbody id="rh-nr-tbl"></tbody></table>
+            </div>
+          </div>
 
-        <!-- Linha 5: Certificações NR — seção exclusiva -->
-        <div class="tbl-card" style="margin-bottom:14px">
-          <div class="tbl-header">
-            <span class="tbl-title"><i class="fas fa-certificate" style="color:var(--amber);margin-right:5px"></i>Certificações NR</span>
-            <span class="badge b-amber" id="rh-nr-badge" style="margin-right:auto">—</span>
-            <label class="btn btn-sm" for="nr-pdf-input" style="cursor:pointer;margin:0"><i class="fas fa-file-pdf" style="margin-right:4px"></i>Subir PDFs</label>
-            <input type="file" id="nr-pdf-input" accept=".pdf" multiple style="display:none" onchange="lerPdfNR(event)">
-            <button class="btn btn-sm" onclick="abrirModalNR()"><i class="fas fa-plus"></i> Manual</button>
-            <button class="btn btn-sm" onclick="exportarNRBackup()" style="background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:var(--green)" title="Baixar backup JSON"><i class="fas fa-file-export"></i> Exportar</button>
-            <label class="btn btn-sm" for="nr-import-input" style="cursor:pointer;margin:0;background:rgba(91,106,240,.15);border:1px solid rgba(91,106,240,.4);color:var(--accent)" title="Importar backup JSON"><i class="fas fa-file-import"></i> Importar</label>
-            <input type="file" id="nr-import-input" accept=".json" style="display:none" onchange="importarNRBackup(event)">
-          </div>
-          <!-- Faltando NR -->
-          <div id="rh-nr-faltando-wrap" style="display:none;padding:8px 14px;border-bottom:1px solid var(--border);background:rgba(239,68,68,.06)">
-            <div style="font-size:10px;color:var(--red);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px"><i class="fas fa-exclamation-triangle" style="margin-right:4px"></i>Faltando certificação NR — Suporte Técnico</div>
-            <div id="rh-nr-faltando" style="display:flex;flex-wrap:wrap;gap:4px"></div>
-          </div>
-          <div style="overflow-y:auto;max-height:300px">
-            <table class="tbl sticky-head"><thead><tr><th>Colaborador</th><th>Certificação</th><th>Emissão</th><th>Vencimento</th><th>Status</th><th style="width:28px"></th></tr></thead>
-            <tbody id="rh-nr-tbl"></tbody></table>
-          </div>
         </div>
 
         </div><!-- /rh-tab-dashboard -->
