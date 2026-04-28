@@ -4574,16 +4574,16 @@ async function dbInit() {
       );
       console.log(`[auth] Admin criado: ${ADMIN_EMAIL} / ${ADMIN_PASS}`);
     } else {
-      // Garante que todos os admins têm acesso a todas as páginas ativas
-      const PAGINAS_ADMIN = 'comercial,atendimento,chamados,retencao,remocao,financeiro,rh,risco,saude,tarefas,integracoes,analista';
-      await pool.query(
-        `UPDATE ops360_users SET paginas=$1 WHERE admin=TRUE`,
-        [PAGINAS_ADMIN]
-      );
-      // Adiciona 'analista' a todos os usuários que ainda não têm
-      await pool.query(
-        `UPDATE ops360_users SET paginas = paginas || ',analista' WHERE paginas NOT LIKE '%analista%'`
-      );
+      // Garante que admins tenham no mínimo as páginas base (sem sobrescrever escolhas manuais)
+      const PAGINAS_BASE_ADMIN = ['comercial','atendimento','chamados','retencao','remocao','financeiro','rh','saude','tarefas','integracoes'];
+      const { rows: admins } = await pool.query(`SELECT id, paginas FROM ops360_users WHERE admin=TRUE`);
+      for (const adm of admins) {
+        const atuais = (adm.paginas || '').split(',').map(p => p.trim()).filter(Boolean);
+        const merged = [...new Set([...PAGINAS_BASE_ADMIN, ...atuais])].join(',');
+        if (merged !== adm.paginas) {
+          await pool.query(`UPDATE ops360_users SET paginas=$1 WHERE id=$2`, [merged, adm.id]);
+        }
+      }
     }
     console.log('[db] tabelas prontas');
   } catch(e) {
