@@ -5262,6 +5262,15 @@ app.get('/api/chatmix/debug', async (req, res) => {
 //  ANALISTA IA — Claude analisa painéis automaticamente
 // ══════════════════════════════════════════════════════════════════
 
+let _iaAnthropicClient = null;
+try {
+  const Anthropic = require('@anthropic-ai/sdk');
+  _iaAnthropicClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  console.log('[IA] SDK Anthropic carregado com sucesso.');
+} catch(e) {
+  console.error('[IA] ERRO ao carregar @anthropic-ai/sdk:', e.message);
+}
+
 const _IA_PAINEIS = [
   { nome: 'Comercial',  contexto: 'Adição líquida de assinantes, vendas, cancelamentos e crescimento da base de clientes',   endpoints: ['/api/adicao-liquida', '/api/comercial'] },
   { nome: 'Retenção',   contexto: 'Cancelamentos mensais, motivos de churn e tempo médio de permanência dos clientes',        endpoints: ['/api/cancelamentos-servico?meses=6', '/api/retencao'] },
@@ -5288,8 +5297,8 @@ async function _iaColetarPainel(painel) {
 }
 
 async function _iaAnalisar(painel, contexto, dados) {
-  const Anthropic = require('@anthropic-ai/sdk');
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  if (!_iaAnthropicClient) throw new Error('SDK Anthropic não disponível');
+  const client = _iaAnthropicClient;
   const dataHoje = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
   const dadosStr = JSON.stringify(dados, null, 2).slice(0, 14000);
 
@@ -5350,7 +5359,8 @@ async function _iaSalvar(painel, data, resumo, analise) {
 }
 
 async function _iaRodar() {
-  if (!process.env.ANTHROPIC_API_KEY) { _iaLog('ANTHROPIC_API_KEY não configurada, pulando.'); return; }
+  if (!process.env.ANTHROPIC_API_KEY) { _iaLog('ERRO: ANTHROPIC_API_KEY não configurada.'); return; }
+  if (!_iaAnthropicClient) { _iaLog('ERRO: SDK Anthropic não carregado. Verifique npm install.'); return; }
   const hoje = new Date().toISOString().slice(0, 10);
   _iaLog(`🤖 Iniciando análises — ${hoje}`);
   for (const p of _IA_PAINEIS) {

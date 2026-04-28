@@ -11268,10 +11268,14 @@ function raxPararVoz() {
         if (logEl && st.log) logEl.innerHTML = st.log.map(l => `<div>${l}</div>`).join('');
         if (!st.rodando) {
           clearInterval(_poll);
-          await iaCarregarDatas();
-          await iaCarregarPaineis();
-          await iaCarregarAnalises();
-          if (btn) { btn.disabled = false; btn.textContent = '▶ Analisar Agora'; }
+          // Mostra log final por 5s antes de recarregar
+          if (logEl && st.log) logEl.innerHTML = st.log.map(l => `<div>${l}</div>`).join('') + '<div style="color:#22c55e;margin-top:8px">— Finalizado —</div>';
+          setTimeout(async () => {
+            await iaCarregarDatas();
+            await iaCarregarPaineis();
+            await iaCarregarAnalises();
+            if (btn) { btn.disabled = false; btn.textContent = '▶ Analisar Agora'; }
+          }, 5000);
         }
       } catch(e) { clearInterval(_poll); if (btn) { btn.disabled = false; btn.textContent = '▶ Analisar Agora'; } }
     }, 5000);
