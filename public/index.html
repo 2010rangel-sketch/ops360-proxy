@@ -11252,18 +11252,26 @@ function raxPararVoz() {
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Analisando...'; }
     try {
       await fetch('/api/ia/rodar-agora', { method:'POST', headers: _iaHeaders() });
-      // Aguarda ~2 min e recarrega
-      setTimeout(async () => {
-        await iaCarregarDatas();
-        await iaCarregarPaineis();
-        await iaCarregarAnalises();
-        if (btn) { btn.disabled = false; btn.textContent = '▶ Analisar Agora'; }
-      }, 120000);
-      // Feedback imediato
-      if (btn) btn.textContent = '⏳ Processando (~2min)...';
-    } catch(e) {
+    } catch(e) {}
+    // Polling: verifica a cada 10s se ainda está rodando
+    const _poll = setInterval(async () => {
+      try {
+        const rs = await fetch('/api/ia/status', { headers: _iaHeaders() });
+        const st = await rs.json();
+        if (!st.rodando) {
+          clearInterval(_poll);
+          await iaCarregarDatas();
+          await iaCarregarPaineis();
+          await iaCarregarAnalises();
+          if (btn) { btn.disabled = false; btn.textContent = '▶ Analisar Agora'; }
+        }
+      } catch(e) { clearInterval(_poll); if (btn) { btn.disabled = false; btn.textContent = '▶ Analisar Agora'; } }
+    }, 10000);
+    // Segurança: para o polling após 10min
+    setTimeout(() => {
+      clearInterval(_poll);
       if (btn) { btn.disabled = false; btn.textContent = '▶ Analisar Agora'; }
-    }
+    }, 600000);
   };
 
   // Inicializa quando a página do analista é aberta

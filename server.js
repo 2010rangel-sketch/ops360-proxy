@@ -5263,19 +5263,28 @@ app.get('/api/chatmix/debug', async (req, res) => {
 // ══════════════════════════════════════════════════════════════════
 
 const _IA_PAINEIS = [
-  { nome: 'Comercial',       contexto: 'Adição líquida de assinantes, vendas, cancelamentos e crescimento da base',          endpoint: '/api/adicao-liquida' },
-  { nome: 'Retenção',        contexto: 'Cancelamentos mensais, motivos de churn e tempo médio de permanência dos clientes',   endpoint: '/api/cancelamentos-servico?meses=6' },
-  { nome: 'RH',              contexto: 'Gestão de pessoas: admissões, desligamentos, turnover, aniversários e experiências',  endpoint: '/api/rh' },
-  { nome: 'Suporte',         contexto: 'Atendimentos técnicos, OS abertas e fechadas, tempo de resolução e problemas',        endpoint: '/api/chamados-hoje' },
-  { nome: 'Infraestrutura',  contexto: 'Estado da rede, equipamentos ativos, capacidade instalada',                          endpoint: '/api/infraestrutura' },
+  { nome: 'Comercial',  contexto: 'Adição líquida de assinantes, vendas, cancelamentos e crescimento da base de clientes',   endpoints: ['/api/adicao-liquida', '/api/comercial'] },
+  { nome: 'Retenção',   contexto: 'Cancelamentos mensais, motivos de churn e tempo médio de permanência dos clientes',        endpoints: ['/api/cancelamentos-servico?meses=6', '/api/retencao'] },
+  { nome: 'RH',         contexto: 'Gestão de pessoas: admissões, desligamentos, turnover, aniversários e experiências',       endpoints: ['/api/rh'] },
+  { nome: 'Suporte',    contexto: 'Atendimentos técnicos, OS abertas e fechadas, tempo de resolução, SLA e retrabalho',       endpoints: ['/api/chamados', '/api/atendimentos'] },
+  { nome: 'Cobrança',   contexto: 'Remoções, clientes inadimplentes, recuperação de receita e cobrança',                     endpoints: ['/api/remocoes', '/api/saude-base'] },
 ];
 
 async function _iaFetchLocal(endpoint) {
   try {
     const PORT_LOCAL = process.env.PORT || 8080;
-    const r = await axios.get(`http://localhost:${PORT_LOCAL}${endpoint}`, { timeout: 25000 });
+    const r = await axios.get(`http://localhost:${PORT_LOCAL}${endpoint}`, { timeout: 30000 });
     return r.data;
   } catch(e) { console.error(`[IA] erro ao buscar ${endpoint}:`, e.message); return null; }
+}
+
+async function _iaColetarPainel(painel) {
+  const dados = {};
+  for (const ep of painel.endpoints) {
+    const chave = ep.split('?')[0].replace('/api/', '').replace(/-/g, '_');
+    dados[chave] = await _iaFetchLocal(ep);
+  }
+  return dados;
 }
 
 async function _iaAnalisar(painel, contexto, dados) {
@@ -5346,9 +5355,10 @@ async function _iaRodar() {
   console.log(`\n[IA] 🤖 Iniciando análises — ${hoje}`);
   for (const p of _IA_PAINEIS) {
     try {
-      console.log(`[IA]  → ${p.nome}: coletando...`);
-      const dados = await _iaFetchLocal(p.endpoint);
-      if (!dados) { console.log(`[IA]  ⚠ ${p.nome}: sem dados.`); continue; }
+      console.log(`[IA]  → ${p.nome}: coletando dados...`);
+      const dados = await _iaColetarPainel(p);
+      const temDados = Object.values(dados).some(v => v !== null && v !== undefined);
+      if (!temDados) { console.log(`[IA]  ⚠ ${p.nome}: sem dados.`); continue; }
       console.log(`[IA]  → ${p.nome}: analisando com Claude...`);
       const { analise, resumo } = await _iaAnalisar(p.nome, p.contexto, dados);
       await _iaSalvar(p.nome, hoje, resumo, analise);
@@ -5396,10 +5406,19 @@ app.get('/api/ia/paineis', async (req, res) => {
   } catch { res.json([]); }
 });
 
+let _iaRodando = false;
+
+app.get('/api/ia/status', async (req, res) => {
+  const u = await _getUserFromReq(req); if (!u) return res.status(401).json({ error: 'Não autorizado' });
+  res.json({ rodando: _iaRodando });
+});
+
 app.post('/api/ia/rodar-agora', async (req, res) => {
   const u = await _getUserFromReq(req); if (!u) return res.status(401).json({ error: 'Não autorizado' });
+  if (_iaRodando) return res.json({ ok: true, msg: 'Já está rodando' });
   res.json({ ok: true, msg: 'Análise iniciada' });
-  _iaRodar().catch(e => console.error('[IA] erro:', e.message));
+  _iaRodando = true;
+  _iaRodar().catch(e => console.error('[IA] erro:', e.message)).finally(() => { _iaRodando = false; });
 });
 
 app.get('*', (req, res) => {
