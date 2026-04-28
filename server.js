@@ -5427,6 +5427,20 @@ function _iaLog(msg) {
   if (_iaUltimoLog.length > 50) _iaUltimoLog.shift();
 }
 
+app.get('/api/ia/debug', async (req, res) => {
+  const u = await _getUserFromReq(req); if (!u) return res.status(401).json({ error: 'Não autorizado' });
+  const info = { sdk: !!_iaAnthropicClient, apiKey: !!process.env.ANTHROPIC_API_KEY, log: _iaUltimoLog };
+  try {
+    const pool = getPool();
+    if (pool) {
+      const t = await pool.query('SELECT COUNT(*) as n FROM ia_analises');
+      info.tabela_ok = true;
+      info.total_analises = parseInt(t.rows[0].n);
+    } else { info.tabela_ok = false; info.db_erro = 'sem pool'; }
+  } catch(e) { info.tabela_ok = false; info.db_erro = e.message; }
+  res.json(info);
+});
+
 app.get('/api/ia/status', async (req, res) => {
   const u = await _getUserFromReq(req); if (!u) return res.status(401).json({ error: 'Não autorizado' });
   res.json({ rodando: _iaRodando, log: _iaUltimoLog.slice(-20) });
