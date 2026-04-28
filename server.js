@@ -5280,7 +5280,7 @@ const _IA_PAINEIS = [
   { nome: 'Retenção',   contexto: 'Cancelamentos mensais, motivos de churn e tempo médio de permanência dos clientes',        endpoints: ['/api/cancelamentos-servico?meses=6', '/api/retencao'] },
   { nome: 'RH',         contexto: 'Gestão de pessoas: admissões, desligamentos, turnover, aniversários e experiências',       endpoints: ['/api/rh'] },
   { nome: 'Suporte',    contexto: 'Atendimentos técnicos, OS abertas e fechadas, tempo de resolução, SLA e retrabalho',       endpoints: ['/api/chamados', '/api/atendimentos'] },
-  { nome: 'Cobrança',   contexto: 'Remoções, clientes inadimplentes, recuperação de receita e cobrança',                     endpoints: ['/api/remocoes', '/api/saude-base'] },
+  { nome: 'Cobrança',   contexto: 'Remoções, clientes inadimplentes, recuperação de receita e cobrança',                     endpoints: ['/api/saude-base', '/api/resumo'] },
 ];
 
 async function _iaFetchLocal(endpoint) {

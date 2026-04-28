@@ -11268,14 +11268,12 @@ function raxPararVoz() {
         if (logEl && st.log) logEl.innerHTML = st.log.map(l => `<div>${l}</div>`).join('');
         if (!st.rodando) {
           clearInterval(_poll);
-          // Mostra log final por 5s antes de recarregar
-          if (logEl && st.log) logEl.innerHTML = st.log.map(l => `<div>${l}</div>`).join('') + '<div style="color:#22c55e;margin-top:8px">— Finalizado —</div>';
-          setTimeout(async () => {
-            await iaCarregarDatas();
-            await iaCarregarPaineis();
-            await iaCarregarAnalises();
-            if (btn) { btn.disabled = false; btn.textContent = '▶ Analisar Agora'; }
-          }, 5000);
+          if (logEl && st.log) logEl.innerHTML = st.log.map(l => `<div>${l}</div>`).join('') + '<div style="color:#22c55e;margin-top:8px;font-weight:600">✅ Concluído — carregando análises...</div>';
+          await iaCarregarDatas();
+          await iaCarregarPaineis();
+          await iaCarregarAnalises();
+          const b = document.querySelector('#page-analista button');
+          if (b) { b.disabled = false; b.textContent = '▶ Analisar Agora'; }
         }
       } catch(e) { clearInterval(_poll); if (btn) { btn.disabled = false; btn.textContent = '▶ Analisar Agora'; } }
     }, 5000);
