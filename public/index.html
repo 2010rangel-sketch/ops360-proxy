@@ -654,7 +654,6 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
   <div class="nav-item" onclick="goPage('chamados',this)" data-label="Chamados"><i class="fas fa-ticket-alt"></i><span class="sb-label"> Chamados</span></div>
   <div class="nav-item" onclick="goPage('retencao',this)" data-label="Retenção / Cancelamento"><i class="fas fa-user-shield"></i><span class="sb-label"> Retenção / Cancelamento</span></div>
   <div class="nav-item" onclick="goPage('remocao',this)" data-label="Remoção / Cobrança"><i class="fas fa-tools"></i><span class="sb-label"> Remoção / Cobrança</span></div>
-  <div class="nav-item" onclick="goPage('financeiro',this)" data-label="Financeiro"><i class="fas fa-dollar-sign"></i><span class="sb-label"> Financeiro</span></div>
   <div class="nav-item" onclick="goPage('saude',this)" data-label="Saúde da Base"><i class="fas fa-heartbeat"></i><span class="sb-label"> Saúde da Base</span></div>
   <div class="nav-item" onclick="goPage('rh',this)" data-label="RH"><i class="fas fa-users"></i><span class="sb-label"> RH</span></div>
 
@@ -1911,30 +1910,6 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
     </div>
 
     <!-- ═══ FINANCEIRO ═══ -->
-    <div class="page" id="page-financeiro">
-      <!-- Header -->
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap">
-        <div>
-          <div style="font-size:16px;font-weight:700;color:var(--text)">Financeiro</div>
-          <div style="font-size:11px;color:var(--text3)">Saúde da carteira · inadimplência · churn · LTV</div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <span class="badge b-blue" id="fin-sync-badge">—</span>
-          <button class="btn btn-primary btn-sm" onclick="loadFinanceiro(true)"><i class="fas fa-sync-alt"></i> Atualizar</button>
-        </div>
-      </div>
-
-      <!-- KPI row -->
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px" id="fin-kpi-row">
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--accent)"></div><div class="kpi-mini-label">MRR (Receita Recorrente Mensal)</div><div class="kpi-mini-val" id="fin-mrr" style="color:var(--accent)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">MRR Perdido (Churn Mês)</div><div class="kpi-mini-val" id="fin-mrr-perdido" style="color:var(--red)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Churn Mês Atual</div><div class="kpi-mini-val" id="fin-churn-atual" style="color:var(--red)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--text3)"></div><div class="kpi-mini-label">Churn Mês Anterior</div><div class="kpi-mini-val" id="fin-churn-ant" style="color:var(--text3)">—</div></div>
-        <div class="kpi-mini"><div class="kpi-mini-bar" style="background:#ef4444"></div><div class="kpi-mini-label">1ª Mens. Cheia em Risco</div><div class="kpi-mini-val" id="fin-prim" style="color:#ef4444">—</div><div style="font-size:10px;color:var(--text3);text-align:center" id="fin-prim-pct">—</div></div>
-      </div>
-
-    </div>
-
     <!-- ═══ SAÚDE DA BASE ═══ -->
     <div class="page" id="page-saude">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap">
