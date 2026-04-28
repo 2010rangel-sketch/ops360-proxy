@@ -5428,7 +5428,6 @@ function _iaLog(msg) {
 }
 
 app.get('/api/ia/debug', async (req, res) => {
-  const u = await _getUserFromReq(req); if (!u) return res.status(401).json({ error: 'Não autorizado' });
   const info = { sdk: !!_iaAnthropicClient, apiKey: !!process.env.ANTHROPIC_API_KEY, log: _iaUltimoLog };
   try {
     const pool = getPool();
