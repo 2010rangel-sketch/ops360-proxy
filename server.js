@@ -5281,13 +5281,13 @@ const _IA_PAINEIS = [
   { nome: 'RH',             contexto: 'Gestão de pessoas: admissões, desligamentos, turnover, aniversários e experiências',             endpoints: ['/api/rh'] },
   { nome: 'Suporte',        contexto: 'Chamados técnicos, OS abertas e fechadas, tempo de resolução, SLA e retrabalho',                 endpoints: ['/api/chamados'] },
   { nome: 'Atendimento',    contexto: 'Atendimentos de call center, tempo de espera, volume por período e qualidade do atendimento',    endpoints: ['/api/atendimentos'] },
-  { nome: 'Saúde da Base',  contexto: 'Saúde geral da base de clientes: inadimplência, risco de cancelamento, clientes ativos/inativos', endpoints: ['/api/saude-base'] },
+  { nome: 'Saúde da Base',  contexto: 'Saúde geral da base de clientes: inadimplência, risco de cancelamento, clientes ativos/inativos', endpoints: ['/api/saude-base', '/api/risco-cancelamento'] },
 ];
 
 async function _iaFetchLocal(endpoint) {
   try {
     const PORT_LOCAL = process.env.PORT || 8080;
-    const r = await axios.get(`http://localhost:${PORT_LOCAL}${endpoint}`, { timeout: 30000 });
+    const r = await axios.get(`http://localhost:${PORT_LOCAL}${endpoint}`, { timeout: 60000 });
     return r.data;
   } catch(e) { console.error(`[IA] erro ao buscar ${endpoint}:`, e.message); return null; }
 }
