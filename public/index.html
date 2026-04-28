@@ -1666,6 +1666,16 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         </div>
       </div>
 
+      <!-- Tempo Médio de Vida Histórico -->
+      <div class="tbl-card" style="margin-bottom:14px" id="fin-tempo-medio-card">
+        <div class="tbl-header">
+          <span class="tbl-title"><i class="fas fa-clock" style="color:var(--amber);margin-right:5px"></i>Tempo Médio de Vida dos Clientes mensal</span>
+        </div>
+        <div style="padding:16px;overflow-x:auto">
+          <div id="fin-tempo-chart" style="min-height:120px;display:flex;align-items:flex-end;gap:6px;min-width:500px"></div>
+        </div>
+      </div>
+
       <!-- Serviços Cancelados — duas tabelas lado a lado -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
 
@@ -1707,6 +1717,44 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
           </div>
         </div>
 
+      </div>
+
+      <!-- Cancelamentos: mês atual + anterior -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px" id="fin-cancel-grid">
+        <!-- Mês atual -->
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header"><span class="tbl-title">Cancelamentos — Mês Atual</span><span class="badge b-red" id="fin-ca-total">0</span></div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px 14px;border-bottom:1px solid var(--border)">
+            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">LTV Total</div><div style="font-size:14px;font-weight:700;color:var(--text)" id="fin-ca-ltv">—</div></div>
+            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">LTV Médio</div><div style="font-size:14px;font-weight:700;color:var(--text)" id="fin-ca-ltv-med">—</div></div>
+            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">Tempo Médio de Vida</div><div style="font-size:14px;font-weight:700;color:var(--amber)" id="fin-ca-tempo">—</div></div>
+          </div>
+          <div style="padding:10px 14px;border-bottom:1px solid var(--border)">
+            <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Por Motivo</div>
+            <div id="fin-ca-motivo"></div>
+          </div>
+          <div style="max-height:440px;overflow-y:auto">
+            <table class="tbl" style="table-layout:fixed;width:100%"><thead><tr><th style="width:22%">Cliente</th><th style="width:30%">Plano</th><th style="width:14%">Tempo</th><th style="width:16%">LTV</th><th style="width:18%">Motivo</th></tr></thead>
+            <tbody id="fin-ca-lista"></tbody></table>
+          </div>
+        </div>
+        <!-- Mês anterior -->
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header"><span class="tbl-title">Cancelamentos — Mês Anterior</span><span class="badge b-blue" id="fin-cb-total">0</span></div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px 14px;border-bottom:1px solid var(--border)">
+            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">LTV Total</div><div style="font-size:14px;font-weight:700;color:var(--text)" id="fin-cb-ltv">—</div></div>
+            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">LTV Médio</div><div style="font-size:14px;font-weight:700;color:var(--text)" id="fin-cb-ltv-med">—</div></div>
+            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">Tempo Médio de Vida</div><div style="font-size:14px;font-weight:700;color:var(--amber)" id="fin-cb-tempo">—</div></div>
+          </div>
+          <div style="padding:10px 14px;border-bottom:1px solid var(--border)">
+            <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Por Motivo</div>
+            <div id="fin-cb-motivo"></div>
+          </div>
+          <div style="max-height:440px;overflow-y:auto">
+            <table class="tbl" style="table-layout:fixed;width:100%"><thead><tr><th style="width:22%">Cliente</th><th style="width:30%">Plano</th><th style="width:14%">Tempo</th><th style="width:16%">LTV</th><th style="width:18%">Motivo</th></tr></thead>
+            <tbody id="fin-cb-lista"></tbody></table>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -1849,54 +1897,6 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--red)"></div><div class="kpi-mini-label">Churn Mês Atual</div><div class="kpi-mini-val" id="fin-churn-atual" style="color:var(--red)">—</div></div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:var(--text3)"></div><div class="kpi-mini-label">Churn Mês Anterior</div><div class="kpi-mini-val" id="fin-churn-ant" style="color:var(--text3)">—</div></div>
         <div class="kpi-mini"><div class="kpi-mini-bar" style="background:#ef4444"></div><div class="kpi-mini-label">1ª Mens. Cheia em Risco</div><div class="kpi-mini-val" id="fin-prim" style="color:#ef4444">—</div><div style="font-size:10px;color:var(--text3);text-align:center" id="fin-prim-pct">—</div></div>
-      </div>
-
-      <!-- Cancelamentos: mês atual + anterior -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px" id="fin-cancel-grid">
-        <!-- Mês atual -->
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header"><span class="tbl-title">Cancelamentos — Mês Atual</span><span class="badge b-red" id="fin-ca-total">0</span></div>
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px 14px;border-bottom:1px solid var(--border)">
-            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">LTV Total</div><div style="font-size:14px;font-weight:700;color:var(--text)" id="fin-ca-ltv">—</div></div>
-            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">LTV Médio</div><div style="font-size:14px;font-weight:700;color:var(--text)" id="fin-ca-ltv-med">—</div></div>
-            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">Tempo Médio de Vida</div><div style="font-size:14px;font-weight:700;color:var(--amber)" id="fin-ca-tempo">—</div></div>
-          </div>
-          <div style="padding:10px 14px;border-bottom:1px solid var(--border)">
-            <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Por Motivo</div>
-            <div id="fin-ca-motivo"></div>
-          </div>
-          <div style="max-height:440px;overflow-y:auto">
-            <table class="tbl" style="table-layout:fixed;width:100%"><thead><tr><th style="width:22%">Cliente</th><th style="width:30%">Plano</th><th style="width:14%">Tempo</th><th style="width:16%">LTV</th><th style="width:18%">Motivo</th></tr></thead>
-            <tbody id="fin-ca-lista"></tbody></table>
-          </div>
-        </div>
-        <!-- Mês anterior -->
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header"><span class="tbl-title">Cancelamentos — Mês Anterior</span><span class="badge b-blue" id="fin-cb-total">0</span></div>
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px 14px;border-bottom:1px solid var(--border)">
-            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">LTV Total</div><div style="font-size:14px;font-weight:700;color:var(--text)" id="fin-cb-ltv">—</div></div>
-            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">LTV Médio</div><div style="font-size:14px;font-weight:700;color:var(--text)" id="fin-cb-ltv-med">—</div></div>
-            <div style="text-align:center"><div style="font-size:10px;color:var(--text3)">Tempo Médio de Vida</div><div style="font-size:14px;font-weight:700;color:var(--amber)" id="fin-cb-tempo">—</div></div>
-          </div>
-          <div style="padding:10px 14px;border-bottom:1px solid var(--border)">
-            <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Por Motivo</div>
-            <div id="fin-cb-motivo"></div>
-          </div>
-          <div style="max-height:440px;overflow-y:auto">
-            <table class="tbl" style="table-layout:fixed;width:100%"><thead><tr><th style="width:22%">Cliente</th><th style="width:30%">Plano</th><th style="width:14%">Tempo</th><th style="width:16%">LTV</th><th style="width:18%">Motivo</th></tr></thead>
-            <tbody id="fin-cb-lista"></tbody></table>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tempo Médio de Vida Histórico -->
-      <div class="tbl-card" style="margin-bottom:14px" id="fin-tempo-medio-card">
-        <div class="tbl-header">
-          <span class="tbl-title"><i class="fas fa-clock" style="color:var(--amber);margin-right:5px"></i>Tempo Médio de Vida dos Clientes mensal</span>
-        </div>
-        <div style="padding:16px;overflow-x:auto">
-          <div id="fin-tempo-chart" style="min-height:120px;display:flex;align-items:flex-end;gap:6px;min-width:500px"></div>
-        </div>
       </div>
 
       <!-- ═══ ADIÇÃO LÍQUIDA ═══ -->
