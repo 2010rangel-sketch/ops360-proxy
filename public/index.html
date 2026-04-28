@@ -11137,7 +11137,7 @@ function raxPararVoz() {
 
   let _iaPainelAtivo = '';
   let _iaDataAtiva   = '';
-  let _iaIniciadoEm  = 0;
+  let _iaViuRodando  = false;
 
   function _iaHeaders() {
     const token = localStorage.getItem('auth_token') || '';
@@ -11252,7 +11252,7 @@ function raxPararVoz() {
     const btn = document.querySelector('#page-analista button');
     const c = document.getElementById('ia-content');
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Analisando...'; }
-    _iaIniciadoEm = Date.now();
+    _iaViuRodando = false;
     try { await fetch('/api/ia/rodar-agora', { method:'POST', headers: _iaHeaders() }); } catch(e) {}
 
     // Mostra log em tempo real
@@ -11268,7 +11268,8 @@ function raxPararVoz() {
         // Atualiza log
         const logEl = document.getElementById('ia-log-lines');
         if (logEl && st.log) logEl.innerHTML = st.log.map(l => `<div>${l}</div>`).join('');
-        if (!st.rodando && st.ts && st.ts > _iaIniciadoEm) {
+        if (st.rodando) _iaViuRodando = true;
+        if (!st.rodando && _iaViuRodando) {
           clearInterval(_poll);
           if (logEl && st.log) logEl.innerHTML = st.log.map(l => `<div>${l}</div>`).join('') + '<div style="color:#22c55e;margin-top:10px;font-weight:600">✅ Concluído — atualizando...</div>';
           setTimeout(() => { iaCarregarDatas(); iaCarregarPaineis(); iaCarregarAnalises(); const b = document.querySelector('#page-analista button'); if(b){b.disabled=false;b.textContent='▶ Analisar Agora';} }, 1500);
