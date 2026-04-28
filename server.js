@@ -3393,7 +3393,7 @@ app.get('/api/adicao-liquida', async (req, res) => {
     const force = req.query.force === '1';
     const agora = Date.now();
     if (!force && _alCache && (agora - _alFetchedAt) < AL_CACHE_TTL) return res.json(_alCache);
-    if (force) { _alCache = null; _alFetchedAt = 0; }
+    if (force) { _alCache = null; _alFetchedAt = 0; await dbCacheDel('cache:adicao-liquida').catch(()=>{}); }
     if (!force) {
       const dbAL = await dbCacheGet('cache:adicao-liquida', AL_CACHE_TTL);
       if (dbAL) { _alCache = dbAL; _alFetchedAt = Date.now(); return res.json({ ...dbAL, cache: 'db' }); }
@@ -4638,6 +4638,13 @@ async function dbCacheRestore(key) {
     const r = await pool.query('SELECT value FROM kv_store WHERE key=$1', [key]);
     return r.rows[0] ? JSON.parse(r.rows[0].value) : null;
   } catch { return null; }
+}
+
+async function dbCacheDel(key) {
+  try {
+    const pool = getPool(); if (!pool) return;
+    await pool.query('DELETE FROM kv_store WHERE key=$1', [key]);
+  } catch {}
 }
 
 // ── Fallback arquivo (Railway sem Postgres, dev local) ────────────
