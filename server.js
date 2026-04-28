@@ -5339,7 +5339,9 @@ Faça uma análise profissional e objetiva. Estruture assim:
 ## Recomendações
 (ações concretas e práticas)
 
-Seja direto, objetivo e use linguagem simples para o dono do provedor.`
+Seja direto, objetivo e use linguagem simples para o dono do provedor.
+
+**IMPORTANTE:** Sempre que citar casos específicos (chamados, ordens de serviço, cancelamentos, clientes), use o **nome do cliente** em vez de números de OS ou códigos internos. Se o nome do cliente não estiver disponível nos dados, use a cidade ou endereço. Nunca cite apenas IDs ou códigos — o gestor precisa identificar o cliente pelo nome.`
     }],
   });
 
