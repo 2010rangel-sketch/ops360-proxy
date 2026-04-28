@@ -261,6 +261,7 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
 .dash-view-btn i { font-size:10px; }
 table { width:100%; border-collapse:collapse; }
 th { padding:9px 16px; text-align:left; font-size:10.5px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text3); background:var(--surface2); }
+.sticky-head th { position:sticky; top:0; z-index:2; background:var(--surface2); }
 .col-resizer { position:absolute; right:0; top:0; width:5px; height:100%; cursor:col-resize; z-index:2; border-radius:2px; transition:background .12s; }
 .col-resizer:hover, .col-resizer.dragging { background:var(--accent); opacity:.7; }
 td { padding:11px 16px; border-top:1px solid var(--border); font-size:12.5px; color:var(--text2); vertical-align:middle; }
@@ -2138,8 +2139,8 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
               <button id="rh-col-limpar" onclick="rhFiltrarSetor(null)" style="display:none;background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:0;margin-left:4px">✕ ver todos</button>
             </div>
             <div style="overflow-y:auto;max-height:300px">
-              <table class="tbl" style="font-size:11px">
-                <thead><tr><th style="position:sticky;top:0;z-index:2;background:var(--surface2)">Colaborador</th><th style="position:sticky;top:0;z-index:2;background:var(--surface2)">Cargo</th><th style="position:sticky;top:0;z-index:2;background:var(--surface2)">Admissão</th><th style="position:sticky;top:0;z-index:2;background:var(--surface2)">Tempo</th><th style="position:sticky;top:0;z-index:2;background:var(--surface2)">Pendências</th></tr></thead>
+              <table class="tbl sticky-head" style="font-size:11px">
+                <thead><tr><th>Colaborador</th><th>Cargo</th><th>Admissão</th><th>Tempo</th><th>Pendências</th></tr></thead>
                 <tbody id="rh-col-tbl"></tbody>
               </table>
             </div>
@@ -2185,7 +2186,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         <div class="tbl-card" style="margin-bottom:14px">
           <div class="tbl-header"><span class="tbl-title">Turnover por Setor</span><span class="badge b-red">últimos 12 meses</span></div>
           <div style="overflow-x:auto;max-height:200px;overflow-y:auto">
-            <table class="tbl"><thead><tr><th>Setor</th><th>Ativos</th><th>Saídas (12m)</th><th>Turnover</th></tr></thead>
+            <table class="tbl sticky-head"><thead><tr><th>Setor</th><th>Ativos</th><th>Saídas (12m)</th><th>Turnover</th></tr></thead>
             <tbody id="rh-turnover-setor"></tbody></table>
           </div>
         </div>
@@ -2197,7 +2198,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
             <span class="badge b-blue" id="rh-exp-badge">—</span>
           </div>
           <div style="overflow-y:auto;max-height:260px">
-            <table class="tbl"><thead><tr><th>Colaborador</th><th>Setor</th><th>Admissão</th><th>Fase</th><th>Fim da Fase</th><th>Status</th></tr></thead>
+            <table class="tbl sticky-head"><thead><tr><th>Colaborador</th><th>Setor</th><th>Admissão</th><th>Fase</th><th>Fim da Fase</th><th>Status</th></tr></thead>
             <tbody id="rh-exp-tbl"></tbody></table>
           </div>
         </div>
@@ -2212,7 +2213,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
               <span class="badge b-green" id="rh-aniv-badge">—</span>
             </div>
             <div style="overflow-y:auto;max-height:260px">
-              <table class="tbl"><thead><tr><th>Colaborador</th><th>Depto</th><th>Data</th><th>Idade</th></tr></thead>
+              <table class="tbl sticky-head"><thead><tr><th>Colaborador</th><th>Depto</th><th>Data</th><th>Idade</th></tr></thead>
               <tbody id="rh-aniversarios"></tbody></table>
             </div>
           </div>
@@ -2224,7 +2225,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
               <span class="badge b-amber" id="rh-cnh-badge">—</span>
             </div>
             <div style="overflow-y:auto;max-height:260px">
-              <table class="tbl"><thead><tr><th>Colaborador</th><th>Cat.</th><th>Vencimento</th><th>Status</th></tr></thead>
+              <table class="tbl sticky-head"><thead><tr><th>Colaborador</th><th>Cat.</th><th>Vencimento</th><th>Status</th></tr></thead>
               <tbody id="rh-cnh-tbl"></tbody></table>
             </div>
           </div>
@@ -2249,7 +2250,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
             <div id="rh-nr-faltando" style="display:flex;flex-wrap:wrap;gap:4px"></div>
           </div>
           <div style="overflow-y:auto;max-height:300px">
-            <table class="tbl"><thead><tr><th>Colaborador</th><th>Certificação</th><th>Emissão</th><th>Vencimento</th><th>Status</th><th style="width:28px"></th></tr></thead>
+            <table class="tbl sticky-head"><thead><tr><th>Colaborador</th><th>Certificação</th><th>Emissão</th><th>Vencimento</th><th>Status</th><th style="width:28px"></th></tr></thead>
             <tbody id="rh-nr-tbl"></tbody></table>
           </div>
         </div>
