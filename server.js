@@ -5350,21 +5350,22 @@ async function _iaSalvar(painel, data, resumo, analise) {
 }
 
 async function _iaRodar() {
-  if (!process.env.ANTHROPIC_API_KEY) { console.log('[IA] ANTHROPIC_API_KEY não configurada, pulando.'); return; }
+  if (!process.env.ANTHROPIC_API_KEY) { _iaLog('ANTHROPIC_API_KEY não configurada, pulando.'); return; }
   const hoje = new Date().toISOString().slice(0, 10);
-  console.log(`\n[IA] 🤖 Iniciando análises — ${hoje}`);
+  _iaLog(`🤖 Iniciando análises — ${hoje}`);
   for (const p of _IA_PAINEIS) {
     try {
-      console.log(`[IA]  → ${p.nome}: coletando dados...`);
+      _iaLog(`→ ${p.nome}: coletando dados...`);
       const dados = await _iaColetarPainel(p);
       const temDados = Object.values(dados).some(v => v !== null && v !== undefined);
-      if (!temDados) { console.log(`[IA]  ⚠ ${p.nome}: sem dados.`); continue; }
-      console.log(`[IA]  → ${p.nome}: analisando com Claude...`);
+      if (!temDados) { _iaLog(`⚠ ${p.nome}: sem dados retornados.`); continue; }
+      _iaLog(`→ ${p.nome}: dados ok, analisando com Claude...`);
       const { analise, resumo } = await _iaAnalisar(p.nome, p.contexto, dados);
       await _iaSalvar(p.nome, hoje, resumo, analise);
-    } catch(e) { console.error(`[IA] ✗ ${p.nome}:`, e.message); }
+      _iaLog(`✓ ${p.nome}: salvo.`);
+    } catch(e) { _iaLog(`✗ ${p.nome}: ${e.message}`); }
   }
-  console.log('[IA] ✅ Concluído.\n');
+  _iaLog('✅ Concluído.');
 }
 
 // Cron: todo dia às 07:00 (Brasília)
@@ -5407,18 +5408,27 @@ app.get('/api/ia/paineis', async (req, res) => {
 });
 
 let _iaRodando = false;
+let _iaUltimoLog = [];
+
+function _iaLog(msg) {
+  const linha = `[${new Date().toLocaleTimeString('pt-BR')}] ${msg}`;
+  console.log(linha);
+  _iaUltimoLog.push(linha);
+  if (_iaUltimoLog.length > 50) _iaUltimoLog.shift();
+}
 
 app.get('/api/ia/status', async (req, res) => {
   const u = await _getUserFromReq(req); if (!u) return res.status(401).json({ error: 'Não autorizado' });
-  res.json({ rodando: _iaRodando });
+  res.json({ rodando: _iaRodando, log: _iaUltimoLog.slice(-20) });
 });
 
 app.post('/api/ia/rodar-agora', async (req, res) => {
   const u = await _getUserFromReq(req); if (!u) return res.status(401).json({ error: 'Não autorizado' });
   if (_iaRodando) return res.json({ ok: true, msg: 'Já está rodando' });
   res.json({ ok: true, msg: 'Análise iniciada' });
+  _iaUltimoLog = [];
   _iaRodando = true;
-  _iaRodar().catch(e => console.error('[IA] erro:', e.message)).finally(() => { _iaRodando = false; });
+  _iaRodar().catch(e => _iaLog(`ERRO GERAL: ${e.message}`)).finally(() => { _iaRodando = false; });
 });
 
 app.get('*', (req, res) => {

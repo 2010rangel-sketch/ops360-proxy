@@ -11249,15 +11249,23 @@ function raxPararVoz() {
 
   window.iaRodarAgora = async function() {
     const btn = document.querySelector('#page-analista button');
+    const c = document.getElementById('ia-content');
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Analisando...'; }
-    try {
-      await fetch('/api/ia/rodar-agora', { method:'POST', headers: _iaHeaders() });
-    } catch(e) {}
-    // Polling: verifica a cada 10s se ainda está rodando
+    try { await fetch('/api/ia/rodar-agora', { method:'POST', headers: _iaHeaders() }); } catch(e) {}
+
+    // Mostra log em tempo real
+    if (c) c.innerHTML = `<div id="ia-log-box" style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px 20px;font-family:monospace;font-size:13px;color:var(--text3);line-height:1.8">
+      <div style="color:var(--text);font-weight:700;margin-bottom:10px">🤖 Processando análises...</div>
+      <div id="ia-log-lines"></div>
+    </div>`;
+
     const _poll = setInterval(async () => {
       try {
         const rs = await fetch('/api/ia/status', { headers: _iaHeaders() });
         const st = await rs.json();
+        // Atualiza log
+        const logEl = document.getElementById('ia-log-lines');
+        if (logEl && st.log) logEl.innerHTML = st.log.map(l => `<div>${l}</div>`).join('');
         if (!st.rodando) {
           clearInterval(_poll);
           await iaCarregarDatas();
@@ -11266,12 +11274,8 @@ function raxPararVoz() {
           if (btn) { btn.disabled = false; btn.textContent = '▶ Analisar Agora'; }
         }
       } catch(e) { clearInterval(_poll); if (btn) { btn.disabled = false; btn.textContent = '▶ Analisar Agora'; } }
-    }, 10000);
-    // Segurança: para o polling após 10min
-    setTimeout(() => {
-      clearInterval(_poll);
-      if (btn) { btn.disabled = false; btn.textContent = '▶ Analisar Agora'; }
-    }, 600000);
+    }, 5000);
+    setTimeout(() => { clearInterval(_poll); if (btn) { btn.disabled = false; btn.textContent = '▶ Analisar Agora'; } }, 600000);
   };
 
   // Inicializa quando a página do analista é aberta
