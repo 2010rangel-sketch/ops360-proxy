@@ -656,6 +656,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
   <div class="nav-item" onclick="goPage('remocao',this)" data-label="Remoção / Cobrança"><i class="fas fa-tools"></i><span class="sb-label"> Remoção / Cobrança</span></div>
   <div class="nav-item" onclick="goPage('saude',this)" data-label="Saúde da Base"><i class="fas fa-heartbeat"></i><span class="sb-label"> Saúde da Base</span></div>
   <div class="nav-item" onclick="goPage('rh',this)" data-label="RH"><i class="fas fa-users"></i><span class="sb-label"> RH</span></div>
+  <div class="nav-item" onclick="goPage('analista',this)" data-label="Analista IA"><i class="fas fa-robot"></i><span class="sb-label"> Analista IA</span></div>
 
   <div class="sidebar-section">Spaces</div>
   <div class="space-item" onclick="goPage('tarefas',this)" data-label="Tarefas"><div class="space-dot" style="background:#5b6af0">T</div><span class="sb-label"> Tarefas</span></div>
@@ -2284,6 +2285,36 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         </div>
       </div>
 
+    </div>
+
+    <!-- ═══ ANALISTA IA ═══ -->
+    <div class="page" id="page-analista">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:40px;height:40px;background:linear-gradient(135deg,#4f7cff,#7c5fff);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px">🤖</div>
+          <div>
+            <div style="font-size:16px;font-weight:700">Analista IA</div>
+            <div style="font-size:12px;color:var(--text3)">Análises automáticas por Claude (Anthropic) · Atualiza todo dia às 07:00</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <select id="ia-sel-data" style="background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:8px;font-size:13px">
+            <option value="">Última disponível</option>
+          </select>
+          <button onclick="iaRodarAgora()" style="padding:7px 16px;background:#4f7cff;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer">▶ Analisar Agora</button>
+        </div>
+      </div>
+
+      <!-- Tabs de painéis -->
+      <div id="ia-tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px"></div>
+
+      <!-- Conteúdo -->
+      <div id="ia-content">
+        <div style="text-align:center;padding:60px 20px;color:var(--text3)">
+          <div style="font-size:40px;margin-bottom:12px">🤖</div>
+          <div style="font-size:15px;font-weight:600;margin-bottom:6px">Carregando análises...</div>
+        </div>
+      </div>
     </div>
 
     <!-- ═══ TAREFAS ═══ -->
@@ -11091,5 +11122,163 @@ function raxPararVoz() {
 </script>
 
 <!-- Botão toggle flutuante e arrastável -->
+
+<!-- ═══ ANALISTA IA ═══ -->
+<script>
+(function(){
+  const IA_ICONS = {
+    Comercial:      { icon: '📈', cor: '#4f7cff' },
+    'Retenção':     { icon: '🔄', cor: '#f59e0b' },
+    RH:             { icon: '👥', cor: '#22c55e' },
+    Suporte:        { icon: '🛠️', cor: '#8b5cf6' },
+    Infraestrutura: { icon: '🌐', cor: '#06b6d4' },
+  };
+
+  let _iaPainelAtivo = '';
+  let _iaDataAtiva   = '';
+
+  function _iaHeaders() {
+    const token = localStorage.getItem('auth_token') || '';
+    return { Authorization: `Bearer ${token}` };
+  }
+
+  function _iaMd(md) {
+    if (!md) return '';
+    return md
+      .replace(/^### (.+)$/gm,'<h3 style="font-size:13px;font-weight:700;color:var(--text3);margin:14px 0 4px">$1</h3>')
+      .replace(/^## (.+)$/gm,'<h2 style="font-size:14px;font-weight:700;color:#4f7cff;margin:16px 0 6px">$1</h2>')
+      .replace(/^# (.+)$/gm,'<h2 style="font-size:15px;font-weight:700;color:#4f7cff;margin:16px 0 6px">$1</h2>')
+      .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g,'<em>$1</em>')
+      .replace(/`(.+?)`/g,'<code style="background:var(--bg2);padding:1px 5px;border-radius:4px;font-family:monospace;font-size:12px">$1</code>')
+      .replace(/^---$/gm,'<hr style="border:none;border-top:1px solid var(--border);margin:12px 0">')
+      .replace(/^[-*] (.+)$/gm,'<li style="margin:3px 0">$1</li>')
+      .replace(/(<li.*<\/li>\n?)+/g, m => `<ul style="padding-left:20px;margin:6px 0">${m}</ul>`)
+      .split('\n').map(l => {
+        if (l.match(/^<[hul]/)) return l;
+        if (l.trim()) return `<p style="margin:5px 0;line-height:1.65">${l}</p>`;
+        return '';
+      }).join('');
+  }
+
+  async function iaCarregarDatas() {
+    try {
+      const r = await fetch('/api/ia/datas', { headers: _iaHeaders() });
+      const datas = await r.json();
+      const sel = document.getElementById('ia-sel-data');
+      if (!sel) return;
+      sel.innerHTML = '<option value="">Última disponível</option>';
+      datas.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d;
+        const dt = new Date(d + 'T12:00:00');
+        opt.textContent = dt.toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'2-digit', year:'numeric' });
+        sel.appendChild(opt);
+      });
+      sel.onchange = () => { _iaDataAtiva = sel.value; iaCarregarAnalises(); };
+    } catch(e) { console.error('[IA]', e); }
+  }
+
+  async function iaCarregarPaineis() {
+    try {
+      const r = await fetch('/api/ia/paineis', { headers: _iaHeaders() });
+      const paineis = await r.json();
+      const tabs = document.getElementById('ia-tabs');
+      if (!tabs) return;
+      const todosStyle = 'padding:7px 16px;border-radius:20px;cursor:pointer;font-size:13px;font-weight:500;border:1px solid var(--border);background:var(--accent);color:#fff';
+      const inactStyle = 'padding:7px 16px;border-radius:20px;cursor:pointer;font-size:13px;font-weight:500;border:1px solid var(--border);background:var(--bg2);color:var(--text3)';
+      tabs.innerHTML = `<div id="ia-tab-todos" style="${todosStyle}" onclick="window._iaTabClick(this,'')">Todos os Painéis</div>`;
+      paineis.forEach(p => {
+        const ic = IA_ICONS[p] || { icon: '📊', cor: '#4f7cff' };
+        const d = document.createElement('div');
+        d.id = 'ia-tab-' + p;
+        d.style.cssText = inactStyle;
+        d.innerHTML = `${ic.icon} ${p}`;
+        d.onclick = () => window._iaTabClick(d, p);
+        tabs.appendChild(d);
+      });
+    } catch(e) { console.error('[IA]', e); }
+  }
+
+  window._iaTabClick = function(el, painel) {
+    document.querySelectorAll('#ia-tabs > div').forEach(t => {
+      t.style.background = 'var(--bg2)'; t.style.color = 'var(--text3)'; t.style.borderColor = 'var(--border)';
+    });
+    el.style.background = 'var(--accent)'; el.style.color = '#fff';
+    _iaPainelAtivo = painel;
+    iaCarregarAnalises();
+  };
+
+  async function iaCarregarAnalises() {
+    const c = document.getElementById('ia-content');
+    if (!c) return;
+    c.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text3)"><div style="font-size:24px;margin-bottom:8px">⏳</div>Carregando...</div>';
+    try {
+      const params = new URLSearchParams({ limit: 20 });
+      if (_iaPainelAtivo) params.set('painel', _iaPainelAtivo);
+      if (_iaDataAtiva)   params.set('data',   _iaDataAtiva);
+      const r = await fetch('/api/ia/analises?' + params, { headers: _iaHeaders() });
+      const analises = await r.json();
+      if (!analises.length) {
+        c.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--text3)">
+          <div style="font-size:40px;margin-bottom:12px">🤖</div>
+          <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">Nenhuma análise disponível</div>
+          <div>Clique em <strong>▶ Analisar Agora</strong> para gerar a primeira análise,<br>ou aguarde o horário automático (07:00).</div>
+        </div>`;
+        return;
+      }
+      c.innerHTML = analises.map(a => {
+        const ic = IA_ICONS[a.painel] || { icon: '📊', cor: '#4f7cff' };
+        const dataFmt = new Date(a.data + 'T12:00:00').toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'long', year:'numeric' });
+        const horFmt  = new Date(a.criado_em).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+        return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px">
+          <div style="padding:14px 18px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);background:var(--bg3)">
+            <div style="width:36px;height:36px;border-radius:8px;background:${ic.cor}22;color:${ic.cor};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${ic.icon}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:700;font-size:14px">${a.painel}</div>
+              ${a.resumo ? `<div style="font-size:12px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.resumo}</div>` : ''}
+            </div>
+            <div style="font-size:11px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:3px 8px;color:var(--text3);white-space:nowrap">${dataFmt} · ${horFmt}</div>
+          </div>
+          <div style="padding:18px 20px;font-size:14px">${_iaMd(a.analise)}</div>
+        </div>`;
+      }).join('');
+    } catch(e) { c.innerHTML = '<div style="padding:30px;color:var(--text3)">Erro ao carregar análises.</div>'; }
+  }
+
+  window.iaRodarAgora = async function() {
+    const btn = document.querySelector('#page-analista button');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Analisando...'; }
+    try {
+      await fetch('/api/ia/rodar-agora', { method:'POST', headers: _iaHeaders() });
+      // Aguarda ~2 min e recarrega
+      setTimeout(async () => {
+        await iaCarregarDatas();
+        await iaCarregarPaineis();
+        await iaCarregarAnalises();
+        if (btn) { btn.disabled = false; btn.textContent = '▶ Analisar Agora'; }
+      }, 120000);
+      // Feedback imediato
+      if (btn) btn.textContent = '⏳ Processando (~2min)...';
+    } catch(e) {
+      if (btn) { btn.disabled = false; btn.textContent = '▶ Analisar Agora'; }
+    }
+  };
+
+  // Inicializa quando a página do analista é aberta
+  const _origGoPage = window.goPage;
+  if (_origGoPage) {
+    window.goPage = function(id, el) {
+      _origGoPage(id, el);
+      if (id === 'analista') {
+        iaCarregarDatas();
+        iaCarregarPaineis();
+        iaCarregarAnalises();
+      }
+    };
+  }
+})();
+</script>
+
 </body>
 </html>

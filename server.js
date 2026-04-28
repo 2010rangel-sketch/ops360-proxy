@@ -4531,6 +4531,17 @@ async function dbInit() {
   try {
     const pool = getPool(); if (!pool) return;
     await pool.query(`
+      CREATE TABLE IF NOT EXISTS ia_analises (
+        id         SERIAL PRIMARY KEY,
+        painel     TEXT NOT NULL,
+        data       TEXT NOT NULL,
+        resumo     TEXT,
+        analise    TEXT NOT NULL,
+        criado_em  TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(painel, data)
+      )
+    `);
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS kv_store (
         key        TEXT PRIMARY KEY,
         value      TEXT NOT NULL,
@@ -5245,6 +5256,150 @@ app.get('/api/chatmix/debug', async (req, res) => {
     }
   }
   res.json(results);
+});
+
+// ══════════════════════════════════════════════════════════════════
+//  ANALISTA IA — Claude analisa painéis automaticamente
+// ══════════════════════════════════════════════════════════════════
+
+const _IA_PAINEIS = [
+  { nome: 'Comercial',       contexto: 'Adição líquida de assinantes, vendas, cancelamentos e crescimento da base',          endpoint: '/api/adicao-liquida' },
+  { nome: 'Retenção',        contexto: 'Cancelamentos mensais, motivos de churn e tempo médio de permanência dos clientes',   endpoint: '/api/cancelamentos-servico?meses=6' },
+  { nome: 'RH',              contexto: 'Gestão de pessoas: admissões, desligamentos, turnover, aniversários e experiências',  endpoint: '/api/rh' },
+  { nome: 'Suporte',         contexto: 'Atendimentos técnicos, OS abertas e fechadas, tempo de resolução e problemas',        endpoint: '/api/chamados-hoje' },
+  { nome: 'Infraestrutura',  contexto: 'Estado da rede, equipamentos ativos, capacidade instalada',                          endpoint: '/api/infraestrutura' },
+];
+
+async function _iaFetchLocal(endpoint) {
+  try {
+    const PORT_LOCAL = process.env.PORT || 8080;
+    const r = await axios.get(`http://localhost:${PORT_LOCAL}${endpoint}`, { timeout: 25000 });
+    return r.data;
+  } catch(e) { console.error(`[IA] erro ao buscar ${endpoint}:`, e.message); return null; }
+}
+
+async function _iaAnalisar(painel, contexto, dados) {
+  const Anthropic = require('@anthropic-ai/sdk');
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const dataHoje = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+  const dadosStr = JSON.stringify(dados, null, 2).slice(0, 14000);
+
+  const stream = await client.messages.stream({
+    model: 'claude-opus-4-7',
+    max_tokens: 2000,
+    thinking: { type: 'adaptive' },
+    messages: [{
+      role: 'user',
+      content: `Você é um analista de dados profissional especializado em provedores de internet (ISP).
+Hoje é ${dataHoje}. Você está analisando os dados do painel **${painel}** da LC Fibra, provedor de internet regional.
+
+**Contexto do painel:** ${contexto}
+
+**Dados coletados:**
+\`\`\`json
+${dadosStr}
+\`\`\`
+
+Faça uma análise profissional e objetiva. Estruture assim:
+
+## Resumo Executivo
+(2-3 linhas com o mais importante para o gestor)
+
+## Pontos de Atenção
+(o que precisa de ação imediata — bullet points)
+
+## Tendências Identificadas
+(o que está indo bem ou mal — bullet points)
+
+## Indicadores-Chave
+(destaque os números mais importantes com contexto)
+
+## Recomendações
+(ações concretas e práticas)
+
+Seja direto, objetivo e use linguagem simples para o dono do provedor.`
+    }],
+  });
+
+  const msg = await stream.finalMessage();
+  const texto = msg.content.filter(b => b.type === 'text').map(b => b.text).join('');
+  const resumo = texto.split('\n').filter(l => l.trim() && !l.startsWith('#'))[0]?.slice(0, 200) || '';
+  return { analise: texto, resumo };
+}
+
+async function _iaSalvar(painel, data, resumo, analise) {
+  try {
+    const pool = getPool(); if (!pool) return;
+    await pool.query(
+      `INSERT INTO ia_analises (painel, data, resumo, analise)
+       VALUES ($1,$2,$3,$4)
+       ON CONFLICT (painel, data) DO UPDATE SET resumo=$3, analise=$4, criado_em=NOW()`,
+      [painel, data, resumo, analise]
+    );
+    console.log(`[IA] ✓ ${painel} (${data})`);
+  } catch(e) { console.error('[IA] erro ao salvar:', e.message); }
+}
+
+async function _iaRodar() {
+  if (!process.env.ANTHROPIC_API_KEY) { console.log('[IA] ANTHROPIC_API_KEY não configurada, pulando.'); return; }
+  const hoje = new Date().toISOString().slice(0, 10);
+  console.log(`\n[IA] 🤖 Iniciando análises — ${hoje}`);
+  for (const p of _IA_PAINEIS) {
+    try {
+      console.log(`[IA]  → ${p.nome}: coletando...`);
+      const dados = await _iaFetchLocal(p.endpoint);
+      if (!dados) { console.log(`[IA]  ⚠ ${p.nome}: sem dados.`); continue; }
+      console.log(`[IA]  → ${p.nome}: analisando com Claude...`);
+      const { analise, resumo } = await _iaAnalisar(p.nome, p.contexto, dados);
+      await _iaSalvar(p.nome, hoje, resumo, analise);
+    } catch(e) { console.error(`[IA] ✗ ${p.nome}:`, e.message); }
+  }
+  console.log('[IA] ✅ Concluído.\n');
+}
+
+// Cron: todo dia às 07:00 (Brasília)
+cron.schedule('0 7 * * *', () => {
+  _iaRodar().catch(e => console.error('[IA] cron error:', e.message));
+}, { timezone: 'America/Sao_Paulo' });
+
+// Rotas da API do analista
+app.get('/api/ia/analises', async (req, res) => {
+  const u = await _getUserFromReq(req); if (!u) return res.status(401).json({ error: 'Não autorizado' });
+  try {
+    const pool = getPool(); if (!pool) return res.json([]);
+    let sql = 'SELECT * FROM ia_analises';
+    const params = []; const where = [];
+    if (req.query.painel) { where.push(`painel=$${params.length+1}`); params.push(req.query.painel); }
+    if (req.query.data)   { where.push(`data=$${params.length+1}`);   params.push(req.query.data); }
+    if (where.length) sql += ' WHERE ' + where.join(' AND ');
+    sql += ` ORDER BY criado_em DESC LIMIT ${Number(req.query.limit)||30}`;
+    const r = await pool.query(sql, params);
+    res.json(r.rows);
+  } catch(e) { res.json([]); }
+});
+
+app.get('/api/ia/datas', async (req, res) => {
+  const u = await _getUserFromReq(req); if (!u) return res.status(401).json({ error: 'Não autorizado' });
+  try {
+    const pool = getPool(); if (!pool) return res.json([]);
+    const r = await pool.query('SELECT DISTINCT data FROM ia_analises ORDER BY data DESC LIMIT 60');
+    res.json(r.rows.map(row => row.data));
+  } catch { res.json([]); }
+});
+
+app.get('/api/ia/paineis', async (req, res) => {
+  const u = await _getUserFromReq(req); if (!u) return res.status(401).json({ error: 'Não autorizado' });
+  try {
+    const pool = getPool(); if (!pool) return res.json([]);
+    const r = await pool.query('SELECT DISTINCT painel FROM ia_analises ORDER BY painel');
+    res.json(r.rows.map(row => row.painel));
+  } catch { res.json([]); }
+});
+
+app.post('/api/ia/rodar-agora', async (req, res) => {
+  const u = await _getUserFromReq(req); if (!u) return res.status(401).json({ error: 'Não autorizado' });
+  res.json({ ok: true, msg: 'Análise iniciada' });
+  _iaRodar().catch(e => console.error('[IA] erro:', e.message));
 });
 
 app.get('*', (req, res) => {
