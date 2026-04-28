@@ -10368,11 +10368,11 @@ function renderRhEfetivados(ativos) {
   const tbody = document.getElementById('rh-efetivados-tbl');
   if (!tbody) return;
 
-  // Ativos com admissão há mais de 90 dias = já efetivados
+  // Ativos com admissão há 89+ dias = já efetivados
   const efetivados = ativos.filter(e => {
     if (!e.admissao) return false;
     const dias = Math.floor((hoje - e.admissao) / (1000 * 60 * 60 * 24));
-    return dias >= 90;
+    return dias >= 89;
   });
 
   // Ordena do mais recente para o mais antigo (data de efetivação = admissão + 90d)
@@ -10389,7 +10389,7 @@ function renderRhEfetivados(ativos) {
   }
 
   tbody.innerHTML = ultimos.map(e => {
-    const dataEfet = new Date(e.admissao); dataEfet.setDate(dataEfet.getDate() + 90);
+    const dataEfet = new Date(e.admissao); dataEfet.setDate(dataEfet.getDate() + 89);
     const admStr  = e.admissao.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit' });
     const efetStr = dataEfet.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit' });
     return `<tr>
@@ -10433,11 +10433,11 @@ function renderRhExperiencia(ativos) {
   const tbody = document.getElementById('rh-exp-tbl');
   if (!tbody) return;
 
-  // Apenas quem admitiu nos últimos 90 dias (ainda em experiência)
+  // Apenas quem admitiu nos últimos 89 dias (ainda em experiência)
   const emExp = ativos.filter(e => {
     if (!e.admissao) return false;
     const dias = Math.floor((hoje - e.admissao) / (1000 * 60 * 60 * 24));
-    return dias >= 0 && dias < 90;
+    return dias >= 0 && dias < 89;
   });
 
   emExp.sort((a, b) => a.admissao - b.admissao);
@@ -10445,7 +10445,7 @@ function renderRhExperiencia(ativos) {
   if (badge) {
     const urgentes = emExp.filter(e => {
       const dias = Math.floor((hoje - e.admissao) / (1000 * 60 * 60 * 24));
-      const fimFase = dias < 45 ? 45 : 90;
+      const fimFase = dias < 44 ? 44 : 89;
       const restam = fimFase - dias;
       return restam <= 7;
     }).length;
@@ -10460,8 +10460,8 @@ function renderRhExperiencia(ativos) {
 
   tbody.innerHTML = emExp.map(e => {
     const dias = Math.floor((hoje - e.admissao) / (1000 * 60 * 60 * 24));
-    const fase = dias < 45 ? 1 : 2;
-    const fimFase = fase === 1 ? 45 : 90;
+    const fase = dias < 44 ? 1 : 2;
+    const fimFase = fase === 1 ? 44 : 89;
     const restam = fimFase - dias;
     const dataFim = new Date(e.admissao); dataFim.setDate(dataFim.getDate() + fimFase);
     const dataFimStr = dataFim.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit' });
