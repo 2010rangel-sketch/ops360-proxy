@@ -2190,6 +2190,18 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
           </div>
         </div>
 
+        <!-- Linha 3b: Período de Experiência -->
+        <div class="tbl-card" style="margin-bottom:14px">
+          <div class="tbl-header">
+            <span class="tbl-title"><i class="fas fa-user-clock" style="color:var(--cyan);margin-right:5px"></i>Período de Experiência</span>
+            <span class="badge b-blue" id="rh-exp-badge">—</span>
+          </div>
+          <div style="overflow-y:auto;max-height:260px">
+            <table class="tbl"><thead><tr><th>Colaborador</th><th>Admissão</th><th>Fase</th><th>Fim da Fase</th><th>Status</th></tr></thead>
+            <tbody id="rh-exp-tbl"></tbody></table>
+          </div>
+        </div>
+
         <!-- Linha 4: Aniversários | CNH -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
 
@@ -9918,6 +9930,7 @@ function renderRhDashboard(emps) {
   renderRhTurnoverSetor(ativos, desl12);
   renderRhAniversarios(ativos);
   renderRhCNH(ativos);
+  renderRhExperiencia(ativos);
   renderRhNR();
   renderRhEvolucao();
 }
@@ -10305,6 +10318,63 @@ function renderRhCNH(ativos) {
       <td style="text-align:center;font-size:11px;color:var(--text2)">${e.cnhCat || '—'}</td>
       <td style="text-align:center;font-size:11px;color:${cor}">${venc}</td>
       <td style="text-align:center"><span class="badge" style="background:${cor}22;color:${cor};border:1px solid ${cor}44;font-size:10px">${status}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderRhExperiencia(ativos) {
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const badge = document.getElementById('rh-exp-badge');
+  const tbody = document.getElementById('rh-exp-tbl');
+  if (!tbody) return;
+
+  // Apenas quem admitiu nos últimos 90 dias (ainda em experiência)
+  const emExp = ativos.filter(e => {
+    if (!e.admissao) return false;
+    const dias = Math.floor((hoje - e.admissao) / (1000 * 60 * 60 * 24));
+    return dias >= 0 && dias < 90;
+  });
+
+  emExp.sort((a, b) => a.admissao - b.admissao);
+
+  if (badge) {
+    const urgentes = emExp.filter(e => {
+      const dias = Math.floor((hoje - e.admissao) / (1000 * 60 * 60 * 24));
+      const fimFase = dias < 45 ? 45 : 90;
+      const restam = fimFase - dias;
+      return restam <= 7;
+    }).length;
+    badge.textContent = emExp.length + ' em experiência' + (urgentes > 0 ? ` · ${urgentes} próximo` : '');
+    badge.className = 'badge ' + (urgentes > 0 ? 'b-amber' : 'b-blue');
+  }
+
+  if (!emExp.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Nenhum colaborador em período de experiência</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = emExp.map(e => {
+    const dias = Math.floor((hoje - e.admissao) / (1000 * 60 * 60 * 24));
+    const fase = dias < 45 ? 1 : 2;
+    const fimFase = fase === 1 ? 45 : 90;
+    const restam = fimFase - dias;
+    const dataFim = new Date(e.admissao); dataFim.setDate(dataFim.getDate() + fimFase);
+    const dataFimStr = dataFim.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit' });
+    const admStr = e.admissao.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit' });
+
+    let cor, statusTxt;
+    if (restam <= 7)       { cor = 'var(--amber)'; statusTxt = restam + 'd'; }
+    else if (fase === 1)   { cor = 'var(--cyan)';  statusTxt = restam + 'd'; }
+    else                   { cor = 'var(--purple)'; statusTxt = restam + 'd'; }
+
+    const faseTxt = fase === 1 ? '1ª experiência (45d)' : '2ª experiência (+45d)';
+    const nomeAbrev = e.nome.split(' ').slice(0, 2).join(' ');
+    return `<tr>
+      <td style="font-size:11px" title="${e.nome}">${nomeAbrev}</td>
+      <td style="text-align:center;font-size:11px;color:var(--text2)">${admStr}</td>
+      <td style="font-size:11px;color:${cor}">${faseTxt}</td>
+      <td style="text-align:center;font-size:11px;color:var(--text2)">${dataFimStr}</td>
+      <td style="text-align:center"><span class="badge" style="background:${cor}22;color:${cor};border:1px solid ${cor}44;font-size:10px">${statusTxt}</span></td>
     </tr>`;
   }).join('');
 }
