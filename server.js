@@ -5385,7 +5385,6 @@ cron.schedule('0 7 * * *', () => {
 
 // Rotas da API do analista
 app.get('/api/ia/analises', async (req, res) => {
-  const u = await _getUserFromReq(req); if (!u) return res.status(401).json({ error: 'Não autorizado' });
   try {
     const pool = getPool(); if (!pool) return res.json([]);
     let sql = 'SELECT * FROM ia_analises';
@@ -5400,7 +5399,6 @@ app.get('/api/ia/analises', async (req, res) => {
 });
 
 app.get('/api/ia/datas', async (req, res) => {
-  const u = await _getUserFromReq(req); if (!u) return res.status(401).json({ error: 'Não autorizado' });
   try {
     const pool = getPool(); if (!pool) return res.json([]);
     const r = await pool.query('SELECT DISTINCT data FROM ia_analises ORDER BY data DESC LIMIT 60');
@@ -5409,7 +5407,6 @@ app.get('/api/ia/datas', async (req, res) => {
 });
 
 app.get('/api/ia/paineis', async (req, res) => {
-  const u = await _getUserFromReq(req); if (!u) return res.status(401).json({ error: 'Não autorizado' });
   try {
     const pool = getPool(); if (!pool) return res.json([]);
     const r = await pool.query('SELECT DISTINCT painel FROM ia_analises ORDER BY painel');
