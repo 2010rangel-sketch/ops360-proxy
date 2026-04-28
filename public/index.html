@@ -2182,18 +2182,6 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
           </div>
         </div>
 
-        <!-- Últimos Efetivados -->
-        <div class="tbl-card" style="margin-bottom:14px">
-          <div class="tbl-header">
-            <span class="tbl-title"><i class="fas fa-user-check" style="color:var(--green);margin-right:5px"></i>Últimos Efetivados</span>
-            <span class="badge b-green" id="rh-efet-badge">—</span>
-          </div>
-          <div style="overflow-y:auto;max-height:260px">
-            <table class="tbl sticky-head"><thead><tr><th>Colaborador</th><th>Setor</th><th>Admissão</th><th>Efetivado em</th></tr></thead>
-            <tbody id="rh-efetivados-tbl"></tbody></table>
-          </div>
-        </div>
-
         <!-- Linha 3: Turnover por Setor -->
         <div class="tbl-card" style="margin-bottom:14px">
           <div class="tbl-header"><span class="tbl-title">Turnover por Setor</span><span class="badge b-red">últimos 12 meses</span></div>
@@ -2203,15 +2191,27 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
           </div>
         </div>
 
-        <!-- Linha 3b: Período de Experiência -->
-        <div class="tbl-card" style="margin-bottom:14px">
-          <div class="tbl-header">
-            <span class="tbl-title"><i class="fas fa-user-clock" style="color:var(--cyan);margin-right:5px"></i>Período de Experiência</span>
-            <span class="badge b-blue" id="rh-exp-badge">—</span>
+        <!-- Linha 3b: Período de Experiência + Últimos Efetivados -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+          <div class="tbl-card" style="margin-bottom:0">
+            <div class="tbl-header">
+              <span class="tbl-title"><i class="fas fa-user-clock" style="color:var(--cyan);margin-right:5px"></i>Período de Experiência</span>
+              <span class="badge b-blue" id="rh-exp-badge">—</span>
+            </div>
+            <div style="overflow-y:auto;max-height:260px">
+              <table class="tbl sticky-head"><thead><tr><th>Colaborador</th><th>Setor</th><th>Admissão</th><th>Fase</th><th>Fim da Fase</th><th>Status</th></tr></thead>
+              <tbody id="rh-exp-tbl"></tbody></table>
+            </div>
           </div>
-          <div style="overflow-y:auto;max-height:260px">
-            <table class="tbl sticky-head"><thead><tr><th>Colaborador</th><th>Setor</th><th>Admissão</th><th>Fase</th><th>Fim da Fase</th><th>Status</th></tr></thead>
-            <tbody id="rh-exp-tbl"></tbody></table>
+          <div class="tbl-card" style="margin-bottom:0">
+            <div class="tbl-header">
+              <span class="tbl-title"><i class="fas fa-user-check" style="color:var(--green);margin-right:5px"></i>Últimos Efetivados</span>
+              <span class="badge b-green" id="rh-efet-badge">—</span>
+            </div>
+            <div style="overflow-y:auto;max-height:260px">
+              <table class="tbl sticky-head"><thead><tr><th>Colaborador</th><th>Setor</th><th>Admissão</th><th>Efetivado em</th></tr></thead>
+              <tbody id="rh-efetivados-tbl"></tbody></table>
+            </div>
           </div>
         </div>
 
