@@ -2718,6 +2718,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="saude" style="cursor:pointer"> <span style="font-size:12px">Saúde da Base</span></label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="tarefas" style="cursor:pointer"> <span style="font-size:12px">Tarefas</span></label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="integracoes" style="cursor:pointer"> <span style="font-size:12px">Integrações</span></label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0"><input type="checkbox" data-pg="analista" style="cursor:pointer"> <span style="font-size:12px">Analista IA</span></label>
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
@@ -9273,7 +9274,7 @@ function saudeSearch(txt) {
   renderSaudeTbl();
 }
 
-const TODAS_PAGINAS = ['comercial','atendimento','chamados','retencao','remocao','financeiro','rh','saude','tarefas'];
+const TODAS_PAGINAS = ['comercial','atendimento','chamados','retencao','remocao','financeiro','rh','saude','tarefas','analista'];
 
 async function usersCarregar() {
   if (!_authUser?.admin) return;
@@ -9289,7 +9290,7 @@ async function usersCarregar() {
     }
     const body = document.getElementById('users-tbl-body');
     if (!body) return;
-    const LABEL_PG = { comercial:'Comercial',atendimento:'Atendimento',chamados:'Chamados',retencao:'Cancelamento',remocao:'Remoção',financeiro:'Financeiro',rh:'RH',saude:'Saúde',tarefas:'Tarefas',integracoes:'Integrações' };
+    const LABEL_PG = { comercial:'Comercial',atendimento:'Atendimento',chamados:'Chamados',retencao:'Cancelamento',remocao:'Remoção',financeiro:'Financeiro',rh:'RH',saude:'Saúde',tarefas:'Tarefas',integracoes:'Integrações',analista:'Analista IA' };
     body.innerHTML = d.users.map(u => {
       const pgs = u.paginas.split(',').map(p => `<span style="font-size:10px;padding:1px 6px;border-radius:8px;background:var(--accent-light);color:var(--accent);margin:1px;display:inline-block">${LABEL_PG[p.trim()]||p}</span>`).join('');
       return `<tr>
