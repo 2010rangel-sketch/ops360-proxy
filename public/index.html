@@ -11252,8 +11252,11 @@ function raxPararVoz() {
     const btn = document.querySelector('#page-analista button');
     const c = document.getElementById('ia-content');
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Analisando...'; }
-    _iaViuRodando = true; // assume que começou imediatamente
-    try { await fetch('/api/ia/rodar-agora', { method:'POST', headers: _iaHeaders() }); } catch(e) {}
+    _iaViuRodando = true;
+    try {
+      await fetch('/api/ia/reset', { method:'POST', headers: _iaHeaders() });
+      await fetch('/api/ia/rodar-agora', { method:'POST', headers: _iaHeaders() });
+    } catch(e) {}
 
     // Mostra log em tempo real
     if (c) c.innerHTML = `<div id="ia-log-box" style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px 20px;font-family:monospace;font-size:13px;color:var(--text3);line-height:1.8">

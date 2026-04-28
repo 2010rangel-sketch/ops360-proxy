@@ -5434,7 +5434,15 @@ async function _iaGetStatus() {
   try {
     const pool = getPool(); if (!pool) return { rodando: false, log: [] };
     const r = await pool.query(`SELECT value FROM kv_store WHERE key='ia:status'`);
-    return r.rows[0] ? JSON.parse(r.rows[0].value) : { rodando: false, log: [] };
+    if (!r.rows[0]) return { rodando: false, log: [] };
+    const st = JSON.parse(r.rows[0].value);
+    // Auto-expira se rodando há mais de 15 minutos (travado)
+    if (st.rodando && st.ts && (Date.now() - st.ts) > 15 * 60 * 1000) {
+      st.rodando = false;
+      st.log = (st.log || []).concat(`[${new Date().toLocaleTimeString('pt-BR')}] ⚠ Análise expirada automaticamente.`);
+      await _iaSetStatus(false, st.log);
+    }
+    return st;
   } catch { return { rodando: false, log: [] }; }
 }
 
@@ -5446,6 +5454,11 @@ async function _iaLog(msg) {
   if (_iaLog_buf.length > 50) _iaLog_buf.shift();
   await _iaSetStatus(true, _iaLog_buf);
 }
+
+app.post('/api/ia/reset', async (req, res) => {
+  await _iaSetStatus(false, []);
+  res.json({ ok: true });
+});
 
 app.get('/api/ia/debug', async (req, res) => {
   const info = { sdk: !!_iaAnthropicClient, apiKey: !!process.env.ANTHROPIC_API_KEY };
