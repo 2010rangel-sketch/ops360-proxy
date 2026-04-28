@@ -2197,7 +2197,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
             <span class="badge b-blue" id="rh-exp-badge">—</span>
           </div>
           <div style="overflow-y:auto;max-height:260px">
-            <table class="tbl"><thead><tr><th>Colaborador</th><th>Admissão</th><th>Fase</th><th>Fim da Fase</th><th>Status</th></tr></thead>
+            <table class="tbl"><thead><tr><th>Colaborador</th><th>Setor</th><th>Admissão</th><th>Fase</th><th>Fim da Fase</th><th>Status</th></tr></thead>
             <tbody id="rh-exp-tbl"></tbody></table>
           </div>
         </div>
@@ -10368,13 +10368,13 @@ function renderRhExperiencia(ativos) {
     else                   { cor = 'var(--purple)'; statusTxt = restam + 'd'; }
 
     const faseTxt = fase === 1 ? '1ª experiência (45d)' : '2ª experiência (+45d)';
-    const nomeAbrev = e.nome.split(' ').slice(0, 2).join(' ');
     return `<tr>
-      <td style="font-size:11px" title="${e.nome}">${nomeAbrev}</td>
-      <td style="text-align:center;font-size:11px;color:var(--text2)">${admStr}</td>
+      <td style="font-size:11px">${e.nome}</td>
+      <td style="font-size:11px;color:var(--text2)">${e.depto || '—'}</td>
+      <td style="font-size:11px;color:var(--text2)">${admStr}</td>
       <td style="font-size:11px;color:${cor}">${faseTxt}</td>
-      <td style="text-align:center;font-size:11px;color:var(--text2)">${dataFimStr}</td>
-      <td style="text-align:center"><span class="badge" style="background:${cor}22;color:${cor};border:1px solid ${cor}44;font-size:10px">${statusTxt}</span></td>
+      <td style="font-size:11px;color:var(--text2)">${dataFimStr}</td>
+      <td><span class="badge" style="background:${cor}22;color:${cor};border:1px solid ${cor}44;font-size:10px">${statusTxt}</span></td>
     </tr>`;
   }).join('');
 }
