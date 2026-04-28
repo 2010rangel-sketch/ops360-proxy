@@ -4575,10 +4575,14 @@ async function dbInit() {
       console.log(`[auth] Admin criado: ${ADMIN_EMAIL} / ${ADMIN_PASS}`);
     } else {
       // Garante que todos os admins têm acesso a todas as páginas ativas
-      const PAGINAS_ADMIN = 'comercial,atendimento,chamados,retencao,remocao,financeiro,rh,risco,saude,tarefas,integracoes';
+      const PAGINAS_ADMIN = 'comercial,atendimento,chamados,retencao,remocao,financeiro,rh,risco,saude,tarefas,integracoes,analista';
       await pool.query(
         `UPDATE ops360_users SET paginas=$1 WHERE admin=TRUE`,
         [PAGINAS_ADMIN]
+      );
+      // Adiciona 'analista' a todos os usuários que ainda não têm
+      await pool.query(
+        `UPDATE ops360_users SET paginas = paginas || ',analista' WHERE paginas NOT LIKE '%analista%'`
       );
     }
     console.log('[db] tabelas prontas');
