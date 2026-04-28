@@ -10351,17 +10351,18 @@ function renderRhEfetivados(ativos) {
 
   // Ordena do mais recente para o mais antigo (data de efetivação = admissão + 90d)
   efetivados.sort((a, b) => b.admissao - a.admissao);
+  const ultimos = efetivados.slice(0, 10);
 
   if (badge) {
-    badge.textContent = efetivados.length + ' efetivados';
+    badge.textContent = `últimos ${ultimos.length} de ${efetivados.length}`;
   }
 
-  if (!efetivados.length) {
+  if (!ultimos.length) {
     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">Nenhum colaborador efetivado</td></tr>';
     return;
   }
 
-  tbody.innerHTML = efetivados.map(e => {
+  tbody.innerHTML = ultimos.map(e => {
     const dataEfet = new Date(e.admissao); dataEfet.setDate(dataEfet.getDate() + 90);
     const admStr  = e.admissao.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit' });
     const efetStr = dataEfet.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit' });
