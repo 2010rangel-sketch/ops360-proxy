@@ -3107,6 +3107,9 @@ async function buildFinanceiro() {
         if (!dc || dc.getTime() < iniMs || dc.getTime() > fimMs) continue;
         const motivoRaw = (s.motivo_cancelamento || '').trim();
         if (ignorarMotFin(motivoRaw)) continue;
+        // Exclui cancelamentos no mesmo mês da venda
+        const _anoMes = d => { if (!d) return null; const p = d.split('/'); return p.length === 3 ? `${p[2]}-${p[1]}` : d.slice(0,7); };
+        if (_anoMes(s.data_venda) && _anoMes(s.data_cancelamento) && _anoMes(s.data_venda) === _anoMes(s.data_cancelamento)) continue;
         const chave = `${nome}|${s.nome||''}|${s.data_cancelamento||''}`;
         if (seen.has(chave)) continue;
         seen.add(chave);
