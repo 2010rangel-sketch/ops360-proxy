@@ -11252,7 +11252,7 @@ function raxPararVoz() {
     const btn = document.querySelector('#page-analista button');
     const c = document.getElementById('ia-content');
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Analisando...'; }
-    _iaViuRodando = false;
+    _iaViuRodando = true; // assume que começou imediatamente
     try { await fetch('/api/ia/rodar-agora', { method:'POST', headers: _iaHeaders() }); } catch(e) {}
 
     // Mostra log em tempo real
@@ -11261,7 +11261,9 @@ function raxPararVoz() {
       <div id="ia-log-lines"></div>
     </div>`;
 
+    let _pollCount = 0;
     const _poll = setInterval(async () => {
+      _pollCount++;
       try {
         const rs = await fetch('/api/ia/status', { headers: _iaHeaders() });
         const st = await rs.json();
@@ -11269,7 +11271,7 @@ function raxPararVoz() {
         const logEl = document.getElementById('ia-log-lines');
         if (logEl && st.log) logEl.innerHTML = st.log.map(l => `<div>${l}</div>`).join('');
         if (st.rodando) _iaViuRodando = true;
-        if (!st.rodando && _iaViuRodando) {
+        if (!st.rodando && _iaViuRodando && _pollCount > 2) {
           clearInterval(_poll);
           if (logEl && st.log) logEl.innerHTML = st.log.map(l => `<div>${l}</div>`).join('') + '<div style="color:#22c55e;margin-top:10px;font-weight:600">✅ Concluído — atualizando...</div>';
           setTimeout(() => { iaCarregarDatas(); iaCarregarPaineis(); iaCarregarAnalises(); const b = document.querySelector('#page-analista button'); if(b){b.disabled=false;b.textContent='▶ Analisar Agora';} }, 1500);
