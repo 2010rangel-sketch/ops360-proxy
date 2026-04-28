@@ -2174,24 +2174,6 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
           </div>
         </div>
 
-        <!-- Linha 2: Admissões vs Desligamentos | Turnover por Setor -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
-          <div class="tbl-card" style="margin-bottom:0">
-            <div class="tbl-header"><span class="tbl-title">Admissões vs Desligamentos</span><span class="badge b-blue">últimos 6 meses</span></div>
-            <div style="padding:14px 16px">
-              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px" id="rh-movimentacao"></div>
-            </div>
-          </div>
-          <div class="tbl-card" style="margin-bottom:0">
-            <div class="tbl-header"><span class="tbl-title">Turnover por Setor</span><span class="badge b-red">últimos 12 meses</span></div>
-            <div style="overflow-x:auto;max-height:260px;overflow-y:auto">
-              <table class="tbl sticky-head"><thead><tr><th>Setor</th><th>Ativos</th><th>Saídas (12m)</th><th>Turnover</th></tr></thead>
-              <tbody id="rh-turnover-setor"></tbody></table>
-            </div>
-          </div>
-        </div>
-
-        <!-- Linha 3b: Período de Experiência + Últimos Efetivados -->
         <!-- Período de Experiência (largura total) -->
         <div class="tbl-card" style="margin-bottom:14px">
           <div class="tbl-header">
@@ -2224,6 +2206,23 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
             <div style="overflow-y:auto;max-height:260px">
               <table class="tbl sticky-head"><thead><tr><th>Colaborador</th><th>Setor</th><th>Admissão</th><th>Desligado em</th></tr></thead>
               <tbody id="rh-desligados-tbl"></tbody></table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Admissões vs Desligamentos | Turnover por Setor -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+          <div class="tbl-card" style="margin-bottom:0">
+            <div class="tbl-header"><span class="tbl-title">Admissões vs Desligamentos</span><span class="badge b-blue">últimos 6 meses</span></div>
+            <div style="padding:14px 16px">
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px" id="rh-movimentacao"></div>
+            </div>
+          </div>
+          <div class="tbl-card" style="margin-bottom:0">
+            <div class="tbl-header"><span class="tbl-title">Turnover por Setor</span><span class="badge b-red">últimos 12 meses</span></div>
+            <div style="overflow-x:auto;max-height:260px;overflow-y:auto">
+              <table class="tbl sticky-head"><thead><tr><th>Setor</th><th>Ativos</th><th>Saídas (12m)</th><th>Turnover</th></tr></thead>
+              <tbody id="rh-turnover-setor"></tbody></table>
             </div>
           </div>
         </div>
