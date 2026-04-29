@@ -1959,8 +1959,8 @@ async function warmupComercial() {
 // setTimeout(() => warmupComercial().catch(console.warn), 5000);
 // Warm-up do financeiro (65s — comercial leva ~55s; financeiro reutiliza _comAllClientes)
 setTimeout(() => {
-  // Só executa se cache está ausente ou vencido, e não há rebuild em andamento
-  if (_finFetching || (_finCache && (Date.now() - _finFetchedAt) < FIN_CACHE_TTL)) return;
+  // Sempre reconstrói ao iniciar (garante que mudanças de código se refletem imediatamente)
+  if (_finFetching) return;
   _finFetching = true;
   buildFinanceiro().then(r => {
     _finCache = r; _finFetchedAt = Date.now(); _finFetching = false;
