@@ -3099,21 +3099,26 @@ async function buildFinanceiro() {
   function filtrarCancelFin(clientesNao, clientesSim, iniStr, fimStr) {
     const iniMs = new Date(iniStr).getTime();
     const fimMs = new Date(fimStr + 'T23:59:59').getTime();
-    const seen  = new Set();
+    const seen  = new Set(); // dedup cross-cliente
     const lista = [];
+    const _anoMes = d => { if (!d) return null; const p = d.split('/'); return p.length === 3 ? `${p[2]}-${p[1]}` : d.slice(0,7); };
     for (const cli of [...clientesNao, ...clientesSim]) {
       const nome = cli.nome_razaosocial || cli.nome_fantasia || '—';
+      const seenNesteCli = new Set(); // permite múltiplos serviços do mesmo cliente
       for (const s of (cli.servicos || [])) {
         const dc = parseDate(s.data_cancelamento);
         if (!dc || dc.getTime() < iniMs || dc.getTime() > fimMs) continue;
         const motivoRaw = (s.motivo_cancelamento || '').trim();
         if (ignorarMotFin(motivoRaw)) continue;
         // Exclui cancelamentos no mesmo mês da venda
-        const _anoMes = d => { if (!d) return null; const p = d.split('/'); return p.length === 3 ? `${p[2]}-${p[1]}` : d.slice(0,7); };
         if (_anoMes(s.data_venda) && _anoMes(s.data_cancelamento) && _anoMes(s.data_venda) === _anoMes(s.data_cancelamento)) continue;
         const endInstFin = typeof s.endereco_instalacao === 'object' && s.endereco_instalacao ? s.endereco_instalacao : {};
-        const chaveFin = s.id ? `id:${s.id}` : `${nome}|${s.nome||''}|${s.data_cancelamento||''}|${endInstFin.id||endInstFin.cep||endInstFin.logradouro||''}`;
-        if (seen.has(chaveFin)) continue;
+        const chaveBase = s.id ? `id:${s.id}` : `${nome}|${s.nome||''}|${s.data_cancelamento||''}|${endInstFin.id||endInstFin.cep||endInstFin.logradouro||''}`;
+        // Permite múltiplos serviços do mesmo cliente (ex: cliente com 2 imóveis vendidos)
+        let chaveFin = chaveBase, n = 0;
+        while (seenNesteCli.has(chaveFin)) chaveFin = `${chaveBase}#${++n}`;
+        seenNesteCli.add(chaveFin);
+        if (seen.has(chaveBase) && n === 0) continue; // dedup cross-cliente apenas na 1ª ocorrência
         seen.add(chaveFin);
         const dh    = parseDate(s.data_habilitacao);
         const valor = parseFloat(s.valor) || 0;
