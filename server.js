@@ -1279,6 +1279,7 @@ app.get('/api/cancelamentos-servico', async (req, res) => {
     const norm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     // 1) Motivos operacionais ignorados independente de data
     const MOTIVOS_IGNORADOS = [
+      'desistencia da instalacao',
       'habilitado o user errado',
       'troca de titularidade',
     ];
