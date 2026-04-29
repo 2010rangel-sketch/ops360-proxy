@@ -3549,40 +3549,59 @@ app.get('/api/risco-cancelamento', async (req, res) => {
     const mapaCli = {};
     const dtBrFmt = dt => { const d = new Date(dt); return isNaN(d) ? dt : d.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }); };
 
-    // Processa OS/chamados
+    // Gera chave agrupando por cliente + serviço/endereço (para separar clientes com múltiplos endereços)
+    const getEndKey = (endObj) => {
+      if (!endObj) return '';
+      return endObj.id || endObj.cep || endObj.logradouro || '';
+    };
+    const getEndLabel = (endObj) => {
+      if (!endObj) return '';
+      const log = endObj.logradouro || endObj.endereco || '';
+      const num = endObj.numero || endObj.endereco_numero?.numero || '';
+      const bairro = endObj.bairro || '';
+      const cidade = endObj.endereco_numero?.cidade?.nome || endObj.cidade?.nome || '';
+      return [log, num, bairro, cidade].filter(Boolean).join(', ');
+    };
+
+    // Processa OS/chamados — agrupa por nome + serviço
     for (const os of listaOS) {
       const tipo = os.tipo_ordem_servico?.descricao || os.tipo_os?.nome || os.tipo || '';
       if (isRemocao(tipo)) continue;
-      const cliObj = os.atendimento?.cliente_servico?.cliente || {};
+      const cliServico = os.atendimento?.cliente_servico || {};
+      const cliObj = cliServico.cliente || {};
       const nome = cliObj.nome_razaosocial || cliObj.nome_fantasia || cliObj.display || os.cli || '';
       if (!nome) continue;
       if (normT(nome).startsWith('LC VIRTUAL NET')) continue;
-      const end = os.atendimento?.cliente_servico?.endereco_instalacao;
+      const end = cliServico.endereco_instalacao;
+      const endKey = getEndKey(end);
+      const chave = endKey ? `${nome}||${endKey}` : nome;
       const cidade = end?.endereco_numero?.cidade?.nome || end?.cidade?.nome || os.cidade || '—';
+      const endLabel = getEndLabel(end);
       const dtAbertura = os.data_abertura || os.data_cadastro || os.created_at || null;
-      if (!mapaCli[nome]) mapaCli[nome] = { nome, cidade, chamados: [], totalChamados: 0, atendimentos: [], totalAtend: 0 };
-      mapaCli[nome].totalChamados++;
-      mapaCli[nome].chamados.push({ id: os.id_ordem_servico || os.id, tipo, dtAbertura, data: dtAbertura ? dtBrFmt(dtAbertura) : '—', status: os.status || '' });
+      if (!mapaCli[chave]) mapaCli[chave] = { nome, cidade, endereco: endLabel, chamados: [], totalChamados: 0, atendimentos: [], totalAtend: 0 };
+      mapaCli[chave].totalChamados++;
+      mapaCli[chave].chamados.push({ id: os.id_ordem_servico || os.id, tipo, dtAbertura, data: dtAbertura ? dtBrFmt(dtAbertura) : '—', status: os.status || '' });
     }
 
-    // Processa atendimentos de suporte
+    // Processa atendimentos — agrupa por nome + serviço
     for (const a of listaAtend) {
       const tipo = a.tipo_atendimento?.descricao || '';
       if (isAtendIgnorar(tipo)) continue;
-      const cliObj = a.cliente_servico?.cliente || a.cliente || {};
+      const cliServico = a.cliente_servico || {};
+      const cliObj = cliServico.cliente || a.cliente || {};
       const nome = cliObj.nome_razaosocial || cliObj.nome_fantasia || cliObj.nome || '';
       if (!nome) continue;
       if (normT(nome).startsWith('LC VIRTUAL NET')) continue;
-      // data_cadastro_br = "DD/MM/YYYY HH:MM" — mantém data e hora
+      const end = cliServico.endereco_instalacao;
+      const endKey = getEndKey(end);
+      const chave = endKey ? `${nome}||${endKey}` : nome;
+      const cidade = end?.endereco_numero?.cidade?.nome || end?.cidade?.nome || '—';
+      const endLabel = getEndLabel(end);
       const dtBrRaw = a.data_cadastro_br ? a.data_cadastro_br.slice(0, 16) : null;
-      const dt = dtBrRaw || a.data_cadastro || null;
-      if (!mapaCli[nome]) {
-        const cidade = a.cliente_servico?.endereco_instalacao?.endereco_numero?.cidade?.nome || '—';
-        mapaCli[nome] = { nome, cidade, chamados: [], totalChamados: 0, atendimentos: [], totalAtend: 0 };
-      }
-      mapaCli[nome].totalAtend++;
-      const dataFmt = dtBrRaw || (a.data_cadastro ? dtBrFmt(a.data_cadastro) : '—'); // inclui HH:MM
-      mapaCli[nome].atendimentos.push({ id: a.id_atendimento || a.id, tipo, data: dataFmt });
+      if (!mapaCli[chave]) mapaCli[chave] = { nome, cidade, endereco: endLabel, chamados: [], totalChamados: 0, atendimentos: [], totalAtend: 0 };
+      mapaCli[chave].totalAtend++;
+      const dataFmt = dtBrRaw || (a.data_cadastro ? dtBrFmt(a.data_cadastro) : '—');
+      mapaCli[chave].atendimentos.push({ id: a.id_atendimento || a.id, tipo, data: dataFmt });
     }
 
     const clientes = Object.values(mapaCli)
@@ -3594,6 +3613,7 @@ app.get('/api/risco-cancelamento', async (req, res) => {
         return {
           nome: c.nome,
           cidade: c.cidade,
+          endereco: c.endereco || '',
           totalChamados: c.totalChamados,
           totalAtend: c.totalAtend,
           total: totalRisco,
