@@ -1958,8 +1958,8 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
             <th style="width:32px"></th>
             <th>Cliente</th>
             <th>Cidade</th>
-            <th style="text-align:center" title="Atendimentos de suporte (lentidão, instabilidade, queda, sem sinal)">Atend.</th>
-            <th style="text-align:center" title="Ordens de serviço abertas">Chamados</th>
+            <th style="text-align:center;cursor:pointer;user-select:none" onclick="riscoSort('atend')" title="Ordenar por atendimentos">Atend. <span id="risco-sort-atend">▼</span></th>
+            <th style="text-align:center;cursor:pointer;user-select:none" onclick="riscoSort('chamados')" title="Ordenar por chamados">Chamados <span id="risco-sort-chamados"></span></th>
             <th style="text-align:center">Risco</th>
             <th>Tipos de OS</th>
           </tr></thead>
@@ -2970,6 +2970,18 @@ async function loadRisco(force = false) {
   }
 }
 
+let _riscoSortCol = 'atend', _riscoSortDir = -1; // padrão: atendimentos decrescente
+function riscoSort(col) {
+  if (_riscoSortCol === col) { _riscoSortDir *= -1; }
+  else { _riscoSortCol = col; _riscoSortDir = -1; }
+  const cols = ['atend','chamados'];
+  cols.forEach(c => {
+    const el = document.getElementById('risco-sort-' + c);
+    if (el) el.textContent = c === _riscoSortCol ? (_riscoSortDir === -1 ? '▼' : '▲') : '';
+  });
+  renderRisco();
+}
+
 function renderRisco() {
   if (!_riscoData) return;
   const clientes = _riscoData.clientes || [];
@@ -2997,10 +3009,15 @@ function renderRisco() {
   if (elAtencB) elAtencB.textContent = `${atencao} atenção`;
   if (elTblB)   elTblB.textContent   = `${lista.length} clientes`;
 
-  // sort: critico primeiro, depois por qtd desc
-  lista.sort((a,b) => {
-    if (a.risco !== b.risco) return a.risco === 'critico' ? -1 : 1;
-    return b.total - a.total;
+  // sort: coluna selecionada, critério secundário pelo outro campo
+  lista = [...lista].sort((a, b) => {
+    const va = _riscoSortCol === 'atend' ? (a.totalAtend||0) : (a.totalChamados||0);
+    const vb = _riscoSortCol === 'atend' ? (b.totalAtend||0) : (b.totalChamados||0);
+    if (va !== vb) return (vb - va) * _riscoSortDir;
+    // critério secundário: outro campo, sempre decrescente
+    const sa = _riscoSortCol === 'atend' ? (a.totalChamados||0) : (a.totalAtend||0);
+    const sb = _riscoSortCol === 'atend' ? (b.totalChamados||0) : (b.totalAtend||0);
+    return sb - sa;
   });
 
   const tbody = document.getElementById('risco-tbl-body');
