@@ -1327,8 +1327,9 @@ app.get('/api/cancelamentos-servico', async (req, res) => {
           ? s.endereco_instalacao : {};
         const cidade = endInst.cidade || '—';
 
-        // Chave única por serviço — usa ID se disponível, senão plano+data+end (com índice dentro do cli como fallback)
-        const chaveBase = s.id ? `id:${s.id}` : `${nome}|${s.nome||''}|${s.data_cancelamento||''}|${endInst.id||endInst.cep||endInst.logradouro||''}`;
+        // Chave única por serviço — inclui ID do cliente para diferenciar empresas homônimas (ex: Capital Real com 2 imóveis)
+        const cliId = cli.id || cli.codigo || '';
+        const chaveBase = s.id ? `id:${s.id}` : `${cliId}|${nome}|${s.nome||''}|${s.data_cancelamento||''}|${endInst.id||endInst.cep||endInst.logradouro||''}`;
         // Permite múltiplos serviços do mesmo cliente com mesma chave (serviços irmãos)
         let chave = chaveBase, n = 0;
         while (seenNesteCli.has(chave)) chave = `${chaveBase}#${++n}`;
@@ -3113,7 +3114,8 @@ async function buildFinanceiro() {
         // Exclui cancelamentos no mesmo mês da venda
         if (_anoMes(s.data_venda) && _anoMes(s.data_cancelamento) && _anoMes(s.data_venda) === _anoMes(s.data_cancelamento)) continue;
         const endInstFin = typeof s.endereco_instalacao === 'object' && s.endereco_instalacao ? s.endereco_instalacao : {};
-        const chaveBase = s.id ? `id:${s.id}` : `${nome}|${s.nome||''}|${s.data_cancelamento||''}|${endInstFin.id||endInstFin.cep||endInstFin.logradouro||''}`;
+        const cliIdFin = cli.id || cli.codigo || '';
+        const chaveBase = s.id ? `id:${s.id}` : `${cliIdFin}|${nome}|${s.nome||''}|${s.data_cancelamento||''}|${endInstFin.id||endInstFin.cep||endInstFin.logradouro||''}`;
         // Permite múltiplos serviços do mesmo cliente (ex: cliente com 2 imóveis vendidos)
         let chaveFin = chaveBase, n = 0;
         while (seenNesteCli.has(chaveFin)) chaveFin = `${chaveBase}#${++n}`;
