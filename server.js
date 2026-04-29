@@ -3170,7 +3170,7 @@ async function buildFinanceiro() {
       valor_mensal_perdido: Math.round(lista.reduce((s, c) => s + c.valor, 0) * 100) / 100,
       por_motivo:  Object.entries(porMotivo).sort((a, b) => b[1] - a[1]).map(([motivo, n]) => ({ motivo, n })),
       por_vendedor: Object.values(porVendedor).sort((a, b) => b.n - a.n),
-      lista:       lista.slice(0, 100),
+      lista:       lista,
     };
   }
 
