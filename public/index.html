@@ -1958,8 +1958,8 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
             <th style="width:32px"></th>
             <th>Cliente</th>
             <th>Cidade</th>
-            <th style="text-align:center;cursor:pointer;user-select:none" onclick="riscoSort('atend')" title="Ordenar por atendimentos">Atend. <span id="risco-sort-atend">▼</span></th>
-            <th style="text-align:center;cursor:pointer;user-select:none" onclick="riscoSort('chamados')" title="Ordenar por chamados">Chamados <span id="risco-sort-chamados"></span></th>
+            <th style="text-align:center;cursor:pointer;user-select:none" onclick="riscoSort('atend')" title="Ordenar por atendimentos">Atend. <span id="risco-sort-atend"></span></th>
+            <th style="text-align:center;cursor:pointer;user-select:none" onclick="riscoSort('chamados')" title="Ordenar por chamados">Chamados <span id="risco-sort-chamados">▼</span></th>
             <th style="text-align:center">Risco</th>
             <th>Tipos de OS</th>
           </tr></thead>
@@ -2970,7 +2970,7 @@ async function loadRisco(force = false) {
   }
 }
 
-let _riscoSortCol = 'atend', _riscoSortDir = 1; // padrão: atendimentos decrescente
+let _riscoSortCol = 'chamados', _riscoSortDir = 1; // padrão: chamados decrescente
 function riscoSort(col) {
   if (_riscoSortCol === col) { _riscoSortDir *= -1; }
   else { _riscoSortCol = col; _riscoSortDir = 1; }
