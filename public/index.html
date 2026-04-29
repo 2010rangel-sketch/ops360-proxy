@@ -3042,10 +3042,7 @@ function renderRisco() {
       <td style="cursor:pointer" onclick="toggleRiscoDetalhe('${rowId}')" title="Expandir detalhes">
         <i class="fas fa-chevron-right" id="${rowId}-ico" style="color:var(--muted);transition:transform .2s"></i>
       </td>
-      <td style="max-width:220px" title="${c.nome}${c.endereco ? ' — ' + c.endereco : ''}">
-        <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500">${c.nome}</div>
-        ${c.endereco ? `<div style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.endereco}</div>` : ''}
-      </td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.nome}">${c.nome}</td>
       <td>${c.cidade||'—'}</td>
       <td style="text-align:center">${atStr}</td>
       <td style="text-align:center">${chStr}</td>
