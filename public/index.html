@@ -2970,7 +2970,7 @@ async function loadRisco(force = false) {
   }
 }
 
-let _riscoSortCol = 'atend', _riscoSortDir = -1; // padrão: atendimentos decrescente
+let _riscoSortCol = 'atend', _riscoSortDir = 1; // padrão: atendimentos decrescente
 function riscoSort(col) {
   if (_riscoSortCol === col) { _riscoSortDir *= -1; }
   else { _riscoSortCol = col; _riscoSortDir = -1; }
