@@ -3534,13 +3534,13 @@ app.get('/api/risco-cancelamento', async (req, res) => {
       res.forEach(r => listaAtend.push(...r));
     }
 
-    // Tipos de atendimento de suporte (reclamações técnicas)
-    const isAtendSuporte = tipo => {
+    // Tipos de atendimento ignorados no risco (cobrança, remoção, rede, campanhas)
+    const isAtendIgnorar = tipo => {
       const t = normT(tipo);
-      return t.includes('LENTIDAO') || t.includes('INSTABILID') || t.includes('QUEDA') ||
-             t.includes('SEM SINAL') || t.includes('SEM INTERNET') || t.includes('MUDANCA DE SENHA') ||
-             t.includes('MUDANCA SENHA') || t.includes('SEM ACESSO') || t.includes('SUPORTE') ||
-             t.includes('NOC') || t.includes('FIBRA');
+      return t.includes('REMOCAO') || t.includes('COBRANCA') || t.includes('DISPARO') ||
+             t.includes('ATUALIZACAO FINANCEIRA') || t.includes('CAMPANHA') ||
+             t.includes('CONSTRUCAO DE REDE') || t.includes('CORRECAO DE REDE') ||
+             t.includes('EXPANSAO DE REDE');
     };
 
     const mapaCli = {};
@@ -3565,7 +3565,7 @@ app.get('/api/risco-cancelamento', async (req, res) => {
     // Processa atendimentos de suporte
     for (const a of listaAtend) {
       const tipo = a.tipo_atendimento?.descricao || '';
-      if (!isAtendSuporte(tipo)) continue;
+      if (isAtendIgnorar(tipo)) continue;
       const cliObj = a.cliente_servico?.cliente || a.cliente || {};
       const nome = cliObj.nome_razaosocial || cliObj.nome_fantasia || cliObj.nome || '';
       if (!nome) continue;
