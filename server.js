@@ -3542,7 +3542,8 @@ app.get('/api/risco-cancelamento', async (req, res) => {
              t.includes('CONSTRUCAO DE REDE') || t.includes('CORRECAO DE REDE') ||
              t.includes('EXPANSAO DE REDE') || t.includes('TESTE') ||
              t.includes('FINANCEIRO') || t.includes('POS VENDA') || t.includes('POS-VENDA') ||
-             t.includes('FALTA DE COMUNICACAO') || t.includes('INFORMACAO DE AGENDAMENTO');
+             t.includes('FALTA DE COMUNICACAO') || t.includes('INFORMACAO DE AGENDAMENTO') ||
+             t.includes('MUDANCA DE ENDERECO');
     };
 
     const mapaCli = {};
