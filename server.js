@@ -3544,7 +3544,7 @@ app.get('/api/risco-cancelamento', async (req, res) => {
     };
 
     const mapaCli = {};
-    const dtBrFmt = dt => { const d = new Date(dt); return isNaN(d) ? dt : d.toLocaleDateString('pt-BR'); };
+    const dtBrFmt = dt => { const d = new Date(dt); return isNaN(d) ? dt : d.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }); };
 
     // Processa OS/chamados
     for (const os of listaOS) {
@@ -3570,15 +3570,15 @@ app.get('/api/risco-cancelamento', async (req, res) => {
       const nome = cliObj.nome_razaosocial || cliObj.nome_fantasia || cliObj.nome || '';
       if (!nome) continue;
       if (normT(nome).startsWith('LC VIRTUAL NET')) continue;
-      // data_cadastro_br = "DD/MM/YYYY HH:MM" — pega só primeiros 10 chars
-      const dtBrRaw = a.data_cadastro_br ? a.data_cadastro_br.slice(0, 10) : null;
+      // data_cadastro_br = "DD/MM/YYYY HH:MM" — mantém data e hora
+      const dtBrRaw = a.data_cadastro_br ? a.data_cadastro_br.slice(0, 16) : null;
       const dt = dtBrRaw || a.data_cadastro || null;
       if (!mapaCli[nome]) {
         const cidade = a.cliente_servico?.endereco_instalacao?.endereco_numero?.cidade?.nome || '—';
         mapaCli[nome] = { nome, cidade, chamados: [], totalChamados: 0, atendimentos: [], totalAtend: 0 };
       }
       mapaCli[nome].totalAtend++;
-      const dataFmt = dtBrRaw || (a.data_cadastro ? dtBrFmt(a.data_cadastro) : '—');
+      const dataFmt = dtBrRaw || (a.data_cadastro ? dtBrFmt(a.data_cadastro) : '—'); // inclui HH:MM
       mapaCli[nome].atendimentos.push({ id: a.id_atendimento || a.id, tipo, data: dataFmt });
     }
 
