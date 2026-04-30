@@ -9162,7 +9162,9 @@ async function loadSaudeBase(force = false, silent = false) {
     }
   } catch(e) {
     const msg = e.name === 'AbortError' ? 'Timeout (60s)' : 'Erro de conexão';
-    if (badge) { badge.textContent = msg; badge.className = 'badge b-red'; }
+    if (badge && !silent) { badge.textContent = msg; badge.className = 'badge b-red'; }
+    // Retry automático em 30s se não foi o usuário quem clicou
+    if (!force) setTimeout(() => loadSaudeBase(false, true), 30000);
   }
 }
 
