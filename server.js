@@ -3549,7 +3549,7 @@ app.get('/api/risco-cancelamento', async (req, res) => {
     const mapaCli = {};
     const dtBrFmt = dt => { const d = new Date(dt); return isNaN(d) ? dt : d.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }); };
 
-    // Processa OS/chamados
+    // Processa OS/chamados — agrupa por ID CLIENTE SERVIÇO dentro de cada cliente
     for (const os of listaOS) {
       const tipo = os.tipo_ordem_servico?.descricao || os.tipo_os?.nome || os.tipo || '';
       if (isRemocao(tipo)) continue;
@@ -3560,9 +3560,10 @@ app.get('/api/risco-cancelamento', async (req, res) => {
       const end = os.atendimento?.cliente_servico?.endereco_instalacao;
       const cidade = end?.endereco_numero?.cidade?.nome || end?.cidade?.nome || os.cidade || '—';
       const dtAbertura = os.data_abertura || os.data_cadastro || os.created_at || null;
-      if (!mapaCli[nome]) mapaCli[nome] = { nome, cidade, chamados: [], totalChamados: 0, atendimentos: [], totalAtend: 0 };
-      mapaCli[nome].totalChamados++;
-      mapaCli[nome].chamados.push({ id: os.id_ordem_servico || os.id, tipo, dtAbertura, data: dtAbertura ? dtBrFmt(dtAbertura) : '—', status: os.status || '' });
+      const svcId = String(os.atendimento?.id_cliente_servico || 'sem-servico');
+      if (!mapaCli[nome]) mapaCli[nome] = { nome, cidade, servicos: {} };
+      if (!mapaCli[nome].servicos[svcId]) mapaCli[nome].servicos[svcId] = { chamados: [], atendimentos: [] };
+      mapaCli[nome].servicos[svcId].chamados.push({ id: os.id_ordem_servico || os.id, tipo, dtAbertura, data: dtAbertura ? dtBrFmt(dtAbertura) : '—', status: os.status || '' });
     }
 
     // Processa atendimentos de suporte
@@ -3573,37 +3574,51 @@ app.get('/api/risco-cancelamento', async (req, res) => {
       const nome = cliObj.nome_razaosocial || cliObj.nome_fantasia || cliObj.nome || '';
       if (!nome) continue;
       if (normT(nome).startsWith('LC VIRTUAL NET')) continue;
-      // data_cadastro_br = "DD/MM/YYYY HH:MM" — mantém data e hora
       const dtBrRaw = a.data_cadastro_br ? a.data_cadastro_br.slice(0, 16) : null;
-      const dt = dtBrRaw || a.data_cadastro || null;
+      const svcId = String(a.id_cliente_servico || 'sem-servico');
       if (!mapaCli[nome]) {
         const cidade = a.cliente_servico?.endereco_instalacao?.endereco_numero?.cidade?.nome || '—';
-        mapaCli[nome] = { nome, cidade, chamados: [], totalChamados: 0, atendimentos: [], totalAtend: 0 };
+        mapaCli[nome] = { nome, cidade, servicos: {} };
       }
-      mapaCli[nome].totalAtend++;
-      const dataFmt = dtBrRaw || (a.data_cadastro ? dtBrFmt(a.data_cadastro) : '—'); // inclui HH:MM
-      mapaCli[nome].atendimentos.push({ id: a.id_atendimento || a.id, tipo, data: dataFmt });
+      if (!mapaCli[nome].servicos[svcId]) mapaCli[nome].servicos[svcId] = { chamados: [], atendimentos: [] };
+      const dataFmt = dtBrRaw || (a.data_cadastro ? dtBrFmt(a.data_cadastro) : '—');
+      mapaCli[nome].servicos[svcId].atendimentos.push({ id: a.id_atendimento || a.id, tipo, data: dataFmt });
     }
 
     const clientes = Object.values(mapaCli)
-      .filter(c => c.totalChamados >= 2 || c.totalAtend >= 2)
       .map(c => {
-        const tiposOS   = [...new Set(c.chamados.map(ch => ch.tipo).filter(Boolean))];
-        const tiposAt   = [...new Set(c.atendimentos.map(a => a.tipo).filter(Boolean))];
-        const totalRisco = c.totalChamados + c.totalAtend;
+        // Só conta serviços que qualificam (≥2 chamados OU ≥2 atendimentos)
+        const servicosQualif = Object.entries(c.servicos)
+          .filter(([, s]) => s.chamados.length >= 2 || s.atendimentos.length >= 2);
+        if (servicosQualif.length === 0) return null;
+
+        const totalChamados = servicosQualif.reduce((sum, [, s]) => sum + s.chamados.length, 0);
+        const totalAtend    = servicosQualif.reduce((sum, [, s]) => sum + s.atendimentos.length, 0);
+        const totalRisco = totalChamados + totalAtend;
+
+        // Todos os tipos de OS dos serviços qualificados
+        const tiposOS = [...new Set(servicosQualif.flatMap(([, s]) => s.chamados.map(ch => ch.tipo).filter(Boolean)))];
+
+        const servicos = servicosQualif.map(([svcId, s]) => ({
+          id: svcId,
+          totalChamados: s.chamados.length,
+          totalAtend: s.atendimentos.length,
+          chamados: s.chamados.sort((a, b) => (b.dtAbertura || '') > (a.dtAbertura || '') ? 1 : -1),
+          atendimentos: s.atendimentos,
+        })).sort((a, b) => (b.totalChamados + b.totalAtend) - (a.totalChamados + a.totalAtend));
+
         return {
           nome: c.nome,
           cidade: c.cidade,
-          totalChamados: c.totalChamados,
-          totalAtend: c.totalAtend,
+          totalChamados,
+          totalAtend,
           total: totalRisco,
-          risco: totalRisco >= 4 || c.totalChamados >= 3 || c.totalAtend >= 3 ? 'critico' : 'atencao',
+          risco: totalRisco >= 4 || totalChamados >= 3 || totalAtend >= 3 ? 'critico' : 'atencao',
           tipos: tiposOS,
-          tiposAtend: tiposAt,
-          chamados: c.chamados.sort((a, b) => (b.dtAbertura || '') > (a.dtAbertura || '') ? 1 : -1),
-          atendimentos: c.atendimentos,
+          servicos,
         };
       })
+      .filter(Boolean)
       .sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome));
 
     const result = {

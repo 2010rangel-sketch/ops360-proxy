@@ -3052,14 +3052,22 @@ function renderRisco() {
     <tr id="${rowId}-det" style="display:none">
       <td colspan="7" style="padding:0 0 0 32px;background:var(--surface2,#1e1e2e)">
         <div style="padding:8px 12px;font-size:12px">
-          ${(c.chamados||[]).length ? `<div style="color:var(--text2);font-weight:600;margin-bottom:4px">OS / Chamados</div>` : ''}
-          ${(c.chamados||[]).map(ch =>
-            `<div style="margin-bottom:3px;color:var(--muted)">• <b style="color:var(--text)">${ch.data||''}</b> — ${ch.tipo||''} — ${ch.status||''}</div>`
-          ).join('')}
-          ${(c.atendimentos||[]).length ? `<div style="color:var(--text2);font-weight:600;margin:6px 0 4px">Atendimentos</div>` : ''}
-          ${(c.atendimentos||[]).map(a =>
-            `<div style="margin-bottom:3px;color:var(--muted)">• <b style="color:var(--cyan)">${a.data||''}</b> — ${a.tipo||''}</div>`
-          ).join('')}
+          ${(c.servicos||[]).map(s => `
+            <div style="margin-bottom:10px">
+              <div style="color:var(--text2);font-weight:700;margin-bottom:4px;border-bottom:1px solid var(--border);padding-bottom:3px">
+                ID Serviço: <span style="color:var(--cyan)">${s.id}</span>
+                <span style="font-weight:400;color:var(--muted);margin-left:8px">(${s.totalChamados} chamado${s.totalChamados!==1?'s':''}, ${s.totalAtend} atendimento${s.totalAtend!==1?'s':''})</span>
+              </div>
+              ${s.chamados.length ? `<div style="color:var(--text3);font-size:11px;margin-bottom:2px">OS / Chamados</div>` : ''}
+              ${s.chamados.map(ch =>
+                `<div style="margin-bottom:3px;color:var(--muted)">• <b style="color:var(--text)">${ch.data||''}</b> — ${ch.tipo||''} — ${ch.status||''}</div>`
+              ).join('')}
+              ${s.atendimentos.length ? `<div style="color:var(--text3);font-size:11px;margin:4px 0 2px">Atendimentos</div>` : ''}
+              ${s.atendimentos.map(a =>
+                `<div style="margin-bottom:3px;color:var(--muted)">• <b style="color:var(--cyan)">${a.data||''}</b> — ${a.tipo||''}</div>`
+              ).join('')}
+            </div>
+          `).join('')}
         </div>
       </td>
     </tr>`;
