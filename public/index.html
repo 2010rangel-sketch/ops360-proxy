@@ -2963,7 +2963,12 @@ async function loadRisco(force = false) {
     if (!r.ok) throw new Error(r.statusText);
     _riscoData = await r.json();
     renderRisco();
-    if (badge) { badge.textContent = 'Atualizado'; badge.className = 'badge b-green'; }
+    if (badge) {
+      const gerado = _riscoData.gerado_em ? new Date(_riscoData.gerado_em).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }) : '';
+      const txt = _riscoData.cache ? `Cache ${gerado}` : `Atualizado ${gerado}`;
+      badge.textContent = txt;
+      badge.className = _riscoData.stale ? 'badge b-amber' : 'badge b-green';
+    }
   } catch(e) {
     if (badge) { badge.textContent = 'Erro'; badge.className = 'badge b-red'; }
     console.error('loadRisco error', e);
