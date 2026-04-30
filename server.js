@@ -1991,6 +1991,21 @@ setTimeout(async () => {
 setInterval(() => {
   _warmRisco(30).catch(console.warn);
 }, 5 * 60 * 1000);
+// Warm-up saude-base: restaura do banco no boot para evitar "Erro de conexão" na primeira visita
+setTimeout(async () => {
+  try {
+    const dbS = await dbCacheRestore('cache:saude:30d');
+    if (dbS) {
+      const agora = new Date(); const agoraBRT = new Date(agora.getTime() - 3*60*60*1000);
+      const dataFim = agoraBRT.toISOString().slice(0,10);
+      const dataIni = new Date(agoraBRT.getTime() - 30*86400000).toISOString().slice(0,10);
+      const cacheKey = `${dataIni}-${dataFim}-30`;
+      _saudeCache[cacheKey] = { data: dbS, ts: Date.now() - SAUDE_CACHE_TTL }; // stale → reconstrói em bg
+      console.log('[saude-base] restaurado do banco');
+      _buildSaudeBase(30, cacheKey).catch(console.warn); // reconstrói em background
+    }
+  } catch(e) { console.warn('[saude-base] warm-up falhou:', e.message); }
+}, 45000);
 // Warm-up adição líquida (90s — depois do financeiro; buildAdicaoLiquida depende de _comAllClientes)
 setTimeout(async () => {
   try {
@@ -3692,6 +3707,12 @@ app.get('/api/saude-base', async (req, res) => {
 
     // Sem cache: constrói sincronamente
     const resposta = await _buildSaudeBase(dias, cacheKey);
+    if (!resposta) {
+      // Build em progresso em background — retorna qualquer stale disponível ou aguarda
+      const stale = _saudeCache[cacheKey] || Object.values(_saudeCache).sort((a,b)=>b.ts-a.ts)[0];
+      if (stale) return res.json({ ...stale.data, cache: 'building' });
+      return res.json({ ok: false, motivo: 'Construindo dados, aguarde alguns segundos e tente novamente' });
+    }
     res.json(resposta);
   } catch(e) {
     console.error('[/api/saude-base]', e.message);

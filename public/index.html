@@ -9150,20 +9150,27 @@ async function loadSaudeBase(force = false, silent = false) {
     const r = await fetch(`${PROXY_URL}/api/saude-base?dias=${_saudeDias}${force ? '&force=1' : ''}`, { signal: ctrl.signal });
     clearTimeout(tid);
     const d = await r.json();
+    if (!d) { // servidor ocupado, tenta em 15s
+      if (!force) setTimeout(() => loadSaudeBase(false, true), 15000);
+      return;
+    }
+    if (d.ok === false) { // erro no servidor, tenta em 30s silenciosamente
+      if (badge && !silent) { badge.textContent = 'Aguardando dados...'; badge.className = 'badge b-amber'; }
+      if (!force) setTimeout(() => loadSaudeBase(false, true), 30000);
+      return;
+    }
     _saudeData = d;
     renderSaudeBase(d);
-    // Popula tabela LTV se financeiro ainda não carregou
     if (_finData?.ltv_top100) _ltvPopularEspelho(_finData.ltv_top100);
     else loadFinanceiro();
     if (badge) {
       const hora = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
       badge.textContent = `Atualizado ${hora}`;
-      badge.className = d.ok ? 'badge b-green' : 'badge b-red';
+      badge.className = 'badge b-green';
     }
   } catch(e) {
-    const msg = e.name === 'AbortError' ? 'Timeout (60s)' : 'Erro de conexão';
+    const msg = e.name === 'AbortError' ? 'Timeout (90s)' : 'Erro de conexão';
     if (badge && !silent) { badge.textContent = msg; badge.className = 'badge b-red'; }
-    // Retry automático em 30s se não foi o usuário quem clicou
     if (!force) setTimeout(() => loadSaudeBase(false, true), 30000);
   }
 }
