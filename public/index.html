@@ -7203,7 +7203,11 @@ function _renderRetTipoCancel(data, atendente) {
   }
   const totalGeral2 = rows.reduce((s, r) => s + r.total, 0);
   // Cards fixos entre os tipos: REVERTIDOS e CANCELADOS
-  const revertVal = document.getElementById('ret-ped-revert')?.textContent || (data?.revertidos ?? '—');
+  const revertVal  = document.getElementById('ret-ped-revert')?.textContent || (data?.revertidos ?? '—');
+  const revertNum  = parseInt(data?.revertidos) || 0;
+  const cancelNum  = parseInt(data?.cancelados) || 0;
+  const pctRevert  = totalGeral2 > 0 ? Math.round(revertNum / totalGeral2 * 100) : 0;
+  const pctCancel  = totalGeral2 > 0 ? Math.round(cancelNum / totalGeral2 * 100) : 0;
   const revertidosCard = `<div style="flex:1;min-width:220px;border-radius:12px;padding:20px 22px 16px;
       background:var(--surface);border:2px solid rgba(34,197,94,.3);position:relative;overflow:hidden">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
@@ -7211,8 +7215,10 @@ function _renderRetTipoCancel(data, atendente) {
       <span style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px">Revertidos</span>
     </div>
     <div id="ret-ped-revert-card" style="font-size:42px;font-weight:800;color:var(--green);line-height:1;margin-bottom:6px">${revertVal}</div>
-    <div style="font-size:11px;color:var(--text3)">clientes mantidos</div>
-    <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(34,197,94,.3)"></div>
+    <div style="font-size:11px;color:var(--text3)">${pctRevert}% dos atendimentos do período</div>
+    <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(34,197,94,.2)">
+      <div style="height:100%;width:${pctRevert}%;background:rgba(34,197,94,.7);transition:width .4s"></div>
+    </div>
   </div>`;
   const canceladosCard = `<div style="flex:1;min-width:220px;border-radius:12px;padding:20px 22px 16px;
       background:var(--surface);border:2px solid rgba(239,68,68,.3);position:relative;overflow:hidden">
@@ -7221,8 +7227,10 @@ function _renderRetTipoCancel(data, atendente) {
       <span style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px">Cancelados</span>
     </div>
     <div id="ret-canc-passivo" style="font-size:42px;font-weight:800;color:var(--red);line-height:1;margin-bottom:6px">—</div>
-    <div style="font-size:11px;color:var(--text3)">pedido pelo cliente</div>
-    <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(239,68,68,.3)"></div>
+    <div style="font-size:11px;color:var(--text3)" id="ret-canc-passivo-pct">${pctCancel}% dos atendimentos do período</div>
+    <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(239,68,68,.2)">
+      <div style="height:100%;width:${pctCancel}%;background:rgba(239,68,68,.7);transition:width .4s"></div>
+    </div>
   </div>`;
 
   const cards = rows.map((r, idx) => {
