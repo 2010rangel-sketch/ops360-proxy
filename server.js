@@ -1978,6 +1978,19 @@ setInterval(() => {
     console.log('[financeiro] cron 25min OK');
   }).catch(e => { _finFetching = false; console.warn('[financeiro] cron falhou:', e.message); });
 }, 25 * 60 * 1000);
+// Warm-up risco de cancelamento (30s após boot — restaura do banco imediatamente, reconstrói em background)
+setTimeout(async () => {
+  const cached30 = await dbCacheRestore('cache:risco:30');
+  if (cached30) { _riscoCache['risco:30'] = { data: cached30, ts: Date.now() - RISCO_CACHE_TTL + 60000 }; console.log('[risco] 30d restaurado do banco'); }
+  const cached60 = await dbCacheRestore('cache:risco:60');
+  if (cached60) { _riscoCache['risco:60'] = { data: cached60, ts: Date.now() - RISCO_CACHE_TTL + 60000 }; console.log('[risco] 60d restaurado do banco'); }
+  // Reconstrói 30d imediatamente
+  _warmRisco(30).catch(console.warn);
+}, 30000);
+// Cron: renova risco a cada 5min
+setInterval(() => {
+  _warmRisco(30).catch(console.warn);
+}, 5 * 60 * 1000);
 // Warm-up adição líquida (90s — depois do financeiro; buildAdicaoLiquida depende de _comAllClientes)
 setTimeout(async () => {
   try {
@@ -3495,142 +3508,147 @@ const STATUS_CONTRATO_PARCIAL  = new Set(['suspenso_parcialmente','suspenso_parc
 
 // ── RISCO DE CANCELAMENTO ─────────────────────────────────────────
 const _riscoCache = {};
-const RISCO_CACHE_TTL = 10 * 60 * 1000; // 10 min
+const RISCO_CACHE_TTL = 5 * 60 * 1000; // 5 min
+const _riscoBusy = {};
+
+async function _buildRisco(dias) {
+  const agora = new Date();
+  const ini = new Date(agora.getTime() - dias * 24 * 60 * 60 * 1000);
+  const iniStr = ini.toISOString();
+  const fimStr = agora.toISOString();
+
+  const normT = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().trim();
+  const isRemocao = tipo => normT(tipo).includes('REMOCAO') || normT(tipo).includes('COBRANCA');
+
+  const iniDate = ini.toISOString().slice(0, 10);
+  const fimDate = agora.toISOString().slice(0, 10);
+  const [listaOS, primeiraAtend] = await Promise.all([
+    _fetchChamadosHubsoft(iniStr, fimStr, true),
+    hubsoftPost(`v1/atendimento/consultar/paginado/500?page=1`, { data_inicio: iniDate, data_fim: fimDate }),
+  ]);
+
+  const totalPgsAtend = primeiraAtend?.atendimentos?.last_page || 1;
+  let listaAtend = Array.isArray(primeiraAtend?.atendimentos?.data) ? primeiraAtend.atendimentos.data : [];
+  if (totalPgsAtend > 1) {
+    const pgs = Array.from({ length: totalPgsAtend - 1 }, (_, i) => i + 2);
+    const res = await Promise.all(pgs.map(pg =>
+      hubsoftPost(`v1/atendimento/consultar/paginado/500?page=${pg}`, { data_inicio: iniDate, data_fim: fimDate })
+        .then(d => Array.isArray(d?.atendimentos?.data) ? d.atendimentos.data : [])
+        .catch(() => [])
+    ));
+    res.forEach(r => listaAtend.push(...r));
+  }
+
+  const isAtendIgnorar = tipo => {
+    const t = normT(tipo);
+    return t.includes('REMOCAO') || t.includes('COBRANCA') || t.includes('DISPARO') ||
+           t.includes('ATUALIZACAO FINANCEIRA') || t.includes('CAMPANHA') ||
+           t.includes('CONSTRUCAO DE REDE') || t.includes('CORRECAO DE REDE') ||
+           t.includes('EXPANSAO DE REDE') || t.includes('TESTE') ||
+           t.includes('FINANCEIRO') || t.includes('POS VENDA') || t.includes('POS-VENDA') ||
+           t.includes('FALTA DE COMUNICACAO') || t.includes('INFORMACAO DE AGENDAMENTO') ||
+           t.includes('MUDANCA DE ENDERECO');
+  };
+
+  const mapaCli = {};
+  const dtBrFmt = dt => { const d = new Date(dt); return isNaN(d) ? dt : d.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }); };
+
+  for (const os of listaOS) {
+    const tipo = os.tipo_ordem_servico?.descricao || os.tipo_os?.nome || os.tipo || '';
+    if (isRemocao(tipo)) continue;
+    const cliObj = os.atendimento?.cliente_servico?.cliente || {};
+    const nome = cliObj.nome_razaosocial || cliObj.nome_fantasia || cliObj.display || os.cli || '';
+    if (!nome) continue;
+    if (normT(nome).startsWith('LC VIRTUAL NET')) continue;
+    const end = os.atendimento?.cliente_servico?.endereco_instalacao;
+    const cidade = end?.endereco_numero?.cidade?.nome || end?.cidade?.nome || os.cidade || '—';
+    const dtAbertura = os.data_abertura || os.data_cadastro || os.created_at || null;
+    const svcId = String(os.atendimento?.id_cliente_servico || 'sem-servico');
+    if (!mapaCli[nome]) mapaCli[nome] = { nome, cidade, servicos: {} };
+    if (!mapaCli[nome].servicos[svcId]) mapaCli[nome].servicos[svcId] = { chamados: [], atendimentos: [] };
+    mapaCli[nome].servicos[svcId].chamados.push({ id: os.id_ordem_servico || os.id, tipo, dtAbertura, data: dtAbertura ? dtBrFmt(dtAbertura) : '—', status: os.status || '' });
+  }
+
+  for (const a of listaAtend) {
+    const tipo = a.tipo_atendimento?.descricao || '';
+    if (isAtendIgnorar(tipo)) continue;
+    const cliObj = a.cliente_servico?.cliente || a.cliente || {};
+    const nome = cliObj.nome_razaosocial || cliObj.nome_fantasia || cliObj.nome || '';
+    if (!nome) continue;
+    if (normT(nome).startsWith('LC VIRTUAL NET')) continue;
+    const dtBrRaw = a.data_cadastro_br ? a.data_cadastro_br.slice(0, 16) : null;
+    const svcId = String(a.id_cliente_servico || 'sem-servico');
+    if (!mapaCli[nome]) {
+      const cidade = a.cliente_servico?.endereco_instalacao?.endereco_numero?.cidade?.nome || '—';
+      mapaCli[nome] = { nome, cidade, servicos: {} };
+    }
+    if (!mapaCli[nome].servicos[svcId]) mapaCli[nome].servicos[svcId] = { chamados: [], atendimentos: [] };
+    const dataFmt = dtBrRaw || (a.data_cadastro ? dtBrFmt(a.data_cadastro) : '—');
+    mapaCli[nome].servicos[svcId].atendimentos.push({ id: a.id_atendimento || a.id, tipo, data: dataFmt });
+  }
+
+  const clientes = Object.values(mapaCli)
+    .map(c => {
+      const servicosQualif = Object.entries(c.servicos)
+        .filter(([, s]) => s.chamados.length >= 2 || s.atendimentos.length >= 2);
+      if (servicosQualif.length === 0) return null;
+      const totalChamados = servicosQualif.reduce((sum, [, s]) => sum + s.chamados.length, 0);
+      const totalAtend    = servicosQualif.reduce((sum, [, s]) => sum + s.atendimentos.length, 0);
+      const totalRisco = totalChamados + totalAtend;
+      const tiposOS = [...new Set(servicosQualif.flatMap(([, s]) => s.chamados.map(ch => ch.tipo).filter(Boolean)))];
+      const servicos = servicosQualif.map(([svcId, s]) => ({
+        id: svcId,
+        totalChamados: s.chamados.length,
+        totalAtend: s.atendimentos.length,
+        chamados: s.chamados.sort((a, b) => (b.dtAbertura || '') > (a.dtAbertura || '') ? 1 : -1),
+        atendimentos: s.atendimentos,
+      })).sort((a, b) => (b.totalChamados + b.totalAtend) - (a.totalChamados + a.totalAtend));
+      return {
+        nome: c.nome, cidade: c.cidade, totalChamados, totalAtend, total: totalRisco,
+        risco: totalRisco >= 4 || totalChamados >= 3 || totalAtend >= 3 ? 'critico' : 'atencao',
+        tipos: tiposOS, servicos,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome));
+
+  return {
+    ok: true, dias, total_clientes: clientes.length,
+    criticos: clientes.filter(c => c.risco === 'critico').length,
+    atencao:  clientes.filter(c => c.risco === 'atencao').length,
+    clientes, gerado_em: new Date().toISOString(),
+  };
+}
+
+async function _warmRisco(dias) {
+  if (_riscoBusy[dias]) return;
+  _riscoBusy[dias] = true;
+  try {
+    const result = await _buildRisco(dias);
+    _riscoCache[`risco:${dias}`] = { data: result, ts: Date.now() };
+    await dbCacheSet(`cache:risco:${dias}`, result);
+    console.log(`[risco] cache ${dias}d atualizado (${result.total_clientes} clientes)`);
+  } catch(e) {
+    console.warn(`[risco] warm-up ${dias}d falhou:`, e.message);
+  }
+  _riscoBusy[dias] = false;
+}
 
 app.get('/api/risco-cancelamento', async (req, res) => {
   try {
     const dias = Math.min(parseInt(req.query.dias) || 30, 180);
     const cacheKey = `risco:${dias}`;
     const cached = _riscoCache[cacheKey];
-    if (cached && (Date.now() - cached.ts) < RISCO_CACHE_TTL && !req.query.force)
-      return res.json({ ...cached.data, cache: true });
-
-    const agora = new Date();
-    const ini = new Date(agora.getTime() - dias * 24 * 60 * 60 * 1000);
-    const iniStr = ini.toISOString();
-    const fimStr = agora.toISOString();
-
-    const normT = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().trim();
-    const isRemocao = tipo => normT(tipo).includes('REMOCAO') || normT(tipo).includes('COBRANCA');
-
-    // Busca chamados (OS) e atendimentos em paralelo
-    const iniDate = ini.toISOString().slice(0, 10);
-    const fimDate = agora.toISOString().slice(0, 10);
-    const [listaOS, primeiraAtend] = await Promise.all([
-      _fetchChamadosHubsoft(iniStr, fimStr, true),
-      hubsoftPost(`v1/atendimento/consultar/paginado/500?page=1`, { data_inicio: iniDate, data_fim: fimDate }),
-    ]);
-
-    // Busca todas as páginas de atendimento
-    const totalPgsAtend = primeiraAtend?.atendimentos?.last_page || 1;
-    let listaAtend = Array.isArray(primeiraAtend?.atendimentos?.data) ? primeiraAtend.atendimentos.data : [];
-    if (totalPgsAtend > 1) {
-      const pgs = Array.from({ length: totalPgsAtend - 1 }, (_, i) => i + 2);
-      const res = await Promise.all(pgs.map(pg =>
-        hubsoftPost(`v1/atendimento/consultar/paginado/500?page=${pg}`, { data_inicio: iniDate, data_fim: fimDate })
-          .then(d => Array.isArray(d?.atendimentos?.data) ? d.atendimentos.data : [])
-          .catch(() => [])
-      ));
-      res.forEach(r => listaAtend.push(...r));
+    // Retorna cache imediatamente; dispara renovação em background se expirado
+    if (cached) {
+      const stale = (Date.now() - cached.ts) >= RISCO_CACHE_TTL;
+      if (stale && !_riscoBusy[dias]) _warmRisco(dias).catch(console.warn);
+      return res.json({ ...cached.data, cache: true, stale });
     }
-
-    // Tipos de atendimento ignorados no risco (cobrança, remoção, rede, campanhas)
-    const isAtendIgnorar = tipo => {
-      const t = normT(tipo);
-      return t.includes('REMOCAO') || t.includes('COBRANCA') || t.includes('DISPARO') ||
-             t.includes('ATUALIZACAO FINANCEIRA') || t.includes('CAMPANHA') ||
-             t.includes('CONSTRUCAO DE REDE') || t.includes('CORRECAO DE REDE') ||
-             t.includes('EXPANSAO DE REDE') || t.includes('TESTE') ||
-             t.includes('FINANCEIRO') || t.includes('POS VENDA') || t.includes('POS-VENDA') ||
-             t.includes('FALTA DE COMUNICACAO') || t.includes('INFORMACAO DE AGENDAMENTO') ||
-             t.includes('MUDANCA DE ENDERECO');
-    };
-
-    const mapaCli = {};
-    const dtBrFmt = dt => { const d = new Date(dt); return isNaN(d) ? dt : d.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }); };
-
-    // Processa OS/chamados — agrupa por ID CLIENTE SERVIÇO dentro de cada cliente
-    for (const os of listaOS) {
-      const tipo = os.tipo_ordem_servico?.descricao || os.tipo_os?.nome || os.tipo || '';
-      if (isRemocao(tipo)) continue;
-      const cliObj = os.atendimento?.cliente_servico?.cliente || {};
-      const nome = cliObj.nome_razaosocial || cliObj.nome_fantasia || cliObj.display || os.cli || '';
-      if (!nome) continue;
-      if (normT(nome).startsWith('LC VIRTUAL NET')) continue;
-      const end = os.atendimento?.cliente_servico?.endereco_instalacao;
-      const cidade = end?.endereco_numero?.cidade?.nome || end?.cidade?.nome || os.cidade || '—';
-      const dtAbertura = os.data_abertura || os.data_cadastro || os.created_at || null;
-      const svcId = String(os.atendimento?.id_cliente_servico || 'sem-servico');
-      if (!mapaCli[nome]) mapaCli[nome] = { nome, cidade, servicos: {} };
-      if (!mapaCli[nome].servicos[svcId]) mapaCli[nome].servicos[svcId] = { chamados: [], atendimentos: [] };
-      mapaCli[nome].servicos[svcId].chamados.push({ id: os.id_ordem_servico || os.id, tipo, dtAbertura, data: dtAbertura ? dtBrFmt(dtAbertura) : '—', status: os.status || '' });
-    }
-
-    // Processa atendimentos de suporte
-    for (const a of listaAtend) {
-      const tipo = a.tipo_atendimento?.descricao || '';
-      if (isAtendIgnorar(tipo)) continue;
-      const cliObj = a.cliente_servico?.cliente || a.cliente || {};
-      const nome = cliObj.nome_razaosocial || cliObj.nome_fantasia || cliObj.nome || '';
-      if (!nome) continue;
-      if (normT(nome).startsWith('LC VIRTUAL NET')) continue;
-      const dtBrRaw = a.data_cadastro_br ? a.data_cadastro_br.slice(0, 16) : null;
-      const svcId = String(a.id_cliente_servico || 'sem-servico');
-      if (!mapaCli[nome]) {
-        const cidade = a.cliente_servico?.endereco_instalacao?.endereco_numero?.cidade?.nome || '—';
-        mapaCli[nome] = { nome, cidade, servicos: {} };
-      }
-      if (!mapaCli[nome].servicos[svcId]) mapaCli[nome].servicos[svcId] = { chamados: [], atendimentos: [] };
-      const dataFmt = dtBrRaw || (a.data_cadastro ? dtBrFmt(a.data_cadastro) : '—');
-      mapaCli[nome].servicos[svcId].atendimentos.push({ id: a.id_atendimento || a.id, tipo, data: dataFmt });
-    }
-
-    const clientes = Object.values(mapaCli)
-      .map(c => {
-        // Só conta serviços que qualificam (≥2 chamados OU ≥2 atendimentos)
-        const servicosQualif = Object.entries(c.servicos)
-          .filter(([, s]) => s.chamados.length >= 2 || s.atendimentos.length >= 2);
-        if (servicosQualif.length === 0) return null;
-
-        const totalChamados = servicosQualif.reduce((sum, [, s]) => sum + s.chamados.length, 0);
-        const totalAtend    = servicosQualif.reduce((sum, [, s]) => sum + s.atendimentos.length, 0);
-        const totalRisco = totalChamados + totalAtend;
-
-        // Todos os tipos de OS dos serviços qualificados
-        const tiposOS = [...new Set(servicosQualif.flatMap(([, s]) => s.chamados.map(ch => ch.tipo).filter(Boolean)))];
-
-        const servicos = servicosQualif.map(([svcId, s]) => ({
-          id: svcId,
-          totalChamados: s.chamados.length,
-          totalAtend: s.atendimentos.length,
-          chamados: s.chamados.sort((a, b) => (b.dtAbertura || '') > (a.dtAbertura || '') ? 1 : -1),
-          atendimentos: s.atendimentos,
-        })).sort((a, b) => (b.totalChamados + b.totalAtend) - (a.totalChamados + a.totalAtend));
-
-        return {
-          nome: c.nome,
-          cidade: c.cidade,
-          totalChamados,
-          totalAtend,
-          total: totalRisco,
-          risco: totalRisco >= 4 || totalChamados >= 3 || totalAtend >= 3 ? 'critico' : 'atencao',
-          tipos: tiposOS,
-          servicos,
-        };
-      })
-      .filter(Boolean)
-      .sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome));
-
-    const result = {
-      ok: true,
-      dias,
-      total_clientes: clientes.length,
-      criticos: clientes.filter(c => c.risco === 'critico').length,
-      atencao: clientes.filter(c => c.risco === 'atencao').length,
-      clientes,
-      gerado_em: new Date().toISOString(),
-    };
+    // Sem cache: busca sincronamente (primeira vez)
+    const result = await _buildRisco(dias);
     _riscoCache[cacheKey] = { data: result, ts: Date.now() };
+    dbCacheSet(`cache:risco:${dias}`, result).catch(console.warn);
     res.json(result);
   } catch (err) {
     console.error('/api/risco-cancelamento:', err.message);
