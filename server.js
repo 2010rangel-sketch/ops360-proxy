@@ -3658,6 +3658,7 @@ app.get('/api/risco-cancelamento', async (req, res) => {
 
 const _saudeCache = {};
 const SAUDE_CACHE_TTL = 15 * 60 * 1000; // 15 min
+let _saudeBusy = false;
 
 app.get('/api/saude-base', async (req, res) => {
   try {
@@ -3669,15 +3670,47 @@ app.get('/api/saude-base', async (req, res) => {
     const dataIni = new Date(agoraBRT.getTime() - dias * 86400000).toISOString().slice(0, 10);
 
     const cacheKey = `${dataIni}-${dataFim}-${dias}`;
-    if (!force && _saudeCache[cacheKey] && (Date.now() - _saudeCache[cacheKey].ts) < SAUDE_CACHE_TTL) {
-      return res.json({ ..._saudeCache[cacheKey].data, cache: true });
+    const cached = _saudeCache[cacheKey];
+    const cacheAge = cached ? Date.now() - cached.ts : Infinity;
+    // Cache fresco: retorna imediatamente
+    if (!force && cached && cacheAge < SAUDE_CACHE_TTL) {
+      return res.json({ ...cached.data, cache: true });
+    }
+    // Cache antigo (stale): retorna imediatamente e reconstrói em background
+    if (!force && cached && cacheAge < SAUDE_CACHE_TTL * 4) {
+      if (!_saudeBusy) _buildSaudeBase(dias, cacheKey).catch(console.warn);
+      return res.json({ ...cached.data, cache: 'stale' });
     }
     if (!force) {
-      const dbS = await dbCacheGet(`cache:saude:${dias}d`, SAUDE_CACHE_TTL);
-      if (dbS) { _saudeCache[cacheKey] = { data: dbS, ts: Date.now() }; return res.json({ ...dbS, cache: 'db' }); }
+      const dbS = await dbCacheGet(`cache:saude:${dias}d`, SAUDE_CACHE_TTL * 4);
+      if (dbS) {
+        _saudeCache[cacheKey] = { data: dbS, ts: Date.now() - SAUDE_CACHE_TTL }; // marca como stale
+        if (!_saudeBusy) _buildSaudeBase(dias, cacheKey).catch(console.warn);
+        return res.json({ ...dbS, cache: 'db-stale' });
+      }
     }
 
-    // Busca OS via hubsoftPost (padrão robusto com retry/token automático)
+    // Sem cache: constrói sincronamente
+    const resposta = await _buildSaudeBase(dias, cacheKey);
+    res.json(resposta);
+  } catch(e) {
+    console.error('[/api/saude-base]', e.message);
+    const stale = Object.values(_saudeCache).sort((a,b) => b.ts - a.ts)[0];
+    if (stale) return res.json({ ...stale.data, cache: 'stale', aviso: e.message });
+    res.json({ ok: false, motivo: e.message });
+  }
+});
+
+async function _buildSaudeBase(dias, cacheKey) {
+  if (_saudeBusy) return null;
+  _saudeBusy = true;
+  try {
+    const agora = new Date();
+    const agoraBRT = new Date(agora.getTime() - 3*60*60*1000);
+    const dataFim = agoraBRT.toISOString().slice(0, 10);
+    const dataIni = new Date(agoraBRT.getTime() - dias * 86400000).toISOString().slice(0, 10);
+    if (!cacheKey) cacheKey = `${dataIni}-${dataFim}-${dias}`;
+
     const body = {
       data_inicio: new Date(dataIni).toISOString(),
       data_fim:    new Date(dataFim + 'T23:59:59').toISOString(),
@@ -3689,7 +3722,7 @@ app.get('/api/saude-base', async (req, res) => {
       tipo_ordem_servico: [], turno: null,
     };
     const PAGE_SIZE = 500;
-    const saudeDeadline = Date.now() + 50000; // 50s hard limit para toda a paginação
+    const saudeDeadline = Date.now() + 50000;
     const d1 = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=1`, body);
     const lista = [...extrairLista(d1)];
     const { lastPage, total, perPage } = extrairPaginacao(d1);
@@ -3704,7 +3737,6 @@ app.get('/api/saude-base', async (req, res) => {
     }
     console.log(`[saude-base] ${dias}d: ${lista.length} OS (pgs:${totalPages})`);
 
-    // Mapa de status de contrato (de _comAllClientes se disponível)
     const statusContratoMap = {};
     if (_comAllClientes) {
       for (const cli of _comAllClientes) {
@@ -3718,7 +3750,6 @@ app.get('/api/saude-base', async (req, res) => {
       }
     }
 
-    // Agrupa OS por cliente com breakdown de categoria
     const LC_VIRTUAL = /^lc\s*virtual\s*net/i;
     const porCliente = {};
     for (const os of lista) {
@@ -3726,54 +3757,45 @@ app.get('/api/saude-base', async (req, res) => {
       const idCli = cs?.cliente?.id_cliente || cs?.id_cliente;
       if (!idCli) continue;
       const nome  = cs?.display || cs?.cliente?.nome_razaosocial || cs?.nome_razaosocial || '—';
-      if (LC_VIRTUAL.test(nome)) continue; // exclui LC Virtual Net (reparos de rede)
+      if (LC_VIRTUAL.test(nome)) continue;
       const end    = cs?.endereco_instalacao;
       const cidade = end?.endereco_numero?.cidade?.nome || end?.cidade?.nome || end?.cidade?.display || cs?.cliente?.cidade?.nome || '—';
       const st     = normalizarStatus(os.status || '');
       const tipo   = os.tipo_ordem_servico?.descricao || '—';
       const cat    = normalizarTipo(tipo) || tipo;
-
       if (!porCliente[idCli]) porCliente[idCli] = { id: idCli, nome, cidade, osPend: 0, osFech: 0, categorias: {} };
       if (st === 'finalizado') porCliente[idCli].osFech++;
       else porCliente[idCli].osPend++;
       porCliente[idCli].categorias[cat] = (porCliente[idCli].categorias[cat] || 0) + 1;
     }
 
-    // Status de conexão + tempo offline
     const cxClientes = _cxCache?.clientes || [];
     const cxMap = {};
     for (const c of cxClientes) cxMap[c.id] = c;
 
     const resultado = Object.values(porCliente).filter(cli => (cli.osPend + cli.osFech) > 2).map(cli => {
-      const cx             = cxMap[cli.id] || {};
-      const online         = cx.online ?? true;
-      const alerta         = cx.alerta || false;
+      const cx = cxMap[cli.id] || {};
+      const online = cx.online ?? true;
+      const alerta = cx.alerta || false;
       const statusContrato = statusContratoMap[cli.id] || 'ativo';
-
-      // Score de saúde (0–100): apenas OS
       let score = 100;
       score -= Math.min(cli.osPend * 20, 50);
       if (cli.osFech > 3) score -= Math.min((cli.osFech - 3) * 5, 15);
       score = Math.max(0, Math.min(100, score));
-
       const status = score >= 80 ? 'atencao' : 'critico';
       return { ...cli, online, alerta, statusContrato, score, status };
     });
-
-    // Padrão: mais OS fechadas primeiro
     resultado.sort((a, b) => b.osFech - a.osFech);
 
     const resposta = { ok: true, periodo: { dataIni, dataFim, dias }, total: resultado.length, clientes: resultado };
     _saudeCache[cacheKey] = { data: resposta, ts: Date.now() };
     dbCacheSet(`cache:saude:${dias}d`, resposta).catch(() => {});
-    res.json(resposta);
-  } catch(e) {
-    console.error('[/api/saude-base]', e.message);
-    const stale = Object.values(_saudeCache).sort((a,b) => b.ts - a.ts)[0];
-    if (stale) return res.json({ ...stale.data, cache: 'stale', aviso: e.message });
-    res.json({ ok: false, motivo: e.message });
+    console.log(`[saude-base] cache ${dias}d atualizado (${resultado.length} clientes)`);
+    return resposta;
+  } finally {
+    _saudeBusy = false;
   }
-});
+}
 
 // ── FISCAL ─────────────────────────────────────────────────────────────────
 let _fiscalCache = null; let _fiscalFetchedAt = 0;

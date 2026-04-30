@@ -9146,7 +9146,7 @@ async function loadSaudeBase(force = false, silent = false) {
   if (badge && !silent) { badge.textContent = 'Carregando...'; badge.className = 'badge b-blue'; }
   try {
     const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 60000);
+    const tid = setTimeout(() => ctrl.abort(), 90000);
     const r = await fetch(`${PROXY_URL}/api/saude-base?dias=${_saudeDias}${force ? '&force=1' : ''}`, { signal: ctrl.signal });
     clearTimeout(tid);
     const d = await r.json();
