@@ -9140,9 +9140,9 @@ let _saudeSearchTxt = '';
 let _saudeSortCol = 'osFech';
 let _saudeSortAsc = false; // false = maior primeiro
 
-async function loadSaudeBase(force = false) {
+async function loadSaudeBase(force = false, silent = false) {
   const badge = document.getElementById('saude-sync-badge');
-  if (badge) { badge.textContent = 'Carregando...'; badge.className = 'badge b-blue'; }
+  if (badge && !silent) { badge.textContent = 'Carregando...'; badge.className = 'badge b-blue'; }
   try {
     const ctrl = new AbortController();
     const tid = setTimeout(() => ctrl.abort(), 60000);
@@ -9472,7 +9472,15 @@ async function _autoRefreshPagina() {
       case 'retencao':    loadRetencaoAtend(); loadCancelServico(); loadAdicaoLiquida(); break;
       case 'remocao':     loadRemocoes(); if (!_remHist) loadRemocoesMensais(); renderPrimMensalidadeRemoc(null); if (!window._primVendedores) loadFinanceiro(); break;
       case 'financeiro':  loadFinanceiro();   break;
-      case 'saude':       loadSaudeBase();    loadFinanceiro(); break;
+      case 'saude': {
+        // SaudeBase: atualiza a cada 1min (cache no servidor)
+        loadSaudeBase(false, true); // silencioso: não mostra "Carregando..."
+        // Risco: só rebusca se o dado tiver mais de 5min
+        const riscoTs = _riscoData?.gerado_em ? Date.now() - new Date(_riscoData.gerado_em).getTime() : Infinity;
+        if (riscoTs > 5 * 60 * 1000) loadRisco();
+        loadFinanceiro();
+        break;
+      }
       case 'rh':          loadRh();           break;
       case 'tarefas':     loadTasksFromAPI(); break;
     }
