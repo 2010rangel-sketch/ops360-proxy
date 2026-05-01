@@ -360,6 +360,16 @@ app.use(express.static(path.join(__dirname, 'public'), {
 }));
 
 
+// ── Middleware de autenticação global ────────────────────────────
+const AUTH_PUBLIC = ['/ping', '/api/auth/login', '/api/auth/register', '/api/tasks/calendar.ics'];
+app.use((req, res, next) => {
+  if (req.method === 'GET' && !req.path.startsWith('/api/')) return next(); // arquivos estáticos
+  if (AUTH_PUBLIC.some(p => req.path === p || req.path.startsWith(p + '?'))) return next();
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
+  if (!_validarToken(token)) return res.status(401).json({ ok: false, motivo: 'Não autenticado' });
+  next();
+});
+
 // ── Keep-alive (evita cold start no Railway) ─────────────────────
 app.get('/ping', (req, res) => res.json({ ok: true, ts: Date.now() }));
 

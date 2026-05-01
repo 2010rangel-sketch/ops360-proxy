@@ -4382,6 +4382,21 @@ let _authUser = null;
 
 function _authToken() { return localStorage.getItem('ops360_auth_token') || ''; }
 
+// Patch global: injeta Authorization em todas as chamadas /api/
+(function() {
+  const _origFetch = window.fetch;
+  window.fetch = function(url, opts = {}) {
+    const u = typeof url === 'string' ? url : (url?.url || '');
+    if (u.includes('/api/') && !u.includes('/api/auth/login')) {
+      const tok = localStorage.getItem('ops360_auth_token') || '';
+      if (tok) {
+        opts = { ...opts, headers: { Authorization: 'Bearer ' + tok, ...opts.headers } };
+      }
+    }
+    return _origFetch.call(this, url, opts);
+  };
+})();
+
 async function authInit() {
   const token = _authToken();
   if (!token) { _showLogin(); return; }
