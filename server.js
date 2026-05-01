@@ -33,8 +33,8 @@ function _validarToken(token) {
     const payload = `${userId}:${ts}`;
     const expected = crypto.createHmac('sha256', AUTH_SECRET).update(payload).digest('hex');
     if (sig !== expected) return null;
-    // Token expira em 30 dias
-    if (Date.now() - parseInt(ts) > 30 * 24 * 60 * 60 * 1000) return null;
+    // Token expira em 90 dias
+    if (Date.now() - parseInt(ts) > 90 * 24 * 60 * 60 * 1000) return null;
     return parseInt(userId);
   } catch { return null; }
 }
