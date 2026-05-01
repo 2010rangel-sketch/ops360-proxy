@@ -11,6 +11,29 @@ const path     = require('path');
 
 const crypto = require('crypto');
 const AUTH_SECRET = process.env.AUTH_SECRET || 'ops360-secret-2025';
+
+// ── Throttle: executa array de funções com no máximo N simultâneas ─
+async function pLimit(fns, concurrency = 5) {
+  const results = [];
+  for (let i = 0; i < fns.length; i += concurrency) {
+    const batch = fns.slice(i, i + concurrency);
+    const batchResults = await Promise.all(batch.map(fn => fn()));
+    results.push(...batchResults);
+  }
+  return results;
+}
+
+// ── LRU simples: mantém no máximo maxSize entradas num objeto/Map ──
+function lruSet(cache, key, value, maxSize = 50) {
+  if (cache instanceof Map) {
+    if (cache.size >= maxSize) cache.delete(cache.keys().next().value);
+    cache.set(key, value);
+  } else {
+    const keys = Object.keys(cache);
+    if (keys.length >= maxSize) delete cache[keys[0]];
+    cache[key] = value;
+  }
+}
 if (!process.env.AUTH_SECRET) {
   console.warn('[SEGURANÇA] AUTH_SECRET não definido nas variáveis de ambiente — usando valor padrão. Defina AUTH_SECRET no Railway para produção.');
 }
@@ -513,7 +536,7 @@ app.get('/api/debug-retencao', async (req, res) => {
     // Busca todas as páginas
     if (totalPages > 1) {
       const pages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
-      const results = await Promise.all(pages.map(async pg => {
+      const results = await pLimit(pages.map(pg => async () => {
         try {
           const d = await hubsoftPost(`v1/atendimento/consultar/paginado/500?page=${pg}`, { data_inicio: ini, data_fim: fim });
           return d?.atendimentos?.data || d?.atendimento?.data || d?.data || [];
@@ -608,7 +631,7 @@ async function _fetchChamadosHubsoft(data_inicio, data_fim, all) {
     if (totalPages > 1) {
       if (knowsTotal) {
         const pages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
-        const results = await Promise.all(pages.map(async pg => {
+        const results = await pLimit(pages.map(pg => async () => {
           const d = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=${pg}`, bodyConsultaOS({ data_inicio, data_fim }));
           return extrairLista(d);
         }));
@@ -648,7 +671,7 @@ async function _fetchChamadosHubsoftLimitado(data_inicio, data_fim, maxPags = 3)
   totalPages = Math.min(totalPages, maxPags);
   if (totalPages > 1) {
     const pages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
-    const results = await Promise.all(pages.map(pg => postPag(pg).then(extrairLista).catch(() => [])));
+    const results = await pLimit(pages.map(pg => () => postPag(pg).then(extrairLista).catch(() => [])));
     for (const r of results) lista.push(...r);
   }
   return lista;
@@ -712,7 +735,7 @@ async function _refreshChamadosHoje() {
     const lista = await _fetchChamadosHubsoft(hoje, amanha, true);
     const chamados = _normalizarChamados(lista);
     const result = { ok: true, total: chamados.length, chamados, sincronizado_em: new Date().toISOString() };
-    _chamadosCache.set('hoje', { data: result, ts: Date.now() });
+    lruSet(_chamadosCache, 'hoje', { data: result, ts: Date.now() });
     dbCacheSet('cache:chamados:hoje', result); // persiste no banco
     console.log(`[chamados] cache atualizado: ${chamados.length} OS`);
   } catch(e) { console.warn('[chamados] refresh falhou:', e.message); }
@@ -739,7 +762,7 @@ app.get('/api/chamados', async (req, res) => {
     // 2) Cache no PostgreSQL (sobrevive redeploy)
     const dbC = await dbCacheGet(`cache:chamados:${cacheKey}`, ttl);
     if (dbC) {
-      _chamadosCache.set(cacheKey, { data: dbC, ts: Date.now() });
+      lruSet(_chamadosCache, cacheKey, { data: dbC, ts: Date.now() });
       return res.json({ ...dbC, cache: 'db' });
     }
 
@@ -747,7 +770,7 @@ app.get('/api/chamados', async (req, res) => {
     const lista    = await _fetchChamadosHubsoft(data_inicio, data_fim, all === 'true');
     const chamados = _normalizarChamados(lista);
     const result   = { ok: true, total: chamados.length, chamados, sincronizado_em: new Date().toISOString() };
-    _chamadosCache.set(cacheKey, { data: result, ts: Date.now() });
+    lruSet(_chamadosCache, cacheKey, { data: result, ts: Date.now() });
     dbCacheSet(`cache:chamados:${cacheKey}`, result);
 
     res.json(result);
@@ -831,7 +854,7 @@ app.get('/api/atendimentos', async (req, res) => {
     const atendMem = _atendCacheMap[atendKey];
     if (atendMem && (Date.now() - atendMem.ts) < ATEND_CACHE_TTL) return res.json({ ...atendMem.data, cache: 'mem' });
     const atendDb = await dbCacheGet(`cache:atendimentos:${atendKey}`, ATEND_CACHE_TTL);
-    if (atendDb) { _atendCacheMap[atendKey] = { data: atendDb, ts: Date.now() }; return res.json({ ...atendDb, cache: 'db' }); }
+    if (atendDb) { lruSet(_atendCacheMap, atendKey, { data: atendDb, ts: Date.now() }); return res.json({ ...atendDb, cache: 'db' }); }
 
     // Período fixo 7 dias para recorrência (usado em fetchAtendPages abaixo)
 
@@ -852,7 +875,7 @@ app.get('/api/atendimentos', async (req, res) => {
       if (totalPages <= 1) return list1;
       // Todas as páginas restantes em paralelo
       const pages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
-      const results = await Promise.all(pages.map(async pg => {
+      const results = await pLimit(pages.map(pg => async () => {
         const d = await hubsoftPost(`v1/atendimento/consultar/paginado/${PAGE_SIZE}?page=${pg}`, body1);
         return Array.isArray(d?.atendimentos?.data) ? d.atendimentos.data : [];
       }));
@@ -1010,7 +1033,7 @@ app.get('/api/atendimentos', async (req, res) => {
       por_atendente, por_setor, por_tipo, clientes_recorrentes, lc_virtual, noc, periodo,
       sincronizado_em: new Date().toISOString(),
     };
-    _atendCacheMap[atendKey] = { data: atendResult, ts: Date.now() };
+    lruSet(_atendCacheMap, atendKey, { data: atendResult, ts: Date.now() });
     dbCacheSet(`cache:atendimentos:${atendKey}`, atendResult);
     res.json(atendResult);
   } catch (err) {
@@ -1045,7 +1068,7 @@ app.get('/api/retencao', async (req, res) => {
       // 2) Cache no PostgreSQL
       const dbRetCached = await dbCacheGet(dbRetKey, RET_CACHE_TTL);
       if (dbRetCached) {
-        _retCacheMap[retKey] = { data: dbRetCached, ts: Date.now() };
+        lruSet(_retCacheMap, retKey, { data: dbRetCached, ts: Date.now() });
         return res.json({ ...dbRetCached, cache: 'db' });
       }
     } else {
@@ -1062,7 +1085,7 @@ app.get('/api/retencao', async (req, res) => {
     let lista = [...lista1];
     if (all === 'true' && totalPages > 1) {
       const pages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
-      const results = await Promise.all(pages.map(async pg => {
+      const results = await pLimit(pages.map(pg => async () => {
         try {
           const d = await hubsoftPost(`v1/atendimento/consultar/paginado/500?page=${pg}`, { data_inicio: ini, data_fim: fim, relacoes });
           return extractAtend(d);
@@ -1244,8 +1267,8 @@ app.get('/api/retencao', async (req, res) => {
       por_atendente, por_origem, ultimos,
       sincronizado_em: new Date().toISOString(),
     };
-    _retCacheMap[retKey] = { data: retResult, ts: Date.now() };
-    dbCacheSet(dbRetKey, retResult); // salva no banco sem bloquear
+    lruSet(_retCacheMap, retKey, { data: retResult, ts: Date.now() });
+    dbCacheSet(dbRetKey, retResult);
     res.json(retResult);
   } catch (err) {
     console.error('Erro /api/retencao:', err.message);
@@ -1466,7 +1489,7 @@ app.get('/api/remocoes', async (req, res) => {
 
     if (totalPages > 1) {
       const pages   = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
-      const results = await Promise.all(pages.map(pg =>
+      const results = await pLimit(pages.map(pg => () =>
         hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=${pg}`, bodyBase).then(extrairLista)
       ));
       for (const r of results) lista.push(...r);
@@ -1935,14 +1958,14 @@ async function warmupComercial() {
 
     // Chamados hoje
     const ch = await dbCacheRestore('cache:chamados:hoje');
-    if (ch) { _chamadosCache.set('hoje', { data: ch, ts: Date.now() }); console.log('[boot] chamados restaurados do banco'); }
+    if (ch) { lruSet(_chamadosCache, 'hoje', { data: ch, ts: Date.now() }); console.log('[boot] chamados restaurados do banco'); }
     // Financeiro
     const fin = await dbCacheRestore('cache:financeiro');
     if (fin) { _finCache = fin; _finFetchedAt = Date.now(); console.log('[boot] financeiro restaurado'); }
     // Retenção
     const retKey = `${mesIni}-${mesFim}-false`;
     const ret = await dbCacheRestore(`cache:retencao:${retKey}`);
-    if (ret) { _retCacheMap[retKey] = { data: ret, ts: Date.now() }; console.log('[boot] retencao restaurada'); }
+    if (ret) { lruSet(_retCacheMap, retKey, { data: ret, ts: Date.now() }); console.log('[boot] retencao restaurada'); }
     // Remoções
     const remKey = `${mesIni}-${mesFim}`;
     const rem = await dbCacheRestore(`cache:remocoes:${remKey}`);
@@ -1950,7 +1973,7 @@ async function warmupComercial() {
     // Atendimentos hoje
     const atKey = `${hoje}-${hoje}-false`;
     const at = await dbCacheRestore(`cache:atendimentos:${atKey}`);
-    if (at) { _atendCacheMap[atKey] = { data: at, ts: Date.now() }; console.log('[boot] atendimentos restaurados'); }
+    if (at) { lruSet(_atendCacheMap, atKey, { data: at, ts: Date.now() }); console.log('[boot] atendimentos restaurados'); }
     // Fiscal
     const fsc = await dbCacheRestore('cache:fiscal');
     if (fsc) { _fiscalCache = fsc; _fiscalFetchedAt = Date.now(); console.log('[boot] fiscal restaurado'); }
