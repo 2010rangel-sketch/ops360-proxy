@@ -2125,7 +2125,7 @@ setTimeout(async () => {
     const fim = new Date(agora.getFullYear(), agora.getMonth()+1, 0, 23, 59, 59, 999).toISOString();
     const retKey = `${ini.slice(0,10)}-${fim.slice(0,10)}-false`;
     if (!_retCacheMap[retKey]) {
-      const r = await fetch(`http://localhost:${process.env.PORT || 3000}/api/retencao`);
+      const r = await fetch(`http://localhost:${process.env.PORT || 3000}/api/retencao`, { headers: { Authorization: `Bearer ${_gerarToken('warmup-interno')}` } });
       console.log('[retencao] warm-up OK');
     }
   } catch(e) { console.warn('[retencao] warm-up falhou:', e.message); }
@@ -5426,7 +5426,11 @@ const _IA_PAINEIS = [
 async function _iaFetchLocal(endpoint) {
   try {
     const PORT_LOCAL = process.env.PORT || 8080;
-    const r = await axios.get(`http://localhost:${PORT_LOCAL}${endpoint}`, { timeout: 60000 });
+    const token = _gerarToken('ia-interno');
+    const r = await axios.get(`http://localhost:${PORT_LOCAL}${endpoint}`, {
+      timeout: 60000,
+      headers: { Authorization: `Bearer ${token}` },
+    });
     return r.data;
   } catch(e) { console.error(`[IA] erro ao buscar ${endpoint}:`, e.message); return null; }
 }
