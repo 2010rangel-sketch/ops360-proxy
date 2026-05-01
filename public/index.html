@@ -8042,7 +8042,7 @@ async function loadComercial() {
     if (noEp) noEp.style.display = 'none';
 
     _comData = data;
-    if (!data._stale) { try { localStorage.setItem('ops360_com_cache', JSON.stringify({ data, ts: Date.now() })); } catch {} }
+    if (!data._stale) { try { localStorage.setItem('ops360_com_cache', JSON.stringify({ data, ts: Date.now(), periodo: comPeriodo })); } catch {} }
     if (typeof buildNotificacoes === 'function') buildNotificacoes();
 
     const ev = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
@@ -9440,7 +9440,9 @@ function _appStart() {
   const _lcFresh = (key, ttl) => { try { const v = JSON.parse(localStorage.getItem(key)||'null'); return !!(v && (Date.now()-v.ts)<ttl); } catch { return false; } };
   const _fin = _lcGet('ops360_fin_cache', 35*60*1000); if (_fin) { _finData = _fin; }
   const _ret = _lcGet('ops360_ret_cache', 10*60*1000); if (_ret) { _retData = _ret; }
-  const _com = _lcGet('ops360_com_cache', 35*60*1000); if (_com) { _comData = _com; renderComercialAtualiza(_com); }
+  const _comRaw = JSON.parse(localStorage.getItem('ops360_com_cache')||'null');
+  const _com = _comRaw && (Date.now()-_comRaw.ts)<35*60*1000 && _comRaw.periodo === 'mes' ? _comRaw.data : null;
+  if (_com) { _comData = _com; renderComercialAtualiza(_com); }
   const _atd = _lcGet('ops360_atend_cache', 10*60*1000); if (_atd) { _atendData = _atd; }
   // Passo 2 — navega para a página correta conforme permissões
   const _modoFoco = new URLSearchParams(window.location.search).get('modo');
