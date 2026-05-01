@@ -362,10 +362,12 @@ app.use(express.static(path.join(__dirname, 'public'), {
 
 // ── Middleware de autenticação global ────────────────────────────
 const AUTH_PUBLIC = ['/ping', '/api/auth/login', '/api/auth/register', '/api/tasks/calendar.ics'];
+const _INTERNAL_TOKEN = _gerarToken(0); // token interno para chamadas servidor→servidor
 app.use((req, res, next) => {
   if (req.method === 'GET' && !req.path.startsWith('/api/')) return next(); // arquivos estáticos
   if (AUTH_PUBLIC.some(p => req.path === p || req.path.startsWith(p + '?'))) return next();
   const token = (req.headers.authorization || '').replace('Bearer ', '');
+  if (token === _INTERNAL_TOKEN) return next(); // chamada interna do próprio servidor
   if (!_validarToken(token)) return res.status(401).json({ ok: false, motivo: 'Não autenticado' });
   next();
 });
@@ -2125,7 +2127,7 @@ setTimeout(async () => {
     const fim = new Date(agora.getFullYear(), agora.getMonth()+1, 0, 23, 59, 59, 999).toISOString();
     const retKey = `${ini.slice(0,10)}-${fim.slice(0,10)}-false`;
     if (!_retCacheMap[retKey]) {
-      const r = await fetch(`http://localhost:${process.env.PORT || 3000}/api/retencao`, { headers: { Authorization: `Bearer ${_gerarToken('warmup-interno')}` } });
+      const r = await fetch(`http://localhost:${process.env.PORT || 3000}/api/retencao`, { headers: { Authorization: `Bearer ${_INTERNAL_TOKEN}` } });
       console.log('[retencao] warm-up OK');
     }
   } catch(e) { console.warn('[retencao] warm-up falhou:', e.message); }
@@ -5426,10 +5428,9 @@ const _IA_PAINEIS = [
 async function _iaFetchLocal(endpoint) {
   try {
     const PORT_LOCAL = process.env.PORT || 8080;
-    const token = _gerarToken('ia-interno');
     const r = await axios.get(`http://localhost:${PORT_LOCAL}${endpoint}`, {
       timeout: 60000,
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${_INTERNAL_TOKEN}` },
     });
     return r.data;
   } catch(e) { console.error(`[IA] erro ao buscar ${endpoint}:`, e.message); return null; }
