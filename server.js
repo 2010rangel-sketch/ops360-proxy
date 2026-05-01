@@ -11,6 +11,9 @@ const path     = require('path');
 
 const crypto = require('crypto');
 const AUTH_SECRET = process.env.AUTH_SECRET || 'ops360-secret-2025';
+if (!process.env.AUTH_SECRET) {
+  console.warn('[SEGURANÇA] AUTH_SECRET não definido nas variáveis de ambiente — usando valor padrão. Defina AUTH_SECRET no Railway para produção.');
+}
 
 // ── Auth helpers ──────────────────────────────────────────────────
 function _hashSenha(senha) {
@@ -31,7 +34,7 @@ function _validarToken(token) {
     const expected = crypto.createHmac('sha256', AUTH_SECRET).update(payload).digest('hex');
     if (sig !== expected) return null;
     // Token expira em 30 dias
-    if (Date.now() - parseInt(ts) > 365 * 24 * 60 * 60 * 1000) return null;
+    if (Date.now() - parseInt(ts) > 30 * 24 * 60 * 60 * 1000) return null;
     return parseInt(userId);
   } catch { return null; }
 }
@@ -351,8 +354,19 @@ app.get('/api/status', async (req, res) => {
   }
 });
 
+// ── Proteção de rotas de debug: só admin autenticado ─────────────
+async function _requireAdmin(req, res) {
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
+  const uid = _validarToken(token);
+  if (!uid) { res.status(403).json({ ok: false, motivo: 'Acesso negado — faça login como admin' }); return false; }
+  const user = await _getUser(uid);
+  if (!user || !user.admin) { res.status(403).json({ ok: false, motivo: 'Acesso negado — somente administradores' }); return false; }
+  return true;
+}
+
 // Diagnóstico: testa quais endpoints o Hubsoft aceita
 app.get('/api/diagnostico', async (req, res) => {
+  if (!await _requireAdmin(req, res)) return;
   const token = await getToken();
   const candidatos = [
     // cidades
@@ -386,6 +400,7 @@ app.get('/api/diagnostico', async (req, res) => {
 
 // Debug: força novo token e testa lista de OS
 app.get('/api/debug-os', async (req, res) => {
+  if (!await _requireAdmin(req, res)) return;
   try {
     // Força renovação do token (ignora cache)
     tokenCache = { access_token: null, expires_at: 0 };
@@ -428,6 +443,7 @@ app.get('/api/debug-os', async (req, res) => {
 
 // Debug: lista todos os tipos de OS e cidades únicos retornados pela API
 app.get('/api/debug-tipos-cidades', async (req, res) => {
+  if (!await _requireAdmin(req, res)) return;
   try {
     // Busca mais OS para cobrir mais tipos/cidades — 14 dias
     const agora = new Date();
@@ -460,6 +476,7 @@ app.get('/api/debug-tipos-cidades', async (req, res) => {
 
 // Debug temporário: mostra estrutura bruta do primeiro OS
 app.get('/api/debug-raw', async (req, res) => {
+  if (!await _requireAdmin(req, res)) return;
   try {
     const data = await hubsoftPost('v1/ordem_servico/consultar/paginado/3?page=1', bodyConsultaOS());
     const lista = extrairLista(data);
@@ -484,6 +501,7 @@ app.get('/api/debug-raw', async (req, res) => {
 
 // ── Debug: campos de atendimento de retenção ─────────────────────
 app.get('/api/debug-retencao', async (req, res) => {
+  if (!await _requireAdmin(req, res)) return;
   try {
     const { data_inicio, data_fim } = req.query;
     const agora = new Date();
@@ -2182,6 +2200,7 @@ app.get('/api/comercial', async (req, res) => {
 
 // ── NOC/OLT/CTO Debug — descobre endpoints de rede ───────────────────
 app.get('/api/noc/debug', async (req, res) => {
+  if (!await _requireAdmin(req, res)) return;
   const token = await getToken();
   const headers = { Authorization: `Bearer ${token}` };
 
