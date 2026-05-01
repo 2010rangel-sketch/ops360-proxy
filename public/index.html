@@ -2035,6 +2035,23 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         </div>
       </div>
 
+      <!-- Informação sobre Cancelamento (pré-churn) -->
+      <div id="saude-info-cancel-wrap" style="display:none;margin-top:14px">
+        <div class="tbl-card">
+          <div class="tbl-header">
+            <span class="tbl-title" style="color:var(--amber)">⚠️ Pedidos de Informação sobre Cancelamento</span>
+            <span class="badge b-amber" id="saude-info-cancel-badge">0</span>
+          </div>
+          <div style="font-size:11px;color:var(--muted);padding:4px 16px 8px">Clientes que contataram no mês atual pedindo informações sobre cancelamento — risco de churn futuro.</div>
+          <div style="overflow-x:auto;max-height:340px;overflow-y:auto">
+            <table class="tbl">
+              <thead><tr><th>Cliente</th><th>Cidade</th><th>Atendente</th><th>Data</th><th>Desfecho</th></tr></thead>
+              <tbody id="saude-info-cancel-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <!-- Saúde por Vendedor -->
       <div class="tbl-card" style="margin-top:14px;margin-bottom:0">
         <div class="tbl-header">
@@ -9204,6 +9221,27 @@ function renderSaudeBase(d) {
   // Não reseta filtros no auto-refresh — preserva seleção do usuário
   _saudeAtualizarHeaders();
   renderSaudeTbl();
+  renderInfoCancelamento(d.info_cancelamento || []);
+}
+
+function renderInfoCancelamento(lista) {
+  const wrap = document.getElementById('saude-info-cancel-wrap');
+  const badge = document.getElementById('saude-info-cancel-badge');
+  const tbody = document.getElementById('saude-info-cancel-tbody');
+  if (!wrap || !tbody) return;
+  if (badge) badge.textContent = lista.length;
+  wrap.style.display = lista.length > 0 ? '' : 'none';
+  const corDesfecho = d => d === 'revertido' ? 'var(--green)' : d === 'cancelado' ? 'var(--red)' : d === 'fechado' ? 'var(--cyan)' : 'var(--amber)';
+  const labelDesfecho = d => d === 'revertido' ? '✅ Revertido' : d === 'cancelado' ? '❌ Cancelado' : d === 'fechado' ? '✔ Fechado' : '⏳ Pendente';
+  tbody.innerHTML = lista.map(c => `
+    <tr>
+      <td style="font-weight:600;color:var(--text)">${c.nome}</td>
+      <td style="color:var(--muted)">${c.cidade}</td>
+      <td style="color:var(--muted)">${c.atendente}</td>
+      <td style="color:var(--muted)">${c.data}</td>
+      <td><span style="color:${corDesfecho(c.desfecho)};font-weight:600">${labelDesfecho(c.desfecho)}</span></td>
+    </tr>
+  `).join('');
 }
 
 function _saudeAtualizarHeaders() {

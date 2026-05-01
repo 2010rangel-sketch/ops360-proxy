@@ -3862,7 +3862,40 @@ async function _buildSaudeBase(dias, cacheKey) {
     });
     resultado.sort((a, b) => b.osFech - a.osFech);
 
-    const resposta = { ok: true, periodo: { dataIni, dataFim, dias }, total: resultado.length, clientes: resultado };
+    // Busca atendimentos de "Informação sobre Cancelamento" no período
+    const infoCancelList = [];
+    try {
+      const mesIni = new Date(agoraBRT.getFullYear(), agoraBRT.getMonth(), 1).toISOString();
+      const mesFim = new Date(agoraBRT.getFullYear(), agoraBRT.getMonth() + 1, 0, 23, 59, 59).toISOString();
+      const norm = s => (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().trim();
+      const isInfoCancel = tipo => { const u = norm(tipo); return u.includes('INFORMA') && u.includes('CANCELAMENTO'); };
+      const relacoes = ['origem_contato', 'motivo_fechamento_atendimento'];
+      const dIC = await hubsoftPost('v1/atendimento/consultar/paginado/500?page=1', { data_inicio: mesIni, data_fim: mesFim, relacoes });
+      const listaIC = dIC?.atendimentos?.data || dIC?.data || [];
+      const dtFmt = dt => { const d = new Date(dt); return isNaN(d) ? dt : d.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }); };
+      for (const a of listaIC) {
+        const tipo = a.tipo_atendimento?.descricao || '';
+        if (!isInfoCancel(tipo)) continue;
+        const cli = a.cliente_servico?.cliente || {};
+        const nome = cli.nome_razaosocial || cli.display || a.cliente_servico?.display || 'Sem cliente';
+        if (/^lc\s*virtual\s*net/i.test(nome)) continue;
+        const end = a.cliente_servico?.endereco_instalacao;
+        const cidade = end?.endereco_numero?.cidade?.nome || end?.cidade?.nome || '—';
+        const telefone = cli.telefone || cli.celular || cli.fone || null;
+        const resps = Array.isArray(a.usuarios_responsaveis) ? a.usuarios_responsaveis : [];
+        const atendente = resps.map(u => u.name || u.nome).filter(Boolean).join(', ') || a.usuario_fechamento?.name || '—';
+        const data = a.data_fechamento || a.data_cadastro || null;
+        const sp = (a.status?.prefixo || '').toLowerCase();
+        const sf = (a.status_fechamento || '').toLowerCase();
+        let desfecho = 'pendente';
+        if (sf.includes('revert')) desfecho = 'revertido';
+        else if (sf.includes('cancel') || sf.includes('rescis')) desfecho = 'cancelado';
+        else if (sf && !sf.includes('pendente') && !sp.includes('pendente') && !sp.includes('aguardando')) desfecho = 'fechado';
+        infoCancelList.push({ nome, cidade, telefone, atendente, data: data ? dtFmt(data) : '—', desfecho, tipo });
+      }
+    } catch(e) { console.warn('[saude-base] info-cancel fetch falhou:', e.message); }
+
+    const resposta = { ok: true, periodo: { dataIni, dataFim, dias }, total: resultado.length, clientes: resultado, info_cancelamento: infoCancelList };
     _saudeCache[cacheKey] = { data: resposta, ts: Date.now() };
     dbCacheSet(`cache:saude:${dias}d`, resposta).catch(() => {});
     console.log(`[saude-base] cache ${dias}d atualizado (${resultado.length} clientes)`);
