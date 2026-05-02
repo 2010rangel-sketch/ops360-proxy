@@ -3774,8 +3774,11 @@ app.get('/api/info-cancelamento', async (req, res) => {
       if (sf.includes('revert')) desfecho = 'revertido';
       else if (sf.includes('cancel') || sf.includes('rescis')) desfecho = 'cancelado';
       else if (sf && !sf.includes('pendente') && !sp.includes('pendente') && !sp.includes('aguardando')) desfecho = 'fechado';
-      const mfObj = a.motivo_fechamento_atendimento;
-      const motivo = (typeof mfObj === 'object' && mfObj) ? (mfObj.descricao || mfObj.nome || mfObj.titulo || null) : (typeof mfObj === 'string' ? mfObj : null);
+      const mfObj = a.motivo_fechamento_atendimento || a.motivo_fechamento;
+      const motivo = !mfObj ? null
+        : typeof mfObj === 'string' ? mfObj
+        : Array.isArray(mfObj) ? mfObj.map(m => m?.descricao || m?.nome || '').filter(Boolean).join(', ') || null
+        : (mfObj.descricao || mfObj.nome || mfObj.titulo || null);
       infoCancelList.push({ nome, cidade, telefone, atendente, data: data ? dtFmt(data) : '—', desfecho, motivo });
     }
     res.json({ ok: true, mes, ano, total: infoCancelList.length, lista: infoCancelList });
