@@ -3741,9 +3741,10 @@ app.get('/api/info-cancelamento', async (req, res) => {
     const agora = new Date();
     const mes = parseInt(req.query.mes) || (agora.getMonth() + 1);
     const ano = parseInt(req.query.ano) || agora.getFullYear();
-    const mesIni = `${ano}-${String(mes).padStart(2,'0')}-01T03:00:00.000Z`; // 00:00 BRT
-    const ultimoDia = new Date(ano, mes, 0).getDate();
-    const mesFim = `${ano}-${String(mes).padStart(2,'0')}-${String(ultimoDia).padStart(2,'0')}T02:59:59.999Z`; // 23:59:59 BRT do último dia
+    const mesIni = `${ano}-${String(mes).padStart(2,'0')}-01T03:00:00.000Z`; // 00:00 BRT do dia 1
+    // Fim = 23:59:59 BRT do último dia = 02:59:59 UTC do 1º dia do próximo mês
+    const _proxMes = new Date(ano, mes, 1); // 1º dia do próximo mês (aritmética local)
+    const mesFim = `${_proxMes.getFullYear()}-${String(_proxMes.getMonth()+1).padStart(2,'0')}-01T02:59:59.999Z`;
     const norm = s => (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().trim();
     const isInfoCancel = tipo => { const u = norm(tipo); return u.includes('INFORMA') && u.includes('CANCELAMENTO'); };
     const relacoes = ['origem_contato', 'motivo_fechamento_atendimento'];
