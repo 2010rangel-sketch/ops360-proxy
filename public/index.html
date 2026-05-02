@@ -9268,8 +9268,8 @@ async function loadInfoCancelamento() {
     if (!d.ok) throw new Error(d.motivo || 'Erro');
     if (badge) badge.textContent = d.total;
     if (syncBadge) { syncBadge.textContent = '🔄'; syncBadge.className = 'badge b-green'; }
-    const corDesfecho = x => x === 'revertido' ? 'var(--green)' : x === 'cancelado' ? 'var(--red)' : x === 'fechado' ? 'var(--cyan)' : 'var(--amber)';
-    const lblDesfecho = x => x === 'revertido' ? '✅ Revertido' : x === 'cancelado' ? '❌ Cancelado' : x === 'fechado' ? '✔ Fechado' : '⏳ Pendente';
+    const corDesfecho = x => x === 'revertido' ? 'var(--green)' : x === 'cancelado' ? 'var(--red)' : x === 'pendente' ? 'var(--amber)' : 'var(--cyan)';
+    const lblDesfecho = x => x === 'revertido' ? '✅ Revertido' : x === 'cancelado' ? '❌ Cancelado' : x === 'pendente' ? '⏳ Pendente' : '✔ Fechado';
     if (!d.lista.length) {
       tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Nenhum registro encontrado</td></tr>`;
       return;
@@ -9280,7 +9280,7 @@ async function loadInfoCancelamento() {
         <td style="color:var(--muted)">${c.cidade}</td>
         <td style="color:var(--muted)">${c.atendente}</td>
         <td style="color:var(--muted)">${c.data}</td>
-        <td><span style="color:${corDesfecho(c.desfecho)};font-weight:600">${lblDesfecho(c.desfecho)}</span></td>
+        <td><span style="color:${corDesfecho(c.desfecho)};font-weight:600">${c.motivo || lblDesfecho(c.desfecho)}</span></td>
       </tr>
     `).join('');
   } catch(e) {
