@@ -1,12 +1,31 @@
-# Nunca precisa ser lido — só gerenciado pelo npm automaticamente
+# ── Lock files — gerenciados automaticamente ──────────────────────
 package-lock.json
 node_modules/
 
-# Arquivo de preview antigo, não é o projeto real
-public/preview-dash-chamados.html
-
-# Dados de tarefas — JSON puro, não é código
-data/tasks.json
-
-# Documentação duplicada — conteúdo já está no CLAUDE.md
+# ── Documentação duplicada — conteúdo já está na memória do projeto ──
+LC_FIBRA_360_DOCUMENTACAO.md
 OPS360_DOCUMENTACAO.md
+
+# ── Projeto ChatMix — módulo separado, raramente tocado ───────────
+chatmix-agent.js
+chatmix-discover.js
+chatmix-discover2.js
+
+# ── Endpoints auxiliares raramente modificados ────────────────────
+api/nr-export.js
+
+# ── Dados JSON runtime — não é código-fonte ───────────────────────
+data/tasks.json
+data/rh_nr_certs.json
+users.json
+
+# ── Config de deploy estática — raramente muda ────────────────────
+vercel.json
+nixpacks.toml
+railway.toml
+
+# ── Variáveis de ambiente — nunca deve ser lido ───────────────────
+.env
+
+# ── Preview antigo — não é o projeto real ────────────────────────
+public/preview-dash-chamados.html
