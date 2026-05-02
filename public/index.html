@@ -6370,7 +6370,7 @@ function renderDashComercial() {
   // Tabela últimas
   const tb = document.getElementById('dco-ult-tbl');
   const ultimas = d.ultimas || [];
-  const fmtData = dd => dd ? new Date(dd).toLocaleDateString('pt-BR') : '—';
+  const fmtData = dd => { if (!dd) return '—'; const m = dd.match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[3]}/${m[2]}/${m[1]}` : new Date(dd).toLocaleDateString('pt-BR'); };
   if (tb) tb.innerHTML = ultimas.length ? ultimas.slice(0,20).map(v => `<tr>
     <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${v.cliente}">${v.cliente}</td>
     <td style="font-size:11px">${v.cidade||'—'}</td>
@@ -7917,11 +7917,7 @@ function renderComUltimas(ultimas) {
   if (ct) ct.textContent = ultimas.length;
   if (!tb) return;
   if (!ultimas.length) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">Sem dados</td></tr>'; return; }
-  const fmtData = d => {
-    if (!d) return '—';
-    const dt = new Date(d);
-    return isNaN(dt) ? d : dt.toLocaleDateString('pt-BR');
-  };
+  const fmtData = d => { if (!d) return '—'; const m = d.match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[3]}/${m[2]}/${m[1]}` : (isNaN(new Date(d)) ? d : new Date(d).toLocaleDateString('pt-BR')); };
   tb.innerHTML = ultimas.map((v, i) => {
     const statusTag = v.cancelado
       ? '<span style="background:rgba(239,68,68,.12);color:var(--red);font-size:10px;padding:2px 6px;border-radius:4px">Cancelado</span>'
