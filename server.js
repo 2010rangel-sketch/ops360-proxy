@@ -1867,7 +1867,7 @@ function buildVendasFromClientes(clientes, iniStr, fimStr) {
 
       const cancelado = !!(s.data_cancelamento || status.includes('cancelado') || status.includes('rescindi') || status.includes('rescisao'));
 
-      const dataVenda = vendaDate.toISOString().split('T')[0];
+      const dataVenda = new Date(vendaDate.getTime() - 3*60*60*1000).toISOString().split('T')[0];
       const motivo = (s.motivo_cancelamento || '').trim() || null;
       const _dcParsed = s.data_cancelamento ? parseDate(s.data_cancelamento) : null;
       const dataCancelamento = _dcParsed ? _dcParsed.toISOString().split('T')[0] : null;
