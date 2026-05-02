@@ -1,10 +1,10 @@
 ---
 name: Documentação Completa LC Fibra 360
-description: Documentação técnica completa do sistema OPS360/LC Fibra 360 — arquitetura, páginas, APIs, banco de dados, deploy e variáveis de ambiente (v6.0 Maio 2026)
+description: Documentação técnica completa do sistema OPS360/LC Fibra 360 — arquitetura, páginas, APIs, banco de dados, deploy e variáveis de ambiente (v6.1 Maio 2026)
 type: project
 originSessionId: bfac4f3e-9d4f-4068-bfba-1c35eb1ec0c9
 ---
-# LC FIBRA 360 / OPS360 — DOCUMENTAÇÃO TÉCNICA COMPLETA (v6.0 — 01/Mai/2026)
+# LC FIBRA 360 / OPS360 — DOCUMENTAÇÃO TÉCNICA COMPLETA (v6.1 — 02/Mai/2026)
 
 ---
 
@@ -156,7 +156,8 @@ CREATE TABLE IF NOT EXISTS ia_analises (
 | GET | `/api/info-cancelamento?mes=X&ano=Y` | Pedidos de informação sobre cancelamento por mês/ano |
 
 ### Comercial / Financeiro / Saúde
-| GET | `/api/comercial` | Vendas, reativações, cancelamentos |
+| GET | `/api/comercial?nocache=1` | Força rebuild ignorando cache memória e PostgreSQL |
+| GET | `/api/comercial` | Vendas, reativações, cancelamentos (stale-while-revalidate) |
 | GET | `/api/financeiro` | MRR, LTV, inadimplência, saúde da carteira |
 | GET | `/api/adicao-liquida` | Adição líquida mensal |
 | GET | `/api/risco-cancelamento` | Clientes em risco (OS + atendimentos) |
@@ -217,11 +218,22 @@ CREATE TABLE IF NOT EXISTS ia_analises (
 ## 7. PADRÕES TÉCNICOS OBRIGATÓRIOS
 
 ### Fuso Horário (BRT = UTC-3) — CRÍTICO
+
+**Servidor (Node.js):**
 - **"Hoje" no servidor:** `new Date(Date.now() - 3*60*60*1000).toISOString().slice(0,10)`
 - **Início do mês BRT:** `${ano}-${mes}-01T03:00:00.000Z`
-- **Fim do mês BRT:** `${anoProxMes}-${mesProxMes}-01T02:59:59.999Z` (1º do mês seguinte)
+- **Fim do mês BRT:** `${anoProxMes}-${mesProxMes}-01T02:59:59.999Z` (1º do mês seguinte — não o último dia)
 - **Nunca usar** `new Date().toISOString()` diretamente para datas de exibição ou filtros de mês
-- O sufixo `T02:59:59.999Z` representa meia-noite BRT do dia SEGUINTE (não do último dia do mês)
+- `data_venda` do Hubsoft vem como `DD/MM/YYYY` (já em BRT) — reformatar direto sem parseDate: `rawVenda.split('/').reverse().join('-')`
+- `data_cancelamento` do Hubsoft vem como timestamp UTC — usar `new Date(parsed.getTime() - 3*60*60*1000)`
+
+**Frontend (browser):**
+- **NUNCA** usar `new Date("YYYY-MM-DD").toLocaleDateString('pt-BR')` — browser interpreta como UTC → exibe dia anterior em BRT
+- **Padrão correto para datas `YYYY-MM-DD`:** extrair com regex e reformatar diretamente:
+  ```js
+  const fmtData = d => { if (!d) return '—'; const m = d.match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[3]}/${m[2]}/${m[1]}` : new Date(d).toLocaleDateString('pt-BR'); };
+  ```
+- Para timestamps completos (com hora), `new Date(ts)` é seguro pois inclui offset
 
 ### Hubsoft
 - SEMPRE `hubsoftPost(endpoint, body)` — retry automático + token refresh
