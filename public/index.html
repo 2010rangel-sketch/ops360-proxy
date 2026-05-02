@@ -2025,7 +2025,13 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
               <span class="badge b-blue" id="ic-sync-badge" style="cursor:pointer" onclick="loadInfoCancelamento()">🔄</span>
             </div>
           </div>
-          <div style="font-size:11px;color:var(--muted);padding:4px 16px 8px">Clientes que pediram informações sobre cancelamento — risco de churn futuro.</div>
+          <div style="padding:6px 14px 8px;display:flex;gap:8px;align-items:center">
+            <div style="position:relative;flex:1">
+              <i class="fas fa-search" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:11px;pointer-events:none"></i>
+              <input type="text" id="ic-busca" placeholder="Buscar por cliente ou atendente..." oninput="_icFiltrar()"
+                style="width:100%;box-sizing:border-box;padding:5px 10px 5px 28px;background:var(--bg);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
+            </div>
+          </div>
           <div style="overflow-x:auto;max-height:340px;overflow-y:auto">
             <table class="tbl">
               <thead><tr><th>Cliente</th><th>Cidade</th><th>Atendente</th><th>Data</th><th>Desfecho</th></tr></thead>
@@ -9268,28 +9274,51 @@ async function loadInfoCancelamento() {
     if (!d.ok) throw new Error(d.motivo || 'Erro');
     if (badge) badge.textContent = d.total;
     if (syncBadge) { syncBadge.textContent = '🔄'; syncBadge.className = 'badge b-green'; }
-    const corDesfecho = x => x === 'revertido' ? 'var(--green)' : x === 'cancelado' ? 'var(--red)' : x === 'pendente' ? 'var(--amber)' : 'var(--cyan)';
-    const lblDesfecho = x => x === 'revertido' ? '✅ Revertido' : x === 'cancelado' ? '❌ Cancelado' : x === 'pendente' ? '⏳ Pendente' : '✔ Fechado';
+    _icListaCompleta = d.lista;
+    const busca = document.getElementById('ic-busca');
+    if (busca) busca.value = '';
     if (!d.lista.length) {
       tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Nenhum registro encontrado</td></tr>`;
       return;
     }
-    tbody.innerHTML = d.lista.map(c => `
-      <tr>
-        <td style="font-weight:600;color:var(--text)">${c.nome}</td>
-        <td style="color:var(--muted)">${c.cidade}</td>
-        <td style="color:var(--muted)">${c.atendente}</td>
-        <td style="color:var(--muted)">${c.data}</td>
-        <td><span style="color:${corDesfecho(c.desfecho)};font-weight:600">${c.motivo || lblDesfecho(c.desfecho)}</span></td>
-      </tr>
-    `).join('');
+    _icRenderLista(d.lista);
   } catch(e) {
     if (syncBadge) { syncBadge.textContent = '🔄'; syncBadge.className = 'badge b-red'; }
     tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--red);padding:20px">Erro: ${e.message}</td></tr>`;
   }
 }
 
-function renderInfoCancelamento() {} // mantido por compatibilidade — agora a seção é independente
+let _icListaCompleta = [];
+
+function _icFiltrar() {
+  const q = (document.getElementById('ic-busca')?.value || '').toLowerCase();
+  const lista = q ? _icListaCompleta.filter(c =>
+    c.nome.toLowerCase().includes(q) || c.atendente.toLowerCase().includes(q) || (c.cidade||'').toLowerCase().includes(q)
+  ) : _icListaCompleta;
+  _icRenderLista(lista);
+}
+
+function _icRenderLista(lista) {
+  const tbody = document.getElementById('saude-info-cancel-tbody');
+  if (!tbody) return;
+  const corDesfecho = x => x === 'revertido' ? 'var(--green)' : x === 'cancelado' ? 'var(--red)' : x === 'pendente' ? 'var(--amber)' : 'var(--cyan)';
+  const lblDesfecho = x => x === 'revertido' ? '✅ Revertido' : x === 'cancelado' ? '❌ Cancelado' : x === 'pendente' ? '⏳ Pendente' : '✔ Fechado';
+  if (!lista.length) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Nenhum registro encontrado</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = lista.map(c => `
+    <tr>
+      <td style="font-weight:600;color:var(--text)">${c.nome}</td>
+      <td style="color:var(--muted)">${c.cidade}</td>
+      <td style="color:var(--muted)">${c.atendente}</td>
+      <td style="color:var(--muted)">${c.data}</td>
+      <td><span style="color:${corDesfecho(c.desfecho)};font-weight:600">${c.motivo || lblDesfecho(c.desfecho)}</span></td>
+    </tr>
+  `).join('');
+}
+
+function renderInfoCancelamento() {} // mantido por compatibilidade
 
 function _saudeAtualizarHeaders() {
   const cols = { osPend:'saude-th-pend', osFech:'saude-th-fech', desconexoes:'saude-th-desc', offlineHoras:'saude-th-off', score:'saude-th-saude' };
