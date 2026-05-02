@@ -5637,6 +5637,8 @@ app.get('/api/ia/analises', async (req, res) => {
     const params = []; const where = [];
     if (req.query.painel) { where.push(`painel=$${params.length+1}`); params.push(req.query.painel); }
     if (req.query.data)   { where.push(`data=$${params.length+1}`);   params.push(req.query.data); }
+    const ativos = _IA_PAINEIS.map(p => p.nome);
+    where.push(`painel = ANY($${params.length+1})`); params.push(ativos);
     if (where.length) sql += ' WHERE ' + where.join(' AND ');
     sql += ` ORDER BY criado_em DESC LIMIT ${Number(req.query.limit)||30}`;
     const r = await pool.query(sql, params);
@@ -5656,7 +5658,8 @@ app.get('/api/ia/paineis', async (req, res) => {
   try {
     const pool = getPool(); if (!pool) return res.json([]);
     const r = await pool.query('SELECT DISTINCT painel FROM ia_analises ORDER BY painel');
-    res.json(r.rows.map(row => row.painel));
+    const ativos = new Set(_IA_PAINEIS.map(p => p.nome));
+    res.json(r.rows.map(row => row.painel).filter(p => ativos.has(p)));
   } catch { res.json([]); }
 });
 
