@@ -2007,6 +2007,33 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         </div>
       </div>
 
+      <!-- Informação sobre Cancelamento (pré-churn) -->
+      <div style="margin-top:14px">
+        <div class="tbl-card">
+          <div class="tbl-header">
+            <span class="tbl-title" style="color:var(--amber)">⚠️ Pedidos de Informação sobre Cancelamento</span>
+            <span class="badge b-amber" id="saude-info-cancel-badge">—</span>
+            <div style="display:flex;gap:8px;align-items:center;margin-left:auto">
+              <select id="ic-mes" onchange="loadInfoCancelamento()" style="background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px">
+                <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+                <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+                <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+                <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+              </select>
+              <select id="ic-ano" onchange="loadInfoCancelamento()" style="background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px"></select>
+              <span class="badge b-blue" id="ic-sync-badge" style="cursor:pointer" onclick="loadInfoCancelamento()">🔄</span>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--muted);padding:4px 16px 8px">Clientes que pediram informações sobre cancelamento — risco de churn futuro.</div>
+          <div style="overflow-x:auto;max-height:340px;overflow-y:auto">
+            <table class="tbl">
+              <thead><tr><th>Cliente</th><th>Cidade</th><th>Atendente</th><th>Data</th><th>Desfecho</th></tr></thead>
+              <tbody id="saude-info-cancel-tbody"><tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Selecione o mês para carregar</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <!-- Clientes por Ano (LTV) — espelho do Financeiro -->
       <div class="tbl-card" style="margin-top:14px">
         <div class="tbl-header">
@@ -2032,33 +2059,6 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
             <thead><tr><th>#</th><th>Cliente</th><th>Cidade</th><th>Plano</th><th>Mensalidade</th><th>Desde</th><th>Tempo</th><th>LTV Est.</th></tr></thead>
             <tbody id="fin-ltv-lista2"></tbody>
           </table>
-        </div>
-      </div>
-
-      <!-- Informação sobre Cancelamento (pré-churn) -->
-      <div style="margin-top:14px">
-        <div class="tbl-card">
-          <div class="tbl-header">
-            <span class="tbl-title" style="color:var(--amber)">⚠️ Pedidos de Informação sobre Cancelamento</span>
-            <span class="badge b-amber" id="saude-info-cancel-badge">—</span>
-            <div style="display:flex;gap:8px;align-items:center;margin-left:auto">
-              <select id="ic-mes" onchange="loadInfoCancelamento()" style="background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px">
-                <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
-                <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
-                <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
-                <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
-              </select>
-              <select id="ic-ano" onchange="loadInfoCancelamento()" style="background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px"></select>
-              <span class="badge b-blue" id="ic-sync-badge" style="cursor:pointer" onclick="loadInfoCancelamento()">🔄</span>
-            </div>
-          </div>
-          <div style="font-size:11px;color:var(--muted);padding:4px 16px 8px">Clientes que pediram informações sobre cancelamento — risco de churn futuro.</div>
-          <div style="overflow-x:auto;max-height:340px;overflow-y:auto">
-            <table class="tbl">
-              <thead><tr><th>Cliente</th><th>Cidade</th><th>Atendente</th><th>Data</th><th>Desfecho</th></tr></thead>
-              <tbody id="saude-info-cancel-tbody"><tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Selecione o mês para carregar</td></tr></tbody>
-            </table>
-          </div>
         </div>
       </div>
 
