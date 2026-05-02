@@ -540,8 +540,9 @@ app.get('/api/debug-retencao', async (req, res) => {
   try {
     const { data_inicio, data_fim } = req.query;
     const agora = new Date();
-    const ini = data_inicio || agora.toISOString().slice(0,10);
-    const fim = data_fim    || agora.toISOString().slice(0,10);
+    const agoraBRT = new Date(agora.getTime() - 3*60*60*1000);
+    const ini = data_inicio || agoraBRT.toISOString().slice(0,10);
+    const fim = data_fim    || agoraBRT.toISOString().slice(0,10);
     const first = await hubsoftPost('v1/atendimento/consultar/paginado/500?page=1', { data_inicio: ini, data_fim: fim, relacoes: ['origem_contato', 'motivo_fechamento_atendimento'] });
     const totalPages = first?.atendimentos?.last_page || first?.atendimento?.last_page || first?.last_page || 1;
     let lista = first?.atendimentos?.data || first?.atendimento?.data || first?.data || [];
@@ -742,8 +743,9 @@ async function _refreshChamadosHoje() {
   if (_chamadosRefreshing) return;
   _chamadosRefreshing = true;
   try {
-    const hoje  = new Date().toISOString().slice(0, 10);
-    const amanha = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const _agoraBRT = new Date(Date.now() - 3*60*60*1000);
+    const hoje  = _agoraBRT.toISOString().slice(0, 10);
+    const amanha = new Date(_agoraBRT.getTime() + 86400000).toISOString().slice(0, 10);
     const lista = await _fetchChamadosHubsoft(hoje, amanha, true);
     const chamados = _normalizarChamados(lista);
     const result = { ok: true, total: chamados.length, chamados, sincronizado_em: new Date().toISOString() };
@@ -760,7 +762,7 @@ app.get('/api/chamados', async (req, res) => {
     const { data_inicio, data_fim, limit = 200, page = 1, all } = req.query;
 
     // Determina chave de cache
-    const hoje  = new Date().toISOString().slice(0, 10);
+    const hoje  = new Date(Date.now() - 3*60*60*1000).toISOString().slice(0, 10);
     const isHoje = !data_inicio || data_inicio.slice(0, 10) === hoje;
     const cacheKey = isHoje && all === 'true' ? 'hoje'
       : `${(data_inicio||'').slice(0,10)}-${(data_fim||'').slice(0,10)}-${all||'false'}`;
@@ -1300,10 +1302,11 @@ app.get('/api/cancelamentos-servico', async (req, res) => {
   try {
     const { data_inicio, data_fim } = req.query;
     const agora  = new Date();
+    const agoraBRT = new Date(agora.getTime() - 3*60*60*1000);
     const iniStr = data_inicio ? data_inicio.slice(0, 10)
-      : `${agora.getFullYear()}-${String(agora.getMonth()+1).padStart(2,'0')}-01`;
+      : `${agoraBRT.getFullYear()}-${String(agoraBRT.getMonth()+1).padStart(2,'0')}-01`;
     const fimStr = data_fim ? data_fim.slice(0, 10)
-      : (() => { const fim = new Date(agora.getFullYear(), agora.getMonth()+1, 0); return fim.toISOString().slice(0,10); })();
+      : (() => { const fim = new Date(agoraBRT.getFullYear(), agoraBRT.getMonth()+1, 0); return new Date(fim.getTime() - 3*60*60*1000).toISOString().slice(0,10); })();
 
     // Cache por chave de período
     const cacheKey = `${iniStr}-${fimStr}`;
@@ -1444,10 +1447,11 @@ app.get('/api/remocoes', async (req, res) => {
   try {
     const { data_inicio, data_fim } = req.query;
     const agora  = new Date();
+    const agoraBRT = new Date(agora.getTime() - 3*60*60*1000);
     const iniStr = data_inicio ? data_inicio.slice(0, 10)
-      : `${agora.getFullYear()}-${String(agora.getMonth()+1).padStart(2,'0')}-01`;
+      : `${agoraBRT.getFullYear()}-${String(agoraBRT.getMonth()+1).padStart(2,'0')}-01`;
     const fimStr = data_fim ? data_fim.slice(0, 10)
-      : (() => { const f = new Date(agora.getFullYear(), agora.getMonth()+1, 0); return f.toISOString().slice(0,10); })();
+      : (() => { const f = new Date(agoraBRT.getFullYear(), agoraBRT.getMonth()+1, 0); return new Date(f.getTime() - 3*60*60*1000).toISOString().slice(0,10); })();
 
     const remKey = `${iniStr}-${fimStr}`;
     // 1) Cache em memória
@@ -1835,7 +1839,7 @@ function buildVendasFromClientes(clientes, iniStr, fimStr) {
       // Para períodos passados, aplica limite superior (ex: março não mostra vendas de abril).
       // Para o mês atual e futuro, sem limite superior: datas erradas (ex: 31/12/2026) aparecem
       // para o usuário identificar e corrigir no Hubsoft.
-      const todayMs = new Date(new Date().toISOString().slice(0, 10)).getTime();
+      const todayMs = new Date(new Date(Date.now() - 3*60*60*1000).toISOString().slice(0, 10)).getTime();
       const isPastPeriod = fimMs < todayMs;
       if (!vendaMs || vendaMs < iniMs) continue;
       if (isPastPeriod && vendaMs > fimMs) continue;
@@ -1870,7 +1874,7 @@ function buildVendasFromClientes(clientes, iniStr, fimStr) {
       const dataVenda = new Date(vendaDate.getTime() - 3*60*60*1000).toISOString().split('T')[0];
       const motivo = (s.motivo_cancelamento || '').trim() || null;
       const _dcParsed = s.data_cancelamento ? parseDate(s.data_cancelamento) : null;
-      const dataCancelamento = _dcParsed ? _dcParsed.toISOString().split('T')[0] : null;
+      const dataCancelamento = _dcParsed ? new Date(_dcParsed.getTime() - 3*60*60*1000).toISOString().split('T')[0] : null;
       vendas.push({ cliente: nome, cidade, plano, vendedor, status, dataCad: dataVenda, dataVenda, reativacao, cancelado, motivo, dataCancelamento });
     }
   }
@@ -1964,9 +1968,10 @@ async function warmupComercial() {
   try {
     await new Promise(r => setTimeout(r, 2000)); // aguarda dbInit
     const agora = new Date();
-    const hoje  = agora.toISOString().slice(0,10);
-    const mesIni = new Date(agora.getFullYear(), agora.getMonth(), 1).toISOString().slice(0,10);
-    const mesFim = new Date(agora.getFullYear(), agora.getMonth()+1, 0, 23,59,59).toISOString().slice(0,10);
+    const agoraBRT = new Date(agora.getTime() - 3*60*60*1000);
+    const hoje  = agoraBRT.toISOString().slice(0,10);
+    const mesIni = new Date(agoraBRT.getFullYear(), agoraBRT.getMonth(), 1).toISOString().slice(0,10);
+    const mesFim = new Date(agoraBRT.getFullYear(), agoraBRT.getMonth()+1, 0, 23,59,59).toISOString().slice(0,10);
 
     // Chamados hoje
     const ch = await dbCacheRestore('cache:chamados:hoje');
@@ -2192,9 +2197,10 @@ const _comPeriodoCache = {};
 app.get('/api/comercial', async (req, res) => {
   try {
     const agora = new Date();
-    const fmtDate = d => d.toISOString().slice(0, 10);
-    const primeiroDiaMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
-    const ultimoDiaMes   = new Date(agora.getFullYear(), agora.getMonth() + 1, 0);
+    const agoraBRT = new Date(agora.getTime() - 3*60*60*1000);
+    const fmtDate = d => new Date(d.getTime() - 3*60*60*1000).toISOString().slice(0, 10);
+    const primeiroDiaMes = new Date(agoraBRT.getFullYear(), agoraBRT.getMonth(), 1);
+    const ultimoDiaMes   = new Date(agoraBRT.getFullYear(), agoraBRT.getMonth() + 1, 0);
     const iniStr = req.query.data_inicio || fmtDate(primeiroDiaMes);
     const fimStr = req.query.data_fim    || fmtDate(ultimoDiaMes);
     const isMesAtual = iniStr === fmtDate(primeiroDiaMes) && fimStr === fmtDate(ultimoDiaMes);
@@ -2464,7 +2470,7 @@ app.get('/api/agenda/debug-caldav', async (req, res) => {
 app.get('/api/agenda/eventos', async (req, res) => {
   try {
     const { auth, baseUrl, calPath } = await getCaldavInfo();
-    const mes = req.query.mes || new Date().toISOString().slice(0,7);
+    const mes = req.query.mes || new Date(Date.now() - 3*60*60*1000).toISOString().slice(0,7);
     const [ano, mo] = mes.split('-').map(Number);
     const inicio = new Date(ano, mo-1, 1);
     const fim    = new Date(ano, mo,   1);
@@ -5600,7 +5606,7 @@ async function _iaSalvar(painel, data, resumo, analise) {
 async function _iaRodar() {
   if (!process.env.ANTHROPIC_API_KEY) { await _iaLog('ERRO: ANTHROPIC_API_KEY não configurada.'); return; }
   if (!_iaAnthropicClient) { await _iaLog('ERRO: SDK Anthropic não carregado.'); return; }
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = new Date(Date.now() - 3*60*60*1000).toISOString().slice(0, 10);
   await _iaLog(`🤖 Iniciando análises — ${hoje}`);
   for (const p of _IA_PAINEIS) {
     try {
