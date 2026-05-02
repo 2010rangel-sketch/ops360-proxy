@@ -2036,17 +2036,27 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
       </div>
 
       <!-- Informação sobre Cancelamento (pré-churn) -->
-      <div id="saude-info-cancel-wrap" style="display:none;margin-top:14px">
+      <div style="margin-top:14px">
         <div class="tbl-card">
           <div class="tbl-header">
             <span class="tbl-title" style="color:var(--amber)">⚠️ Pedidos de Informação sobre Cancelamento</span>
-            <span class="badge b-amber" id="saude-info-cancel-badge">0</span>
+            <span class="badge b-amber" id="saude-info-cancel-badge">—</span>
+            <div style="display:flex;gap:8px;align-items:center;margin-left:auto">
+              <select id="ic-mes" onchange="loadInfoCancelamento()" style="background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px">
+                <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+                <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+                <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+                <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+              </select>
+              <select id="ic-ano" onchange="loadInfoCancelamento()" style="background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px"></select>
+              <span class="badge b-blue" id="ic-sync-badge" style="cursor:pointer" onclick="loadInfoCancelamento()">🔄</span>
+            </div>
           </div>
-          <div style="font-size:11px;color:var(--muted);padding:4px 16px 8px">Clientes que contataram no mês atual pedindo informações sobre cancelamento — risco de churn futuro.</div>
+          <div style="font-size:11px;color:var(--muted);padding:4px 16px 8px">Clientes que pediram informações sobre cancelamento — risco de churn futuro.</div>
           <div style="overflow-x:auto;max-height:340px;overflow-y:auto">
             <table class="tbl">
               <thead><tr><th>Cliente</th><th>Cidade</th><th>Atendente</th><th>Data</th><th>Desfecho</th></tr></thead>
-              <tbody id="saude-info-cancel-tbody"></tbody>
+              <tbody id="saude-info-cancel-tbody"><tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Selecione o mês para carregar</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -2932,6 +2942,8 @@ function goPage(id, el, skipHistory) {
     loadSaudeBase();
     if (_finData?.ltv_top100) _ltvPopularEspelho(_finData.ltv_top100);
     else loadFinanceiro();
+    _icInitSelectors();
+    loadInfoCancelamento();
   }
   if (id === 'rh') {
     loadRh();
@@ -9224,25 +9236,59 @@ function renderSaudeBase(d) {
   renderInfoCancelamento(d.info_cancelamento || []);
 }
 
-function renderInfoCancelamento(lista) {
-  const wrap = document.getElementById('saude-info-cancel-wrap');
-  const badge = document.getElementById('saude-info-cancel-badge');
-  const tbody = document.getElementById('saude-info-cancel-tbody');
-  if (!wrap || !tbody) return;
-  if (badge) badge.textContent = lista.length;
-  wrap.style.display = lista.length > 0 ? '' : 'none';
-  const corDesfecho = d => d === 'revertido' ? 'var(--green)' : d === 'cancelado' ? 'var(--red)' : d === 'fechado' ? 'var(--cyan)' : 'var(--amber)';
-  const labelDesfecho = d => d === 'revertido' ? '✅ Revertido' : d === 'cancelado' ? '❌ Cancelado' : d === 'fechado' ? '✔ Fechado' : '⏳ Pendente';
-  tbody.innerHTML = lista.map(c => `
-    <tr>
-      <td style="font-weight:600;color:var(--text)">${c.nome}</td>
-      <td style="color:var(--muted)">${c.cidade}</td>
-      <td style="color:var(--muted)">${c.atendente}</td>
-      <td style="color:var(--muted)">${c.data}</td>
-      <td><span style="color:${corDesfecho(c.desfecho)};font-weight:600">${labelDesfecho(c.desfecho)}</span></td>
-    </tr>
-  `).join('');
+// Inicializa seletores de mês/ano e carrega automaticamente
+function _icInitSelectors() {
+  const agora = new Date();
+  const selMes = document.getElementById('ic-mes');
+  const selAno = document.getElementById('ic-ano');
+  if (!selMes || !selAno) return;
+  selMes.value = agora.getMonth() + 1;
+  selAno.innerHTML = '';
+  for (let a = agora.getFullYear(); a >= 2023; a--) {
+    selAno.innerHTML += `<option value="${a}">${a}</option>`;
+  }
+  selAno.value = agora.getFullYear();
 }
+
+async function loadInfoCancelamento() {
+  const selMes = document.getElementById('ic-mes');
+  const selAno = document.getElementById('ic-ano');
+  const badge  = document.getElementById('saude-info-cancel-badge');
+  const syncBadge = document.getElementById('ic-sync-badge');
+  const tbody  = document.getElementById('saude-info-cancel-tbody');
+  if (!selMes || !selAno || !tbody) return;
+  const mes = selMes.value;
+  const ano = selAno.value;
+  if (syncBadge) { syncBadge.textContent = '⏳'; syncBadge.className = 'badge b-amber'; }
+  tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Buscando...</td></tr>`;
+  try {
+    const r = await fetch(`/api/info-cancelamento?mes=${mes}&ano=${ano}`);
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.motivo || 'Erro');
+    if (badge) badge.textContent = d.total;
+    if (syncBadge) { syncBadge.textContent = '🔄'; syncBadge.className = 'badge b-green'; }
+    const corDesfecho = x => x === 'revertido' ? 'var(--green)' : x === 'cancelado' ? 'var(--red)' : x === 'fechado' ? 'var(--cyan)' : 'var(--amber)';
+    const lblDesfecho = x => x === 'revertido' ? '✅ Revertido' : x === 'cancelado' ? '❌ Cancelado' : x === 'fechado' ? '✔ Fechado' : '⏳ Pendente';
+    if (!d.lista.length) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Nenhum registro encontrado</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = d.lista.map(c => `
+      <tr>
+        <td style="font-weight:600;color:var(--text)">${c.nome}</td>
+        <td style="color:var(--muted)">${c.cidade}</td>
+        <td style="color:var(--muted)">${c.atendente}</td>
+        <td style="color:var(--muted)">${c.data}</td>
+        <td><span style="color:${corDesfecho(c.desfecho)};font-weight:600">${lblDesfecho(c.desfecho)}</span></td>
+      </tr>
+    `).join('');
+  } catch(e) {
+    if (syncBadge) { syncBadge.textContent = '🔄'; syncBadge.className = 'badge b-red'; }
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--red);padding:20px">Erro: ${e.message}</td></tr>`;
+  }
+}
+
+function renderInfoCancelamento() {} // mantido por compatibilidade — agora a seção é independente
 
 function _saudeAtualizarHeaders() {
   const cols = { osPend:'saude-th-pend', osFech:'saude-th-fech', desconexoes:'saude-th-desc', offlineHoras:'saude-th-off', score:'saude-th-saude' };

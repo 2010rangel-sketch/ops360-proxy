@@ -3729,6 +3729,56 @@ const _saudeCache = {};
 const SAUDE_CACHE_TTL = 15 * 60 * 1000; // 15 min
 let _saudeBusy = false;
 
+// ── Info Cancelamento — endpoint independente com filtro mes/ano ──
+app.get('/api/info-cancelamento', async (req, res) => {
+  try {
+    const agora = new Date();
+    const mes = parseInt(req.query.mes) || (agora.getMonth() + 1);
+    const ano = parseInt(req.query.ano) || agora.getFullYear();
+    const mesIni = new Date(ano, mes - 1, 1).toISOString();
+    const mesFim = new Date(ano, mes, 0, 23, 59, 59).toISOString();
+    const norm = s => (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().trim();
+    const isInfoCancel = tipo => { const u = norm(tipo); return u.includes('INFORMA') && u.includes('CANCELAMENTO'); };
+    const relacoes = ['origem_contato', 'motivo_fechamento_atendimento'];
+    const dtFmt = dt => { const d = new Date(dt); return isNaN(d) ? dt : d.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }); };
+    const infoCancelList = [];
+
+    const dIC = await hubsoftPost('v1/atendimento/consultar/paginado/500?page=1', { data_inicio: mesIni, data_fim: mesFim, relacoes });
+    const totalPages = dIC?.atendimentos?.last_page || 1;
+    let listaIC = dIC?.atendimentos?.data || dIC?.data || [];
+    if (totalPages > 1) {
+      const pages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+      const results = await pLimit(pages.map(pg => async () => {
+        const d = await hubsoftPost(`v1/atendimento/consultar/paginado/500?page=${pg}`, { data_inicio: mesIni, data_fim: mesFim, relacoes });
+        return d?.atendimentos?.data || [];
+      }));
+      for (const r of results) listaIC.push(...r);
+    }
+
+    for (const a of listaIC) {
+      const tipo = a.tipo_atendimento?.descricao || '';
+      if (!isInfoCancel(tipo)) continue;
+      const cli = a.cliente_servico?.cliente || {};
+      const nome = cli.nome_razaosocial || cli.display || a.cliente_servico?.display || 'Sem cliente';
+      if (/^lc\s*virtual\s*net/i.test(nome)) continue;
+      const end = a.cliente_servico?.endereco_instalacao;
+      const cidade = end?.endereco_numero?.cidade?.nome || end?.cidade?.nome || '—';
+      const telefone = cli.telefone || cli.celular || cli.fone || null;
+      const resps = Array.isArray(a.usuarios_responsaveis) ? a.usuarios_responsaveis : [];
+      const atendente = resps.map(u => u.name || u.nome).filter(Boolean).join(', ') || a.usuario_fechamento?.name || '—';
+      const data = a.data_fechamento || a.data_cadastro || null;
+      const sp = (a.status?.prefixo || '').toLowerCase();
+      const sf = (a.status_fechamento || '').toLowerCase();
+      let desfecho = 'pendente';
+      if (sf.includes('revert')) desfecho = 'revertido';
+      else if (sf.includes('cancel') || sf.includes('rescis')) desfecho = 'cancelado';
+      else if (sf && !sf.includes('pendente') && !sp.includes('pendente') && !sp.includes('aguardando')) desfecho = 'fechado';
+      infoCancelList.push({ nome, cidade, telefone, atendente, data: data ? dtFmt(data) : '—', desfecho });
+    }
+    res.json({ ok: true, mes, ano, total: infoCancelList.length, lista: infoCancelList });
+  } catch(e) { res.status(500).json({ ok: false, motivo: e.message }); }
+});
+
 app.get('/api/saude-base', async (req, res) => {
   try {
     const dias  = parseInt(req.query.dias) || 30;
