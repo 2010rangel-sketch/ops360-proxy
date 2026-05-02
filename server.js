@@ -2205,6 +2205,12 @@ app.get('/api/comercial', async (req, res) => {
     const fimStr = req.query.data_fim    || fmtDate(ultimoDiaMes);
     const isMesAtual = iniStr === fmtDate(primeiroDiaMes) && fimStr === fmtDate(ultimoDiaMes);
     const cacheKey   = `${iniStr}_${fimStr}`;
+    const nocache    = req.query.nocache === '1';
+
+    if (nocache) {
+      delete _comPeriodoCache[cacheKey];
+      if (isMesAtual) _comResultCache = null;
+    }
 
     // Cache em memória por período (válido 30min)
     const cached = _comPeriodoCache[cacheKey];
@@ -2213,7 +2219,7 @@ app.get('/api/comercial', async (req, res) => {
     }
 
     // Se tem resultado anterior no banco, serve imediatamente enquanto busca dados frescos
-    if (isMesAtual && _comResultCache) {
+    if (!nocache && isMesAtual && _comResultCache) {
       // Busca em background, não bloqueia
       (async () => {
         try {
