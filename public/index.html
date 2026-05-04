@@ -1357,22 +1357,15 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
           <div style="font-size:16px;font-weight:700;color:var(--text)">Comercial</div>
           <div style="font-size:11px;color:var(--text3)">Vendas, reativações e desistência</div>
         </div>
-        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;position:relative">
           <div style="display:flex;gap:3px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:3px">
-            <button class="chip active com-chip" data-p="mes"          onclick="setComPeriodo('mes',this)">Mês atual</button>
-            <button class="chip com-chip"         data-p="mes_anterior" onclick="setComPeriodo('mes_anterior',this)">Mês anterior</button>
-            <button class="chip com-chip"         data-p="hoje"         onclick="setComPeriodo('hoje',this)">Hoje</button>
-            <button class="chip com-chip" data-p="custom" onclick="setComPeriodo('custom',this)">Período</button>
+            <button class="chip active com-chip" data-p="mes"  onclick="setComPeriodo('mes',this)">Mês atual</button>
+            <button class="chip com-chip"         data-p="hoje" onclick="setComPeriodo('hoje',this)">Hoje</button>
+            <button class="chip com-chip"         data-p="custom" onclick="setComPeriodo('custom',this)">Meses anteriores ▾</button>
           </div>
-          <div id="comDateRange" style="display:none;gap:6px;align-items:center;flex-wrap:wrap">
-            <select id="comMesSel" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;color-scheme:dark">
-              <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
-              <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
-              <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
-              <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
-            </select>
-            <select id="comAnoSel" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;color-scheme:dark"></select>
-            <button class="btn btn-primary btn-sm" onclick="loadComercial()"><i class="fas fa-search"></i></button>
+          <!-- Dropdown meses anteriores -->
+          <div id="comMesesDrop" style="display:none;position:absolute;top:36px;left:0;z-index:200;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.4);min-width:260px">
+            <div id="comMesesLista" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px"></div>
           </div>
           <span class="badge b-green" id="com-sync-badge">—</span>
         </div>
@@ -7210,40 +7203,50 @@ function getComDates() {
   if (comPeriodo === 'hoje') {
     return { ini: _d(a.getFullYear(), a.getMonth(), a.getDate()), fim: _d(a.getFullYear(), a.getMonth(), a.getDate()) };
   }
-  if (comPeriodo === 'custom') {
-    const mes = parseInt(document.getElementById('comMesSel')?.value);
-    const ano = parseInt(document.getElementById('comAnoSel')?.value);
-    if (mes && ano) {
-      const ultimoDia = new Date(ano, mes, 0).getDate();
-      return { ini: _d(ano, mes-1, 1), fim: _d(ano, mes-1, ultimoDia) };
-    }
+  if (comPeriodo === 'custom' && _comMesCustom) {
+    const { mes, ano } = _comMesCustom;
+    const ultimoDia = new Date(ano, mes, 0).getDate();
+    return { ini: _d(ano, mes-1, 1), fim: _d(ano, mes-1, ultimoDia) };
   }
   return { ini: _d(a.getFullYear(), a.getMonth(), 1), fim: _d(a.getFullYear(), a.getMonth(), a.getDate()) };
 }
 
+let _comMesCustom = null; // {mes, ano} selecionado no dropdown
+
+function _comAbrirMeses(el) {
+  const drop = document.getElementById('comMesesDrop');
+  const lista = document.getElementById('comMesesLista');
+  if (!drop || !lista) return;
+  const visivel = drop.style.display !== 'none';
+  drop.style.display = visivel ? 'none' : 'block';
+  if (visivel) return;
+  // Gera últimos 24 meses (exceto mês atual)
+  const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const agora = new Date();
+  lista.innerHTML = '';
+  for (let i = 1; i <= 24; i++) {
+    const d = new Date(agora.getFullYear(), agora.getMonth() - i, 1);
+    const m = d.getMonth() + 1; const y = d.getFullYear();
+    const ativo = _comMesCustom && _comMesCustom.mes === m && _comMesCustom.ano === y;
+    const btn = document.createElement('button');
+    btn.style.cssText = `padding:6px 4px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;border:1px solid ${ativo?'var(--accent)':'var(--border2)'};background:${ativo?'var(--accent-light)':'var(--surface)'};color:${ativo?'var(--accent)':'var(--text)'};width:100%;text-align:center`;
+    btn.textContent = `${MESES[m-1]} ${y}`;
+    btn.onclick = () => { _comMesCustom = {mes:m, ano:y}; drop.style.display='none'; document.querySelectorAll('.com-chip').forEach(c=>c.classList.remove('active')); el.classList.add('active'); el.textContent = `${MESES[m-1]}/${y} ▾`; comPeriodo='custom'; loadComercial(); };
+    lista.appendChild(btn);
+  }
+  // Fecha ao clicar fora
+  setTimeout(() => { document.addEventListener('click', function _fora(e){ if(!drop.contains(e.target)&&e.target!==el){drop.style.display='none';document.removeEventListener('click',_fora);} }); }, 50);
+}
+
 function setComPeriodo(p, el) {
+  if (p === 'custom') { _comAbrirMeses(el); return; }
   comPeriodo = p;
+  _comMesCustom = null;
   document.querySelectorAll('.com-chip').forEach(c => c.classList.remove('active'));
   if (el) el.classList.add('active');
-  const dr = document.getElementById('comDateRange');
-  if (dr) dr.style.display = p === 'custom' ? 'flex' : 'none';
-  if (p === 'custom') {
-    // Preenche seletor de anos (5 anos para trás)
-    const anoSel = document.getElementById('comAnoSel');
-    if (anoSel && !anoSel.options.length) {
-      const anoAtual = new Date().getFullYear();
-      for (let y = anoAtual; y >= anoAtual - 4; y--) {
-        const o = document.createElement('option'); o.value = y; o.textContent = y; anoSel.appendChild(o);
-      }
-    }
-    // Pré-seleciona mês/ano atual
-    const agora = new Date();
-    const mesSel = document.getElementById('comMesSel');
-    const anoSelEl = document.getElementById('comAnoSel');
-    if (mesSel) mesSel.value = agora.getMonth() + 1;
-    if (anoSelEl) anoSelEl.value = agora.getFullYear();
-    return;
-  }
+  // Restaura label do botão meses anteriores
+  const btnCustom = document.querySelector('.com-chip[data-p="custom"]');
+  if (btnCustom) btnCustom.textContent = 'Meses anteriores ▾';
   loadComercial();
 }
 
@@ -7663,14 +7666,11 @@ function _comMotivoBarHTML(m, maxM, color, onclick) {
 function _comIsPeriodoFechado() {
   // Período fechado = mês anterior ou custom onde o fim já passou
   if (comPeriodo === 'mes_anterior') return true;
-  if (comPeriodo === 'custom') {
-    const mes = parseInt(document.getElementById('comMesSel')?.value);
-    const ano = parseInt(document.getElementById('comAnoSel')?.value);
-    if (mes && ano) {
-      const ultimoDia = new Date(ano, mes, 0).getDate();
-      const ate = `${ano}-${String(mes).padStart(2,'0')}-${String(ultimoDia).padStart(2,'0')}`;
-      return ate < new Date().toISOString().slice(0, 10);
-    }
+  if (comPeriodo === 'custom' && _comMesCustom) {
+    const { mes, ano } = _comMesCustom;
+    const ultimoDia = new Date(ano, mes, 0).getDate();
+    const ate = `${ano}-${String(mes).padStart(2,'0')}-${String(ultimoDia).padStart(2,'0')}`;
+    return ate < new Date().toISOString().slice(0, 10);
   }
   return false;
 }
