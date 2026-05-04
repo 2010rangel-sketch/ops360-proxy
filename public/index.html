@@ -3852,19 +3852,18 @@ function _fmtFeedTempo(ts, horaSimples) {
 }
 function getFeedDinamico() {
   if(!chamadosDB.length) return [];
-  const agora = new Date().toISOString();
   const eventos = [];
-  // Em deslocamento — usa agora como ts para aparecer no topo (evento ativo)
+  // Em deslocamento
   chamadosDB.filter(c=>c.st==='deslocamento').forEach(c=>eventos.push({
     tipo:'deslocamento', id:c.id, tec:c.tec, cli:c.cli, cat:c.cat, cidade:c.cidade,
-    tempo: _fmtFeedTempo(null, c.ab),
-    ts: agora,
+    tempo: _fmtFeedTempo(c.dataProgramada, c.ab),
+    ts: c.dataProgramada || '',
   }));
-  // Em execução — usa tsInicioExec se disponível, senão agora
+  // Em execução
   chamadosDB.filter(c=>c.st==='execucao').forEach(c=>eventos.push({
     tipo:'inicio', id:c.id, tec:c.tec, cli:c.cli, cat:c.cat, cidade:c.cidade,
-    tempo: _fmtFeedTempo(c.tsInicioExec, c.inicioExec),
-    ts: c.tsInicioExec || agora,
+    tempo: _fmtFeedTempo(c.tsInicioExec || c.dataProgramada, c.inicioExec),
+    ts: c.tsInicioExec || c.dataProgramada || '',
   }));
   // Finalizados
   chamadosDB.filter(c=>c.st==='finalizado').forEach(c=>eventos.push({
@@ -3892,7 +3891,7 @@ function getFeedDinamico() {
   }));
   // Ordena mais recente no topo; deslocamento/execucao ativos ficam no topo por terem ts=agora
   eventos.sort((a,b)=> new Date(b.ts||0) - new Date(a.ts||0));
-  return eventos.slice(0,20);
+  return eventos.slice(0,15);
 }
 function renderFeed() {
   const el = document.getElementById('liveFeed');
