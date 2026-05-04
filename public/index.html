@@ -7220,13 +7220,13 @@ function _comAbrirMeses(el) {
   const visivel = drop.style.display !== 'none';
   drop.style.display = visivel ? 'none' : 'block';
   if (visivel) return;
-  // Gera últimos 24 meses (exceto mês atual)
+  // Gera meses do ano atual anteriores ao mês corrente
   const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   const agora = new Date();
+  const y = agora.getFullYear();
   lista.innerHTML = '';
-  for (let i = 1; i <= 24; i++) {
-    const d = new Date(agora.getFullYear(), agora.getMonth() - i, 1);
-    const m = d.getMonth() + 1; const y = d.getFullYear();
+  for (let i = 1; i < agora.getMonth() + 1; i++) {
+    const m = i;
     const ativo = _comMesCustom && _comMesCustom.mes === m && _comMesCustom.ano === y;
     const btn = document.createElement('button');
     btn.style.cssText = `padding:6px 4px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;border:1px solid ${ativo?'var(--accent)':'var(--border2)'};background:${ativo?'var(--accent-light)':'var(--surface)'};color:${ativo?'var(--accent)':'var(--text)'};width:100%;text-align:center`;
