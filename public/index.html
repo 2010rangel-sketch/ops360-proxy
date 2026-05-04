@@ -1362,12 +1362,16 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
             <button class="chip active com-chip" data-p="mes"          onclick="setComPeriodo('mes',this)">Mês atual</button>
             <button class="chip com-chip"         data-p="mes_anterior" onclick="setComPeriodo('mes_anterior',this)">Mês anterior</button>
             <button class="chip com-chip"         data-p="hoje"         onclick="setComPeriodo('hoje',this)">Hoje</button>
-            <button class="chip com-chip"         data-p="custom"       onclick="setComPeriodo('custom',this)">Período</button>
+            <button class="chip com-chip" data-p="custom" onclick="setComPeriodo('custom',this)">Período</button>
           </div>
-          <div id="comDateRange" style="display:none;gap:6px;align-items:center">
-            <input type="date" id="comDtDe"  style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px">
-            <span style="color:var(--text3);font-size:12px">até</span>
-            <input type="date" id="comDtAte" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px">
+          <div id="comDateRange" style="display:none;gap:6px;align-items:center;flex-wrap:wrap">
+            <select id="comMesSel" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;color-scheme:dark">
+              <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+              <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+              <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+              <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+            </select>
+            <select id="comAnoSel" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;color-scheme:dark"></select>
             <button class="btn btn-primary btn-sm" onclick="loadComercial()"><i class="fas fa-search"></i></button>
           </div>
           <span class="badge b-green" id="com-sync-badge">—</span>
@@ -7207,9 +7211,12 @@ function getComDates() {
     return { ini: _d(a.getFullYear(), a.getMonth(), a.getDate()), fim: _d(a.getFullYear(), a.getMonth(), a.getDate()) };
   }
   if (comPeriodo === 'custom') {
-    const de  = document.getElementById('comDtDe')?.value;
-    const ate = document.getElementById('comDtAte')?.value;
-    if (de && ate) return { ini: de, fim: ate };
+    const mes = parseInt(document.getElementById('comMesSel')?.value);
+    const ano = parseInt(document.getElementById('comAnoSel')?.value);
+    if (mes && ano) {
+      const ultimoDia = new Date(ano, mes, 0).getDate();
+      return { ini: _d(ano, mes-1, 1), fim: _d(ano, mes-1, ultimoDia) };
+    }
   }
   return { ini: _d(a.getFullYear(), a.getMonth(), 1), fim: _d(a.getFullYear(), a.getMonth(), a.getDate()) };
 }
@@ -7220,7 +7227,24 @@ function setComPeriodo(p, el) {
   if (el) el.classList.add('active');
   const dr = document.getElementById('comDateRange');
   if (dr) dr.style.display = p === 'custom' ? 'flex' : 'none';
-  if (p !== 'custom') loadComercial();
+  if (p === 'custom') {
+    // Preenche seletor de anos (5 anos para trás)
+    const anoSel = document.getElementById('comAnoSel');
+    if (anoSel && !anoSel.options.length) {
+      const anoAtual = new Date().getFullYear();
+      for (let y = anoAtual; y >= anoAtual - 4; y--) {
+        const o = document.createElement('option'); o.value = y; o.textContent = y; anoSel.appendChild(o);
+      }
+    }
+    // Pré-seleciona mês/ano atual
+    const agora = new Date();
+    const mesSel = document.getElementById('comMesSel');
+    const anoSelEl = document.getElementById('comAnoSel');
+    if (mesSel) mesSel.value = agora.getMonth() + 1;
+    if (anoSelEl) anoSelEl.value = agora.getFullYear();
+    return;
+  }
+  loadComercial();
 }
 
 // ── Estado de filtros ativos ──────────────────────────────────────
@@ -7640,10 +7664,12 @@ function _comIsPeriodoFechado() {
   // Período fechado = mês anterior ou custom onde o fim já passou
   if (comPeriodo === 'mes_anterior') return true;
   if (comPeriodo === 'custom') {
-    const ate = document.getElementById('comDtAte')?.value;
-    if (ate) {
-      const hoje = new Date().toISOString().slice(0, 10);
-      return ate < hoje;
+    const mes = parseInt(document.getElementById('comMesSel')?.value);
+    const ano = parseInt(document.getElementById('comAnoSel')?.value);
+    if (mes && ano) {
+      const ultimoDia = new Date(ano, mes, 0).getDate();
+      const ate = `${ano}-${String(mes).padStart(2,'0')}-${String(ultimoDia).padStart(2,'0')}`;
+      return ate < new Date().toISOString().slice(0, 10);
     }
   }
   return false;
