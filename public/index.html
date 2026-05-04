@@ -3844,48 +3844,55 @@ const feedCfg = {
   reagendado:  {icon:'fa-calendar-alt',     color:'var(--orange)',  text:'Reagendou'},
   retrabalho:  {icon:'fa-redo',             color:'var(--orange)',  text:'Retrabalho'},
 };
+function _fmtFeedTempo(ts, horaSimples) {
+  // Sempre mostra data + hora
+  if (ts) { const d = new Date(ts); if (!isNaN(d)) return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) + ' ' + d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }
+  if (horaSimples) return horaSimples; // fallback HH:MM
+  return '--';
+}
 function getFeedDinamico() {
   if(!chamadosDB.length) return [];
+  const agora = new Date().toISOString();
   const eventos = [];
-  // Em deslocamento
-  chamadosDB.filter(c=>['em_deslocamento','deslocamento'].includes(c.st)).forEach(c=>eventos.push({
+  // Em deslocamento — usa agora como ts para aparecer no topo (evento ativo)
+  chamadosDB.filter(c=>c.st==='deslocamento').forEach(c=>eventos.push({
     tipo:'deslocamento', id:c.id, tec:c.tec, cli:c.cli, cat:c.cat, cidade:c.cidade,
-    tempo: c.ab || '--',
-    ts: c.dataProgramada || '',
+    tempo: _fmtFeedTempo(null, c.ab),
+    ts: agora,
   }));
-  // Em execução (iniciou serviço)
-  chamadosDB.filter(c=>['execucao','em_execucao'].includes(c.st)).forEach(c=>eventos.push({
+  // Em execução — usa tsInicioExec se disponível, senão agora
+  chamadosDB.filter(c=>c.st==='execucao').forEach(c=>eventos.push({
     tipo:'inicio', id:c.id, tec:c.tec, cli:c.cli, cat:c.cat, cidade:c.cidade,
-    tempo: c.inicioExec || formatarDataFeed(c.dataProgramada),
-    ts: c.tsInicioExec || c.dataProgramada || '',
+    tempo: _fmtFeedTempo(c.tsInicioExec, c.inicioExec),
+    ts: c.tsInicioExec || agora,
   }));
   // Finalizados
-  chamadosDB.filter(c=>c.st==='finalizado' && c.fimExec).forEach(c=>eventos.push({
+  chamadosDB.filter(c=>c.st==='finalizado').forEach(c=>eventos.push({
     tipo:'fim', id:c.id, tec:c.tec, cli:c.cli, cat:c.cat, cidade:c.cidade,
-    tempo: c.fimExec,
+    tempo: _fmtFeedTempo(c.tsFimExec, c.fimExec),
     ts: c.tsFimExec || c.dataProgramada || '',
   }));
   // Atrasados
   chamadosDB.filter(c=>c.st==='atrasado').forEach(c=>eventos.push({
     tipo:'atraso', id:c.id, tec:c.tec, cli:c.cli, cat:c.cat, cidade:c.cidade,
-    tempo: c.inicioExec || c.ab || '--',
+    tempo: _fmtFeedTempo(c.tsInicioExec, c.inicioExec || c.ab),
     ts: c.tsInicioExec || c.dataProgramada || '',
   }));
   // Reagendados
   chamadosDB.filter(c=>c.st==='reagendado').forEach(c=>eventos.push({
     tipo:'reagendado', id:c.id, tec:c.tec, cli:c.cli, cat:c.cat, cidade:c.cidade,
-    tempo: c.ab || '--',
+    tempo: _fmtFeedTempo(c.dataProgramada, c.ab),
     ts: c.dataProgramada || '',
   }));
   // Retrabalhos
   chamadosDB.filter(c=>c.rtb||c.st==='retrabalho').forEach(c=>eventos.push({
     tipo:'retrabalho', id:c.id, tec:c.tec, cli:c.cli, cat:c.cat, cidade:c.cidade,
-    tempo: c.inicioExec || c.ab || '--',
+    tempo: _fmtFeedTempo(c.tsInicioExec, c.inicioExec || c.ab),
     ts: c.tsInicioExec || c.dataProgramada || '',
   }));
-  // Ordena mais recente no topo
+  // Ordena mais recente no topo; deslocamento/execucao ativos ficam no topo por terem ts=agora
   eventos.sort((a,b)=> new Date(b.ts||0) - new Date(a.ts||0));
-  return eventos.slice(0,15);
+  return eventos.slice(0,20);
 }
 function renderFeed() {
   const el = document.getElementById('liveFeed');
