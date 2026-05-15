@@ -1351,10 +1351,11 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
     <!-- ═══ COMERCIAL ═══ -->
     <div class="page active" id="page-comercial">
 
-      <!-- Header -->
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap">
-        <div style="display:flex;align-items:center;gap:10px">
-          <div style="font-size:18px;font-weight:800;color:var(--text);letter-spacing:.02em">VENDAS <span id="com-header-data" style="color:var(--accent)">—</span></div>
+      <!-- Header + filtros -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:16px;font-weight:700;color:var(--text)">Comercial</div>
+          <div style="font-size:11px;color:var(--text3)">Vendas, reativações e desistência</div>
         </div>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;position:relative">
           <div style="display:flex;gap:3px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:3px">
@@ -1362,6 +1363,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
             <button class="chip com-chip"         data-p="hoje" onclick="setComPeriodo('hoje',this)">Hoje</button>
             <button class="chip com-chip"         data-p="custom" onclick="setComPeriodo('custom',this)">Meses anteriores ▾</button>
           </div>
+          <!-- Dropdown meses anteriores -->
           <div id="comMesesDrop" style="display:none;position:absolute;top:36px;left:0;z-index:200;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.4);min-width:260px">
             <div id="comMesesLista" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px"></div>
           </div>
@@ -1369,105 +1371,68 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         </div>
       </div>
 
-      <!-- 3 KPI cards grandes: Mês Atual | Vendas do Dia | Mês Anterior -->
-      <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:14px;margin-bottom:16px;align-items:stretch">
-
-        <!-- Mês Atual -->
-        <div style="background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:18px 22px;display:flex;flex-direction:column;gap:4px">
-          <div style="display:flex;align-items:center;gap:7px;margin-bottom:4px">
-            <i class="fas fa-chart-bar" style="color:var(--accent);font-size:15px"></i>
-            <span style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em">Mês Atual</span>
-          </div>
-          <div id="com-total" style="font-size:42px;font-weight:800;color:var(--text);line-height:1">—</div>
-          <div style="font-size:11px;color:var(--text3);margin-top:4px">
-            <span style="color:#22c55e;font-weight:600" id="com-novas">—</span> novas &nbsp;·&nbsp;
-            <span style="color:var(--cyan);font-weight:600" id="com-reat">—</span> reat. &nbsp;·&nbsp;
-            <span style="color:var(--red);font-weight:600" id="com-cancelados">—</span> s/ instalar
-          </div>
-          <div style="font-size:10px;color:var(--text3);margin-top:2px" id="com-ticket-mes">—</div>
+      <!-- KPI cards -->
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px">
+        <div class="kpi-mini">
+          <div class="kpi-mini-bar" style="background:var(--accent)"></div>
+          <div class="kpi-mini-label">Total geral de vendas</div>
+          <div class="kpi-mini-val" id="com-total" style="color:var(--accent)">—</div>
         </div>
-
-        <!-- Vendas do Dia (destaque central) -->
-        <div style="background:linear-gradient(135deg,rgba(91,106,240,.18) 0%,rgba(6,182,212,.12) 100%);border:2px solid var(--accent);border-radius:12px;padding:18px 28px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:200px;position:relative">
-          <div style="font-size:22px;line-height:1;margin-bottom:2px">⭐</div>
-          <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.08em">Vendas do Dia</div>
-          <div id="com-dia-total" style="font-size:52px;font-weight:900;color:var(--text);line-height:1">—</div>
-          <div style="font-size:10px;color:var(--text3);margin-top:2px" id="com-ticket-dia">—</div>
+        <div class="kpi-mini">
+          <div class="kpi-mini-bar" style="background:#22c55e"></div>
+          <div class="kpi-mini-label">Novas</div>
+          <div class="kpi-mini-val" id="com-novas" style="color:#22c55e">—</div>
         </div>
-
-        <!-- Mês Anterior -->
-        <div style="background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:18px 22px;display:flex;flex-direction:column;gap:4px">
-          <div style="display:flex;align-items:center;gap:7px;margin-bottom:4px">
-            <i class="fas fa-clock" style="color:var(--amber);font-size:15px"></i>
-            <span style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em">Mês Anterior</span>
-          </div>
-          <div id="com-mes-ant-total" style="font-size:42px;font-weight:800;color:var(--text);line-height:1">—</div>
-          <div style="font-size:11px;color:var(--text3);margin-top:4px">
-            <span style="color:#22c55e;font-weight:600" id="com-mes-ant-novas">—</span> novas &nbsp;·&nbsp;
-            <span style="color:var(--cyan);font-weight:600" id="com-mes-ant-reat">—</span> reat.
-          </div>
-          <div style="font-size:10px;color:var(--text3);margin-top:2px" id="com-ticket-ant">—</div>
+        <div class="kpi-mini">
+          <div class="kpi-mini-bar" style="background:var(--cyan)"></div>
+          <div class="kpi-mini-label">Reativações</div>
+          <div class="kpi-mini-val" id="com-reat" style="color:var(--cyan)">—</div>
         </div>
-
+        <div class="kpi-mini">
+          <div class="kpi-mini-bar" style="background:var(--amber)"></div>
+          <div class="kpi-mini-label">% de Reativações</div>
+          <div class="kpi-mini-val" id="com-pct-reat" style="color:var(--amber)">—</div>
+        </div>
+        <div class="kpi-mini">
+          <div class="kpi-mini-bar" style="background:var(--green)"></div>
+          <div class="kpi-mini-label">Ativos</div>
+          <div class="kpi-mini-val" id="com-ativos" style="color:var(--green)">—</div>
+        </div>
+        <div class="kpi-mini">
+          <div class="kpi-mini-bar" style="background:var(--red)"></div>
+          <div class="kpi-mini-label" title="Vendas novas canceladas antes da instalação">Cancelado s/ Instalar</div>
+          <div class="kpi-mini-val" id="com-cancelados" style="color:var(--red)">—</div>
+        </div>
       </div>
 
-      <!-- Grid principal: Ranking (esq) + Painéis dia (dir) -->
-      <div style="display:grid;grid-template-columns:1fr 320px;gap:14px;margin-bottom:14px">
+      <!-- Row 1: Por vendedor + Vendas por cidade (swapped) -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
 
-        <!-- Ranking de Vendedores -->
+        <!-- Por vendedor (agora à esquerda) -->
         <div class="tbl-card" style="margin-bottom:0">
           <div class="tbl-header">
-            <span class="tbl-title"><i class="fas fa-trophy" style="color:var(--amber);margin-right:5px"></i>Ranking de Vendedores</span>
+            <span class="tbl-title"><i class="fas fa-user-tie" style="color:var(--green);margin-right:5px"></i>Por Vendedor</span>
+            <span id="com-vend-filtro-badge" style="display:none;font-size:11px;padding:2px 7px;border-radius:4px;cursor:pointer;background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.4)">✕ limpar</span>
             <span class="badge b-green" id="com-vend-count">—</span>
           </div>
-          <div style="padding:10px 14px">
-            <!-- cabeçalho das colunas -->
-            <div style="display:grid;grid-template-columns:1fr 60px 70px 70px;gap:4px;padding:4px 8px;margin-bottom:4px">
-              <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.06em">Vendedor</div>
-              <div style="font-size:10px;color:var(--amber);font-weight:700;text-transform:uppercase;letter-spacing:.06em;text-align:center">DIA</div>
-              <div style="font-size:10px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:.06em;text-align:center">MÊS ATUAL</div>
-              <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.06em;text-align:center">MÊS ANT.</div>
-            </div>
-            <div id="com-ranking-lista" style="max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:4px">
-              <div style="text-align:center;color:var(--text3);padding:20px;font-size:12px">Carregando...</div>
-            </div>
-          </div>
+          <div id="com-vendedor-bars" style="padding:12px 16px;max-height:260px;overflow-y:auto"></div>
         </div>
 
-        <!-- Coluna direita: painéis do dia -->
-        <div style="display:flex;flex-direction:column;gap:10px">
-
-          <!-- Plano de Acesso - Dia -->
-          <div class="tbl-card" style="margin-bottom:0">
-            <div class="tbl-header" style="padding:8px 12px">
-              <span class="tbl-title" style="font-size:12px"><i class="fas fa-layer-group" style="color:var(--cyan);margin-right:4px"></i>Plano de Acesso · Dia</span>
-            </div>
-            <div id="com-dia-planos" style="padding:8px 12px;max-height:130px;overflow-y:auto"></div>
+        <!-- Vendas por cidade (agora à direita, filtrável pelo vendedor) -->
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <span class="tbl-title"><i class="fas fa-map-marker-alt" style="color:var(--accent);margin-right:5px"></i>Vendas por Cidade</span>
+            <span class="badge b-blue" id="com-cid-count">—</span>
           </div>
-
-          <!-- Cidade - Dia -->
-          <div class="tbl-card" style="margin-bottom:0">
-            <div class="tbl-header" style="padding:8px 12px">
-              <span class="tbl-title" style="font-size:12px"><i class="fas fa-map-marker-alt" style="color:var(--accent);margin-right:4px"></i>Cidade · Dia</span>
-            </div>
-            <div id="com-dia-cidades" style="padding:8px 12px;max-height:130px;overflow-y:auto"></div>
-          </div>
-
-          <!-- Bairro - Dia -->
-          <div class="tbl-card" style="margin-bottom:0">
-            <div class="tbl-header" style="padding:8px 12px">
-              <span class="tbl-title" style="font-size:12px"><i class="fas fa-map" style="color:var(--green);margin-right:4px"></i>Bairro · Dia</span>
-            </div>
-            <div id="com-dia-bairros" style="padding:8px 12px;max-height:130px;overflow-y:auto"></div>
-          </div>
-
+          <div id="com-cidades-bars" style="padding:12px 16px;max-height:260px;overflow-y:auto"></div>
         </div>
+
       </div>
 
-      <!-- Tabela de vendas (lista completa) -->
+      <!-- Row 2: Por plano + Por Status (donuts) + Todas as vendas -->
       <div style="display:grid;grid-template-columns:198px 193px 1fr;gap:14px;margin-bottom:14px">
 
-        <!-- Por plano (donut) -->
+        <!-- Por plano -->
         <div class="tbl-card" style="margin-bottom:0">
           <div class="tbl-header" style="padding:8px 10px">
             <span class="tbl-title" style="font-size:12px"><i class="fas fa-layer-group" style="color:var(--amber);margin-right:4px"></i>Por Plano</span>
@@ -1478,7 +1443,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
           </div>
         </div>
 
-        <!-- Por Status (donut) -->
+        <!-- Por Status -->
         <div class="tbl-card" style="margin-bottom:0">
           <div class="tbl-header" style="padding:8px 10px">
             <span class="tbl-title" style="font-size:12px"><i class="fas fa-signal" style="color:var(--cyan);margin-right:4px"></i>Por Status</span>
@@ -1489,7 +1454,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
           </div>
         </div>
 
-        <!-- Lista de vendas -->
+        <!-- Todas as vendas -->
         <div class="tbl-card" style="margin-bottom:0">
           <div class="tbl-header">
             <span class="tbl-title"><i class="fas fa-list" style="color:var(--text3);margin-right:5px"></i>Vendas</span>
@@ -1515,16 +1480,6 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
           </div>
         </div>
 
-      </div>
-
-      <!-- IDs legados mantidos para compatibilidade com JS existente -->
-      <div style="display:none">
-        <div id="com-ativos">—</div>
-        <div id="com-pct-reat">—</div>
-        <div id="com-vend-filtro-badge"></div>
-        <div id="com-cid-count">—</div>
-        <div id="com-vendedor-bars"></div>
-        <div id="com-cidades-bars"></div>
       </div>
 
       <!-- Row 3: Cancelamentos do mês (motivos + lista) -->
@@ -7649,72 +7604,6 @@ function renderComercialAtualiza(data) {
 // Alias para compatibilidade com código existente
 function renderComercialFiltrado(data) { renderComercialAtualiza(data); }
 
-// ── Ranking de Vendedores (DIA / MÊS ATUAL / MÊS ANT) ───────────
-let _comDiaData = null;
-let _comAntData = null;
-
-function renderRankingVendedores(mesData, diaData, antData) {
-  const el = document.getElementById('com-ranking-lista');
-  if (!el) return;
-  const mesVends = mesData?.vendedores || [];
-  const diaVends = diaData?.vendedores || [];
-  const antVends = antData?.vendedores || [];
-  const diaMap = Object.fromEntries(diaVends.map(v => [v.nome, v.total]));
-  const antMap = Object.fromEntries(antVends.map(v => [v.nome, v.total]));
-  if (!mesVends.length) { el.innerHTML = '<div style="text-align:center;color:var(--text3);padding:20px;font-size:12px">Sem dados</div>'; return; }
-  const medals = ['🥇','🥈','🥉'];
-  el.innerHTML = mesVends.map((v, i) => {
-    const pos = i < 3 ? `<span style="font-size:18px;line-height:1">${medals[i]}</span>`
-      : `<span style="width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:var(--surface2,var(--surface));font-size:11px;font-weight:700;color:var(--text3)">${i+1}</span>`;
-    const dia = diaMap[v.nome] || 0;
-    const ant = antMap[v.nome] || 0;
-    const diaColor = dia > 0 ? 'var(--amber)' : 'var(--text3)';
-    return `<div style="display:grid;grid-template-columns:1fr 60px 70px 70px;gap:4px;align-items:center;padding:7px 10px;border-radius:7px;background:var(--surface);border:1px solid var(--border)">
-      <div style="display:flex;align-items:center;gap:8px;min-width:0">
-        ${pos}
-        <span style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.nome}</span>
-      </div>
-      <div style="text-align:center">
-        <span style="font-size:20px;font-weight:800;color:${diaColor};line-height:1">${dia}</span>
-      </div>
-      <div style="text-align:center">
-        <span style="font-size:18px;font-weight:700;color:var(--accent);line-height:1">${v.total}</span>
-      </div>
-      <div style="text-align:center">
-        <span style="font-size:16px;font-weight:600;color:var(--text2);line-height:1">${ant}</span>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function _renderDiaBars(elId, itens, cor) {
-  const el = document.getElementById(elId);
-  if (!el) return;
-  if (!itens || !itens.length) { el.innerHTML = '<div style="color:var(--text3);font-size:11px;padding:4px">Sem vendas hoje</div>'; return; }
-  const max = itens[0].total || 1;
-  el.innerHTML = itens.map(it => `
-    <div style="margin-bottom:6px">
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:2px">
-        <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70%">${it.nome}</span>
-        <span style="font-weight:700;color:${cor}">${it.total}</span>
-      </div>
-      <div style="height:4px;background:var(--border);border-radius:2px">
-        <div style="height:4px;background:${cor};border-radius:2px;width:${Math.round(it.total/max*100)}%"></div>
-      </div>
-    </div>`).join('');
-}
-
-function renderComDia(diaData) {
-  if (!diaData) return;
-  const dia = diaData.total || 0;
-  document.getElementById('com-dia-total').textContent = dia;
-  const ticket = dia > 0 && diaData.ultimas?.length ? '' : '';
-  document.getElementById('com-ticket-dia').textContent = dia > 0 ? `${diaData.novas||0} novas · ${diaData.reativacoes||0} reat.` : 'Nenhuma venda hoje';
-  _renderDiaBars('com-dia-planos',  diaData.planos  || [], 'var(--cyan)');
-  _renderDiaBars('com-dia-cidades', diaData.cidades || [], 'var(--accent)');
-  _renderDiaBars('com-dia-bairros', diaData.bairros || [], 'var(--green)');
-}
-
 // ── Metas por vendedor (hardcoded) ───────────────────────────────
 const COM_METAS = {
   'samara': 75, 'jamily': 75, 'jamilly': 75,
@@ -8194,31 +8083,15 @@ async function loadComercial() {
   if (badge) { badge.textContent = 'Buscando...'; badge.className = 'badge b-amber'; }
   try {
     const { ini, fim } = getComDates();
-
-    // Calcula datas auxiliares
-    const agoraBRT = new Date(Date.now() - 3*60*60*1000);
-    const hoje = agoraBRT.toISOString().slice(0,10);
-    const mesAntIni = new Date(agoraBRT.getFullYear(), agoraBRT.getMonth()-1, 1).toISOString().slice(0,10);
-    const mesAntFim = new Date(agoraBRT.getFullYear(), agoraBRT.getMonth(), 0).toISOString().slice(0,10);
-
-    // Busca mês atual + dia + mês anterior em paralelo
-    const [r, rDia, rAnt] = await Promise.all([
-      fetch(`/api/comercial?data_inicio=${encodeURIComponent(ini)}&data_fim=${encodeURIComponent(fim)}`),
-      fetch(`/api/comercial?data_inicio=${hoje}&data_fim=${hoje}`),
-      fetch(`/api/comercial?data_inicio=${mesAntIni}&data_fim=${mesAntFim}`),
-    ]);
-    const data    = await r.json();
-    const diaData = await rDia.json().catch(() => null);
-    const antData = await rAnt.json().catch(() => null);
-
-    _comDiaData = diaData?.ok ? diaData : null;
-    _comAntData = antData?.ok ? antData : null;
+    const r    = await fetch(`/api/comercial?data_inicio=${encodeURIComponent(ini)}&data_fim=${encodeURIComponent(fim)}`);
+    const data = await r.json();
 
     const noEp  = document.getElementById('com-no-endpoint');
     const errEl = document.getElementById('com-endpoint-error');
 
     if (!data.ok) {
       if (data.warming) {
+        // Cache sendo carregado — auto-retry em 30s
         if (noEp) noEp.style.display = '';
         const titleEl = document.getElementById('com-endpoint-title');
         if (titleEl) titleEl.textContent = '⏳ Carregando base de clientes...';
@@ -8247,33 +8120,14 @@ async function loadComercial() {
     if (typeof buildNotificacoes === 'function') buildNotificacoes();
 
     const ev = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
-
-    // Header com data atual
-    const ddmm = `${String(agoraBRT.getDate()).padStart(2,'0')}/${String(agoraBRT.getMonth()+1).padStart(2,'0')}`;
-    ev('com-header-data', `(${ddmm})`);
-
-    // KPI Mês Atual
     ev('com-total',      data.total);
     ev('com-novas',      data.novas);
     ev('com-reat',       data.reativacoes);
-    ev('com-cancelados', data.cancelados ?? '—');
-    ev('com-ativos',     data.ativos ?? '—');
     ev('com-pct-reat',   (data.ativos ?? 0) > 0 ? Math.round(data.reativacoes / data.ativos * 100) + '%' : '0%');
+    ev('com-ativos',     data.ativos ?? '—');
+    ev('com-cancelados', data.cancelados ?? '—');
     ev('com-cid-count',  data.cidades.length);
     ev('com-vend-count', data.vendedores.length);
-    ev('com-ticket-mes', data.total > 0 ? `${data.ativos} ativos · ${data.reativacoes} reat. · ${data.cancelados} s/instalar` : '');
-
-    // KPI Mês Anterior
-    if (_comAntData) {
-      ev('com-mes-ant-total', _comAntData.total);
-      ev('com-mes-ant-novas', _comAntData.novas);
-      ev('com-mes-ant-reat',  _comAntData.reativacoes);
-      ev('com-ticket-ant',    `${_comAntData.ativos||0} ativos · ${_comAntData.cancelados||0} s/instalar`);
-    }
-
-    // Ranking vendedores + painéis dia
-    renderRankingVendedores(data, _comDiaData, _comAntData);
-    renderComDia(_comDiaData);
 
     renderComercialAtualiza(data);
     renderComCanceladosDetalhe(data);
@@ -8281,6 +8135,7 @@ async function loadComercial() {
     const hora = new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
     if (data._stale) {
       if (badge) { badge.textContent = 'Atualizando...'; badge.className = 'badge b-amber'; }
+      // Retry silencioso após 15s para pegar dados frescos
       setTimeout(() => loadComercial(), 15000);
     } else {
       if (badge) { badge.textContent = `Atualizado ${hora}`; badge.className = 'badge b-green'; }
