@@ -1856,6 +1856,7 @@ function buildVendasFromClientes(clientes, iniStr, fimStr) {
       const endInst = typeof s.endereco_instalacao === 'object' && s.endereco_instalacao
         ? s.endereco_instalacao : {};
       const cidade  = endInst.cidade || 'Desconhecida';
+      const bairro  = endInst.bairro || 'Desconhecido';
       const plano   = s.nome || '—';
       const status  = s.status_prefixo || '';
 
@@ -1875,7 +1876,7 @@ function buildVendasFromClientes(clientes, iniStr, fimStr) {
       const motivo = (s.motivo_cancelamento || '').trim() || null;
       const _dcParsed = s.data_cancelamento ? parseDate(s.data_cancelamento) : null;
       const dataCancelamento = _dcParsed ? new Date(_dcParsed.getTime() - 3*60*60*1000).toISOString().split('T')[0] : null;
-      vendas.push({ cliente: nome, cidade, plano, vendedor, status, dataCad: dataVenda, dataVenda, reativacao, cancelado, motivo, dataCancelamento });
+      vendas.push({ cliente: nome, cidade, bairro, plano, vendedor, status, dataCad: dataVenda, dataVenda, reativacao, cancelado, motivo, dataCancelamento });
     }
   }
   return vendas;
@@ -1883,12 +1884,17 @@ function buildVendasFromClientes(clientes, iniStr, fimStr) {
 
 function buildComResult(vendas, iniStr, fimStr) {
   const cidadeMap   = {};
+  const bairroMap   = {};
   const planoMap    = {};
   const vendedorMap = {};
   for (const v of vendas) {
     if (!cidadeMap[v.cidade]) cidadeMap[v.cidade] = { nome: v.cidade, total: 0, novas: 0, reat: 0 };
     cidadeMap[v.cidade].total++;
     if (v.reativacao) cidadeMap[v.cidade].reat++; else cidadeMap[v.cidade].novas++;
+    if (v.bairro) {
+      if (!bairroMap[v.bairro]) bairroMap[v.bairro] = { nome: v.bairro, total: 0 };
+      bairroMap[v.bairro].total++;
+    }
     if (!planoMap[v.plano]) planoMap[v.plano] = { nome: v.plano, total: 0 };
     planoMap[v.plano].total++;
     if (v.vendedor && v.vendedor !== '—') {
@@ -1935,6 +1941,7 @@ function buildComResult(vendas, iniStr, fimStr) {
     por_status,
     cancelados_por_motivo, cancelados_detalhe,
     cidades:    Object.values(cidadeMap).sort((a,b) => b.total - a.total),
+    bairros:    Object.values(bairroMap).sort((a,b) => b.total - a.total),
     vendedores: Object.values(vendedorMap).sort((a,b) => b.total - a.total),
     planos:     Object.values(planoMap).sort((a,b) => b.total - a.total),
     ultimas:    vendas.slice().sort((a, b) => b.dataVenda > a.dataVenda ? 1 : -1),
