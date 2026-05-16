@@ -7687,13 +7687,14 @@ function _renderTimeRanking(elId, cntId, vends, diaMap, antMap, accentColor) {
           </div>
         </div>`
       : `<div class="com-rank-col"><span class="com-rank-col-label">META</span><span style="font-size:12px;color:var(--text3)">—</span></div>`;
-    const carColor  = CAR_COLORS[i % CAR_COLORS.length];
-    const carPct    = maxTotal > 0 ? Math.max(2, Math.round(v.total / maxTotal * 96)) : 2;
+    const carColor   = CAR_COLORS[i % CAR_COLORS.length];
+    const carPct     = maxTotal > 0 ? Math.max(2, Math.round(v.total / maxTotal * 96)) : 2;
+    const finishPct  = (meta > 0 && maxTotal > 0) ? Math.min(97, Math.round(meta / maxTotal * 96)) : 97;
     const trackHtml = `
       <div style="position:relative;height:18px;background:rgba(0,0,0,.25);border-radius:4px;overflow:hidden;border:1px solid rgba(255,255,255,.06)">
         <div style="position:absolute;top:50%;left:0;right:0;height:1px;border-top:2px dashed rgba(255,255,255,.08);transform:translateY(-50%)"></div>
-        <div style="position:absolute;top:0;bottom:0;right:0;width:3px;background:rgba(255,255,255,.15)"></div>
-        <div style="position:absolute;top:50%;left:${carPct}%;transform:translate(-50%,-50%);font-size:16px;line-height:1;filter:drop-shadow(0 0 4px ${carColor});transition:left .6s ease">🚗</div>
+        <div style="position:absolute;top:0;bottom:0;left:${finishPct}%;width:4px;background:repeating-linear-gradient(180deg,#fff 0px,#fff 3px,#000 3px,#000 6px);opacity:.7"></div>
+        <div style="position:absolute;top:50%;left:${carPct}%;transform:translate(-50%,-50%) scaleX(-1);font-size:16px;line-height:1;filter:drop-shadow(0 0 4px ${carColor});transition:left .6s ease">🚗</div>
       </div>`;
     return `<div class="com-rank-row" style="grid-template-columns:26px 1fr 48px 64px 64px 40px 110px">
       <div style="display:flex;justify-content:center;align-items:center">${pos}</div>
