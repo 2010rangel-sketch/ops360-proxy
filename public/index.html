@@ -7664,9 +7664,7 @@ function _renderTimeRanking(elId, cntId, vends, diaMap, antMap, accentColor) {
   if (!el) return;
   if (!vends.length) { el.innerHTML = '<div style="text-align:center;color:var(--text3);padding:14px;font-size:11px">Sem dados</div>'; if(cnt) cnt.textContent='0'; return; }
   if (cnt) cnt.textContent = vends.length;
-  const CAR_COLORS = ['#ef4444','#3b82f6','#22c55e','#f59e0b','#a855f7','#ec4899','#06b6d4','#f97316'];
   const medals = ['🥇','🥈','🥉'];
-  const maxTotal = vends[0]?.total || 1;
   el.innerHTML = vends.map((v, i) => {
     const pos = i < 3
       ? `<span style="font-size:18px;line-height:1">${medals[i]}</span>`
@@ -7687,25 +7685,9 @@ function _renderTimeRanking(elId, cntId, vends, diaMap, antMap, accentColor) {
           </div>
         </div>`
       : `<div class="com-rank-col"><span class="com-rank-col-label">META</span><span style="font-size:12px;color:var(--text3)">—</span></div>`;
-    const carColor   = CAR_COLORS[i % CAR_COLORS.length];
-    const carPct     = maxTotal > 0 ? Math.max(2, Math.round(v.total / maxTotal * 96)) : 2;
-    const finishPct  = (meta > 0 && maxTotal > 0) ? Math.min(96, Math.round(meta / maxTotal * 96)) : 96;
-    const _nLower    = v.nome.toLowerCase();
-    const _isFem     = _nLower.includes('escritorio') || _nLower.includes('escritório')
-      || /^(samara|jamil|jamilly|ana|maria|julia|paula|patricia|fernanda|larissa|jessica|camila|beatriz|carol|adriana|aline|bruna|claudia|cristina|daniela|debora|elaine|erica|fabiana|gabriela|ingrid|isabela|joyce|karla|livia|luciana|luisa|marcia|mariana|natalia|priscila|rafaela|renata|roberta|rosana|sandra|simone|tatiana|thais|vanessa|vitoria|yasmin)/.test(_nLower.split(/[\s\-]/)[0]);
-    const carSvg     = `<span style="font-size:16px;display:inline-block;transform:scaleX(-1);filter:drop-shadow(0 0 5px ${carColor})">${_isFem ? '🏃‍♀️' : '🏃‍♂️'}</span>`;
-    const trackHtml = `
-      <div style="position:relative;height:20px;background:rgba(0,0,0,.3);border-radius:4px;overflow:hidden;border:1px solid rgba(255,255,255,.07)">
-        <div style="position:absolute;top:50%;left:0;right:0;border-top:1px dashed rgba(255,255,255,.07);transform:translateY(-50%)"></div>
-        ${meta > 0 ? `<div style="position:absolute;top:0;bottom:0;left:${finishPct}%;width:4px;background-image:conic-gradient(#fff 90deg,#000 90deg 180deg,#fff 180deg 270deg,#000 270deg);background-size:2px 2px;opacity:.9"></div>` : ''}
-        <div style="position:absolute;top:50%;left:${carPct}%;transform:translate(-50%,-50%);line-height:1;filter:drop-shadow(0 0 4px ${carColor}bb);transition:left .6s ease">${carSvg}</div>
-      </div>`;
     return `<div class="com-rank-row" style="grid-template-columns:26px 1fr 48px 64px 64px 40px 110px">
       <div style="display:flex;justify-content:center;align-items:center">${pos}</div>
-      <div style="display:flex;flex-direction:column;gap:3px;justify-content:center;min-width:0">
-        <span style="font-size:11px;font-weight:600;color:${carColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.nome}</span>
-        ${trackHtml}
-      </div>
+      <div style="font-size:11px;font-weight:600;color:var(--text)">${v.nome}</div>
       <div class="com-rank-col"><span class="com-rank-col-label" style="color:#f59e0b">DIA</span><span class="com-rank-col-val" style="color:${diaColor};font-size:18px">${dia}</span></div>
       <div class="com-rank-col"><span class="com-rank-col-label" style="color:${accentColor}">MÊS ATUAL</span><span class="com-rank-col-val" style="color:${accentColor};font-size:18px">${v.total}</span></div>
       <div class="com-rank-col"><span class="com-rank-col-label">MÊS ANT.</span><span class="com-rank-col-val" style="font-size:15px;color:var(--text2)">${ant}</span></div>
