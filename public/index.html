@@ -7689,12 +7689,21 @@ function _renderTimeRanking(elId, cntId, vends, diaMap, antMap, accentColor) {
       : `<div class="com-rank-col"><span class="com-rank-col-label">META</span><span style="font-size:12px;color:var(--text3)">—</span></div>`;
     const carColor   = CAR_COLORS[i % CAR_COLORS.length];
     const carPct     = maxTotal > 0 ? Math.max(2, Math.round(v.total / maxTotal * 96)) : 2;
-    const finishPct  = (meta > 0 && maxTotal > 0) ? Math.min(97, Math.round(meta / maxTotal * 96)) : 97;
+    const finishPct  = (meta > 0 && maxTotal > 0) ? Math.min(96, Math.round(meta / maxTotal * 96)) : 96;
+    const carSvg     = `<svg width="26" height="14" viewBox="0 0 26 14" xmlns="http://www.w3.org/2000/svg">
+      <rect x="1" y="6" width="24" height="6" rx="2" fill="${carColor}"/>
+      <rect x="6" y="2" width="12" height="5" rx="2" fill="${carColor}" opacity=".85"/>
+      <rect x="7" y="2.5" width="4" height="3.5" rx="1" fill="rgba(0,0,0,.4)"/>
+      <rect x="12" y="2.5" width="5" height="3.5" rx="1" fill="rgba(0,0,0,.4)"/>
+      <circle cx="6" cy="12" r="2.5" fill="#111" stroke="${carColor}" stroke-width="1.2"/>
+      <circle cx="19" cy="12" r="2.5" fill="#111" stroke="${carColor}" stroke-width="1.2"/>
+      <rect x="22" y="7" width="3" height="2" rx=".5" fill="#f59e0b" opacity=".9"/>
+    </svg>`;
     const trackHtml = `
-      <div style="position:relative;height:18px;background:rgba(0,0,0,.25);border-radius:4px;overflow:hidden;border:1px solid rgba(255,255,255,.06)">
-        <div style="position:absolute;top:50%;left:0;right:0;height:1px;border-top:2px dashed rgba(255,255,255,.08);transform:translateY(-50%)"></div>
-        <div style="position:absolute;top:0;bottom:0;left:${finishPct}%;width:4px;background:repeating-linear-gradient(180deg,#fff 0px,#fff 3px,#000 3px,#000 6px);opacity:.7"></div>
-        <div style="position:absolute;top:50%;left:${carPct}%;transform:translate(-50%,-50%) scaleX(-1);font-size:16px;line-height:1;filter:drop-shadow(0 0 4px ${carColor});transition:left .6s ease">🚗</div>
+      <div style="position:relative;height:20px;background:rgba(0,0,0,.3);border-radius:4px;overflow:hidden;border:1px solid rgba(255,255,255,.07)">
+        <div style="position:absolute;top:50%;left:0;right:0;border-top:1px dashed rgba(255,255,255,.07);transform:translateY(-50%)"></div>
+        <div style="position:absolute;top:0;bottom:0;left:${finishPct}%;width:8px;background-image:linear-gradient(45deg,#fff 25%,#000 25%,#000 50%,#fff 50%,#fff 75%,#000 75%,#000 100%);background-size:4px 4px;opacity:.85"></div>
+        <div style="position:absolute;top:50%;left:${carPct}%;transform:translate(-50%,-50%);line-height:1;filter:drop-shadow(0 0 5px ${carColor}99);transition:left .6s ease">${carSvg}</div>
       </div>`;
     return `<div class="com-rank-row" style="grid-template-columns:26px 1fr 48px 64px 64px 40px 110px">
       <div style="display:flex;justify-content:center;align-items:center">${pos}</div>
