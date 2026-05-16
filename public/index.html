@@ -701,6 +701,16 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
       <div class="live-pill"><div class="live-dot"></div> <span id="live-pill-text">Ao vivo</span></div>
     </div>
     <div class="topbar-right">
+      <!-- filtro comercial — visível só na página comercial -->
+      <div id="com-topbar-filter" style="display:none;align-items:center;gap:6px;position:relative">
+        <div style="display:flex;gap:3px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:3px">
+          <button class="chip active com-chip" data-p="mes"  onclick="setComPeriodo('mes',this)">Mês atual</button>
+          <button class="chip com-chip"         data-p="custom" onclick="setComPeriodo('custom',this)">Meses anteriores ▾</button>
+        </div>
+        <div id="comMesesDrop" style="display:none;position:absolute;top:36px;right:0;z-index:200;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.4);min-width:260px">
+          <div id="comMesesLista" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px"></div>
+        </div>
+      </div>
       <div class="topbar-clock" id="clock">--:--:--</div>
       <button class="icon-btn" id="btn-integracoes-cog" onclick="goPage('integracoes')" style="display:none"><i class="fas fa-cog"></i></button>
       <button class="icon-btn" id="btn-share-page" onclick="compartilharPagina()" title="Copiar link desta aba"><i class="fas fa-share-nodes"></i></button>
@@ -1369,20 +1379,8 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
     <!-- ═══ COMERCIAL ═══ -->
     <div class="page active" id="page-comercial">
 
-      <!-- Header -->
-      <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-bottom:16px;flex-wrap:wrap">
-        <div style="display:none"><span id="com-header-data"></span></div>
-        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;position:relative">
-          <div style="display:flex;gap:3px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:3px">
-            <button class="chip active com-chip" data-p="mes"  onclick="setComPeriodo('mes',this)">Mês atual</button>
-            <button class="chip com-chip"         data-p="custom" onclick="setComPeriodo('custom',this)">Meses anteriores ▾</button>
-          </div>
-          <div id="comMesesDrop" style="display:none;position:absolute;top:36px;left:0;z-index:200;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.4);min-width:260px">
-            <div id="comMesesLista" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px"></div>
-          </div>
-          <span class="badge b-green" id="com-sync-badge">—</span>
-        </div>
-      </div>
+      <div style="display:none"><span id="com-header-data"></span></div>
+      <span class="badge b-green" id="com-sync-badge" style="display:none">—</span>
 
       <!-- 3 KPI cards grandes -->
       <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:14px;margin-bottom:16px">
@@ -2936,6 +2934,9 @@ function goPage(id, el, skipHistory) {
   // Reseta pill para "Ao vivo" ao trocar de página (comercial escreve o horário quando carrega)
   const pill = document.getElementById('live-pill-text');
   if (pill && id !== 'comercial') pill.textContent = 'Ao vivo';
+  // Mostra/oculta filtro de período na topbar
+  const comFilter = document.getElementById('com-topbar-filter');
+  if (comFilter) comFilter.style.display = id === 'comercial' ? 'flex' : 'none';
   // Restaura dados em memória ao navegar de volta para páginas com dados
   if (id === 'chamados') {
     // DOM já está atualizado pelo autoRefresh — só força rebuild se ainda sem dados
