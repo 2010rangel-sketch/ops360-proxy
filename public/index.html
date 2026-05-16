@@ -7688,10 +7688,9 @@ function _renderTimeRanking(elId, cntId, vends, diaMap, antMap, accentColor) {
     const dia = diaMap[v.nome] || 0;
     const ant = antMap[v.nome] || 0;
     const diaColor = dia > 0 ? '#f59e0b' : 'var(--text3)';
-    const nomeAbrev = v.nome.length > 15 ? v.nome.slice(0,14)+'…' : v.nome;
     return `<div class="com-rank-row" style="grid-template-columns:26px 1fr 48px 64px 64px">
       <div style="display:flex;justify-content:center;align-items:center">${pos}</div>
-      <div style="font-size:11px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${v.nome}">${nomeAbrev}</div>
+      <div style="font-size:11px;font-weight:600;color:var(--text)">${v.nome}</div>
       <div class="com-rank-col"><span class="com-rank-col-label" style="color:#f59e0b">DIA</span><span class="com-rank-col-val" style="color:${diaColor};font-size:18px">${dia}</span></div>
       <div class="com-rank-col"><span class="com-rank-col-label" style="color:${accentColor}">MÊS ATUAL</span><span class="com-rank-col-val" style="color:${accentColor};font-size:18px">${v.total}</span></div>
       <div class="com-rank-col"><span class="com-rank-col-label">MÊS ANT.</span><span class="com-rank-col-val" style="font-size:15px;color:var(--text2)">${ant}</span></div>
