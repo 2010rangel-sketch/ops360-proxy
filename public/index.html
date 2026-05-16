@@ -1421,10 +1421,10 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         </div>
       </div>
 
-      <!-- Ranking unificado + Painéis do dia -->
-      <div style="display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:14px">
+      <!-- Ranking + painéis laterais -->
+      <div style="display:grid;grid-template-columns:1fr 220px;gap:12px;margin-bottom:14px;align-items:start">
 
-        <!-- Ranking de Vendedores (único) -->
+        <!-- Ranking de Vendedores -->
         <div class="tbl-card" style="margin-bottom:0;border-top:3px solid var(--accent)">
           <div class="tbl-header" style="padding:10px 14px;background:linear-gradient(90deg,rgba(91,106,240,.18) 0%,transparent 100%)">
             <span class="tbl-title"><i class="fas fa-trophy" style="color:var(--amber);margin-right:5px"></i>Ranking de Vendedores</span>
@@ -1444,6 +1444,42 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
             </div>
           </div>
         </div>
+
+        <!-- Coluna lateral direita: Por Plano + Por Status + Por Cidade -->
+        <div style="display:flex;flex-direction:column;gap:10px">
+
+          <!-- Por Plano -->
+          <div class="tbl-card" style="margin-bottom:0">
+            <div class="tbl-header" style="padding:8px 10px;background:linear-gradient(90deg,rgba(245,158,11,.12) 0%,transparent 100%)">
+              <span class="tbl-title" style="font-size:12px"><i class="fas fa-layer-group" style="color:var(--amber);margin-right:4px"></i>Por Plano</span>
+            </div>
+            <div style="padding:6px 10px">
+              <svg id="com-plano-donut" viewBox="0 0 200 200" style="width:100%;max-width:120px;display:block;margin:0 auto"></svg>
+              <div id="com-plano-legend" style="margin-top:6px"></div>
+            </div>
+          </div>
+
+          <!-- Por Status -->
+          <div class="tbl-card" style="margin-bottom:0">
+            <div class="tbl-header" style="padding:8px 10px;background:linear-gradient(90deg,rgba(6,182,212,.12) 0%,transparent 100%)">
+              <span class="tbl-title" style="font-size:12px"><i class="fas fa-signal" style="color:var(--cyan);margin-right:4px"></i>Por Status</span>
+            </div>
+            <div style="padding:6px 10px">
+              <svg id="com-status-donut" viewBox="0 0 200 200" style="width:100%;max-width:120px;display:block;margin:0 auto"></svg>
+              <div id="com-status-legend" style="margin-top:6px"></div>
+            </div>
+          </div>
+
+          <!-- Por Cidade -->
+          <div class="tbl-card" style="margin-bottom:0">
+            <div class="tbl-header" style="padding:8px 10px;background:linear-gradient(90deg,rgba(91,106,240,.12) 0%,transparent 100%)">
+              <span class="tbl-title" style="font-size:12px"><i class="fas fa-map-marker-alt" style="color:var(--accent);margin-right:4px"></i>Por Cidade</span>
+            </div>
+            <div id="com-cidades-list" style="padding:6px 10px;max-height:200px;overflow-y:auto"></div>
+          </div>
+
+        </div>
+
         <!-- IDs ocultos dos times separados para compatibilidade com JS -->
         <div style="display:none">
           <div id="com-ranking-pap"></div>
@@ -1451,7 +1487,6 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
           <div id="com-cnt-pap"></div>
           <div id="com-cnt-recepcao"></div>
         </div>
-
 
       </div>
 
@@ -1461,33 +1496,11 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         <div id="com-ticket-mes">—</div><div id="com-ticket-ant">—</div>
         <div id="com-vend-filtro-badge"></div><div id="com-cid-count">—</div>
         <div id="com-vend-count">—</div>
-        <div id="com-vendedor-bars"></div><div id="com-cidades-bars"></div>
+        <div id="com-vendedor-bars"></div>
       </div>
 
-      <!-- Row 2: Por plano + Por Status (donuts) + Todas as vendas -->
-      <div style="display:grid;grid-template-columns:198px 193px 1fr;gap:14px;margin-bottom:14px">
-
-        <!-- Por plano -->
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header" style="padding:8px 10px;background:linear-gradient(90deg,rgba(245,158,11,.12) 0%,transparent 100%)">
-            <span class="tbl-title" style="font-size:12px"><i class="fas fa-layer-group" style="color:var(--amber);margin-right:4px"></i>Por Plano</span>
-          </div>
-          <div style="padding:6px 10px">
-            <svg id="com-plano-donut" viewBox="0 0 200 200" style="width:100%;max-width:130px;display:block;margin:0 auto"></svg>
-            <div id="com-plano-legend" style="margin-top:6px"></div>
-          </div>
-        </div>
-
-        <!-- Por Status -->
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header" style="padding:8px 10px;background:linear-gradient(90deg,rgba(6,182,212,.12) 0%,transparent 100%)">
-            <span class="tbl-title" style="font-size:12px"><i class="fas fa-signal" style="color:var(--cyan);margin-right:4px"></i>Por Status</span>
-          </div>
-          <div style="padding:6px 10px">
-            <svg id="com-status-donut" viewBox="0 0 200 200" style="width:100%;max-width:120px;display:block;margin:0 auto"></svg>
-            <div id="com-status-legend" style="margin-top:6px"></div>
-          </div>
-        </div>
+      <!-- Row 2: Todas as vendas -->
+      <div style="margin-bottom:14px">
 
         <!-- Todas as vendas -->
         <div class="tbl-card" style="margin-bottom:0">
@@ -7606,7 +7619,7 @@ function renderComercialAtualiza(data) {
     const plans = _comAgregaPlanos(vf);
     const stMap = {}; for (const v of vf) { stMap[v.status||'desconhecido'] = (stMap[v.status||'desconhecido']||0)+1; }
     const stArr = Object.entries(stMap).sort((a,b)=>b[1]-a[1]).map(([s,t])=>({status:s,total:t}));
-    renderComBarras('com-cidades-bars', cids, cids[0]?.total||1, '#6366f1','#06b6d4');
+    renderComBarras('com-cidades-list', cids, cids[0]?.total||1, '#6366f1','#06b6d4');
     renderComPlanoDonutData(plans);
     renderComStatusDonut(stArr);
     renderComBarras('com-vendedor-bars', data.vendedores, data.vendedores[0]?.total||1,'#22c55e','#06b6d4');
@@ -7622,12 +7635,12 @@ function renderComercialAtualiza(data) {
     renderComBarras('com-vendedor-bars', vends, vends[0]?.total||1,'#22c55e','#06b6d4');
     renderComPlanoDonutData(plans);
     renderComStatusDonut(stArr);
-    renderComBarras('com-cidades-bars', data.cidades, data.cidades[0]?.total||1, '#6366f1','#06b6d4');
+    renderComBarras('com-cidades-list', data.cidades, data.cidades[0]?.total||1, '#6366f1','#06b6d4');
     if (vendBadge) vendBadge.style.display='none';
     const vendCount = document.getElementById('com-vend-count');
     if (vendCount) vendCount.textContent = vends.length;
   } else {
-    renderComBarras('com-cidades-bars',  data.cidades,   data.cidades[0]?.total||1,  '#6366f1','#06b6d4');
+    renderComBarras('com-cidades-list',  data.cidades,   data.cidades[0]?.total||1,  '#6366f1','#06b6d4');
     renderComPlanoDonutData(data.planos);
     renderComStatusDonut(data.por_status || []);
     renderComBarras('com-vendedor-bars', data.vendedores, data.vendedores[0]?.total||1,'#22c55e','#06b6d4');
