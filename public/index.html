@@ -7693,7 +7693,7 @@ function _renderTimeRanking(elId, cntId, vends, diaMap, antMap, accentColor) {
     const _nLower    = v.nome.toLowerCase();
     const _isFem     = _nLower.includes('escritorio') || _nLower.includes('escritório')
       || /^(samara|jamil|jamilly|ana|maria|julia|paula|patricia|fernanda|larissa|jessica|camila|beatriz|carol|adriana|aline|bruna|claudia|cristina|daniela|debora|elaine|erica|fabiana|gabriela|ingrid|isabela|joyce|karla|livia|luciana|luisa|marcia|mariana|natalia|priscila|rafaela|renata|roberta|rosana|sandra|simone|tatiana|thais|vanessa|vitoria|yasmin)/.test(_nLower.split(/[\s\-]/)[0]);
-    const carSvg     = `<span style="font-size:16px;display:inline-block;filter:drop-shadow(0 0 5px ${carColor})">${_isFem ? '🏃‍♀️' : '🏃‍♂️'}</span>`;
+    const carSvg     = `<span style="font-size:16px;display:inline-block;transform:scaleX(-1);filter:drop-shadow(0 0 5px ${carColor})">${_isFem ? '🏃‍♀️' : '🏃‍♂️'}</span>`;
     const trackHtml = `
       <div style="position:relative;height:20px;background:rgba(0,0,0,.3);border-radius:4px;overflow:hidden;border:1px solid rgba(255,255,255,.07)">
         <div style="position:absolute;top:50%;left:0;right:0;border-top:1px dashed rgba(255,255,255,.07);transform:translateY(-50%)"></div>
