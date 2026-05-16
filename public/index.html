@@ -7690,25 +7690,7 @@ function _renderTimeRanking(elId, cntId, vends, diaMap, antMap, accentColor) {
     const carColor   = CAR_COLORS[i % CAR_COLORS.length];
     const carPct     = maxTotal > 0 ? Math.max(2, Math.round(v.total / maxTotal * 96)) : 2;
     const finishPct  = (meta > 0 && maxTotal > 0) ? Math.min(96, Math.round(meta / maxTotal * 96)) : 96;
-    const carSvg     = `<svg width="34" height="13" viewBox="0 0 34 13" xmlns="http://www.w3.org/2000/svg">
-      <!-- asa traseira -->
-      <rect x="0" y="2" width="5" height="1.2" rx=".4" fill="${carColor}"/>
-      <rect x="1" y="3.2" width="1.2" height="2.5" fill="${carColor}"/>
-      <!-- corpo principal baixo e aerodinâmico -->
-      <path d="M2 5.5 Q4 4 8 3.5 L20 3 Q26 3 30 5 L33 5.5 L33 8.5 L2 8.5 Z" fill="${carColor}"/>
-      <!-- cockpit -->
-      <path d="M10 3.5 L12 1 L18 1 L20 3 Z" fill="${carColor}" opacity=".75"/>
-      <path d="M12.5 1.2 L13 3.2 L17.5 3.2 L18 1.2 Z" fill="rgba(0,0,0,.5)"/>
-      <!-- asa dianteira -->
-      <rect x="29" y="8.5" width="5" height="1" rx=".3" fill="${carColor}"/>
-      <!-- rodas -->
-      <ellipse cx="8" cy="10" rx="2.8" ry="2.8" fill="#111" stroke="${carColor}" stroke-width="1.2"/>
-      <ellipse cx="8" cy="10" rx="1.2" ry="1.2" fill="#333"/>
-      <ellipse cx="24" cy="10" rx="2.8" ry="2.8" fill="#111" stroke="${carColor}" stroke-width="1.2"/>
-      <ellipse cx="24" cy="10" rx="1.2" ry="1.2" fill="#333"/>
-      <!-- escape / luz traseira -->
-      <rect x="1.5" y="5.8" width="2" height="1.2" rx=".4" fill="#f97316" opacity=".9"/>
-    </svg>`;
+    const carSvg     = `<span style="font-size:16px;display:inline-block;transform:scaleX(-1);filter:drop-shadow(0 0 4px ${carColor}) hue-rotate(0deg)"'>🚗</span>`;
     const trackHtml = `
       <div style="position:relative;height:20px;background:rgba(0,0,0,.3);border-radius:4px;overflow:hidden;border:1px solid rgba(255,255,255,.07)">
         <div style="position:absolute;top:50%;left:0;right:0;border-top:1px dashed rgba(255,255,255,.07);transform:translateY(-50%)"></div>
