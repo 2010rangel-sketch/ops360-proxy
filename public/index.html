@@ -535,27 +535,48 @@ input[type="text"]::placeholder { color:var(--text3); }
   #fin-cancel-grid{ grid-template-columns:1fr!important; }
   #fin-mid-grid   { grid-template-columns:1fr!important; }
 
-  /* Comercial — empilha Por Plano + Por Status + Vendas */
-  [style*="grid-template-columns:198px 193px 1fr"] {
+  /* Comercial — KPI cards: empilha os 3 */
+  #page-comercial [style*="grid-template-columns:1fr auto 1fr"] {
     grid-template-columns:1fr!important;
+  }
+  /* Oculta divisor vertical central no mobile */
+  #page-comercial [style*="width:2px;background:linear-gradient"] { display:none!important; }
+
+  /* Comercial — ranking + Por Cidade: empilha */
+  [style*="grid-template-columns:1fr 240px"] {
+    grid-template-columns:1fr!important;
+  }
+
+  /* Comercial — ranking rows: simplifica colunas, oculta MÊS ANT */
+  .com-rank-row {
+    grid-template-columns:26px 1fr 48px 64px 40px 100px!important;
+  }
+  .com-rank-row > div:nth-child(5) { display:none!important; } /* MÊS ANT */
+
+  /* Comercial — Por Plano + Por Status lado a lado, Vendas abaixo em coluna cheia */
+  #com-row2 {
+    grid-template-columns:1fr 1fr!important;
+  }
+  #com-row2 > div:nth-child(3) {
+    grid-column:1/-1!important;
   }
 
   /* Vendas — scroll horizontal, oculta colunas secundárias */
   #com-ult-table {
     table-layout:auto!important;
-    min-width:480px;
+    min-width:400px;
   }
-  #com-ult-table thead th:nth-child(2),  /* Cidade */
   #com-ult-table thead th:nth-child(3),  /* Vendedor */
-  #com-ult-table tbody td:nth-child(2),
   #com-ult-table tbody td:nth-child(3) {
     display:none;
   }
-  /* wrapper com scroll horizontal */
   #com-ult-table-wrap {
     overflow-x:auto;
     -webkit-overflow-scrolling:touch;
   }
+
+  /* Filtro topbar comercial: chips menores */
+  #com-topbar-filter .chip { padding:4px 8px!important; font-size:11px!important; }
 
   /* Kanban — empilha colunas verticalmente no mobile */
   .kb-board {
@@ -1476,7 +1497,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
       </div>
 
       <!-- Row 2: Por Plano + Por Status + Vendas -->
-      <div style="display:grid;grid-template-columns:198px 193px 1fr;gap:14px;margin-bottom:14px">
+      <div id="com-row2" style="display:grid;grid-template-columns:198px 193px 1fr;gap:14px;margin-bottom:14px">
 
         <!-- Por Plano -->
         <div class="tbl-card" style="margin-bottom:0">
