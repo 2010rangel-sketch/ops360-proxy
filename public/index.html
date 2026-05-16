@@ -7664,7 +7664,9 @@ function _renderTimeRanking(elId, cntId, vends, diaMap, antMap, accentColor) {
   if (!el) return;
   if (!vends.length) { el.innerHTML = '<div style="text-align:center;color:var(--text3);padding:14px;font-size:11px">Sem dados</div>'; if(cnt) cnt.textContent='0'; return; }
   if (cnt) cnt.textContent = vends.length;
+  const CAR_COLORS = ['#ef4444','#3b82f6','#22c55e','#f59e0b','#a855f7','#ec4899','#06b6d4','#f97316'];
   const medals = ['🥇','🥈','🥉'];
+  const maxTotal = vends[0]?.total || 1;
   el.innerHTML = vends.map((v, i) => {
     const pos = i < 3
       ? `<span style="font-size:18px;line-height:1">${medals[i]}</span>`
@@ -7685,9 +7687,20 @@ function _renderTimeRanking(elId, cntId, vends, diaMap, antMap, accentColor) {
           </div>
         </div>`
       : `<div class="com-rank-col"><span class="com-rank-col-label">META</span><span style="font-size:12px;color:var(--text3)">—</span></div>`;
+    const carColor  = CAR_COLORS[i % CAR_COLORS.length];
+    const carPct    = maxTotal > 0 ? Math.max(2, Math.round(v.total / maxTotal * 96)) : 2;
+    const trackHtml = `
+      <div style="position:relative;height:18px;background:rgba(0,0,0,.25);border-radius:4px;overflow:hidden;border:1px solid rgba(255,255,255,.06)">
+        <div style="position:absolute;top:50%;left:0;right:0;height:1px;border-top:2px dashed rgba(255,255,255,.08);transform:translateY(-50%)"></div>
+        <div style="position:absolute;top:0;bottom:0;right:0;width:3px;background:rgba(255,255,255,.15)"></div>
+        <div style="position:absolute;top:50%;left:${carPct}%;transform:translate(-50%,-50%);font-size:16px;line-height:1;filter:drop-shadow(0 0 4px ${carColor});transition:left .6s ease">🚗</div>
+      </div>`;
     return `<div class="com-rank-row" style="grid-template-columns:26px 1fr 48px 64px 64px 40px 110px">
       <div style="display:flex;justify-content:center;align-items:center">${pos}</div>
-      <div style="font-size:11px;font-weight:600;color:var(--text)">${v.nome}</div>
+      <div style="display:flex;flex-direction:column;gap:3px;justify-content:center;min-width:0">
+        <span style="font-size:11px;font-weight:600;color:${carColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.nome}</span>
+        ${trackHtml}
+      </div>
       <div class="com-rank-col"><span class="com-rank-col-label" style="color:#f59e0b">DIA</span><span class="com-rank-col-val" style="color:${diaColor};font-size:18px">${dia}</span></div>
       <div class="com-rank-col"><span class="com-rank-col-label" style="color:${accentColor}">MÊS ATUAL</span><span class="com-rank-col-val" style="color:${accentColor};font-size:18px">${v.total}</span></div>
       <div class="com-rank-col"><span class="com-rank-col-label">MÊS ANT.</span><span class="com-rank-col-val" style="font-size:15px;color:var(--text2)">${ant}</span></div>
