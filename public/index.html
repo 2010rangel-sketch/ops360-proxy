@@ -7617,7 +7617,7 @@ function renderComercialAtualiza(data) {
     const plans = _comAgregaPlanos(vf);
     const stMap = {}; for (const v of vf) { stMap[v.status||'desconhecido'] = (stMap[v.status||'desconhecido']||0)+1; }
     const stArr = Object.entries(stMap).sort((a,b)=>b[1]-a[1]).map(([s,t])=>({status:s,total:t}));
-    renderComCidadeDonut(cids);
+    renderComCidadeDonut(_comAgregaCidades(vf.filter(v => !v.cancelado)));
     renderComPlanoDonutData(plans);
     renderComStatusDonut(stArr);
     renderComBarras('com-vendedor-bars', data.vendedores, data.vendedores[0]?.total||1,'#22c55e','#06b6d4');
@@ -7633,12 +7633,12 @@ function renderComercialAtualiza(data) {
     renderComBarras('com-vendedor-bars', vends, vends[0]?.total||1,'#22c55e','#06b6d4');
     renderComPlanoDonutData(plans);
     renderComStatusDonut(stArr);
-    renderComCidadeDonut(data.cidades);
+    renderComCidadeDonut(_comAgregaCidades((data.ultimas||[]).filter(v => !v.cancelado)));
     if (vendBadge) vendBadge.style.display='none';
     const vendCount = document.getElementById('com-vend-count');
     if (vendCount) vendCount.textContent = vends.length;
   } else {
-    renderComCidadeDonut(data.cidades);
+    renderComCidadeDonut(_comAgregaCidades((data.ultimas||[]).filter(v => !v.cancelado)));
     renderComPlanoDonutData(data.planos);
     renderComStatusDonut(data.por_status || []);
     renderComBarras('com-vendedor-bars', data.vendedores, data.vendedores[0]?.total||1,'#22c55e','#06b6d4');
