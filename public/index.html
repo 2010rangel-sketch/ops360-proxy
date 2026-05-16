@@ -1422,7 +1422,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
       </div>
 
       <!-- Ranking + painéis laterais -->
-      <div style="display:grid;grid-template-columns:1fr 220px;gap:12px;margin-bottom:14px;align-items:start">
+      <div style="display:grid;grid-template-columns:1fr 440px;gap:12px;margin-bottom:14px;align-items:start">
 
         <!-- Ranking de Vendedores -->
         <div class="tbl-card" style="margin-bottom:0;border-top:3px solid var(--accent)">
@@ -1445,29 +1445,34 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
           </div>
         </div>
 
-        <!-- Coluna lateral direita: Por Plano + Por Status + Por Cidade -->
+        <!-- Coluna lateral direita: Por Plano + Por Status lado a lado, Por Cidade abaixo -->
         <div style="display:flex;flex-direction:column;gap:10px">
 
-          <!-- Por Plano -->
-          <div class="tbl-card" style="margin-bottom:0">
-            <div class="tbl-header" style="padding:8px 10px;background:linear-gradient(90deg,rgba(245,158,11,.12) 0%,transparent 100%)">
-              <span class="tbl-title" style="font-size:12px"><i class="fas fa-layer-group" style="color:var(--amber);margin-right:4px"></i>Por Plano</span>
-            </div>
-            <div style="padding:6px 10px">
-              <svg id="com-plano-donut" viewBox="0 0 200 200" style="width:100%;max-width:120px;display:block;margin:0 auto"></svg>
-              <div id="com-plano-legend" style="margin-top:6px"></div>
-            </div>
-          </div>
+          <!-- Por Plano + Por Status lado a lado -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start">
 
-          <!-- Por Status -->
-          <div class="tbl-card" style="margin-bottom:0">
-            <div class="tbl-header" style="padding:8px 10px;background:linear-gradient(90deg,rgba(6,182,212,.12) 0%,transparent 100%)">
-              <span class="tbl-title" style="font-size:12px"><i class="fas fa-signal" style="color:var(--cyan);margin-right:4px"></i>Por Status</span>
+            <!-- Por Plano -->
+            <div class="tbl-card" style="margin-bottom:0">
+              <div class="tbl-header" style="padding:8px 10px;background:linear-gradient(90deg,rgba(245,158,11,.12) 0%,transparent 100%)">
+                <span class="tbl-title" style="font-size:12px"><i class="fas fa-layer-group" style="color:var(--amber);margin-right:4px"></i>Por Plano</span>
+              </div>
+              <div style="padding:6px 10px">
+                <svg id="com-plano-donut" viewBox="0 0 200 200" style="width:100%;max-width:140px;display:block;margin:0 auto"></svg>
+                <div id="com-plano-legend" style="margin-top:6px"></div>
+              </div>
             </div>
-            <div style="padding:6px 10px">
-              <svg id="com-status-donut" viewBox="0 0 200 200" style="width:100%;max-width:120px;display:block;margin:0 auto"></svg>
-              <div id="com-status-legend" style="margin-top:6px"></div>
+
+            <!-- Por Status -->
+            <div class="tbl-card" style="margin-bottom:0">
+              <div class="tbl-header" style="padding:8px 10px;background:linear-gradient(90deg,rgba(6,182,212,.12) 0%,transparent 100%)">
+                <span class="tbl-title" style="font-size:12px"><i class="fas fa-signal" style="color:var(--cyan);margin-right:4px"></i>Por Status</span>
+              </div>
+              <div style="padding:6px 10px">
+                <svg id="com-status-donut" viewBox="0 0 200 200" style="width:100%;max-width:140px;display:block;margin:0 auto"></svg>
+                <div id="com-status-legend" style="margin-top:6px"></div>
+              </div>
             </div>
+
           </div>
 
           <!-- Por Cidade -->
@@ -1475,7 +1480,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
             <div class="tbl-header" style="padding:8px 10px;background:linear-gradient(90deg,rgba(91,106,240,.12) 0%,transparent 100%)">
               <span class="tbl-title" style="font-size:12px"><i class="fas fa-map-marker-alt" style="color:var(--accent);margin-right:4px"></i>Por Cidade</span>
             </div>
-            <div id="com-cidades-list" style="padding:6px 10px;max-height:200px;overflow-y:auto"></div>
+            <div id="com-cidades-list" style="padding:6px 10px;max-height:180px;overflow-y:auto"></div>
           </div>
 
         </div>
