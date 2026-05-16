@@ -1435,11 +1435,12 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
             <span class="badge b-blue" id="com-cnt-interno">—</span>
           </div>
           <div style="padding:8px 12px">
-            <div style="display:grid;grid-template-columns:1fr 48px 72px 72px;gap:2px;padding:2px 10px 6px;border-bottom:1px solid var(--border)">
+            <div style="display:grid;grid-template-columns:1fr 48px 72px 72px 110px;gap:2px;padding:2px 10px 6px;border-bottom:1px solid var(--border)">
               <div style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.06em">Vendedor</div>
               <div style="font-size:9px;color:#f59e0b;font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:center">DIA</div>
               <div style="font-size:9px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:center">MÊS ATUAL</div>
               <div style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:center">MÊS ANT.</div>
+              <div style="font-size:9px;color:#22c55e;font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:center">META</div>
             </div>
             <div id="com-ranking-interno" style="padding-top:6px;max-height:380px;overflow-y:auto">
               <div style="text-align:center;color:var(--text3);padding:16px;font-size:11px">Carregando...</div>
@@ -7671,12 +7672,26 @@ function _renderTimeRanking(elId, cntId, vends, diaMap, antMap, accentColor) {
     const dia = diaMap[v.nome] || 0;
     const ant = antMap[v.nome] || 0;
     const diaColor = dia > 0 ? '#f59e0b' : 'var(--text3)';
-    return `<div class="com-rank-row" style="grid-template-columns:26px 1fr 48px 64px 64px">
+    const meta = getMetaVendedor(v.nome);
+    const pct  = meta > 0 ? Math.min(100, Math.round(v.total / meta * 100)) : 0;
+    const metaColor = pct >= 100 ? '#22c55e' : pct >= 70 ? '#f59e0b' : '#ef4444';
+    const metaLabel = meta > 0 ? `${v.total}/${meta}` : '—';
+    const metaCol = meta > 0
+      ? `<div class="com-rank-col" style="min-width:0">
+          <span class="com-rank-col-label" style="color:${metaColor}">META ${pct}%</span>
+          <span style="font-size:13px;font-weight:700;color:${metaColor}">${metaLabel}</span>
+          <div style="height:4px;background:rgba(255,255,255,.08);border-radius:2px;margin-top:3px;width:100%">
+            <div style="height:4px;background:${metaColor};border-radius:2px;width:${pct}%;box-shadow:0 0 6px ${metaColor}88;transition:width .4s"></div>
+          </div>
+        </div>`
+      : `<div class="com-rank-col"><span class="com-rank-col-label">META</span><span style="font-size:12px;color:var(--text3)">—</span></div>`;
+    return `<div class="com-rank-row" style="grid-template-columns:26px 1fr 48px 64px 64px 110px">
       <div style="display:flex;justify-content:center;align-items:center">${pos}</div>
       <div style="font-size:11px;font-weight:600;color:var(--text)">${v.nome}</div>
       <div class="com-rank-col"><span class="com-rank-col-label" style="color:#f59e0b">DIA</span><span class="com-rank-col-val" style="color:${diaColor};font-size:18px">${dia}</span></div>
       <div class="com-rank-col"><span class="com-rank-col-label" style="color:${accentColor}">MÊS ATUAL</span><span class="com-rank-col-val" style="color:${accentColor};font-size:18px">${v.total}</span></div>
       <div class="com-rank-col"><span class="com-rank-col-label">MÊS ANT.</span><span class="com-rank-col-val" style="font-size:15px;color:var(--text2)">${ant}</span></div>
+      ${metaCol}
     </div>`;
   }).join('');
 }
