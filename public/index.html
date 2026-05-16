@@ -7690,7 +7690,7 @@ function _renderTimeRanking(elId, cntId, vends, diaMap, antMap, accentColor) {
     const carColor   = CAR_COLORS[i % CAR_COLORS.length];
     const carPct     = maxTotal > 0 ? Math.max(2, Math.round(v.total / maxTotal * 96)) : 2;
     const finishPct  = (meta > 0 && maxTotal > 0) ? Math.min(96, Math.round(meta / maxTotal * 96)) : 96;
-    const carSvg     = `<span style="font-size:16px;display:inline-block;transform:scaleX(-1);filter:drop-shadow(0 0 4px ${carColor}) hue-rotate(0deg)"'>🚗</span>`;
+    const carSvg     = `<span style="font-size:16px;display:inline-block;filter:drop-shadow(0 0 5px ${carColor})">🏃</span>`;
     const trackHtml = `
       <div style="position:relative;height:20px;background:rgba(0,0,0,.3);border-radius:4px;overflow:hidden;border:1px solid rgba(255,255,255,.07)">
         <div style="position:absolute;top:50%;left:0;right:0;border-top:1px dashed rgba(255,255,255,.07);transform:translateY(-50%)"></div>
