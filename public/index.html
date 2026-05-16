@@ -1369,11 +1369,10 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
     <!-- ═══ COMERCIAL ═══ -->
     <div class="page active" id="page-comercial">
 
-      <!-- Header + filtros -->
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap">
-        <div>
-          <div style="font-size:16px;font-weight:700;color:var(--text)">Comercial</div>
-          <div style="font-size:11px;color:var(--text3)">Vendas, reativações e desistência</div>
+      <!-- Header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+        <div style="font-size:20px;font-weight:800;color:var(--text);letter-spacing:.02em">
+          VENDAS <span id="com-header-data" style="color:var(--accent)">—</span>
         </div>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;position:relative">
           <div style="display:flex;gap:3px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:3px">
@@ -1381,7 +1380,6 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
             <button class="chip com-chip"         data-p="hoje" onclick="setComPeriodo('hoje',this)">Hoje</button>
             <button class="chip com-chip"         data-p="custom" onclick="setComPeriodo('custom',this)">Meses anteriores ▾</button>
           </div>
-          <!-- Dropdown meses anteriores -->
           <div id="comMesesDrop" style="display:none;position:absolute;top:36px;left:0;z-index:200;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.4);min-width:260px">
             <div id="comMesesLista" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px"></div>
           </div>
@@ -1389,62 +1387,137 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         </div>
       </div>
 
-      <!-- KPI cards -->
-      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px">
-        <div class="kpi-mini">
-          <div class="kpi-mini-bar" style="background:var(--accent)"></div>
-          <div class="kpi-mini-label">Total geral de vendas</div>
-          <div class="kpi-mini-val" id="com-total" style="color:var(--accent)">—</div>
+      <!-- 3 KPI cards grandes -->
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:14px;margin-bottom:16px">
+        <!-- Mês Atual -->
+        <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:20px 24px;position:relative;overflow:hidden">
+          <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--cyan))"></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <i class="fas fa-chart-bar" style="color:var(--accent);font-size:16px"></i>
+            <span style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">Mês Atual</span>
+          </div>
+          <div id="com-total" style="font-size:48px;font-weight:900;color:var(--text);line-height:1;letter-spacing:-1px">—</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:8px;display:flex;gap:12px;flex-wrap:wrap">
+            <span><span style="color:#22c55e;font-weight:700" id="com-novas">—</span> novas</span>
+            <span><span style="color:var(--cyan);font-weight:700" id="com-reat">—</span> reat.</span>
+            <span><span style="color:var(--red);font-weight:700" id="com-cancelados">—</span> s/instalar</span>
+          </div>
         </div>
-        <div class="kpi-mini">
-          <div class="kpi-mini-bar" style="background:#22c55e"></div>
-          <div class="kpi-mini-label">Novas</div>
-          <div class="kpi-mini-val" id="com-novas" style="color:#22c55e">—</div>
+
+        <!-- Vendas do Dia (centro) -->
+        <div style="background:linear-gradient(135deg,rgba(91,106,240,.2),rgba(6,182,212,.14));border:2px solid var(--accent);border-radius:14px;padding:20px 32px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:210px">
+          <div style="font-size:24px;margin-bottom:2px">⭐</div>
+          <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.1em">Vendas do Dia</div>
+          <div id="com-dia-total" style="font-size:58px;font-weight:900;color:var(--text);line-height:1;letter-spacing:-2px">—</div>
+          <div id="com-ticket-dia" style="font-size:10px;color:var(--text3);margin-top:2px">—</div>
         </div>
-        <div class="kpi-mini">
-          <div class="kpi-mini-bar" style="background:var(--cyan)"></div>
-          <div class="kpi-mini-label">Reativações</div>
-          <div class="kpi-mini-val" id="com-reat" style="color:var(--cyan)">—</div>
-        </div>
-        <div class="kpi-mini">
-          <div class="kpi-mini-bar" style="background:var(--amber)"></div>
-          <div class="kpi-mini-label">% de Reativações</div>
-          <div class="kpi-mini-val" id="com-pct-reat" style="color:var(--amber)">—</div>
-        </div>
-        <div class="kpi-mini">
-          <div class="kpi-mini-bar" style="background:var(--green)"></div>
-          <div class="kpi-mini-label">Ativos</div>
-          <div class="kpi-mini-val" id="com-ativos" style="color:var(--green)">—</div>
-        </div>
-        <div class="kpi-mini">
-          <div class="kpi-mini-bar" style="background:var(--red)"></div>
-          <div class="kpi-mini-label" title="Vendas novas canceladas antes da instalação">Cancelado s/ Instalar</div>
-          <div class="kpi-mini-val" id="com-cancelados" style="color:var(--red)">—</div>
+
+        <!-- Mês Anterior -->
+        <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:20px 24px;position:relative;overflow:hidden">
+          <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--amber),var(--green))"></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <i class="fas fa-clock" style="color:var(--amber);font-size:16px"></i>
+            <span style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">Mês Anterior</span>
+          </div>
+          <div id="com-mes-ant-total" style="font-size:48px;font-weight:900;color:var(--text);line-height:1;letter-spacing:-1px">—</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:8px;display:flex;gap:12px;flex-wrap:wrap">
+            <span><span style="color:#22c55e;font-weight:700" id="com-mes-ant-novas">—</span> novas</span>
+            <span><span style="color:var(--cyan);font-weight:700" id="com-mes-ant-reat">—</span> reat.</span>
+          </div>
         </div>
       </div>
 
-      <!-- Row 1: Por vendedor + Vendas por cidade (swapped) -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+      <!-- Rankings + Painéis do dia -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 300px;gap:12px;margin-bottom:14px">
 
-        <!-- Por vendedor (agora à esquerda) -->
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header" style="background:linear-gradient(90deg,rgba(34,197,94,.12) 0%,transparent 100%)">
-            <span class="tbl-title"><i class="fas fa-user-tie" style="color:var(--green);margin-right:5px"></i>Por Vendedor</span>
-            <span id="com-vend-filtro-badge" style="display:none;font-size:11px;padding:2px 7px;border-radius:4px;cursor:pointer;background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.4)">✕ limpar</span>
-            <span class="badge b-green" id="com-vend-count">—</span>
+        <!-- Comercial Interno -->
+        <div class="tbl-card" style="margin-bottom:0;border-top:3px solid #6366f1">
+          <div class="tbl-header" style="padding:10px 14px;background:linear-gradient(90deg,rgba(99,102,241,.18) 0%,transparent 100%)">
+            <span class="tbl-title"><i class="fas fa-building" style="color:#6366f1;margin-right:5px"></i>Comercial Interno</span>
+            <span class="badge" style="background:rgba(99,102,241,.15);color:#6366f1;border:1px solid rgba(99,102,241,.3)" id="com-cnt-interno">—</span>
           </div>
-          <div id="com-vendedor-bars" style="padding:10px 12px;max-height:320px;overflow-y:auto"></div>
+          <div style="padding:8px 10px">
+            <div style="display:grid;grid-template-columns:1fr 48px 64px 64px;gap:2px;padding:2px 8px 6px;border-bottom:1px solid var(--border)">
+              <div style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.06em">Vendedor</div>
+              <div style="font-size:9px;color:#f59e0b;font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:center">DIA</div>
+              <div style="font-size:9px;color:#6366f1;font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:center">MÊS ATUAL</div>
+              <div style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:center">MÊS ANT.</div>
+            </div>
+            <div id="com-ranking-interno" style="padding-top:6px">
+              <div style="text-align:center;color:var(--text3);padding:16px;font-size:11px">Carregando...</div>
+            </div>
+          </div>
         </div>
 
-        <!-- Vendas por cidade (agora à direita, filtrável pelo vendedor) -->
-        <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header" style="background:linear-gradient(90deg,rgba(99,102,241,.15) 0%,transparent 100%)">
-            <span class="tbl-title"><i class="fas fa-map-marker-alt" style="color:var(--accent);margin-right:5px"></i>Vendas por Cidade</span>
-            <span class="badge b-blue" id="com-cid-count">—</span>
+        <!-- PAP -->
+        <div class="tbl-card" style="margin-bottom:0;border-top:3px solid #22c55e">
+          <div class="tbl-header" style="padding:10px 14px;background:linear-gradient(90deg,rgba(34,197,94,.15) 0%,transparent 100%)">
+            <span class="tbl-title"><i class="fas fa-walking" style="color:#22c55e;margin-right:5px"></i>PAP</span>
+            <span class="badge b-green" id="com-cnt-pap">—</span>
           </div>
-          <div id="com-cidades-bars" style="padding:12px 16px;max-height:320px;overflow-y:auto"></div>
+          <div style="padding:8px 10px">
+            <div style="display:grid;grid-template-columns:1fr 48px 64px 64px;gap:2px;padding:2px 8px 6px;border-bottom:1px solid var(--border)">
+              <div style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.06em">Vendedor</div>
+              <div style="font-size:9px;color:#f59e0b;font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:center">DIA</div>
+              <div style="font-size:9px;color:#22c55e;font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:center">MÊS ATUAL</div>
+              <div style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:center">MÊS ANT.</div>
+            </div>
+            <div id="com-ranking-pap" style="padding-top:6px">
+              <div style="text-align:center;color:var(--text3);padding:16px;font-size:11px">Carregando...</div>
+            </div>
+          </div>
         </div>
 
+        <!-- Recepções -->
+        <div class="tbl-card" style="margin-bottom:0;border-top:3px solid #06b6d4">
+          <div class="tbl-header" style="padding:10px 14px;background:linear-gradient(90deg,rgba(6,182,212,.15) 0%,transparent 100%)">
+            <span class="tbl-title"><i class="fas fa-headset" style="color:#06b6d4;margin-right:5px"></i>Recepções</span>
+            <span class="badge b-blue" id="com-cnt-recepcao">—</span>
+          </div>
+          <div style="padding:8px 10px">
+            <div style="display:grid;grid-template-columns:1fr 48px 64px 64px;gap:2px;padding:2px 8px 6px;border-bottom:1px solid var(--border)">
+              <div style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.06em">Vendedor</div>
+              <div style="font-size:9px;color:#f59e0b;font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:center">DIA</div>
+              <div style="font-size:9px;color:#06b6d4;font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:center">MÊS ATUAL</div>
+              <div style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:center">MÊS ANT.</div>
+            </div>
+            <div id="com-ranking-recepcao" style="padding-top:6px">
+              <div style="text-align:center;color:var(--text3);padding:16px;font-size:11px">Carregando...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Coluna direita: painéis do dia -->
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="tbl-card" style="margin-bottom:0;border-top:3px solid #06b6d4">
+            <div class="tbl-header" style="padding:8px 12px;background:linear-gradient(90deg,rgba(6,182,212,.15) 0%,transparent 100%)">
+              <span class="tbl-title" style="font-size:12px"><i class="fas fa-layer-group" style="color:#06b6d4;margin-right:4px"></i>Plano · Dia</span>
+            </div>
+            <div id="com-dia-planos" style="padding:8px 12px;max-height:120px;overflow-y:auto"></div>
+          </div>
+          <div class="tbl-card" style="margin-bottom:0;border-top:3px solid var(--accent)">
+            <div class="tbl-header" style="padding:8px 12px;background:linear-gradient(90deg,rgba(91,106,240,.15) 0%,transparent 100%)">
+              <span class="tbl-title" style="font-size:12px"><i class="fas fa-map-marker-alt" style="color:var(--accent);margin-right:4px"></i>Cidade · Dia</span>
+            </div>
+            <div id="com-dia-cidades" style="padding:8px 12px;max-height:120px;overflow-y:auto"></div>
+          </div>
+          <div class="tbl-card" style="margin-bottom:0;border-top:3px solid #22c55e">
+            <div class="tbl-header" style="padding:8px 12px;background:linear-gradient(90deg,rgba(34,197,94,.12) 0%,transparent 100%)">
+              <span class="tbl-title" style="font-size:12px"><i class="fas fa-map" style="color:#22c55e;margin-right:4px"></i>Bairro · Dia</span>
+            </div>
+            <div id="com-dia-bairros" style="padding:8px 12px;max-height:120px;overflow-y:auto"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- IDs legados ocultos para compatibilidade com JS existente -->
+      <div style="display:none">
+        <div id="com-ativos">—</div><div id="com-pct-reat">—</div>
+        <div id="com-ticket-mes">—</div><div id="com-ticket-ant">—</div>
+        <div id="com-vend-filtro-badge"></div><div id="com-cid-count">—</div>
+        <div id="com-vend-count">—</div>
+        <div id="com-vendedor-bars"></div><div id="com-cidades-bars"></div>
       </div>
 
       <!-- Row 2: Por plano + Por Status (donuts) + Todas as vendas -->
@@ -7623,6 +7696,85 @@ function renderComercialAtualiza(data) {
 // Alias para compatibilidade com código existente
 function renderComercialFiltrado(data) { renderComercialAtualiza(data); }
 
+// ── Rankings por time ────────────────────────────────────────────
+let _comDiaData = null;
+let _comAntData = null;
+
+const COM_TIMES = {
+  interno: ['samara','jamily','jamilly'],
+  pap:     ['jair','joão victor','joao victor','edilson','welson','vitor','victor'],
+};
+function _comTime(nome) {
+  const l = (nome||'').toLowerCase();
+  if (COM_TIMES.interno.some(n => l.startsWith(n))) return 'interno';
+  if (COM_TIMES.pap.some(n => l.startsWith(n))) return 'pap';
+  return 'recepcao';
+}
+
+function _renderTimeRanking(elId, cntId, vends, diaMap, antMap, accentColor) {
+  const el  = document.getElementById(elId);
+  const cnt = document.getElementById(cntId);
+  if (!el) return;
+  if (!vends.length) { el.innerHTML = '<div style="text-align:center;color:var(--text3);padding:14px;font-size:11px">Sem dados</div>'; if(cnt) cnt.textContent='0'; return; }
+  if (cnt) cnt.textContent = vends.length;
+  const medals = ['🥇','🥈','🥉'];
+  el.innerHTML = vends.map((v, i) => {
+    const pos = i < 3
+      ? `<span style="font-size:18px;line-height:1">${medals[i]}</span>`
+      : `<span style="width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(255,255,255,.07);font-size:10px;font-weight:700;color:var(--text3)">${i+1}</span>`;
+    const dia = diaMap[v.nome] || 0;
+    const ant = antMap[v.nome] || 0;
+    const diaColor = dia > 0 ? '#f59e0b' : 'var(--text3)';
+    const nomeAbrev = v.nome.length > 15 ? v.nome.slice(0,14)+'…' : v.nome;
+    return `<div class="com-rank-row" style="grid-template-columns:26px 1fr 48px 64px 64px">
+      <div style="display:flex;justify-content:center;align-items:center">${pos}</div>
+      <div style="font-size:11px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${v.nome}">${nomeAbrev}</div>
+      <div class="com-rank-col"><span class="com-rank-col-label" style="color:#f59e0b">DIA</span><span class="com-rank-col-val" style="color:${diaColor};font-size:18px">${dia}</span></div>
+      <div class="com-rank-col"><span class="com-rank-col-label" style="color:${accentColor}">MÊS ATUAL</span><span class="com-rank-col-val" style="color:${accentColor};font-size:18px">${v.total}</span></div>
+      <div class="com-rank-col"><span class="com-rank-col-label">MÊS ANT.</span><span class="com-rank-col-val" style="font-size:15px;color:var(--text2)">${ant}</span></div>
+    </div>`;
+  }).join('');
+}
+
+function renderRankingVendedores(mesData, diaData, antData) {
+  const mesVends = (mesData?.vendedores || []).filter(v => v.nome && v.nome !== '—');
+  const diaMap   = Object.fromEntries((diaData?.vendedores||[]).map(v=>[v.nome,v.total]));
+  const antMap   = Object.fromEntries((antData?.vendedores||[]).map(v=>[v.nome,v.total]));
+  const interno  = mesVends.filter(v => _comTime(v.nome) === 'interno');
+  const pap      = mesVends.filter(v => _comTime(v.nome) === 'pap');
+  const recepcao = mesVends.filter(v => _comTime(v.nome) === 'recepcao');
+  _renderTimeRanking('com-ranking-interno',  'com-cnt-interno',  interno,  diaMap, antMap, '#6366f1');
+  _renderTimeRanking('com-ranking-pap',      'com-cnt-pap',      pap,      diaMap, antMap, '#22c55e');
+  _renderTimeRanking('com-ranking-recepcao', 'com-cnt-recepcao', recepcao, diaMap, antMap, '#06b6d4');
+}
+
+function _renderDiaBars(elId, itens, cor) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (!itens||!itens.length) { el.innerHTML='<div style="color:var(--text3);font-size:11px;padding:4px">Sem vendas hoje</div>'; return; }
+  const max = itens[0].total || 1;
+  el.innerHTML = itens.map(it => `
+    <div style="margin-bottom:7px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:3px">
+        <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:72%">${it.nome}</span>
+        <span style="font-weight:800;color:${cor}">${it.total}</span>
+      </div>
+      <div style="height:5px;background:rgba(255,255,255,.07);border-radius:3px">
+        <div style="height:5px;background:${cor};border-radius:3px;width:${Math.round(it.total/max*100)}%;box-shadow:0 0 8px ${cor}88;transition:width .4s"></div>
+      </div>
+    </div>`).join('');
+}
+
+function renderComDia(diaData) {
+  if (!diaData) return;
+  const ev = (id,v) => { const e=document.getElementById(id); if(e) e.textContent=v; };
+  ev('com-dia-total', diaData.total||0);
+  ev('com-ticket-dia', diaData.total>0 ? `${diaData.novas||0} novas · ${diaData.reativacoes||0} reat.` : 'Nenhuma venda hoje');
+  _renderDiaBars('com-dia-planos',  diaData.planos  ||[], '#06b6d4');
+  _renderDiaBars('com-dia-cidades', diaData.cidades ||[], '#6366f1');
+  _renderDiaBars('com-dia-bairros', diaData.bairros ||[], '#22c55e');
+}
+
 // ── Metas por vendedor (hardcoded) ───────────────────────────────
 const COM_METAS = {
   'samara': 75, 'jamily': 75, 'jamilly': 75,
@@ -8142,15 +8294,27 @@ async function loadComercial() {
   if (badge) { badge.textContent = 'Buscando...'; badge.className = 'badge b-amber'; }
   try {
     const { ini, fim } = getComDates();
-    const r    = await fetch(`/api/comercial?data_inicio=${encodeURIComponent(ini)}&data_fim=${encodeURIComponent(fim)}`);
-    const data = await r.json();
+    const agoraBRT  = new Date(Date.now() - 3*60*60*1000);
+    const hoje      = agoraBRT.toISOString().slice(0,10);
+    const mesAntIni = new Date(agoraBRT.getFullYear(), agoraBRT.getMonth()-1, 1).toISOString().slice(0,10);
+    const mesAntFim = new Date(agoraBRT.getFullYear(), agoraBRT.getMonth(), 0).toISOString().slice(0,10);
+
+    const [r, rDia, rAnt] = await Promise.all([
+      fetch(`/api/comercial?data_inicio=${encodeURIComponent(ini)}&data_fim=${encodeURIComponent(fim)}`),
+      fetch(`/api/comercial?data_inicio=${hoje}&data_fim=${hoje}`),
+      fetch(`/api/comercial?data_inicio=${mesAntIni}&data_fim=${mesAntFim}`),
+    ]);
+    const data    = await r.json();
+    const diaData = await rDia.json().catch(()=>null);
+    const antData = await rAnt.json().catch(()=>null);
+    _comDiaData = diaData?.ok ? diaData : null;
+    _comAntData = antData?.ok ? antData : null;
 
     const noEp  = document.getElementById('com-no-endpoint');
     const errEl = document.getElementById('com-endpoint-error');
 
     if (!data.ok) {
       if (data.warming) {
-        // Cache sendo carregado — auto-retry em 30s
         if (noEp) noEp.style.display = '';
         const titleEl = document.getElementById('com-endpoint-title');
         if (titleEl) titleEl.textContent = '⏳ Carregando base de clientes...';
@@ -8179,14 +8343,31 @@ async function loadComercial() {
     if (typeof buildNotificacoes === 'function') buildNotificacoes();
 
     const ev = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
+
+    // Header data
+    const ddmm = `(${String(agoraBRT.getDate()).padStart(2,'0')}/${String(agoraBRT.getMonth()+1).padStart(2,'0')})`;
+    ev('com-header-data', ddmm);
+
+    // KPI mês atual
     ev('com-total',      data.total);
     ev('com-novas',      data.novas);
     ev('com-reat',       data.reativacoes);
-    ev('com-pct-reat',   (data.ativos ?? 0) > 0 ? Math.round(data.reativacoes / data.ativos * 100) + '%' : '0%');
-    ev('com-ativos',     data.ativos ?? '—');
     ev('com-cancelados', data.cancelados ?? '—');
+    ev('com-ativos',     data.ativos ?? '—');
+    ev('com-pct-reat',   (data.ativos??0)>0 ? Math.round(data.reativacoes/data.ativos*100)+'%' : '0%');
     ev('com-cid-count',  data.cidades.length);
     ev('com-vend-count', data.vendedores.length);
+
+    // KPI mês anterior
+    if (_comAntData) {
+      ev('com-mes-ant-total', _comAntData.total);
+      ev('com-mes-ant-novas', _comAntData.novas);
+      ev('com-mes-ant-reat',  _comAntData.reativacoes);
+    }
+
+    // Rankings 3 times + painéis dia
+    renderRankingVendedores(data, _comDiaData, _comAntData);
+    renderComDia(_comDiaData);
 
     renderComercialAtualiza(data);
     renderComCanceladosDetalhe(data);
@@ -8194,7 +8375,6 @@ async function loadComercial() {
     const hora = new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
     if (data._stale) {
       if (badge) { badge.textContent = 'Atualizando...'; badge.className = 'badge b-amber'; }
-      // Retry silencioso após 15s para pegar dados frescos
       setTimeout(() => loadComercial(), 15000);
     } else {
       if (badge) { badge.textContent = `Atualizado ${hora}`; badge.className = 'badge b-green'; }
