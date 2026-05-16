@@ -7697,7 +7697,7 @@ function _renderTimeRanking(elId, cntId, vends, diaMap, antMap, accentColor) {
     const trackHtml = `
       <div style="position:relative;height:20px;background:rgba(0,0,0,.3);border-radius:4px;overflow:hidden;border:1px solid rgba(255,255,255,.07)">
         <div style="position:absolute;top:50%;left:0;right:0;border-top:1px dashed rgba(255,255,255,.07);transform:translateY(-50%)"></div>
-        <div style="position:absolute;top:0;bottom:0;left:${finishPct}%;width:4px;background-image:conic-gradient(#fff 90deg,#000 90deg 180deg,#fff 180deg 270deg,#000 270deg);background-size:2px 2px;opacity:.9"></div>
+        ${meta > 0 ? `<div style="position:absolute;top:0;bottom:0;left:${finishPct}%;width:4px;background-image:conic-gradient(#fff 90deg,#000 90deg 180deg,#fff 180deg 270deg,#000 270deg);background-size:2px 2px;opacity:.9"></div>` : ''}
         <div style="position:absolute;top:50%;left:${carPct}%;transform:translate(-50%,-50%);line-height:1;filter:drop-shadow(0 0 4px ${carColor}bb);transition:left .6s ease">${carSvg}</div>
       </div>`;
     return `<div class="com-rank-row" style="grid-template-columns:26px 1fr 48px 64px 64px 40px 110px">
