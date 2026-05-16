@@ -1370,10 +1370,8 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
     <div class="page active" id="page-comercial">
 
       <!-- Header -->
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap">
-        <div style="font-size:20px;font-weight:800;color:var(--text);letter-spacing:.02em">
-          VENDAS <span id="com-header-data" style="color:var(--accent)">—</span>
-        </div>
+      <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+        <div style="display:none"><span id="com-header-data"></span></div>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;position:relative">
           <div style="display:flex;gap:3px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:3px">
             <button class="chip active com-chip" data-p="mes"  onclick="setComPeriodo('mes',this)">Mês atual</button>
@@ -1390,14 +1388,14 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
       <!-- 3 KPI cards grandes -->
       <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:14px;margin-bottom:16px">
         <!-- Mês Atual -->
-        <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:20px 24px;position:relative;overflow:hidden">
+        <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:20px 24px;position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center">
           <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--cyan))"></div>
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
             <i class="fas fa-chart-bar" style="color:var(--accent);font-size:16px"></i>
             <span style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">Mês Atual</span>
           </div>
           <div id="com-total" style="font-size:48px;font-weight:900;color:var(--text);line-height:1;letter-spacing:-1px">—</div>
-          <div style="font-size:11px;color:var(--text3);margin-top:8px;display:flex;gap:12px;flex-wrap:wrap">
+          <div style="font-size:11px;color:var(--text3);margin-top:8px;display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
             <span><span style="color:#22c55e;font-weight:700" id="com-novas">—</span> novas</span>
             <span><span style="color:var(--cyan);font-weight:700" id="com-reat">—</span> reat.</span>
             <span><span style="color:var(--red);font-weight:700" id="com-cancelados">—</span> s/instalar</span>
@@ -1413,14 +1411,14 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         </div>
 
         <!-- Mês Anterior -->
-        <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:20px 24px;position:relative;overflow:hidden">
+        <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:20px 24px;position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center">
           <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--amber),var(--green))"></div>
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
             <i class="fas fa-clock" style="color:var(--amber);font-size:16px"></i>
             <span style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">Mês Anterior</span>
           </div>
           <div id="com-mes-ant-total" style="font-size:48px;font-weight:900;color:var(--text);line-height:1;letter-spacing:-1px">—</div>
-          <div style="font-size:11px;color:var(--text3);margin-top:8px;display:flex;gap:12px;flex-wrap:wrap">
+          <div style="font-size:11px;color:var(--text3);margin-top:8px;display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
             <span><span style="color:#22c55e;font-weight:700" id="com-mes-ant-novas">—</span> novas</span>
             <span><span style="color:var(--cyan);font-weight:700" id="com-mes-ant-reat">—</span> reat.</span>
           </div>
