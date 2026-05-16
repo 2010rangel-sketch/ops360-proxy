@@ -1516,12 +1516,13 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
             <div style="overflow-x:auto;max-height:440px;overflow-y:auto">
               <table class="tbl" style="font-size:12px;table-layout:fixed;width:100%">
                 <thead><tr>
-                  <th style="width:22%">Cliente</th>
-                  <th style="width:14%">Vendedor</th>
-                  <th style="width:18%">Plano</th>
-                  <th style="width:24%">Motivo</th>
-                  <th style="width:11%">Dt. Venda</th>
-                  <th style="width:11%">Dt. Cancel.</th>
+                  <th style="width:20%">Cliente</th>
+                  <th style="width:11%">Cidade</th>
+                  <th style="width:13%">Vendedor</th>
+                  <th style="width:16%">Plano</th>
+                  <th style="width:20%">Motivo</th>
+                  <th style="width:10%">Dt. Venda</th>
+                  <th style="width:10%">Dt. Cancel.</th>
                 </tr></thead>
                 <tbody id="com-cancel-tbl"></tbody>
               </table>
@@ -7629,12 +7630,13 @@ function _comRenderCancelTbl() {
     ? _comCancelDetalhe.filter(v => v.motivo === _comCancelMotivoAtivo)
     : _comCancelDetalhe;
   if (ct) ct.textContent = lista.length + (_comCancelMotivoAtivo ? ` (filtro)` : '');
-  if (!lista.length) { tbl.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">Sem cancelamentos no período</td></tr>'; return; }
+  if (!lista.length) { tbl.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:16px">Sem cancelamentos no período</td></tr>'; return; }
   // Parse sem conversão de timezone: 'YYYY-MM-DD' → DD/MM/YYYY
   const fmt = d => { if (!d) return '—'; const [y,m,dd] = d.slice(0,10).split('-'); return `${dd}/${m}/${y}`; };
   const OE = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
   tbl.innerHTML = lista.map(v => `<tr>
     <td style="${OE};color:var(--text)" title="${v.cliente}">${v.cliente}</td>
+    <td style="${OE};color:var(--text3)" title="${v.cidade||''}">${v.cidade || '—'}</td>
     <td style="${OE}" title="${v.vendedor||''}">${v.vendedor || '—'}</td>
     <td style="${OE}"><span style="background:var(--accent-light);color:var(--accent);font-size:10px;padding:2px 5px;border-radius:4px" title="${v.plano}">${v.plano}</span></td>
     <td style="${OE};color:var(--text3)" title="${v.motivo||''}">${v.motivo || '—'}</td>
@@ -7704,6 +7706,9 @@ function renderComCanceladosDetalhe(data) {
   const titleEl   = document.getElementById('com-cancel-motivo-title');
 
   const todosDetalhe = data.cancelados_detalhe || [];
+  // Preserva filtros ativos para não perder ao auto-refresh
+  const motivoAnterior    = _comCancelMotivoAtivo;
+  const motivoAntAnterior = _comCancelMotivoAntAtivo;
   _comCancelMotivoAtivo    = null;
   _comCancelMotivoAntAtivo = null;
 
@@ -7761,7 +7766,15 @@ function renderComCanceladosDetalhe(data) {
     }).join('') || '<div style="color:var(--text3);font-size:12px;text-align:center;padding:16px">Nenhum cancelamento posterior</div>';
   }
 
-  _comRenderCancelTbl();
+  // Reaplica filtro de motivo que estava ativo antes do refresh
+  if (motivoAnterior && detalheAtual.some(v => v.motivo === motivoAnterior)) {
+    // Usa setTimeout para garantir que o DOM dos itens já foi renderizado
+    setTimeout(() => setComCancelMotivo(motivoAnterior), 0);
+  } else if (motivoAntAnterior && detalheAnt.some(v => v.motivo === motivoAntAnterior)) {
+    setTimeout(() => setComCancelMotivoAnt(motivoAntAnterior), 0);
+  } else {
+    _comRenderCancelTbl();
+  }
 }
 
 function setComCancelMotivoAnt(motivo) {

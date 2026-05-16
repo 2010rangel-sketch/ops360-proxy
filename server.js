@@ -1926,7 +1926,7 @@ function buildComResult(vendas, iniStr, fimStr) {
     .map(([motivo, total]) => ({ motivo, total }));
   const cancelados_detalhe = vendasCanceladas
     .sort((a, b) => b.dataVenda > a.dataVenda ? 1 : -1)
-    .map(v => ({ cliente: v.cliente, vendedor: v.vendedor, plano: v.plano, motivo: v.motivo || 'Não informado', dataVenda: v.dataVenda, dataCancelamento: v.dataCancelamento }));
+    .map(v => ({ cliente: v.cliente, cidade: v.cidade, vendedor: v.vendedor, plano: v.plano, motivo: v.motivo || 'Não informado', dataVenda: v.dataVenda, dataCancelamento: v.dataCancelamento }));
   return {
     ok: true, fonte: 'integracao_cliente_todos',
     total: vendas.length,
