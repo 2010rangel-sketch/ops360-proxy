@@ -1375,7 +1375,6 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;position:relative">
           <div style="display:flex;gap:3px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:3px">
             <button class="chip active com-chip" data-p="mes"  onclick="setComPeriodo('mes',this)">Mês atual</button>
-            <button class="chip com-chip"         data-p="hoje" onclick="setComPeriodo('hoje',this)">Hoje</button>
             <button class="chip com-chip"         data-p="custom" onclick="setComPeriodo('custom',this)">Meses anteriores ▾</button>
           </div>
           <div id="comMesesDrop" style="display:none;position:absolute;top:36px;left:0;z-index:200;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.4);min-width:260px">
@@ -8334,7 +8333,7 @@ async function loadComercial() {
       if (badge) { badge.textContent = 'Atualizando...'; badge.className = 'badge b-amber'; }
       setTimeout(() => loadComercial(), 15000);
     } else {
-      if (badge) { badge.textContent = `Atualizado ${hora}`; badge.className = 'badge b-green'; }
+      if (badge) { badge.textContent = `Atualizado`; badge.className = 'badge b-green'; }
       const pill = document.getElementById('live-pill-text');
       if (pill) pill.textContent = hora;
     }
