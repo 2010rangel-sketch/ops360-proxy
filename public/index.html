@@ -361,6 +361,24 @@ tr:hover td { background:var(--bg3); color:var(--text); }
 .event-ttl { font-size:12.5px; font-weight:500; }
 .event-sub { font-size:11px; color:var(--text3); margin-top:2px; }
 
+/* Comercial — Painel TV ranking rows */
+.com-rank-row {
+  display:grid;
+  grid-template-columns:28px 1fr 56px 72px 72px;
+  gap:6px;
+  align-items:center;
+  padding:9px 12px;
+  border-radius:8px;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.07);
+  margin-bottom:5px;
+  transition:background .15s;
+}
+.com-rank-row:hover { background:rgba(255,255,255,.08); }
+.com-rank-col { display:flex; flex-direction:column; align-items:center; gap:1px; }
+.com-rank-col-label { font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; opacity:.6; }
+.com-rank-col-val { font-size:20px; font-weight:800; line-height:1; }
+
 /* Retention hero */
 .ret-hero { display:grid; grid-template-columns:1fr 1px 1fr 1px 1fr; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); margin-bottom:16px; overflow:hidden; }
 .ret-divider { background:var(--border); }
@@ -1410,21 +1428,21 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
 
         <!-- Por vendedor (agora à esquerda) -->
         <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header">
+          <div class="tbl-header" style="background:linear-gradient(90deg,rgba(34,197,94,.12) 0%,transparent 100%)">
             <span class="tbl-title"><i class="fas fa-user-tie" style="color:var(--green);margin-right:5px"></i>Por Vendedor</span>
             <span id="com-vend-filtro-badge" style="display:none;font-size:11px;padding:2px 7px;border-radius:4px;cursor:pointer;background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.4)">✕ limpar</span>
             <span class="badge b-green" id="com-vend-count">—</span>
           </div>
-          <div id="com-vendedor-bars" style="padding:12px 16px;max-height:260px;overflow-y:auto"></div>
+          <div id="com-vendedor-bars" style="padding:10px 12px;max-height:320px;overflow-y:auto"></div>
         </div>
 
         <!-- Vendas por cidade (agora à direita, filtrável pelo vendedor) -->
         <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header">
+          <div class="tbl-header" style="background:linear-gradient(90deg,rgba(99,102,241,.15) 0%,transparent 100%)">
             <span class="tbl-title"><i class="fas fa-map-marker-alt" style="color:var(--accent);margin-right:5px"></i>Vendas por Cidade</span>
             <span class="badge b-blue" id="com-cid-count">—</span>
           </div>
-          <div id="com-cidades-bars" style="padding:12px 16px;max-height:260px;overflow-y:auto"></div>
+          <div id="com-cidades-bars" style="padding:12px 16px;max-height:320px;overflow-y:auto"></div>
         </div>
 
       </div>
@@ -1434,7 +1452,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
 
         <!-- Por plano -->
         <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header" style="padding:8px 10px">
+          <div class="tbl-header" style="padding:8px 10px;background:linear-gradient(90deg,rgba(245,158,11,.12) 0%,transparent 100%)">
             <span class="tbl-title" style="font-size:12px"><i class="fas fa-layer-group" style="color:var(--amber);margin-right:4px"></i>Por Plano</span>
           </div>
           <div style="padding:6px 10px">
@@ -1445,7 +1463,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
 
         <!-- Por Status -->
         <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header" style="padding:8px 10px">
+          <div class="tbl-header" style="padding:8px 10px;background:linear-gradient(90deg,rgba(6,182,212,.12) 0%,transparent 100%)">
             <span class="tbl-title" style="font-size:12px"><i class="fas fa-signal" style="color:var(--cyan);margin-right:4px"></i>Por Status</span>
           </div>
           <div style="padding:6px 10px">
@@ -1456,7 +1474,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
 
         <!-- Todas as vendas -->
         <div class="tbl-card" style="margin-bottom:0">
-          <div class="tbl-header">
+          <div class="tbl-header" style="background:linear-gradient(90deg,rgba(91,106,240,.12) 0%,transparent 100%)">
             <span class="tbl-title"><i class="fas fa-list" style="color:var(--text3);margin-right:5px"></i>Vendas</span>
             <span id="com-filtro-badge" style="display:none;font-size:11px;padding:3px 8px;border-radius:4px;cursor:pointer;background:var(--accent-light);color:var(--accent);border:1px solid rgba(91,106,240,.4)">—</span>
             <span class="badge b-amber" id="com-ult-count">—</span>
@@ -1489,7 +1507,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
 
           <!-- Por Motivo (Mês Selecionado) -->
           <div class="tbl-card" style="margin-bottom:0">
-            <div class="tbl-header">
+            <div class="tbl-header" style="background:linear-gradient(90deg,rgba(239,68,68,.12) 0%,transparent 100%)">
               <span class="tbl-title"><i class="fas fa-times-circle" style="color:var(--red);margin-right:5px"></i><span id="com-cancel-motivo-title">Por Motivo</span></span>
               <span class="badge b-red" id="com-cancel-atual-count" style="display:none">—</span>
             </div>
@@ -1498,7 +1516,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
 
           <!-- Por Motivo Mês Posterior (cancelaram depois do período) — só aparece em período fechado -->
           <div id="com-cancel-motivos-ant-col" class="tbl-card" style="margin-bottom:0;display:none">
-            <div class="tbl-header">
+            <div class="tbl-header" style="background:linear-gradient(90deg,rgba(245,158,11,.12) 0%,transparent 100%)">
               <span class="tbl-title"><i class="fas fa-clock" style="color:var(--amber);margin-right:5px"></i>Cancelaram Depois</span>
               <span class="badge b-amber" id="com-cancel-ant-count">—</span>
             </div>
@@ -1508,7 +1526,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
 
           <!-- Lista de cancelados -->
           <div class="tbl-card" style="margin-bottom:0">
-            <div class="tbl-header">
+            <div class="tbl-header" style="background:linear-gradient(90deg,rgba(239,68,68,.10) 0%,transparent 100%)">
               <span class="tbl-title"><i class="fas fa-user-slash" style="color:var(--red);margin-right:5px"></i>Cancelado sem Instalação</span>
               <span class="badge b-red" id="com-cancel-count">—</span>
               <span id="com-cancel-filtro-badge" style="display:none;font-size:11px;color:var(--red);margin-left:6px;cursor:pointer" onclick="setComCancelMotivo(_comCancelMotivoAtivo)">✕ limpar</span>
@@ -1546,7 +1564,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
 
       <!-- Adição Líquida Mensal -->
       <div class="tbl-card" style="margin-bottom:14px" id="fin-al-card">
-        <div class="tbl-header">
+        <div class="tbl-header" style="background:linear-gradient(90deg,rgba(99,102,241,.12) 0%,transparent 100%)">
           <span class="tbl-title"><i class="fas fa-chart-bar" style="color:var(--accent);margin-right:5px"></i>Adição Líquida Mensal</span>
           <span class="badge b-blue" id="fin-al-badge">—</span>
           <button class="btn btn-sm" onclick="loadAdicaoLiquida(true)" style="margin-left:auto"><i class="fas fa-sync-alt"></i> Atualizar</button>
@@ -7673,10 +7691,10 @@ function _comMotivoBarHTML(m, maxM, color, onclick) {
     style="margin-bottom:8px;${onclick?'cursor:pointer;':''}padding:5px 7px;border-radius:6px;border:1.5px solid transparent;transition:.15s">
     <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
       <span style="color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${m.motivo}">${m.motivo}</span>
-      <span style="color:${color};font-weight:600">${m.total}</span>
+      <span style="font-weight:800;color:${color}">${m.total}</span>
     </div>
-    <div style="background:var(--border);border-radius:4px;height:5px">
-      <div style="width:${pct}%;background:${color};border-radius:4px;transition:width .4s"></div>
+    <div style="height:5px;background:rgba(255,255,255,.07);border-radius:3px">
+      <div style="height:5px;width:${pct}%;background:${color};border-radius:3px;box-shadow:0 0 8px ${color}88;transition:width .4s"></div>
     </div>
   </div>`;
 }
@@ -7809,34 +7827,62 @@ function renderComBarras(containerId, items, maxVal, colorNew, colorReat) {
   if (!items.length) { el.innerHTML = '<div style="color:var(--text3);font-size:12px;text-align:center;padding:20px">Sem dados</div>'; return; }
   const filterType = containerId.includes('cidade') ? 'cidade' : 'vendedor';
   const isVendedor = filterType === 'vendedor';
+  const medals = ['🥇','🥈','🥉'];
+
+  if (isVendedor) {
+    // Ranking TV-style com medalhas para vendedores
+    el.innerHTML = items.map((item, i) => {
+      const isActive = _comFiltro.type === filterType && _comFiltro.val === item.nome;
+      const meta     = getMetaVendedor(item.nome);
+      const ativas   = (item.ativas != null) ? item.ativas : item.total;
+      const metaPct  = meta > 0 ? Math.min(100, Math.round(ativas / meta * 100)) : 0;
+      const metaColor = metaPct >= 100 ? '#22c55e' : metaPct >= 70 ? '#f59e0b' : '#ef4444';
+      const pos = i < 3
+        ? `<span style="font-size:18px;line-height:1">${medals[i]}</span>`
+        : `<span style="width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(255,255,255,.08);font-size:10px;font-weight:700;color:var(--text3)">${i+1}</span>`;
+      const nomeAbrev = item.nome.length > 16 ? item.nome.slice(0,15)+'…' : item.nome;
+      const reatCol = item.reat
+        ? `<div class="com-rank-col"><span class="com-rank-col-label" style="color:var(--cyan)">REAT.</span><span class="com-rank-col-val" style="font-size:15px;color:var(--cyan)">${item.reat}</span></div>`
+        : `<div class="com-rank-col"><span class="com-rank-col-label">REAT.</span><span class="com-rank-col-val" style="font-size:15px;color:var(--text3)">0</span></div>`;
+      const metaStr = meta > 0
+        ? `<div class="com-rank-col"><span class="com-rank-col-label" style="color:${metaColor}">META</span><span class="com-rank-col-val" style="font-size:14px;color:${metaColor}">${ativas}/${meta}</span></div>`
+        : '';
+      return `<div class="com-rank-row${isActive?' com-rank-row-active':''}"
+        onclick="setComFiltro('${filterType}','${item.nome.replace(/'/g,"&#39;")}')"
+        style="cursor:pointer;${isActive?'background:var(--accent-light);border-color:var(--accent);':''}"
+        title="${item.nome}">
+        <div style="display:flex;justify-content:center">${pos}</div>
+        <div style="font-size:12px;font-weight:600;color:${isActive?'var(--accent)':'var(--text)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nomeAbrev}</div>
+        <div class="com-rank-col"><span class="com-rank-col-label" style="color:${colorNew}">TOTAL</span><span class="com-rank-col-val" style="color:${colorNew}">${item.total}</span></div>
+        ${reatCol}
+        ${metaStr}
+      </div>`;
+    }).join('');
+    return;
+  }
+
+  // Barras com glow para cidades e outros
   el.innerHTML = items.map(item => {
     const pctTotal = maxVal > 0 ? Math.round(item.total / maxVal * 100) : 0;
     const pctReat  = item.total > 0 ? Math.round((item.reat||0) / item.total * 100) : 0;
     const isActive = _comFiltro.type === filterType && _comFiltro.val === item.nome;
-    const meta     = isVendedor ? getMetaVendedor(item.nome) : 0;
+    const meta     = 0;
     const ativas   = (item.ativas != null) ? item.ativas : item.total;
-    const metaPct  = meta > 0 ? Math.min(100, Math.round(ativas / meta * 100)) : 0;
-    const metaColor = metaPct >= 100 ? '#22c55e' : metaPct >= 70 ? '#f59e0b' : '#ef4444';
-    const metaBar  = meta > 0 ? `<div style="margin-top:3px;display:flex;align-items:center;gap:5px">
-      <div style="flex:1;background:var(--border);border-radius:4px;height:4px;position:relative">
-        <div style="width:${metaPct}%;background:${metaColor};border-radius:4px;height:100%;transition:width .4s"></div>
-        <div style="position:absolute;left:100%;top:50%;transform:translate(-50%,-50%);width:2px;height:8px;background:var(--text3);border-radius:1px"></div>
-      </div>
-      <span style="font-size:10px;color:${metaColor};font-weight:600;white-space:nowrap">${ativas}/${meta}</span>
-    </div>` : '';
+    const metaPct  = 0;
+    const metaColor = '#22c55e';
+    const metaBar  = '';
     return `<div onclick="setComFiltro('${filterType}','${item.nome.replace(/'/g,"&#39;")}')"
-      style="margin-bottom:${meta?'12':'10'}px;cursor:pointer;padding:4px 6px;border-radius:6px;border:1.5px solid ${isActive?'var(--accent)':'transparent'};background:${isActive?'var(--accent-light)':'transparent'};transition:.15s">
+      style="margin-bottom:10px;cursor:pointer;padding:4px 6px;border-radius:6px;border:1.5px solid ${isActive?'var(--accent)':'transparent'};background:${isActive?'var(--accent-light)':'transparent'};transition:.15s">
       <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
         <span style="color:${isActive?'var(--accent)':'var(--text)'};font-weight:${isActive?'700':'500'};max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${item.nome}">${item.nome}</span>
-        <span style="color:var(--text3)">${meta?'':item.total}${item.reat ? ` <span style="color:var(--cyan)">(${item.reat} reat.)</span>` : ''}</span>
+        <span style="font-weight:800;color:${colorNew}">${item.total}${item.reat ? ` <span style="color:var(--cyan)">(${item.reat})</span>` : ''}</span>
       </div>
-      <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden">
-        <div style="display:flex;height:100%;border-radius:4px;overflow:hidden">
-          <div style="width:${pctTotal - (pctReat*pctTotal/100)}%;background:${colorNew};transition:width .4s"></div>
-          <div style="width:${pctReat*pctTotal/100}%;background:${colorReat};transition:width .4s"></div>
+      <div style="height:5px;background:rgba(255,255,255,.07);border-radius:3px">
+        <div style="display:flex;height:5px;border-radius:3px;overflow:hidden">
+          <div style="width:${pctTotal - (pctReat*pctTotal/100)}%;background:${colorNew};border-radius:3px 0 0 3px;box-shadow:0 0 8px ${colorNew}88;transition:width .4s"></div>
+          <div style="width:${pctReat*pctTotal/100}%;background:${colorReat};box-shadow:0 0 8px ${colorReat}88;transition:width .4s"></div>
         </div>
       </div>
-      ${metaBar}
     </div>`;
   }).join('');
 }
