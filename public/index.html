@@ -1395,7 +1395,6 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
           <div style="font-size:11px;color:var(--text3);margin-top:8px;display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
             <span><span style="color:#22c55e;font-weight:700" id="com-novas">—</span> novas</span>
             <span><span style="color:var(--cyan);font-weight:700" id="com-reat">—</span> reat.</span>
-            <span><span style="color:var(--red);font-weight:700" id="com-cancelados">—</span> s/instalar</span>
           </div>
         </div>
 
@@ -8305,8 +8304,8 @@ async function loadComercial() {
     const ddmm = `(${String(agoraBRT.getDate()).padStart(2,'0')}/${String(agoraBRT.getMonth()+1).padStart(2,'0')})`;
     ev('com-header-data', ddmm);
 
-    // KPI mês atual
-    ev('com-total',      data.total);
+    // KPI mês atual (total exclui cancelados s/instalar)
+    ev('com-total',      data.ativos ?? data.total);
     ev('com-novas',      data.novas);
     ev('com-reat',       data.reativacoes);
     ev('com-cancelados', data.cancelados ?? '—');
