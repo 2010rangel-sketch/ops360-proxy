@@ -7703,11 +7703,12 @@ function _renderTimeRanking(elId, cntId, vends, diaMap, antMap, accentColor) {
       : `<span style="width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(255,255,255,.07);font-size:10px;font-weight:700;color:var(--text3)">${i+1}</span>`;
     const dia = diaMap[v.nome] || 0;
     const ant = antMap[v.nome] || 0;
+    const mesAtivo = v.ativas ?? v.total;
     const diaColor = dia > 0 ? '#f59e0b' : 'var(--text3)';
     const meta = getMetaVendedor(v.nome);
-    const pct  = meta > 0 ? Math.min(100, Math.round(v.total / meta * 100)) : 0;
+    const pct  = meta > 0 ? Math.min(100, Math.round(mesAtivo / meta * 100)) : 0;
     const metaColor = pct >= 100 ? '#22c55e' : pct >= 70 ? '#f59e0b' : '#ef4444';
-    const metaLabel = meta > 0 ? `${v.total}/${meta}` : '—';
+    const metaLabel = meta > 0 ? `${mesAtivo}/${meta}` : '—';
     const metaCol = meta > 0
       ? `<div class="com-rank-col" style="min-width:0">
           <span class="com-rank-col-label" style="color:${metaColor}">META ${pct}%</span>
@@ -7721,7 +7722,7 @@ function _renderTimeRanking(elId, cntId, vends, diaMap, antMap, accentColor) {
       <div style="display:flex;justify-content:center;align-items:center">${pos}</div>
       <div style="font-size:11px;font-weight:600;color:var(--text)">${v.nome}</div>
       <div class="com-rank-col"><span class="com-rank-col-label" style="color:#f59e0b">DIA</span><span class="com-rank-col-val" style="color:${diaColor};font-size:18px">${dia}</span></div>
-      <div class="com-rank-col"><span class="com-rank-col-label" style="color:${accentColor}">MÊS ATUAL</span><span class="com-rank-col-val" style="color:${accentColor};font-size:18px">${v.total}</span></div>
+      <div class="com-rank-col"><span class="com-rank-col-label" style="color:${accentColor}">MÊS ATUAL</span><span class="com-rank-col-val" style="color:${accentColor};font-size:18px">${mesAtivo}</span></div>
       <div class="com-rank-col"><span class="com-rank-col-label">MÊS ANT.</span><span class="com-rank-col-val" style="font-size:15px;color:var(--text2)">${ant}</span></div>
       <div style="border-left:1px solid var(--border);margin:4px 0"></div>
       ${metaCol}
@@ -7730,9 +7731,11 @@ function _renderTimeRanking(elId, cntId, vends, diaMap, antMap, accentColor) {
 }
 
 function renderRankingVendedores(mesData, diaData, antData) {
-  const mesVends = (mesData?.vendedores || []).filter(v => v.nome && v.nome !== '—');
-  const diaMap   = Object.fromEntries((diaData?.vendedores||[]).map(v=>[v.nome,v.total]));
-  const antMap   = Object.fromEntries((antData?.vendedores||[]).map(v=>[v.nome,v.total]));
+  const mesVends = (mesData?.vendedores || [])
+    .filter(v => v.nome && v.nome !== '—')
+    .sort((a, b) => (b.ativas ?? b.total) - (a.ativas ?? a.total));
+  const diaMap   = Object.fromEntries((diaData?.vendedores||[]).map(v=>[v.nome, v.ativas ?? v.total]));
+  const antMap   = Object.fromEntries((antData?.vendedores||[]).map(v=>[v.nome, v.ativas ?? v.total]));
   _renderTimeRanking('com-ranking-interno', 'com-cnt-interno', mesVends, diaMap, antMap, 'var(--accent)');
 }
 
