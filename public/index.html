@@ -7687,13 +7687,23 @@ function _comTime(nome) {
   return 'recepcao';
 }
 
-function _renderTimeRanking(elId, cntId, vends, diaMap, antMap, accentColor) {
+function _renderTimeRanking(elId, cntId, vends, diaMap, antMap, accentColor, ultimas) {
   const el  = document.getElementById(elId);
   const cnt = document.getElementById(cntId);
   if (!el) return;
   if (!vends.length) { el.innerHTML = '<div style="text-align:center;color:var(--text3);padding:14px;font-size:11px">Sem dados</div>'; if(cnt) cnt.textContent='0'; return; }
   if (cnt) cnt.textContent = vends.length;
   const medals = ['🥇','🥈','🥉'];
+
+  // Monta mapa dia→vendas por vendedor a partir de ultimas
+  const vendDayMap = {};
+  (ultimas || []).forEach(u => {
+    if (!u.vendedor || u.cancelado) return;
+    if (!vendDayMap[u.vendedor]) vendDayMap[u.vendedor] = {};
+    const d = (u.dataVenda || '').slice(0, 10);
+    if (d) vendDayMap[u.vendedor][d] = (vendDayMap[u.vendedor][d] || 0) + 1;
+  });
+
   el.innerHTML = vends.map((v, i) => {
     const pos = i < 3
       ? `<span style="font-size:18px;line-height:1">${medals[i]}</span>`
@@ -7701,6 +7711,22 @@ function _renderTimeRanking(elId, cntId, vends, diaMap, antMap, accentColor) {
     const dia = diaMap[v.nome] || 0;
     const ant = antMap[v.nome] || 0;
     const mesAtivo = v.ativas ?? v.total;
+
+    // Sparkline: últimos 20 dias com dados
+    const dayData = vendDayMap[v.nome] || {};
+    const sortedDays = Object.keys(dayData).sort();
+    const maxDay = Math.max(1, ...Object.values(dayData));
+    const sparkW = 120, sparkH = 28, barW = Math.max(3, Math.floor((sparkW - sortedDays.length) / sortedDays.length));
+    const sparkSvg = sortedDays.length ? `<svg width="${sparkW}" height="${sparkH}" viewBox="0 0 ${sparkW} ${sparkH}" style="flex-shrink:0;opacity:.85">
+      ${sortedDays.map((d, si) => {
+        const val = dayData[d];
+        const bh  = Math.max(2, Math.round(val / maxDay * (sparkH - 4)));
+        const x   = si * (barW + 1);
+        const isToday = d === new Date(Date.now()-3*60*60*1000).toISOString().slice(0,10);
+        const color = isToday ? '#f59e0b' : accentColor;
+        return `<rect x="${x}" y="${sparkH - bh}" width="${barW}" height="${bh}" rx="1" fill="${color}" opacity="${isToday?'1':'.6'}"><title>${d}: ${val}</title></rect>`;
+      }).join('')}
+    </svg>` : '';
     const diaColor = dia > 0 ? '#f59e0b' : 'var(--text3)';
     const meta = getMetaVendedor(v.nome);
     const pct  = meta > 0 ? Math.min(100, Math.round(mesAtivo / meta * 100)) : 0;
@@ -7717,7 +7743,10 @@ function _renderTimeRanking(elId, cntId, vends, diaMap, antMap, accentColor) {
       : `<div class="com-rank-col"><span class="com-rank-col-label">META</span><span style="font-size:12px;color:var(--text3)">—</span></div>`;
     return `<div class="com-rank-row" style="grid-template-columns:26px 1fr 48px 64px 64px 40px 110px">
       <div style="display:flex;justify-content:center;align-items:center">${pos}</div>
-      <div style="font-size:11px;font-weight:600;color:var(--text)">${v.nome}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0">
+        <span style="font-size:11px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.nome}</span>
+        ${sparkSvg}
+      </div>
       <div class="com-rank-col"><span class="com-rank-col-label" style="color:#f59e0b">DIA</span><span class="com-rank-col-val" style="color:${diaColor};font-size:18px">${dia}</span></div>
       <div class="com-rank-col"><span class="com-rank-col-label" style="color:${accentColor}">MÊS ATUAL</span><span class="com-rank-col-val" style="color:${accentColor};font-size:18px">${mesAtivo}</span></div>
       <div class="com-rank-col"><span class="com-rank-col-label">MÊS ANT.</span><span class="com-rank-col-val" style="font-size:15px;color:var(--text2)">${ant}</span></div>
@@ -7733,7 +7762,7 @@ function renderRankingVendedores(mesData, diaData, antData) {
     .sort((a, b) => (b.ativas ?? b.total) - (a.ativas ?? a.total));
   const diaMap   = Object.fromEntries((diaData?.vendedores||[]).map(v=>[v.nome, v.ativas ?? v.total]));
   const antMap   = Object.fromEntries((antData?.vendedores||[]).map(v=>[v.nome, v.ativas ?? v.total]));
-  _renderTimeRanking('com-ranking-interno', 'com-cnt-interno', mesVends, diaMap, antMap, 'var(--accent)');
+  _renderTimeRanking('com-ranking-interno', 'com-cnt-interno', mesVends, diaMap, antMap, 'var(--accent)', mesData?.ultimas);
 }
 
 function _renderDiaBars(elId, itens, cor) {
