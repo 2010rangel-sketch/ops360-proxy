@@ -724,6 +724,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
     <div class="topbar-right">
       <!-- filtro comercial — visível só na página comercial -->
       <div id="com-topbar-filter" style="display:none;align-items:center;gap:6px;position:relative">
+        <button onclick="loadComercial(true)" title="Forçar atualização" style="background:none;border:1px solid var(--border2);border-radius:6px;color:var(--text3);cursor:pointer;padding:4px 8px;font-size:12px;line-height:1" id="com-refresh-btn">🔄</button>
         <div style="display:flex;gap:3px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:3px">
           <button class="chip active com-chip" data-p="mes"  onclick="setComPeriodo('mes',this)">Mês atual</button>
           <button class="chip com-chip"         data-p="custom" onclick="setComPeriodo('custom',this)">Meses anteriores ▾</button>
@@ -8316,9 +8317,10 @@ function verDetalhesVenda(idx) {
   modal.style.display = 'flex';
 }
 
-async function loadComercial() {
+async function loadComercial(force) {
   const badge = document.getElementById('com-sync-badge');
   if (badge) { badge.textContent = 'Buscando...'; badge.className = 'badge b-amber'; }
+  const nc = force ? '&nocache=1' : '';
   try {
     const { ini, fim } = getComDates();
     const agoraBRT  = new Date(Date.now() - 3*60*60*1000);
@@ -8327,8 +8329,8 @@ async function loadComercial() {
     const mesAntFim = new Date(agoraBRT.getFullYear(), agoraBRT.getMonth(), 0).toISOString().slice(0,10);
 
     const [r, rDia, rAnt] = await Promise.all([
-      fetch(`/api/comercial?data_inicio=${encodeURIComponent(ini)}&data_fim=${encodeURIComponent(fim)}`),
-      fetch(`/api/comercial?data_inicio=${hoje}&data_fim=${hoje}`),
+      fetch(`/api/comercial?data_inicio=${encodeURIComponent(ini)}&data_fim=${encodeURIComponent(fim)}${nc}`),
+      fetch(`/api/comercial?data_inicio=${hoje}&data_fim=${hoje}${nc}`),
       fetch(`/api/comercial?data_inicio=${mesAntIni}&data_fim=${mesAntFim}`),
     ]);
     const data    = await r.json();
