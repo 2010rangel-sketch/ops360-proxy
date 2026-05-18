@@ -726,7 +726,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
     <div class="topbar-right">
       <!-- filtro comercial — visível só na página comercial -->
       <div id="com-topbar-filter" style="display:none;align-items:center;gap:6px;position:relative">
-        <button onclick="comRefreshClick()" title="Forçar atualização" style="background:none;border:1px solid var(--border2);border-radius:6px;color:var(--text3);cursor:pointer;padding:4px 8px;font-size:12px;line-height:1" id="com-refresh-btn"><span id="com-refresh-icon">🔄</span></button>
+        <button onclick="comRefreshClick()" title="Forçar atualização" style="background:none;border:none;color:var(--text3);cursor:pointer;padding:4px 6px;font-size:14px;line-height:1" id="com-refresh-btn"><i id="com-refresh-icon" class="fas fa-sync-alt"></i></button>
         <div style="display:flex;gap:3px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:3px">
           <button class="chip active com-chip" data-p="mes"  onclick="setComPeriodo('mes',this)">Mês atual</button>
           <button class="chip com-chip"         data-p="custom" onclick="setComPeriodo('custom',this)">Meses anteriores ▾</button>
@@ -8316,10 +8316,10 @@ function verDetalhesVenda(idx) {
 function comRefreshClick() {
   const icon = document.getElementById('com-refresh-icon');
   const btn  = document.getElementById('com-refresh-btn');
-  if (icon) icon.classList.add('spinning');
+  if (icon) { icon.style.animation = 'spin .7s linear infinite'; icon.style.display = 'inline-block'; }
   if (btn)  btn.disabled = true;
   loadComercial(true).finally(() => {
-    if (icon) icon.classList.remove('spinning');
+    if (icon) { icon.style.animation = ''; icon.style.display = ''; }
     if (btn)  btn.disabled = false;
   });
 }
