@@ -166,6 +166,8 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
 .live-pill { display:flex; align-items:center; gap:5px; background:var(--green-light); color:var(--green); font-size:10.5px; font-weight:600; padding:3px 8px; border-radius:20px; }
 .live-dot { width:5px; height:5px; border-radius:50%; background:var(--green); animation:blink 1.4s infinite; }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+@keyframes spin { to { transform:rotate(360deg) } }
+.spinning { display:inline-block; animation:spin .7s linear infinite; }
 .topbar-right { display:flex; align-items:center; gap:6px; }
 .icon-btn { width:30px; height:30px; border-radius:var(--r); border:1px solid var(--border); background:transparent; color:var(--text2); cursor:pointer; display:grid; place-items:center; font-size:12px; transition:.15s; position:relative; }
 .icon-btn:hover { background:var(--bg3); color:var(--text); border-color:var(--border2); }
@@ -724,7 +726,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
     <div class="topbar-right">
       <!-- filtro comercial — visível só na página comercial -->
       <div id="com-topbar-filter" style="display:none;align-items:center;gap:6px;position:relative">
-        <button onclick="loadComercial(true)" title="Forçar atualização" style="background:none;border:1px solid var(--border2);border-radius:6px;color:var(--text3);cursor:pointer;padding:4px 8px;font-size:12px;line-height:1" id="com-refresh-btn">🔄</button>
+        <button onclick="comRefreshClick()" title="Forçar atualização" style="background:none;border:1px solid var(--border2);border-radius:6px;color:var(--text3);cursor:pointer;padding:4px 8px;font-size:12px;line-height:1" id="com-refresh-btn"><span id="com-refresh-icon">🔄</span></button>
         <div style="display:flex;gap:3px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:3px">
           <button class="chip active com-chip" data-p="mes"  onclick="setComPeriodo('mes',this)">Mês atual</button>
           <button class="chip com-chip"         data-p="custom" onclick="setComPeriodo('custom',this)">Meses anteriores ▾</button>
@@ -8315,6 +8317,17 @@ function verDetalhesVenda(idx) {
     </table>`;
   }
   modal.style.display = 'flex';
+}
+
+function comRefreshClick() {
+  const icon = document.getElementById('com-refresh-icon');
+  const btn  = document.getElementById('com-refresh-btn');
+  if (icon) icon.classList.add('spinning');
+  if (btn)  btn.disabled = true;
+  loadComercial(true).finally(() => {
+    if (icon) icon.classList.remove('spinning');
+    if (btn)  btn.disabled = false;
+  });
 }
 
 async function loadComercial(force) {
