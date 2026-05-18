@@ -2998,12 +2998,6 @@ function goPage(id, el, skipHistory) {
     else loadAdicaoLiquida();
   }
   if (id === 'comercial') {
-    // Se já tem dados em cache, mostra o horário da última sincronização imediatamente
-    const badge = document.getElementById('com-sync-badge');
-    if (badge && badge.className.includes('b-green')) {
-      const p = document.getElementById('live-pill-text');
-      if (p) p.textContent = badge.textContent.replace('Atualizado ', '');
-    }
     loadComercial();
   }
   if (id === 'integracoes') {
@@ -8420,8 +8414,6 @@ async function loadComercial(force) {
       setTimeout(() => loadComercial(), 15000);
     } else {
       if (badge) { badge.textContent = `Atualizado`; badge.className = 'badge b-green'; }
-      const pill = document.getElementById('live-pill-text');
-      if (pill) pill.textContent = hora;
     }
   } catch(e) {
     if (badge) { badge.textContent = 'Erro'; badge.className = 'badge b-red'; }
