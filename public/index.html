@@ -3425,7 +3425,11 @@ function getPeriodDates() {
   if (p === 'custom') {
     const de  = document.getElementById('dashDtDe')?.value || document.getElementById('dtDe')?.value;
     const ate = document.getElementById('dashDtAte')?.value || document.getElementById('dtAte')?.value;
-    if (de && ate) return { ini: new Date(de).toISOString(), fim: new Date(new Date(ate).setHours(23,59,59,999)).toISOString() };
+    if (de && ate) {
+      const [dy,dm,dd] = de.split('-').map(Number);
+      const [ay,am,ad] = ate.split('-').map(Number);
+      return { ini: new Date(dy,dm-1,dd,0,0,0,0).toISOString(), fim: new Date(ay,am-1,ad,23,59,59,999).toISOString() };
+    }
   }
   return { ini: hoje.toISOString(), fim: amanha.toISOString() };
 }
@@ -3715,13 +3719,23 @@ function renderStatusLanes() {
   ];
   const el = document.getElementById('statusLanes');
   if(!el) return;
-  // Lanes são uma visão "ao vivo / agora": sempre usa apenas OS de hoje,
-  // independente do período selecionado (semana, mês, etc.)
-  const hojeMs = (() => { const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); })();
+  const _agora = new Date();
+  const _hoje  = new Date(_agora.getFullYear(), _agora.getMonth(), _agora.getDate());
+  const _amanha = new Date(_hoje.getTime() + 24*60*60*1000);
   const laneSource = chamadosDB.filter(c => {
     if (!c.dataProgramada) return false;
-    const d = new Date(c.dataProgramada); d.setHours(0,0,0,0);
-    if (d.getTime() !== hojeMs) return false;
+    const dp = new Date(c.dataProgramada);
+    const diaC = new Date(dp.getFullYear(), dp.getMonth(), dp.getDate());
+    if (filtros.periodo === 'hoje') {
+      if (diaC.getTime() !== _hoje.getTime()) return false;
+    } else if (filtros.periodo === 'amanha') {
+      if (diaC.getTime() !== _amanha.getTime()) return false;
+    } else if (filtros.rangeIni && filtros.rangeFim) {
+      const ri = new Date(filtros.rangeIni.getFullYear(), filtros.rangeIni.getMonth(), filtros.rangeIni.getDate());
+      if (diaC < ri || diaC >= filtros.rangeFim) return false;
+    } else {
+      if (diaC.getTime() !== _hoje.getTime()) return false;
+    }
     if (filtros.tec    && c.tec    !== filtros.tec)    return false;
     if (filtros.cidade && c.cidade !== filtros.cidade) return false;
     if (filtros.cat    && c.cat    !== filtros.cat)    return false;
@@ -3729,7 +3743,19 @@ function renderStatusLanes() {
   });
   const ativos = laneSource.filter(c=>c.st!=='finalizado'&&c.st!=='cancelado');
   const liveEl = document.getElementById('liveCount');
-  if (liveEl) liveEl.textContent = `${ativos.length} hoje`;
+  if (liveEl) {
+    let _lbl = 'hoje';
+    if (filtros.periodo === 'amanha') _lbl = 'amanhã';
+    else if (filtros.periodo === 'semana') _lbl = 'semana';
+    else if (filtros.periodo === 'mes') _lbl = 'mês';
+    else if (filtros.periodo === 'custom' && filtros.rangeIni) {
+      const ri = filtros.rangeIni, rf = new Date(filtros.rangeFim.getTime() - 1);
+      const riD = `${String(ri.getDate()).padStart(2,'0')}/${String(ri.getMonth()+1).padStart(2,'0')}`;
+      const rfD = `${String(rf.getDate()).padStart(2,'0')}/${String(rf.getMonth()+1).padStart(2,'0')}`;
+      _lbl = riD === rfD ? riD : `${riD}–${rfD}`;
+    }
+    liveEl.textContent = `${ativos.length} ${_lbl}`;
+  }
 
   el.innerHTML = lanes.map(lane => {
     const baseItems = laneSource.filter(c=>c.st===lane.st);
