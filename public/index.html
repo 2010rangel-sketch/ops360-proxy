@@ -3532,6 +3532,7 @@ function applyFilters() {
     return true;
   });
   rebuildAll();
+  renderStatusLanes();
 }
 
 function filterSt(st, el) {
@@ -3720,7 +3721,11 @@ function renderStatusLanes() {
   const laneSource = chamadosDB.filter(c => {
     if (!c.dataProgramada) return false;
     const d = new Date(c.dataProgramada); d.setHours(0,0,0,0);
-    return d.getTime() === hojeMs;
+    if (d.getTime() !== hojeMs) return false;
+    if (filtros.tec    && c.tec    !== filtros.tec)    return false;
+    if (filtros.cidade && c.cidade !== filtros.cidade) return false;
+    if (filtros.cat    && c.cat    !== filtros.cat)    return false;
+    return true;
   });
   const ativos = laneSource.filter(c=>c.st!=='finalizado'&&c.st!=='cancelado');
   const liveEl = document.getElementById('liveCount');
