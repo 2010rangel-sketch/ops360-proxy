@@ -513,24 +513,33 @@ app.get('/api/debug-tipos-cidades', async (req, res) => {
 app.get('/api/debug-raw', async (req, res) => {
   if (!await _requireAdmin(req, res)) return;
   try {
-    const data = await hubsoftPost('v1/ordem_servico/consultar/paginado/3?page=1', bodyConsultaOS());
-    const lista = extrairLista(data);
-    if (!lista.length) return res.json({ ok: false, msg: 'nenhum OS retornado' });
-    const os = lista[0];
-    // Extrai caminhos que possam ter cidade
-    res.json({
-      id_ordem_servico: os.id_ordem_servico,
-      status_raw:               os.status,
-      status_ordem_servico_raw: os.status_ordem_servico,
-      situacao_raw:             os.situacao,
-      st_normalizado: normalizarStatus(os.status_ordem_servico?.descricao || os.status_ordem_servico || os.status || os.situacao || ''),
-      atendimento_keys: os.atendimento ? Object.keys(os.atendimento) : null,
-      cliente_servico_keys: os.atendimento?.cliente_servico ? Object.keys(os.atendimento.cliente_servico) : null,
-      endereco_instalacao: os.atendimento?.cliente_servico?.endereco_instalacao || null,
-      cliente: os.atendimento?.cliente_servico?.cliente || null,
-      raw_top_keys: Object.keys(os),
-      raw_os: os,
-    });
+    // Testa com várias combinações de relacoes para descobrir o nome correto
+    const relTestes = [
+      ['reservas', 'atendimento'],
+      ['reservas', 'cliente_servico'],
+      ['reservas', 'clientes_servicos'],
+      ['reservas'],
+    ];
+    const resultados = {};
+    for (const rel of relTestes) {
+      const body = { ...bodyConsultaOS(), relacoes: rel };
+      const data = await hubsoftPost('v1/ordem_servico/consultar/paginado/1?page=1', body);
+      const lista = extrairLista(data);
+      const os = lista[0];
+      if (os) {
+        const cs = os.atendimento?.cliente_servico;
+        resultados[rel.join('+')] = {
+          top_keys: Object.keys(os),
+          atendimento_keys: os.atendimento ? Object.keys(os.atendimento) : null,
+          cs_display: cs?.display,
+          cs_cliente_nome: cs?.cliente?.nome_razaosocial,
+          cidade: cs?.endereco_instalacao?.cidade?.nome || cs?.endereco_instalacao?.endereco_numero?.cidade?.nome,
+          raw_atendimento: os.atendimento,
+          raw_os_sem_relacoes: Object.fromEntries(Object.entries(os).filter(([k]) => !['reservas','atendimento','tecnicos'].includes(k))),
+        };
+      }
+    }
+    res.json(resultados);
   } catch(err) { res.status(500).json({ erro: err.message }); }
 });
 
