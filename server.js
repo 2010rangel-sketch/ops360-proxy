@@ -314,7 +314,7 @@ function bodyConsultaOS({ data_inicio, data_fim, tecnicos = [], cidades = [], st
     periodos:                 [],
     pop:                      [],
     prioridade:               [],
-    relacoes:                 ['reservas'],
+    relacoes:                 ['reservas', 'atendimento'],
     reservada:                null,
     servico:                  [],
     servico_status:           [],
@@ -698,9 +698,13 @@ function _normalizarChamados(lista) {
     const cs    = os.atendimento?.cliente_servico;
     const end   = cs?.endereco_instalacao;
     const coords = end?.endereco_numero?.coordenadas?.coordinates || end?.coordenadas?.coordinates;
-    const cidade = end?.endereco_numero?.cidade?.nome || end?.cidade?.nome || end?.cidade?.display || cs?.cliente?.cidade?.nome || 'Sem cidade';
+    const cidade = end?.endereco_numero?.cidade?.nome || end?.cidade?.nome || end?.cidade?.display
+                || cs?.cliente?.cidade?.nome || os.cidade?.nome || os.nome_cidade || 'Sem cidade';
     const cidId  = end?.endereco_numero?.id_cidade || end?.id_cidade || end?.cidade?.id_cidade || null;
-    const cli    = cs?.display || cs?.cliente?.nome_razaosocial || cs?.cliente?.display || 'Cliente';
+    const cli    = (cs?.display && cs.display !== 'Cliente' ? cs.display : null)
+                || cs?.cliente?.nome_razaosocial || cs?.cliente?.display
+                || os.nome_cliente || os.cliente?.nome_razaosocial || os.cliente?.display
+                || cs?.display || 'Sem nome';
     const stBase = normalizarStatus(os.status || '');
     // Em Execução: reserva ativa COM servico_iniciado=true, ou flag executando=true
     const execAtiva = (stBase === 'aguardando' || stBase === 'deslocamento') &&
