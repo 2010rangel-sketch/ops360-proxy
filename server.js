@@ -361,7 +361,7 @@ app.use(express.static(path.join(__dirname, 'public'), {
 
 
 // ── Middleware de autenticação global ────────────────────────────
-const AUTH_PUBLIC = ['/ping', '/api/auth/login', '/api/auth/register', '/api/tasks/calendar.ics', '/api/debug-raw'];
+const AUTH_PUBLIC = ['/ping', '/api/auth/login', '/api/auth/register', '/api/tasks/calendar.ics'];
 const _INTERNAL_TOKEN = _gerarToken(0); // token interno para chamadas servidor→servidor
 app.use((req, res, next) => {
   if (req.method === 'GET' && !req.path.startsWith('/api/')) return next(); // arquivos estáticos
@@ -704,16 +704,21 @@ function _normalizarChamados(lista) {
     const tipo  = os.tipo_ordem_servico?.descricao || os.tipo_os?.nome || 'Sem tipo';
     const tecs  = os.tecnicos || [];
     const tec   = tecs.map(t => t.name || t.nome || t.display).filter(Boolean).join(', ') || 'Sem técnico';
-    const cs    = os.atendimento?.cliente_servico;
-    const end   = cs?.endereco_instalacao;
-    const coords = end?.endereco_numero?.coordenadas?.coordinates || end?.coordenadas?.coordinates;
-    const cidade = end?.endereco_numero?.cidade?.nome || end?.cidade?.nome || end?.cidade?.display
-                || cs?.cliente?.cidade?.nome || os.cidade?.nome || os.nome_cidade || 'Sem cidade';
-    const cidId  = end?.endereco_numero?.id_cidade || end?.id_cidade || end?.cidade?.id_cidade || null;
-    const cli    = (cs?.display && cs.display !== 'Cliente' ? cs.display : null)
-                || cs?.cliente?.nome_razaosocial || cs?.cliente?.display
-                || os.nome_cliente || os.cliente?.nome_razaosocial || os.cliente?.display
-                || cs?.display || 'Sem nome';
+    // Hubsoft retorna cliente_servico direto no OS (nova estrutura) ou via atendimento (legado)
+    const cs    = os.cliente_servico || os.atendimento?.cliente_servico;
+    // Endereço: nova estrutura usa cliente_servico_endereco[], legado usa endereco_instalacao
+    const endArr = cs?.cliente_servico_endereco || [];
+    const endInst = endArr.find(e => e.tipo === 'instalacao') || endArr[0];
+    const endNum = endInst?.endereco_numero;
+    const endLeg = cs?.endereco_instalacao;
+    const coords = endNum?.coordenadas?.coordinates || endLeg?.endereco_numero?.coordenadas?.coordinates || endLeg?.coordenadas?.coordinates;
+    const cidade = endNum?.cidade?.nome
+                || endLeg?.endereco_numero?.cidade?.nome || endLeg?.cidade?.nome || endLeg?.cidade?.display
+                || cs?.cliente?.cidade?.nome || 'Sem cidade';
+    const cidId  = endNum?.id_cidade || endLeg?.endereco_numero?.id_cidade || endLeg?.id_cidade || null;
+    const cli    = cs?.cliente?.nome_razaosocial || cs?.cliente?.display
+                || (cs?.display && cs.display !== 'Cliente' && !cs.display.startsWith('(') ? cs.display : null)
+                || os.nome_cliente || 'Sem nome';
     const stBase = normalizarStatus(os.status || '');
     // Em Execução: reserva ativa COM servico_iniciado=true, ou flag executando=true
     const execAtiva = (stBase === 'aguardando' || stBase === 'deslocamento') &&
