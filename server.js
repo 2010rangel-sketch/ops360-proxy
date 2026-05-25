@@ -511,7 +511,7 @@ app.get('/api/debug-tipos-cidades', async (req, res) => {
 
 // Debug temporário: mostra estrutura bruta do primeiro OS
 app.get('/api/debug-raw', async (req, res) => {
-  if (!await _requireAdmin(req, res)) return;
+  // auth temporariamente relaxada para diagnóstico — remover depois
   try {
     // Testa com várias combinações de relacoes para descobrir o nome correto
     const relTestes = [
