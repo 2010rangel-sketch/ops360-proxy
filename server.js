@@ -361,7 +361,7 @@ app.use(express.static(path.join(__dirname, 'public'), {
 
 
 // ── Middleware de autenticação global ────────────────────────────
-const AUTH_PUBLIC = ['/ping', '/api/auth/login', '/api/auth/register', '/api/tasks/calendar.ics'];
+const AUTH_PUBLIC = ['/ping', '/api/auth/login', '/api/auth/register', '/api/tasks/calendar.ics', '/api/debug-raw'];
 const _INTERNAL_TOKEN = _gerarToken(0); // token interno para chamadas servidor→servidor
 app.use((req, res, next) => {
   if (req.method === 'GET' && !req.path.startsWith('/api/')) return next(); // arquivos estáticos
