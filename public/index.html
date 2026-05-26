@@ -4785,15 +4785,15 @@ async function autoRefresh() {
   const el = document.getElementById('lastSyncChamados');
   if(el) el.textContent = new Date().toLocaleTimeString('pt-BR');
 
-  // Só atualiza automaticamente se o usuário estiver no período "hoje"
-  // Para períodos históricos (semana, mês, custom), não sobrescreve os dados buscados
   if (filtros.periodo !== 'hoje') return;
 
+  // Anti-race: descarta resultado se um fetch mais recente já chegou
+  const mySeq = ++_fetchSeq;
   const chamadosReais = await buscarChamadosHubsoft();
+  if (mySeq !== _fetchSeq) return;
   if (chamadosReais && chamadosReais.length > 0) {
     salvarCache(chamadosReais);
     aplicarDados(chamadosReais);
-    console.log('['+new Date().toLocaleTimeString('pt-BR')+'] '+chamadosReais.length+' chamados sincronizados do Hubsoft');
   }
 }
 
