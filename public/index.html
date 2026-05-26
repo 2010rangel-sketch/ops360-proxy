@@ -4789,7 +4789,9 @@ async function autoRefresh() {
 
   // Anti-race: descarta resultado se um fetch mais recente já chegou
   const mySeq = ++_fetchSeq;
-  const chamadosReais = await buscarChamadosHubsoft();
+  // Passa mesmos params que buscarPeriodo('hoje') → bate na cache key 'hoje' do servidor
+  const { ini, fim } = getPeriodDates();
+  const chamadosReais = await buscarChamadosHubsoft({ data_inicio: ini, data_fim: fim, all: 'true' });
   if (mySeq !== _fetchSeq) return;
   if (chamadosReais && chamadosReais.length > 0) {
     salvarCache(chamadosReais);
