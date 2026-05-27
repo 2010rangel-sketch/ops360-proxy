@@ -764,7 +764,10 @@ async function _refreshChamadosHoje() {
     const _agoraBRT = new Date(Date.now() - 3*60*60*1000);
     const hoje  = _agoraBRT.toISOString().slice(0, 10);
     const amanha = new Date(_agoraBRT.getTime() + 86400000).toISOString().slice(0, 10);
-    const lista = await _fetchChamadosHubsoft(hoje, amanha, true);
+    // BRT meia-noite = UTC 03:00 — evita cortar chamados das 21h-23h59 BRT
+    const data_inicio = `${hoje}T03:00:00.000Z`;
+    const data_fim    = `${amanha}T03:00:00.000Z`;
+    const lista = await _fetchChamadosHubsoft(data_inicio, data_fim, true);
     const chamados = _normalizarChamados(lista);
     const result = { ok: true, total: chamados.length, chamados, sincronizado_em: new Date().toISOString() };
     lruSet(_chamadosCache, 'hoje', { data: result, ts: Date.now() });
