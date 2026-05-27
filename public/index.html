@@ -3754,7 +3754,7 @@ function renderStatusLanes() {
       const rfD = `${String(rf.getDate()).padStart(2,'0')}/${String(rf.getMonth()+1).padStart(2,'0')}`;
       _lbl = riD === rfD ? riD : `${riD}–${rfD}`;
     }
-    liveEl.textContent = `${ativos.length} ${_lbl}`;
+    liveEl.textContent = `${laneSource.length} ${_lbl}`;
   }
 
   el.innerHTML = lanes.map(lane => {
