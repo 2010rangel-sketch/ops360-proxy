@@ -1413,7 +1413,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
           <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--cyan))"></div>
           <div style="display:flex;align-items:center;gap:7px;margin-bottom:7px">
             <i class="fas fa-chart-bar" style="color:var(--accent);font-size:14px"></i>
-            <span style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">Mês Atual</span>
+            <span id="com-kpi-main-label" style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">Mês Atual</span>
           </div>
           <div id="com-total" style="font-size:43px;font-weight:900;color:var(--text);line-height:1;letter-spacing:-1px">—</div>
           <div style="font-size:10px;color:var(--text3);margin-top:7px;display:flex;gap:11px;flex-wrap:wrap;justify-content:center">
@@ -1435,7 +1435,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
           <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--amber),var(--green))"></div>
           <div style="display:flex;align-items:center;gap:7px;margin-bottom:7px">
             <i class="fas fa-clock" style="color:var(--amber);font-size:14px"></i>
-            <span style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">Mês Anterior</span>
+            <span id="com-kpi-ant-label" style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">Mês Anterior</span>
           </div>
           <div id="com-mes-ant-total" style="font-size:43px;font-weight:900;color:var(--text);line-height:1;letter-spacing:-1px">—</div>
           <div style="font-size:10px;color:var(--text3);margin-top:7px;display:flex;gap:11px;flex-wrap:wrap;justify-content:center">
@@ -1458,8 +1458,8 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
             <div style="display:grid;grid-template-columns:1fr 48px 72px 72px 40px 110px;gap:2px;padding:2px 10px 6px;border-bottom:1px solid var(--border)">
               <div style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.06em">Vendedor</div>
               <div style="font-size:9px;color:#f59e0b;font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:center">DIA</div>
-              <div style="font-size:9px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:center">MÊS ATUAL</div>
-              <div style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:center">MÊS ANT.</div>
+              <div id="com-rank-mes-header" style="font-size:9px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:center">MÊS ATUAL</div>
+              <div id="com-rank-ant-header" style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:center">MÊS ANT.</div>
               <div></div>
               <div style="font-size:9px;color:#22c55e;font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:center">META</div>
             </div>
@@ -7302,6 +7302,9 @@ if(il) il.innerHTML=ints.map(i=>`
 
 let comPeriodo = 'mes';
 let _comData   = null;
+const _MESES_ABR = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+let _comMesLabel = 'MÊS ATUAL';  // label dinâmico do período principal
+let _comAntLabel = 'MÊS ANT.';  // label dinâmico do período de comparação
 
 function _d(y, m, d) {
   // Retorna YYYY-MM-DD sem conversão de timezone (evita bleed UTC)
@@ -7754,8 +7757,8 @@ function _renderTimeRanking(elId, cntId, vends, diaMap, antMap, accentColor) {
       <div style="display:flex;justify-content:center;align-items:center">${pos}</div>
       <div style="font-size:11px;font-weight:600;color:var(--text)">${v.nome}</div>
       <div class="com-rank-col"><span class="com-rank-col-label" style="color:#f59e0b">DIA</span><span class="com-rank-col-val" style="color:${diaColor};font-size:18px">${dia}</span></div>
-      <div class="com-rank-col"><span class="com-rank-col-label" style="color:${accentColor}">MÊS ATUAL</span><span class="com-rank-col-val" style="color:${accentColor};font-size:18px">${mesAtivo}</span></div>
-      <div class="com-rank-col"><span class="com-rank-col-label">MÊS ANT.</span><span class="com-rank-col-val" style="font-size:15px;color:var(--text2)">${ant}</span></div>
+      <div class="com-rank-col"><span class="com-rank-col-label" style="color:${accentColor}">${_comMesLabel}</span><span class="com-rank-col-val" style="color:${accentColor};font-size:18px">${mesAtivo}</span></div>
+      <div class="com-rank-col"><span class="com-rank-col-label">${_comAntLabel}</span><span class="com-rank-col-val" style="font-size:15px;color:var(--text2)">${ant}</span></div>
       <div style="border-left:1px solid var(--border);margin:4px 0"></div>
       ${metaCol}
     </div>`;
@@ -8367,13 +8370,45 @@ async function loadComercial(force) {
     const { ini, fim } = getComDates();
     const agoraBRT  = new Date(Date.now() - 3*60*60*1000);
     const hoje      = agoraBRT.toISOString().slice(0,10);
-    const mesAntIni = new Date(agoraBRT.getFullYear(), agoraBRT.getMonth()-1, 1).toISOString().slice(0,10);
-    const mesAntFim = new Date(agoraBRT.getFullYear(), agoraBRT.getMonth(), 0).toISOString().slice(0,10);
+
+    // Calcula o mês de comparação correto baseado no período selecionado
+    let _antAno, _antMes; // 0-indexed
+    if (comPeriodo === 'custom' && _comMesCustom) {
+      // mês anterior ao selecionado: _comMesCustom.mes é 1-indexed
+      const d = new Date(_comMesCustom.ano, _comMesCustom.mes - 2, 1);
+      _antAno = d.getFullYear(); _antMes = d.getMonth();
+    } else {
+      _antAno = agoraBRT.getFullYear(); _antMes = agoraBRT.getMonth() - 1;
+      if (_antMes < 0) { _antMes = 11; _antAno--; }
+    }
+    const mesAntIni = _d(_antAno, _antMes, 1);
+    const mesAntUltDia = new Date(_antAno, _antMes + 1, 0).getDate();
+    const mesAntFim = _d(_antAno, _antMes, mesAntUltDia);
+
+    // Labels dinâmicos
+    if (comPeriodo === 'mes') {
+      _comMesLabel = 'MÊS ATUAL'; _comAntLabel = 'MÊS ANT.';
+    } else {
+      const mainMes = comPeriodo === 'custom' && _comMesCustom
+        ? `${_MESES_ABR[_comMesCustom.mes-1]}/${_comMesCustom.ano}`
+        : _MESES_ABR[agoraBRT.getMonth()] + '/' + agoraBRT.getFullYear();
+      const antMes = `${_MESES_ABR[_antMes]}/${_antAno}`;
+      _comMesLabel = mainMes; _comAntLabel = antMes;
+    }
+    // Atualiza headers estáticos
+    const _elMH = document.getElementById('com-kpi-main-label');
+    const _elAH = document.getElementById('com-kpi-ant-label');
+    const _elRM = document.getElementById('com-rank-mes-header');
+    const _elRA = document.getElementById('com-rank-ant-header');
+    if (_elMH) _elMH.textContent = _comMesLabel;
+    if (_elAH) _elAH.textContent = _comAntLabel;
+    if (_elRM) _elRM.textContent = _comMesLabel;
+    if (_elRA) _elRA.textContent = _comAntLabel;
 
     const [r, rDia, rAnt] = await Promise.all([
       fetch(`/api/comercial?data_inicio=${encodeURIComponent(ini)}&data_fim=${encodeURIComponent(fim)}${nc}`),
       fetch(`/api/comercial?data_inicio=${hoje}&data_fim=${hoje}${nc}`),
-      fetch(`/api/comercial?data_inicio=${mesAntIni}&data_fim=${mesAntFim}`),
+      fetch(`/api/comercial?data_inicio=${encodeURIComponent(mesAntIni)}&data_fim=${encodeURIComponent(mesAntFim)}`),
     ]);
     const data    = await r.json();
     const diaData = await rDia.json().catch(()=>null);
@@ -8431,7 +8466,7 @@ async function loadComercial(force) {
 
     // KPI mês anterior
     if (_comAntData) {
-      ev('com-mes-ant-total', _comAntData.total);
+      ev('com-mes-ant-total', _comAntData.ativos ?? _comAntData.total);
       ev('com-mes-ant-novas', _comAntData.novas);
       ev('com-mes-ant-reat',  _comAntData.reativacoes);
     }
