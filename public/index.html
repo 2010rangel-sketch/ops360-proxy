@@ -1346,6 +1346,17 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
             <span><span style="color:#22c55e;font-weight:700" id="com-novas">—</span> novas</span>
             <span><span style="color:var(--cyan);font-weight:700" id="com-reat">—</span> reat.</span>
           </div>
+          <div id="com-previsao-wrap" style="display:none;margin-top:10px;padding:6px 14px;background:rgba(91,106,240,.1);border:1px solid rgba(91,106,240,.25);border-radius:8px;text-align:center">
+            <div style="font-size:9px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Previsão até fim do mês</div>
+            <div style="display:flex;align-items:baseline;gap:6px;justify-content:center">
+              <span id="com-previsao-val" style="font-size:22px;font-weight:900;color:var(--accent);letter-spacing:-1px">—</span>
+              <span id="com-previsao-taxa" style="font-size:10px;color:var(--text3)"></span>
+            </div>
+            <div id="com-previsao-bar-wrap" style="height:4px;background:rgba(255,255,255,.08);border-radius:2px;margin-top:5px;width:100%">
+              <div id="com-previsao-bar" style="height:4px;background:var(--accent);border-radius:2px;width:0%;transition:width .5s"></div>
+            </div>
+            <div id="com-previsao-sub" style="font-size:9px;color:var(--text3);margin-top:3px"></div>
+          </div>
         </div>
 
         <!-- Vendas do Dia (centro) -->
@@ -8389,6 +8400,32 @@ async function loadComercial(force) {
     ev('com-pct-reat',   (data.ativos??0)>0 ? Math.round(data.reativacoes/data.ativos*100)+'%' : '0%');
     ev('com-cid-count',  data.cidades.length);
     ev('com-vend-count', data.vendedores.length);
+
+    // Previsão de vendas até fim do mês (só para mês atual)
+    const _prevWrap = document.getElementById('com-previsao-wrap');
+    if (_prevWrap) {
+      if (comPeriodo === 'mes') {
+        const _brt = new Date(Date.now() - 3*60*60*1000);
+        const _diaAtual = _brt.getDate();
+        const _diasMes  = new Date(_brt.getFullYear(), _brt.getMonth()+1, 0).getDate();
+        const _vendas   = data.ativos ?? data.total ?? 0;
+        const _taxa     = _diaAtual > 0 ? _vendas / _diaAtual : 0;
+        const _previsao = Math.round(_taxa * _diasMes);
+        const _diasRestantes = _diasMes - _diaAtual;
+        const _pct = Math.min(100, Math.round(_diaAtual / _diasMes * 100));
+        const _prevEl  = document.getElementById('com-previsao-val');
+        const _taxaEl  = document.getElementById('com-previsao-taxa');
+        const _barEl   = document.getElementById('com-previsao-bar');
+        const _subEl   = document.getElementById('com-previsao-sub');
+        if (_prevEl) _prevEl.textContent = _previsao;
+        if (_taxaEl) _taxaEl.textContent = `(${_taxa.toFixed(1)}/dia)`;
+        if (_barEl)  { _barEl.style.width = _pct + '%'; _barEl.style.background = _pct >= 80 ? 'var(--green)' : _pct >= 50 ? 'var(--accent)' : 'var(--amber)'; }
+        if (_subEl)  _subEl.textContent = `${_diaAtual}/${_diasMes} dias · faltam ${_diasRestantes} dias`;
+        _prevWrap.style.display = '';
+      } else {
+        _prevWrap.style.display = 'none';
+      }
+    }
 
     // KPI mês anterior
     if (_comAntData) {
