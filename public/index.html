@@ -699,6 +699,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
   <div class="nav-item" onclick="goPage('saude',this)" data-label="Saúde da Base"><i class="fas fa-heartbeat"></i><span class="sb-label"> Saúde da Base</span></div>
   <div class="nav-item" onclick="goPage('rh',this)" data-label="RH"><i class="fas fa-users"></i><span class="sb-label"> RH</span></div>
   <div class="nav-item" onclick="goPage('analista',this)" data-label="Analista IA"><i class="fas fa-robot"></i><span class="sb-label"> Analista IA</span></div>
+  <div class="nav-item" onclick="goPage('almoxarifado',this)" data-label="Almoxarifado"><i class="fas fa-warehouse"></i><span class="sb-label"> Almoxarifado</span></div>
 
   <div class="sidebar-section">Spaces</div>
   <div class="space-item" onclick="goPage('tarefas',this)" data-label="Tarefas"><div class="space-dot" style="background:#5b6af0">T</div><span class="sb-label"> Tarefas</span></div>
@@ -2739,6 +2740,104 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
       </div>
     </div>
 
+    <!-- ═══ ALMOXARIFADO ═══ -->
+    <div class="page" id="page-almoxarifado">
+
+      <!-- Header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:40px;height:40px;background:linear-gradient(135deg,#f59e0b,#ef4444);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px">📦</div>
+          <div>
+            <div style="font-size:18px;font-weight:700;color:var(--text)">Almoxarifado</div>
+            <div style="font-size:11px;color:var(--text3)">Indicadores de consumo e estoque · atualização mensal</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <select id="alm-mes-sel" onchange="almCarregar()" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 10px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif"></select>
+          <button onclick="almAbrirForm()" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Registrar mês</button>
+        </div>
+      </div>
+
+      <!-- KPI cards -->
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px" id="alm-kpis"></div>
+
+      <!-- Histórico + Gráfico -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <span class="tbl-title"><i class="fas fa-history" style="color:var(--amber);margin-right:5px"></i>Histórico mensal</span>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="tbl" style="font-size:11px">
+              <thead><tr><th>Mês</th><th>Cabo/HC</th><th>Cabo/Serv</th><th>Modem/ONU</th><th>Estoque (m)</th><th>Val. Estoque</th><th></th></tr></thead>
+              <tbody id="alm-hist-tbl"><tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">Nenhum registro ainda. Clique em "Registrar mês".</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="tbl-card" style="margin-bottom:0">
+          <div class="tbl-header">
+            <span class="tbl-title"><i class="fas fa-chart-line" style="color:var(--accent);margin-right:5px"></i>Tendência — Consumo Cabo Drop</span>
+          </div>
+          <div style="padding:14px"><canvas id="alm-chart-cabo" height="160"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Modal de registro -->
+      <div id="alm-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center" onclick="if(event.target===this)almFecharForm()">
+        <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:24px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto" onclick="event.stopPropagation()">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+            <span style="font-size:15px;font-weight:700;color:var(--text)">📦 Registrar dados do mês</span>
+            <button onclick="almFecharForm()" style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer">✕</button>
+          </div>
+          <div style="display:grid;gap:14px">
+            <div>
+              <label style="font-size:11px;color:var(--text3);font-weight:600;display:block;margin-bottom:4px">MÊS / ANO DE REFERÊNCIA</label>
+              <input type="month" id="alm-f-mes" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:7px 10px;color:var(--text);font-size:13px;font-family:'Inter',sans-serif">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div>
+                <label style="font-size:11px;color:var(--text3);font-weight:600;display:block;margin-bottom:4px">METROS CABO DROP UTILIZADOS</label>
+                <input type="number" id="alm-f-metros" min="0" placeholder="ex: 1500" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:7px 10px;color:var(--text);font-size:13px;font-family:'Inter',sans-serif">
+              </div>
+              <div>
+                <label style="font-size:11px;color:var(--text3);font-weight:600;display:block;margin-bottom:4px">Nº COLABORADORES</label>
+                <input type="number" id="alm-f-colab" min="1" placeholder="ex: 30" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:7px 10px;color:var(--text);font-size:13px;font-family:'Inter',sans-serif">
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div>
+                <label style="font-size:11px;color:var(--text3);font-weight:600;display:block;margin-bottom:4px">Nº SERVIÇOS REALIZADOS</label>
+                <input type="number" id="alm-f-servicos" min="0" placeholder="ex: 100" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:7px 10px;color:var(--text);font-size:13px;font-family:'Inter',sans-serif">
+              </div>
+              <div>
+                <label style="font-size:11px;color:var(--text3);font-weight:600;display:block;margin-bottom:4px">MODEMS / ONT / ONU UTILIZADOS</label>
+                <input type="number" id="alm-f-modems" min="0" placeholder="ex: 300" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:7px 10px;color:var(--text);font-size:13px;font-family:'Inter',sans-serif">
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div>
+                <label style="font-size:11px;color:var(--text3);font-weight:600;display:block;margin-bottom:4px">ESTOQUE CABO DROP (metros)</label>
+                <input type="number" id="alm-f-estoque-m" min="0" placeholder="ex: 1000" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:7px 10px;color:var(--text);font-size:13px;font-family:'Inter',sans-serif">
+              </div>
+              <div>
+                <label style="font-size:11px;color:var(--text3);font-weight:600;display:block;margin-bottom:4px">VALOR TOTAL DO ESTOQUE (R$)</label>
+                <input type="number" id="alm-f-estoque-val" min="0" placeholder="ex: 16000" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:7px 10px;color:var(--text);font-size:13px;font-family:'Inter',sans-serif">
+              </div>
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--text3);font-weight:600;display:block;margin-bottom:4px">OBSERVAÇÕES (opcional)</label>
+              <textarea id="alm-f-obs" rows="2" placeholder="Notas sobre o período..." style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:7px 10px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif;resize:vertical"></textarea>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end">
+            <button onclick="almFecharForm()" class="btn btn-sm">Cancelar</button>
+            <button onclick="almSalvar()" class="btn btn-primary btn-sm"><i class="fas fa-save"></i> Salvar</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
   </div><!-- /page-content -->
 </div><!-- /main -->
 
@@ -2829,6 +2928,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
   </div>
 </div>
 
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 // CLOCK
@@ -2909,7 +3009,7 @@ function goPage(id, el, skipHistory) {
   // Marca o nav-item correspondente como ativo
   const navEl = el || document.querySelector(`.nav-item[onclick*="'${id}'"], .space-item[onclick*="'${id}'"]`);
   if(navEl) navEl.classList.add('active');
-  const titles = {chamados:'Chamados',atendimento:'Atendimento',comercial:'Comercial',retencao:'Retenção / Cancelamento',remocao:'Remoção / Cobrança',financeiro:'Financeiro',rh:'RH',risco:'Risco de Cancelamento',saude:'Saúde da Base',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações'};
+  const titles = {chamados:'Chamados',atendimento:'Atendimento',comercial:'Comercial',retencao:'Retenção / Cancelamento',remocao:'Remoção / Cobrança',financeiro:'Financeiro',rh:'RH',risco:'Risco de Cancelamento',saude:'Saúde da Base',tarefas:'Tarefas',agenda:'Agenda',integracoes:'Integrações',almoxarifado:'Almoxarifado'};
   document.getElementById('pageTitle').textContent = titles[id]||id;
   // Reseta pill para "Ao vivo" ao trocar de página (comercial escreve o horário quando carrega)
   const pill = document.getElementById('live-pill-text');
@@ -9975,8 +10075,9 @@ async function _autoRefreshPagina() {
         loadFinanceiro();
         break;
       }
-      case 'rh':          loadRh();           break;
-      case 'tarefas':     loadTasksFromAPI(); break;
+      case 'rh':            loadRh();           break;
+      case 'tarefas':       loadTasksFromAPI(); break;
+      case 'almoxarifado':  almPopularSelect(); almCarregar(); break;
     }
   } catch(e) { /* silencia erros de rede */ }
 }
@@ -11495,7 +11596,7 @@ renderRhNR();              // Renderiza localStorage imediatamente enquanto serv
 </style>
 
 <!-- Botão flutuante -->
-<button id="rax-btn" onclick="raxToggle()" title="RAX — Rangel Analytics X">
+<button id="rax-btn" onclick="raxToggle()" title="RAX — Rangel Analytics X" style="display:none!important">
   <div class="rax-pulse"></div>
   <span style="font-size:15px;font-weight:800;color:#fff;position:relative;z-index:1">RAX</span>
 </button>
@@ -11844,6 +11945,198 @@ function raxPararVoz() {
     };
   }
 })();
+</script>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+//  ALMOXARIFADO — indicadores manuais mensais
+// ══════════════════════════════════════════════════════════════════
+const ALM_KEY = 'ops360_almoxarifado_dados';
+const MESES_ALM = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+function almGetDados() {
+  try { return JSON.parse(localStorage.getItem(ALM_KEY) || '[]'); } catch { return []; }
+}
+function almSalvarDados(arr) {
+  localStorage.setItem(ALM_KEY, JSON.stringify(arr));
+}
+
+function almPopularSelect() {
+  const sel = document.getElementById('alm-mes-sel');
+  if (!sel) return;
+  const dados = almGetDados().sort((a,b) => b.mes.localeCompare(a.mes));
+  sel.innerHTML = dados.length
+    ? dados.map(d => `<option value="${d.mes}">${_almFmtMes(d.mes)}</option>`).join('')
+    : '<option value="">Nenhum registro</option>';
+}
+
+function _almFmtMes(yyyymm) {
+  const [y, m] = yyyymm.split('-');
+  return `${MESES_ALM[+m-1]}/${y}`;
+}
+
+function almCarregar() {
+  const sel = document.getElementById('alm-mes-sel');
+  const mes = sel?.value;
+  const dados = almGetDados();
+  const reg = mes ? dados.find(d => d.mes === mes) : dados.sort((a,b)=>b.mes.localeCompare(a.mes))[0];
+  almRenderKpis(reg || null);
+  almRenderHistorico(dados);
+  almRenderGrafico(dados);
+}
+
+function almRenderKpis(r) {
+  const el = document.getElementById('alm-kpis');
+  if (!el) return;
+  if (!r) {
+    el.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--text3);padding:32px;font-size:12px">Nenhum dado para exibir. Registre o primeiro mês.</div>`;
+    return;
+  }
+  const caboHC   = r.colab > 0 ? (r.metros / r.colab).toFixed(1) : '—';
+  const caboServ = r.servicos > 0 ? (r.metros / r.servicos).toFixed(1) : '—';
+  const diasOp   = r.metros > 0 && r.servicos > 0 ? Math.round(r.estoque_m / (r.metros / 30)) : null;
+
+  // semáforo
+  const _cor = (val, metaBom, metaRuim, inv = false) => {
+    if (val === '—') return 'var(--text3)';
+    const n = parseFloat(val);
+    if (inv) return n <= metaBom ? 'var(--green)' : n <= metaRuim ? 'var(--amber)' : 'var(--red)';
+    return n >= metaBom ? 'var(--green)' : n >= metaRuim ? 'var(--amber)' : 'var(--red)';
+  };
+
+  const corHC   = _cor(caboHC,   0, 7500, true);   // < 7500 = bom (inversão)
+  const corServ = _cor(caboServ, 120, 80, false);   // 120-150 ideal
+  const corEst  = _cor(diasOp,   30, 15, false);    // 30 dias = ideal
+
+  el.innerHTML = [
+    { label:'Cabo Drop / HC', val: caboHC !== '—' ? caboHC + ' m' : '—', sub:'meta < 7.500 m/colab', cor: caboHC !== '—' ? (parseFloat(caboHC) <= 7500 ? 'var(--green)' : 'var(--red)') : 'var(--text3)', icon:'fa-ruler-horizontal' },
+    { label:'Cabo Drop / Serviço', val: caboServ !== '—' ? caboServ + ' m' : '—', sub:'ideal: 120–150 m', cor: caboServ !== '—' ? (parseFloat(caboServ) >= 120 && parseFloat(caboServ) <= 150 ? 'var(--green)' : parseFloat(caboServ) < 120 ? 'var(--amber)' : 'var(--red)') : 'var(--text3)', icon:'fa-cable-car' },
+    { label:'Modems / ONT / ONU', val: r.modems, sub:'unidades utilizadas', cor:'var(--cyan)', icon:'fa-wifi' },
+    { label:'Estoque Cabo Drop', val: r.estoque_m.toLocaleString('pt-BR') + ' m', sub: diasOp ? `≈ ${diasOp} dias de op.` : 'dias de operação', cor: diasOp ? (diasOp >= 30 ? 'var(--green)' : diasOp >= 15 ? 'var(--amber)' : 'var(--red)') : 'var(--text3)', icon:'fa-warehouse' },
+    { label:'Valor Total Estoque', val: 'R$ ' + Number(r.estoque_val).toLocaleString('pt-BR', {minimumFractionDigits:0}), sub:'capital em estoque', cor:'var(--accent)', icon:'fa-dollar-sign' },
+  ].map(k => `
+    <div class="tbl-card" style="margin-bottom:0;padding:16px;text-align:center">
+      <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">${k.label}</div>
+      <div style="font-size:26px;font-weight:900;color:${k.cor};letter-spacing:-1px;line-height:1">${k.val}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:6px">${k.sub}</div>
+    </div>`).join('');
+}
+
+function almRenderHistorico(dados) {
+  const tbody = document.getElementById('alm-hist-tbl');
+  if (!tbody) return;
+  const sorted = [...dados].sort((a,b) => b.mes.localeCompare(a.mes));
+  if (!sorted.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">Nenhum registro ainda.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = sorted.map(r => {
+    const caboHC   = r.colab > 0   ? (r.metros / r.colab).toFixed(1)    : '—';
+    const caboServ = r.servicos > 0 ? (r.metros / r.servicos).toFixed(1) : '—';
+    return `<tr>
+      <td style="font-weight:600">${_almFmtMes(r.mes)}</td>
+      <td>${caboHC} m</td>
+      <td>${caboServ} m</td>
+      <td>${r.modems}</td>
+      <td>${r.estoque_m.toLocaleString('pt-BR')} m</td>
+      <td>R$ ${Number(r.estoque_val).toLocaleString('pt-BR',{minimumFractionDigits:0})}</td>
+      <td><button onclick="almExcluir('${r.mes}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:11px" title="Excluir">✕</button></td>
+    </tr>`;
+  }).join('');
+}
+
+let _almChart = null;
+function almRenderGrafico(dados) {
+  const canvas = document.getElementById('alm-chart-cabo');
+  if (!canvas) return;
+  if (typeof Chart === 'undefined') return;
+  const sorted = [...dados].sort((a,b) => a.mes.localeCompare(b.mes)).slice(-12);
+  const labels = sorted.map(d => _almFmtMes(d.mes));
+  const caboHC   = sorted.map(d => d.colab > 0   ? +(d.metros / d.colab).toFixed(1)    : null);
+  const caboServ = sorted.map(d => d.servicos > 0 ? +(d.metros / d.servicos).toFixed(1) : null);
+  if (_almChart) _almChart.destroy();
+  _almChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Cabo/HC (m)', data: caboHC, borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,.1)', tension: .3, pointRadius: 4 },
+        { label: 'Cabo/Serviço (m)', data: caboServ, borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,.1)', tension: .3, pointRadius: 4 },
+      ]
+    },
+    options: {
+      responsive: true, plugins: { legend: { labels: { color: '#9ca3af', font: { size: 11 } } } },
+      scales: {
+        x: { ticks: { color: '#9ca3af', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.05)' } },
+        y: { ticks: { color: '#9ca3af', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.05)' } }
+      }
+    }
+  });
+}
+
+function almAbrirForm(mes = null) {
+  const d = new Date();
+  const defaultMes = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  document.getElementById('alm-f-mes').value = mes || defaultMes;
+  document.getElementById('alm-f-metros').value = '';
+  document.getElementById('alm-f-colab').value = '';
+  document.getElementById('alm-f-servicos').value = '';
+  document.getElementById('alm-f-modems').value = '';
+  document.getElementById('alm-f-estoque-m').value = '';
+  document.getElementById('alm-f-estoque-val').value = '';
+  document.getElementById('alm-f-obs').value = '';
+  // Preenche se já existe
+  if (mes) {
+    const r = almGetDados().find(d => d.mes === mes);
+    if (r) {
+      document.getElementById('alm-f-metros').value     = r.metros || '';
+      document.getElementById('alm-f-colab').value      = r.colab || '';
+      document.getElementById('alm-f-servicos').value   = r.servicos || '';
+      document.getElementById('alm-f-modems').value     = r.modems || '';
+      document.getElementById('alm-f-estoque-m').value  = r.estoque_m || '';
+      document.getElementById('alm-f-estoque-val').value= r.estoque_val || '';
+      document.getElementById('alm-f-obs').value        = r.obs || '';
+    }
+  }
+  const modal = document.getElementById('alm-modal');
+  modal.style.display = 'flex';
+}
+
+function almFecharForm() {
+  document.getElementById('alm-modal').style.display = 'none';
+}
+
+function almSalvar() {
+  const mes   = document.getElementById('alm-f-mes').value;
+  const metros     = parseFloat(document.getElementById('alm-f-metros').value) || 0;
+  const colab      = parseInt(document.getElementById('alm-f-colab').value) || 0;
+  const servicos   = parseInt(document.getElementById('alm-f-servicos').value) || 0;
+  const modems     = parseInt(document.getElementById('alm-f-modems').value) || 0;
+  const estoque_m  = parseFloat(document.getElementById('alm-f-estoque-m').value) || 0;
+  const estoque_val= parseFloat(document.getElementById('alm-f-estoque-val').value) || 0;
+  const obs        = document.getElementById('alm-f-obs').value.trim();
+  if (!mes) { alert('Selecione o mês de referência.'); return; }
+  const dados = almGetDados().filter(d => d.mes !== mes);
+  dados.push({ mes, metros, colab, servicos, modems, estoque_m, estoque_val, obs });
+  almSalvarDados(dados);
+  almFecharForm();
+  almPopularSelect();
+  document.getElementById('alm-mes-sel').value = mes;
+  almCarregar();
+}
+
+function almExcluir(mes) {
+  if (!confirm(`Excluir os dados de ${_almFmtMes(mes)}?`)) return;
+  almSalvarDados(almGetDados().filter(d => d.mes !== mes));
+  almPopularSelect();
+  almCarregar();
+}
+
+// Inicializa quando a página é aberta
+document.addEventListener('DOMContentLoaded', () => {
+  almPopularSelect();
+  almCarregar();
+});
 </script>
 
 </body>
