@@ -4633,12 +4633,12 @@ function _afterLogin() {
 function _aplicarPermissoes() {
   if (!_authUser) return;
   const permitidas = new Set((_authUser.paginas || '').split(',').map(p => p.trim()));
-  // Esconde nav-items sem permissão
+  // Esconde nav-items sem permissão (admin vê tudo)
   document.querySelectorAll('.nav-item[onclick*="goPage"], .space-item[onclick*="goPage"]').forEach(el => {
     const m = el.getAttribute('onclick').match(/'([^']+)'/);
     if (!m) return;
     const pg = m[1];
-    el.style.display = permitidas.has(pg) ? '' : 'none';
+    el.style.display = (_authUser.admin || permitidas.has(pg)) ? '' : 'none';
   });
   // Engrenagem (integrações) só para admin
   const cogBtn = document.getElementById('btn-integracoes-cog');
