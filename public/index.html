@@ -12417,15 +12417,34 @@ function almParseLocais(text) {
   return { valor_total, total_onu, saldo_cabo_locais };
 }
 
+function _almDetectarTipo(file) {
+  // Detecta pelo nome do arquivo qual tipo é
+  if (!file) return null;
+  const n = file.name.toLowerCase();
+  if (n.includes('kardex') || n.includes('movimento')) return 'kardex';
+  if (n.includes('locais') || n.includes('local')) return 'locais';
+  return null;
+}
+
 async function almProcessarPDFs() {
-  const kardexFile = document.getElementById('alm-file-kardex')?.files[0];
-  const locaisFile = document.getElementById('alm-file-locais')?.files[0];
-  const mes        = document.getElementById('alm-imp-mes')?.value;
-  const colab      = parseInt(document.getElementById('alm-imp-colab')?.value) || 0;
-  const servicos   = parseInt(document.getElementById('alm-imp-servicos')?.value) || 0;
+  let kardexFile = document.getElementById('alm-file-kardex')?.files[0];
+  let locaisFile = document.getElementById('alm-file-locais')?.files[0];
+  const mes      = document.getElementById('alm-imp-mes')?.value;
+  const colab    = parseInt(document.getElementById('alm-imp-colab')?.value) || 0;
+  const servicos = parseInt(document.getElementById('alm-imp-servicos')?.value) || 0;
 
   if (!kardexFile && !locaisFile) { alert('Selecione pelo menos um PDF para processar.'); return; }
   if (!mes) { alert('Selecione o mês de referência.'); return; }
+
+  // Auto-detecta e corrige se os arquivos estiverem invertidos
+  const tipoK = _almDetectarTipo(kardexFile);
+  const tipoL = _almDetectarTipo(locaisFile);
+  if (tipoK === 'locais' || tipoL === 'kardex') {
+    // Arquivos invertidos — troca
+    [kardexFile, locaisFile] = [locaisFile, kardexFile];
+    const resEl = document.getElementById('alm-imp-resultado');
+    if (resEl) { resEl.style.display=''; resEl.innerHTML='⚠️ <b>Arquivos detectados e corrigidos automaticamente</b> — os PDFs estavam nos slots errados.'; }
+  }
 
   const badge  = document.getElementById('alm-imp-badge');
   const resEl  = document.getElementById('alm-imp-resultado');
