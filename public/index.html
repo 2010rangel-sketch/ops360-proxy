@@ -2759,6 +2759,50 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         </div>
       </div>
 
+      <!-- Importar PDFs Hubsoft -->
+      <div class="tbl-card" style="margin-bottom:14px">
+        <div class="tbl-header">
+          <span class="tbl-title"><i class="fas fa-file-upload" style="color:var(--accent);margin-right:5px"></i>Importar Relatórios Hubsoft (PDF)</span>
+          <span id="alm-imp-badge" class="badge" style="display:none"></span>
+        </div>
+        <div style="padding:14px;display:grid;gap:12px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg3);border:1.5px dashed var(--border2);border-radius:var(--r);cursor:pointer">
+              <i class="fas fa-file-pdf" style="color:#ef4444;font-size:20px;flex-shrink:0"></i>
+              <div style="min-width:0">
+                <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">1. Movimento de Estoque (Kardex)</div>
+                <div id="alm-kardex-name" style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Clique para selecionar PDF</div>
+              </div>
+              <input type="file" id="alm-file-kardex" accept=".pdf" onchange="document.getElementById('alm-kardex-name').textContent=this.files[0]?.name||'Clique para selecionar PDF';document.getElementById('alm-kardex-name').style.color='var(--green)'" style="display:none">
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg3);border:1.5px dashed var(--border2);border-radius:var(--r);cursor:pointer">
+              <i class="fas fa-file-pdf" style="color:#ef4444;font-size:20px;flex-shrink:0"></i>
+              <div style="min-width:0">
+                <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">2. Relatório de Locais de Estoque</div>
+                <div id="alm-locais-name" style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Clique para selecionar PDF</div>
+              </div>
+              <input type="file" id="alm-file-locais" accept=".pdf" onchange="document.getElementById('alm-locais-name').textContent=this.files[0]?.name||'Clique para selecionar PDF';document.getElementById('alm-locais-name').style.color='var(--green)'" style="display:none">
+            </label>
+          </div>
+          <div style="display:grid;grid-template-columns:160px 130px 150px 1fr;gap:10px;align-items:end">
+            <div>
+              <div style="font-size:10px;color:var(--text3);font-weight:600;margin-bottom:4px">MÊS REFERÊNCIA</div>
+              <input type="month" id="alm-imp-mes" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:6px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--text3);font-weight:600;margin-bottom:4px">Nº COLABORADORES</div>
+              <input type="number" id="alm-imp-colab" min="1" placeholder="ex: 30" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:6px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--text3);font-weight:600;margin-bottom:4px">Nº SERVIÇOS NO PERÍODO</div>
+              <input type="number" id="alm-imp-servicos" min="0" placeholder="ex: 200" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:6px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
+            </div>
+            <button onclick="almProcessarPDFs()" class="btn btn-primary btn-sm" style="height:32px"><i class="fas fa-cogs"></i> Processar PDFs</button>
+          </div>
+          <div id="alm-imp-resultado" style="display:none;padding:10px 14px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);border-radius:var(--r);font-size:11px;color:var(--text2)"></div>
+        </div>
+      </div>
+
       <!-- KPI cards -->
       <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px" id="alm-kpis"></div>
 
@@ -12236,6 +12280,171 @@ function almExcluir(mes) {
   almSalvarDados(almGetDados().filter(d => d.mes !== mes));
   almPopularSelect();
   almCarregar();
+}
+
+// ── ALMOXARIFADO: Parse PDFs ──────────────────────────────────────
+async function almParsePDF(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        if (typeof pdfjsLib === 'undefined') { resolve(''); return; }
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(e.target.result) }).promise;
+        let txt = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const pg = await pdf.getPage(i);
+          const c  = await pg.getTextContent();
+          txt += c.items.map(x => x.str).join(' ') + '\n';
+        }
+        resolve(txt);
+      } catch(err) { console.warn('PDF parse:', err); resolve(''); }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function almParseKardex(text) {
+  // Normaliza espaços
+  const t = text.replace(/\s+/g, ' ');
+  let consumo_cabo = 0, saldo_cabo = 0, consumo_modems = 0;
+
+  // ── CABO DROP (produto 379) ──
+  // Padrão no texto: "379 CABO DROP ... saida QQQQ.DDDD SSSSS R$"
+  // Cada unidade = 1 metro; bobina de 1000m aparece como 1000.0000
+  // Usamos regex global que encontra cada ocorrência de saída do produto 379
+  const caboRx = /379\s+CABO\s+DROP[\s\S]{0,400}?saida\s+([\d.]+)\s+(\d+)/gi;
+  let m;
+  while ((m = caboRx.exec(t)) !== null) {
+    const qty    = parseFloat(m[1]);
+    const saldo  = parseInt(m[2]);
+    if (!isNaN(qty))   consumo_cabo += qty;
+    if (!isNaN(saldo)) saldo_cabo    = saldo; // último = mais recente
+  }
+
+  // ── MODEMS / ONUs — saídas para usuário final ──
+  // Padrão: "Local de Estoque Usuário saida QTY"
+  // Pega somente entregas a usuários (não transferências entre estoques)
+  const modemRx = /(?:317|306|304|305|309|313|302|300|301|303|307|308|310|312|314|315|733)\s+(?:ONU|ROTEADOR|CONVERSOR|ROT)[\s\S]{0,300}?Local de Estoque\s+Usu[aá]rio\s+saida\s+([\d.,]+)/gi;
+  while ((m = modemRx.exec(t)) !== null) {
+    const qty = parseFloat(m[1].replace(',', '.'));
+    if (!isNaN(qty)) consumo_modems += qty;
+  }
+
+  return {
+    consumo_cabo:   Math.round(consumo_cabo),
+    saldo_cabo,
+    consumo_modems: Math.round(consumo_modems)
+  };
+}
+
+function almParseLocais(text) {
+  const t = text.replace(/\s+/g, ' ').trim();
+
+  // Valor total do estoque = número grande no final do PDF (ex: 412480,91 -)
+  let valor_total = 0;
+  // Tenta encontrar o total: número grande seguido de espaço e traço próximo ao fim
+  const endSlice  = t.slice(-300);
+  const totMatch  = endSlice.match(/([\d.]{1,3}(?:\.\d{3})*,\d{2})\s*[-–]/);
+  if (totMatch) {
+    valor_total = parseFloat(totMatch[1].replace(/\./g, '').replace(',', '.'));
+  } else {
+    // Fallback: maior valor monetário no texto todo
+    const vals = [...t.matchAll(/([\d.]+,\d{2})/g)]
+      .map(x => parseFloat(x[1].replace(/\./g, '').replace(',', '.')));
+    if (vals.length) valor_total = Math.max(...vals);
+  }
+
+  // Total ONUs em estoque (produto 317) — soma de quantidades por local
+  // Padrão: "317 ONU ZTE GPON ... Ativo ... YYYY/MM/DD QTY R$"
+  let total_onu = 0;
+  const onuRx = /317\s+ONU ZTE GPON[\s\S]{0,200}?Ativo[\s\S]{0,100}?(\d{2}\/\d{2}\/\d{4})\s+(\d+)\s+R\$/gi;
+  let m;
+  while ((m = onuRx.exec(t)) !== null) total_onu += parseInt(m[2]);
+  if (!total_onu) {
+    // Fallback sem data de última compra
+    const rx2 = /317\s+ONU ZTE GPON[\s\S]{0,200}?Ativo\s+N\/A\s+N\/A\s+(\d+)\s+R\$/gi;
+    while ((m = rx2.exec(t)) !== null) total_onu += parseInt(m[1]);
+  }
+
+  // Saldo cabo drop (produto 379) — caso apareça nos locais
+  let saldo_cabo_locais = 0;
+  const caboRx = /379\s+CABO DROP[\s\S]{0,200}?Ativo[\s\S]{0,100}?(\d+)\s+R\$/gi;
+  while ((m = caboRx.exec(t)) !== null) saldo_cabo_locais += parseInt(m[1]);
+
+  return { valor_total, total_onu, saldo_cabo_locais };
+}
+
+async function almProcessarPDFs() {
+  const kardexFile = document.getElementById('alm-file-kardex')?.files[0];
+  const locaisFile = document.getElementById('alm-file-locais')?.files[0];
+  const mes        = document.getElementById('alm-imp-mes')?.value;
+  const colab      = parseInt(document.getElementById('alm-imp-colab')?.value) || 0;
+  const servicos   = parseInt(document.getElementById('alm-imp-servicos')?.value) || 0;
+
+  if (!kardexFile && !locaisFile) { alert('Selecione pelo menos um PDF para processar.'); return; }
+  if (!mes) { alert('Selecione o mês de referência.'); return; }
+
+  const badge  = document.getElementById('alm-imp-badge');
+  const resEl  = document.getElementById('alm-imp-resultado');
+  if (badge) { badge.style.display=''; badge.className='badge b-amber'; badge.textContent='⚙ Processando...'; }
+  if (resEl)  resEl.style.display = 'none';
+
+  let consumo_cabo = 0, saldo_cabo = 0, consumo_modems = 0;
+  let valor_estoque = 0, total_onu = 0;
+
+  if (kardexFile) {
+    const txt = await almParsePDF(kardexFile);
+    if (txt) {
+      const r = almParseKardex(txt);
+      consumo_cabo   = r.consumo_cabo;
+      saldo_cabo     = r.saldo_cabo;
+      consumo_modems = r.consumo_modems;
+    }
+  }
+
+  if (locaisFile) {
+    const txt = await almParsePDF(locaisFile);
+    if (txt) {
+      const r = almParseLocais(txt);
+      valor_estoque = r.valor_total;
+      total_onu     = r.total_onu;
+      if (!saldo_cabo && r.saldo_cabo_locais) saldo_cabo = r.saldo_cabo_locais;
+    }
+  }
+
+  // Salva no localStorage
+  const dados = almGetDados().filter(d => d.mes !== mes);
+  dados.push({
+    mes,
+    metros:      consumo_cabo,
+    colab,
+    servicos,
+    modems:      consumo_modems,
+    estoque_m:   saldo_cabo,
+    estoque_val: valor_estoque,
+    estoque_onu: total_onu,
+    obs: `Importado de PDFs Hubsoft`,
+    importado: true
+  });
+  almSalvarDados(dados);
+  almPopularSelect();
+  const sel = document.getElementById('alm-mes-sel');
+  if (sel) sel.value = mes;
+  almCarregar();
+
+  // Mostra resumo
+  if (resEl) {
+    resEl.style.display = '';
+    resEl.innerHTML = `
+      <b>✅ Importação concluída — ${_almFmtMes(mes)}</b><br>
+      📏 Consumo cabo drop: <b>${consumo_cabo.toLocaleString('pt-BR')} m</b> &nbsp;|&nbsp;
+      📦 Saldo cabo drop: <b>${saldo_cabo.toLocaleString('pt-BR')} m</b> &nbsp;|&nbsp;
+      📡 Modems consumidos: <b>${consumo_modems}</b> un. &nbsp;|&nbsp;
+      💰 Valor estoque: <b>R$ ${valor_estoque.toLocaleString('pt-BR',{minimumFractionDigits:2})}</b>
+    `;
+  }
+  if (badge) { badge.textContent = '✓ Processado'; badge.className = 'badge b-green'; }
 }
 
 // Inicializa quando a página é aberta
