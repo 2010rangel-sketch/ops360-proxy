@@ -2153,10 +2153,11 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
 
           <!-- Coluna 2: Colaboradores (dinâmico por setor/cidade) -->
           <div class="tbl-card" style="margin-bottom:0;height:571px;overflow:hidden">
-            <div class="tbl-header">
+            <div class="tbl-header" style="flex-wrap:wrap;gap:6px">
               <span class="tbl-title" id="rh-col-titulo">Todos os Colaboradores</span>
               <span class="badge b-blue" id="rh-col-count">—</span>
               <button id="rh-col-limpar" onclick="rhFiltrarSetor(null)" style="display:none;background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:0;margin-left:4px">✕ ver todos</button>
+              <input id="rh-busca-nome" type="text" placeholder="🔍 Buscar colaborador..." oninput="renderRhColaboradores()" style="margin-left:auto;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:4px 10px;color:var(--text);font-size:11px;font-family:'Inter',sans-serif;width:200px;outline:none">
             </div>
             <div style="overflow-y:auto;max-height:300px">
               <table class="tbl sticky-head" style="font-size:11px">
@@ -10408,6 +10409,8 @@ function renderRhColaboradores() {
   if (_rhSetorAtivo) lista = lista.filter(e => (e.depto || '') === _rhSetorAtivo);
   if (_rhEmpresaAtiva) lista = lista.filter(e => (e.empresa || '') === _rhEmpresaAtiva);
   if (_rhCidadeAtiva) lista = lista.filter(e => (e.cidade || '(sem cidade)') === _rhCidadeAtiva);
+  const _rhBusca = (document.getElementById('rh-busca-nome')?.value || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  if (_rhBusca) lista = lista.filter(e => (e.nome||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').includes(_rhBusca));
   lista.sort((a, b) => (a.nome||'').localeCompare(b.nome||'', 'pt-BR'));
 
   // Pendências: pega certs e CNH cadastrados
