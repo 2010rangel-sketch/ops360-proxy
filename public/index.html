@@ -12018,6 +12018,20 @@ function almPopularSelect() {
     opts.push(`<option value="${val}">${_almFmtMes(val)}</option>`);
   }
   sel.innerHTML = opts.join('');
+
+  // Seleciona o mês mais recente com dados importados (em vez de sempre o mês atual)
+  const dados = almGetDados().sort((a,b) => b.mes.localeCompare(a.mes));
+  if (dados.length > 0) {
+    const mesRecente = dados[0].mes;
+    if ([...sel.options].some(o => o.value === mesRecente)) sel.value = mesRecente;
+  }
+
+  // Restaura nomes dos últimos PDFs processados
+  try {
+    const ult = JSON.parse(localStorage.getItem('ops360_alm_lastpdf') || '{}');
+    if (ult.kardex) { const el = document.getElementById('alm-kardex-name'); if (el) { el.textContent = ult.kardex; el.style.color = 'var(--text3)'; } }
+    if (ult.locais) { const el = document.getElementById('alm-locais-name'); if (el) { el.textContent = ult.locais; el.style.color = 'var(--text3)'; } }
+  } catch {}
 }
 
 function _almFmtMes(yyyymm) {
@@ -12489,7 +12503,17 @@ async function almProcessarPDFs() {
     importado: true
   });
   almSalvarDados(dados);
-  almPopularSelect();
+
+  // Persiste nomes dos arquivos para restaurar após reload
+  try {
+    localStorage.setItem('ops360_alm_lastpdf', JSON.stringify({
+      kardex: kardexFile?.name || '',
+      locais: locaisFile?.name || '',
+      mes
+    }));
+  } catch {}
+
+  almPopularSelect(); // já seleciona o mês correto via lógica interna
   const sel = document.getElementById('alm-mes-sel');
   if (sel) sel.value = mes;
   almCarregar();
