@@ -11988,7 +11988,7 @@ async function almCarregar() {
   if (kpisEl) kpisEl.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--text3);padding:32px;font-size:12px"><i class="fas fa-spinner fa-spin" style="margin-right:6px"></i>Buscando dados do Hubsoft...</div>`;
 
   try {
-    const r = await fetch(`/api/almoxarifado${mes ? '?mes='+mes : ''}`);
+    const r = await fetch(`/api/almoxarifado${mes ? '?mes='+mes : ''}`, { headers: { Authorization: 'Bearer ' + _authToken() } });
     const data = await r.json();
     if (data.ok) {
       // Mescla com override manual (localStorage) se existir para o mesmo mês
