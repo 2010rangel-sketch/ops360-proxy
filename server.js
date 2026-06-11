@@ -4461,6 +4461,7 @@ app.get('/api/estoque', async (req, res) => {
         categoria: typeof cat === 'string' ? cat : '—',
         unidade:   typeof un  === 'string' ? un  : '—',
         quantidade: qtd, disponivel: disp, alocado: aloc, minimo: min,
+        valor_unitario: _pf(p,'valor_unitario','preco','preco_custo','preco_venda','valor'),
       };
     });
 
@@ -4552,6 +4553,129 @@ app.get('/api/estoque/movimentos', async (req, res) => {
       total: dados.length, porDia, porSemana, porMes, itens: dados.slice(0, 100) });
   } catch(e) {
     console.error('[/api/estoque/movimentos]', e.message);
+    res.json({ ok: false, motivo: e.message });
+  }
+});
+
+// ── Almoxarifado — KPIs agregados ──────────────────────────────────
+app.get('/api/almoxarifado', async (req, res) => {
+  try {
+    const agoraBRT = new Date(Date.now() - 3*60*60*1000);
+    const mesRef   = req.query.mes || agoraBRT.toISOString().slice(0, 7); // YYYY-MM
+    const [ano, m] = mesRef.split('-').map(Number);
+    const dataIni  = `${mesRef}-01`;
+    const dataFim  = new Date(ano, m, 0).toISOString().slice(0, 10);
+    const token    = await getToken();
+
+    // 1. Estoque atual (produtos)
+    let estoqueData = _estoqueCache;
+    if (!estoqueData) {
+      const dbE = await dbCacheGet('cache:estoque', ESTOQUE_CACHE_TTL);
+      estoqueData = dbE;
+    }
+    if (!estoqueData) {
+      const produtos = await fetchEstoqueProdutos(token);
+      estoqueData = { items: produtos.map(p => ({
+        nome: p.nome ?? p.descricao ?? '',
+        unidade: p.unidade_medida?.abreviacao ?? '—',
+        quantidade: parseFloat(p.quantidade ?? p.qtd ?? 0),
+        valor_unitario: parseFloat(p.valor_unitario ?? p.preco ?? p.preco_custo ?? 0),
+      })) };
+    }
+    const items = estoqueData?.items || [];
+
+    // Helpers de busca por nome
+    const _match = (nome, ...termos) => termos.some(t => (nome||'').toLowerCase().includes(t));
+
+    // 2. Itens de cabo drop no estoque
+    const itensCabo = items.filter(i => _match(i.nome, 'cabo drop', 'drop', 'cabo optico', 'cabo óptico', 'cabo ftth'));
+    const estoque_cabo_m = itensCabo.reduce((s, i) => s + (i.quantidade || 0), 0);
+
+    // 3. Itens de modem/ONT/ONU no estoque
+    const itensModem = items.filter(i => _match(i.nome, 'modem', 'ont', 'onu', 'roteador', 'router', 'optical'));
+    const estoque_modems = itensModem.reduce((s, i) => s + (i.quantidade || 0), 0);
+
+    // 4. Valor total do estoque
+    const valor_total = items.reduce((s, i) => s + (i.quantidade || 0) * (i.valor_unitario || 0), 0);
+
+    // 5. Movimentos do mês (saídas = consumo)
+    let consumo_cabo_m = 0, consumo_modems = 0;
+    const endpointsM = ['estoque/movimentacao','estoque/movimento','estoque/historico_movimentacao','estoque/historico'];
+    for (const ep of endpointsM) {
+      try {
+        const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/${ep}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { data_inicio: dataIni, data_fim: dataFim, pagina: 0, itens_por_pagina: 500 },
+          timeout: 10000,
+        });
+        const arr = Array.isArray(r.data) ? r.data : (r.data?.data || r.data?.itens || r.data?.movimentos || []);
+        if (arr.length > 0) {
+          const saidas = arr.filter(mv => !(mv.tipo||mv.tipo_movimento||'').toLowerCase().includes('entrada'));
+          for (const mv of saidas) {
+            const nome = mv.produto?.nome ?? mv.nome_produto ?? '';
+            const qtd  = parseFloat(mv.quantidade || mv.qtd || 0);
+            if (_match(nome, 'cabo drop','drop','cabo optico','cabo óptico','cabo ftth')) consumo_cabo_m += qtd;
+            if (_match(nome, 'modem','ont','onu','roteador','router','optical'))           consumo_modems += qtd;
+          }
+          break;
+        }
+      } catch { continue; }
+    }
+
+    // 6. Número de colaboradores ativos
+    let num_colaboradores = 0;
+    try {
+      const rFunc = await axios.get(`${HUBSOFT_HOST}/api/v1/funcionario`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { limit: 500 },
+        timeout: 10000,
+      });
+      const funcs = rFunc.data?.data || rFunc.data?.items || rFunc.data || [];
+      num_colaboradores = Array.isArray(funcs) ? funcs.filter(f => f.ativo !== false).length : 0;
+    } catch {}
+
+    // 7. Número de serviços realizados no mês
+    let num_servicos = 0;
+    try {
+      const bodyOS = {
+        data_inicio: `${dataIni}T03:00:00.000Z`,
+        data_fim:    `${dataFim}T02:59:59.999Z`,
+        status_ordem_servico: ['finalizado'],
+        agendas:[], bairros:null, cidades:[], condominios:null, grupos_clientes:[],
+        grupos_clientes_servicos:[], motivo_fechamento:[], order_by:'data_inicio_programado',
+        order_by_key:'DESC', participantes:[], periodos:[], pop:[], prioridade:[],
+        relacoes:[], reservada:null, servico:[], servico_status:[], tecnicos:[],
+      };
+      const rOS = await hubsoftPost(`v1/ordem_servico/consultar/paginado/1?page=1`, bodyOS);
+      num_servicos = rOS?.paginacao?.total ?? rOS?.total ?? extrairLista(rOS).length;
+    } catch {}
+
+    // KPIs calculados
+    const cabo_hc   = num_colaboradores > 0 && consumo_cabo_m > 0 ? consumo_cabo_m / num_colaboradores : null;
+    const cabo_serv = num_servicos > 0 && consumo_cabo_m > 0      ? consumo_cabo_m / num_servicos      : null;
+    const dias_estoque = consumo_cabo_m > 0 ? Math.round(estoque_cabo_m / (consumo_cabo_m / 30)) : null;
+
+    res.json({
+      ok: true, mes: mesRef,
+      kpis: {
+        cabo_hc:        cabo_hc   !== null ? +cabo_hc.toFixed(1)   : null,
+        cabo_servico:   cabo_serv !== null ? +cabo_serv.toFixed(1) : null,
+        modems_consumo: consumo_modems,
+        estoque_cabo_m: Math.round(estoque_cabo_m),
+        valor_total:    Math.round(valor_total),
+        dias_estoque,
+      },
+      detalhes: {
+        consumo_cabo_m: Math.round(consumo_cabo_m),
+        num_colaboradores,
+        num_servicos,
+        itens_cabo: itensCabo.map(i => ({ nome: i.nome, qtd: i.quantidade, un: i.unidade })),
+        itens_modem: itensModem.map(i => ({ nome: i.nome, qtd: i.quantidade })),
+      },
+      items_estoque: items,
+    });
+  } catch(e) {
+    console.error('[/api/almoxarifado]', e.message);
     res.json({ ok: false, motivo: e.message });
   }
 });

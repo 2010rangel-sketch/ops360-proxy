@@ -2754,7 +2754,8 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           <select id="alm-mes-sel" onchange="almCarregar()" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 10px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif"></select>
-          <button onclick="almAbrirForm()" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Registrar mês</button>
+          <button onclick="almCarregar()" class="btn btn-sm" title="Atualizar dados Hubsoft"><i class="fas fa-sync-alt"></i></button>
+          <button onclick="almAbrirForm()" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Override manual</button>
         </div>
       </div>
 
@@ -11964,10 +11965,15 @@ function almSalvarDados(arr) {
 function almPopularSelect() {
   const sel = document.getElementById('alm-mes-sel');
   if (!sel) return;
-  const dados = almGetDados().sort((a,b) => b.mes.localeCompare(a.mes));
-  sel.innerHTML = dados.length
-    ? dados.map(d => `<option value="${d.mes}">${_almFmtMes(d.mes)}</option>`).join('')
-    : '<option value="">Nenhum registro</option>';
+  // Gera últimos 12 meses
+  const agora = new Date();
+  const opts = [];
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(agora.getFullYear(), agora.getMonth() - i, 1);
+    const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    opts.push(`<option value="${val}">${_almFmtMes(val)}</option>`);
+  }
+  sel.innerHTML = opts.join('');
 }
 
 function _almFmtMes(yyyymm) {
@@ -11975,14 +11981,114 @@ function _almFmtMes(yyyymm) {
   return `${MESES_ALM[+m-1]}/${y}`;
 }
 
-function almCarregar() {
+async function almCarregar() {
   const sel = document.getElementById('alm-mes-sel');
   const mes = sel?.value;
-  const dados = almGetDados();
-  const reg = mes ? dados.find(d => d.mes === mes) : dados.sort((a,b)=>b.mes.localeCompare(a.mes))[0];
-  almRenderKpis(reg || null);
-  almRenderHistorico(dados);
-  almRenderGrafico(dados);
+  const kpisEl = document.getElementById('alm-kpis');
+  if (kpisEl) kpisEl.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--text3);padding:32px;font-size:12px"><i class="fas fa-spinner fa-spin" style="margin-right:6px"></i>Buscando dados do Hubsoft...</div>`;
+
+  try {
+    const r = await fetch(`/api/almoxarifado${mes ? '?mes='+mes : ''}`);
+    const data = await r.json();
+    if (data.ok) {
+      // Mescla com override manual (localStorage) se existir para o mesmo mês
+      const override = almGetDados().find(d => d.mes === (mes || data.mes));
+      almRenderKpisAPI(data, override);
+      almRenderItensEstoque(data);
+      almRenderHistoricoAPI(data);
+    } else {
+      // Fallback para localStorage se API falhar
+      const reg = almGetDados().sort((a,b)=>b.mes.localeCompare(a.mes))[0];
+      almRenderKpis(reg || null);
+    }
+  } catch(e) {
+    const reg = almGetDados().sort((a,b)=>b.mes.localeCompare(a.mes))[0];
+    almRenderKpis(reg || null);
+  }
+  almRenderGrafico(almGetDados());
+}
+
+function almRenderKpisAPI(data, override) {
+  const k = data.kpis;
+  const d = data.detalhes;
+  const el = document.getElementById('alm-kpis');
+  if (!el) return;
+
+  const _semaforo = (val, tipo) => {
+    if (val === null || val === undefined) return 'var(--text3)';
+    if (tipo === 'cabo_hc')   return val <= 7500 ? 'var(--green)' : 'var(--red)';
+    if (tipo === 'cabo_serv') return val >= 120 && val <= 150 ? 'var(--green)' : val < 80 ? 'var(--amber)' : 'var(--red)';
+    if (tipo === 'dias')      return val >= 30 ? 'var(--green)' : val >= 15 ? 'var(--amber)' : 'var(--red)';
+    return 'var(--cyan)';
+  };
+
+  const _fmt = v => v !== null && v !== undefined ? v : '—';
+
+  el.innerHTML = [
+    {
+      label: 'Cabo Drop / HC',
+      val: k.cabo_hc !== null ? k.cabo_hc + ' m' : '—',
+      sub: `${d.consumo_cabo_m}m ÷ ${d.num_colaboradores} colab · meta <7.500m`,
+      cor: _semaforo(k.cabo_hc, 'cabo_hc'), icon: 'fa-ruler-horizontal'
+    },
+    {
+      label: 'Cabo Drop / Serviço',
+      val: k.cabo_servico !== null ? k.cabo_servico + ' m' : '—',
+      sub: `${d.consumo_cabo_m}m ÷ ${d.num_servicos} serv · ideal 120–150m`,
+      cor: _semaforo(k.cabo_servico, 'cabo_serv'), icon: 'fa-tools'
+    },
+    {
+      label: 'Modems / ONT / ONU',
+      val: k.modems_consumo || d.itens_modem?.reduce((s,i)=>s+i.qtd,0) || '—',
+      sub: `em estoque: ${d.itens_modem?.reduce((s,i)=>s+i.qtd,0)||0} un.`,
+      cor: 'var(--cyan)', icon: 'fa-wifi'
+    },
+    {
+      label: 'Estoque Cabo Drop',
+      val: k.estoque_cabo_m.toLocaleString('pt-BR') + ' m',
+      sub: k.dias_estoque ? `≈ ${k.dias_estoque} dias de operação` : 'dias de op.',
+      cor: _semaforo(k.dias_estoque, 'dias'), icon: 'fa-warehouse'
+    },
+    {
+      label: 'Valor Total Estoque',
+      val: k.valor_total > 0 ? 'R$ ' + k.valor_total.toLocaleString('pt-BR') : override?.estoque_val ? 'R$ '+Number(override.estoque_val).toLocaleString('pt-BR') : '—',
+      sub: `${data.items_estoque?.length||0} itens cadastrados`,
+      cor: 'var(--accent)', icon: 'fa-dollar-sign'
+    },
+  ].map(kpi => `
+    <div class="tbl-card" style="margin-bottom:0;padding:16px;text-align:center">
+      <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">${kpi.label}</div>
+      <div style="font-size:26px;font-weight:900;color:${kpi.cor};letter-spacing:-1px;line-height:1">${kpi.val}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:6px">${kpi.sub}</div>
+    </div>`).join('');
+}
+
+function almRenderItensEstoque(data) {
+  // Substitui a tabela histórico pelo detalhamento de itens do estoque atual
+  const tbody = document.getElementById('alm-hist-tbl');
+  if (!tbody) return;
+  const items = data.items_estoque || [];
+  if (!items.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">Nenhum produto no estoque.</td></tr>'; return; }
+  // Mostra top 20 por quantidade
+  const top = [...items].sort((a,b)=>(b.quantidade||0)-(a.quantidade||0)).slice(0,30);
+  tbody.innerHTML = top.map(i => `
+    <tr>
+      <td style="font-weight:600">${i.nome}</td>
+      <td>${i.categoria||'—'}</td>
+      <td>${(i.quantidade||0).toLocaleString('pt-BR')} ${i.unidade||''}</td>
+      <td>${i.disponivel > 0 ? i.disponivel.toLocaleString('pt-BR') : '—'}</td>
+      <td>${i.valor_unitario > 0 ? 'R$ '+i.valor_unitario.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—'}</td>
+      <td>${(i.quantidade||0) > 0 && (i.valor_unitario||0) > 0 ? 'R$ '+((i.quantidade)*(i.valor_unitario)).toLocaleString('pt-BR',{minimumFractionDigits:0}) : '—'}</td>
+      <td></td>
+    </tr>`).join('');
+  // Atualiza header da tabela
+  const thead = tbody.closest('table')?.querySelector('thead tr');
+  if (thead) thead.innerHTML = '<th>Produto</th><th>Categoria</th><th>Qtd. Estoque</th><th>Disponível</th><th>Valor Unit.</th><th>Valor Total</th><th></th>';
+}
+
+function almRenderHistoricoAPI(data) {
+  // Adiciona botão de refresh no gráfico com dados da API
+  almRenderGrafico(almGetDados());
 }
 
 function almRenderKpis(r) {
