@@ -12029,27 +12029,68 @@ async function almCarregar() {
   const sel = document.getElementById('alm-mes-sel');
   const mes = sel?.value;
   const kpisEl = document.getElementById('alm-kpis');
-  if (kpisEl) kpisEl.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--text3);padding:32px;font-size:12px"><i class="fas fa-spinner fa-spin" style="margin-right:6px"></i>Buscando dados do Hubsoft...</div>`;
 
+  // ── PRIORIDADE 1: dados importados via PDF (localStorage) ──
+  const local = mes
+    ? almGetDados().find(d => d.mes === mes)
+    : almGetDados().sort((a,b)=>b.mes.localeCompare(a.mes))[0];
+
+  if (local && local.importado) {
+    // Dados vieram do PDF — renderiza direto sem chamar API
+    almRenderKpisLocal(local);
+    almRenderHistorico(almGetDados());
+    almRenderGrafico(almGetDados());
+    return;
+  }
+
+  // ── PRIORIDADE 2: API Hubsoft ──
+  if (kpisEl) kpisEl.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--text3);padding:32px;font-size:12px"><i class="fas fa-spinner fa-spin" style="margin-right:6px"></i>Buscando dados do Hubsoft...</div>`;
   try {
     const r = await fetch(`/api/almoxarifado${mes ? '?mes='+mes : ''}`, { headers: { Authorization: 'Bearer ' + _authToken() } });
     const data = await r.json();
     if (data.ok) {
-      // Mescla com override manual (localStorage) se existir para o mesmo mês
-      const override = almGetDados().find(d => d.mes === (mes || data.mes));
-      almRenderKpisAPI(data, override);
+      almRenderKpisAPI(data, local);
       almRenderItensEstoque(data);
       almRenderHistoricoAPI(data);
     } else {
-      // Fallback para localStorage se API falhar
-      const reg = almGetDados().sort((a,b)=>b.mes.localeCompare(a.mes))[0];
-      almRenderKpis(reg || null);
+      almRenderKpis(local || null);
     }
   } catch(e) {
-    const reg = almGetDados().sort((a,b)=>b.mes.localeCompare(a.mes))[0];
-    almRenderKpis(reg || null);
+    almRenderKpis(local || null);
   }
   almRenderGrafico(almGetDados());
+}
+
+function almRenderKpisLocal(r) {
+  // Renderiza KPIs diretamente a partir dos dados importados (PDF/manual)
+  const el = document.getElementById('alm-kpis');
+  if (!el || !r) return;
+
+  const caboHC   = r.colab   > 0 && r.metros > 0 ? +(r.metros / r.colab).toFixed(1)    : null;
+  const caboServ = r.servicos > 0 && r.metros > 0 ? +(r.metros / r.servicos).toFixed(1) : null;
+  const usoDiario = r.metros > 0 ? r.metros / 30 : null;
+  const diasEst   = usoDiario && r.estoque_m > 0 ? Math.round(r.estoque_m / usoDiario) : null;
+
+  const _cor = (val, tipo) => {
+    if (val === null) return 'var(--text3)';
+    if (tipo === 'hc')   return val <= 7500 ? 'var(--green)' : 'var(--red)';
+    if (tipo === 'serv') return val >= 120 && val <= 150 ? 'var(--green)' : val < 80 ? 'var(--amber)' : 'var(--red)';
+    if (tipo === 'dias') return val >= 30 ? 'var(--green)' : val >= 15 ? 'var(--amber)' : 'var(--red)';
+    return 'var(--cyan)';
+  };
+
+  el.innerHTML = [
+    { label:'Cabo Drop / HC',      val: caboHC   !== null ? caboHC + ' m' : '—',   sub:`${(r.metros||0).toLocaleString('pt-BR')}m ÷ ${r.colab||0} colab · meta <7.500m`, cor:_cor(caboHC,'hc'),   icon:'fa-ruler-horizontal' },
+    { label:'Cabo Drop / Serviço', val: caboServ !== null ? caboServ + ' m' : '—',  sub:`${(r.metros||0).toLocaleString('pt-BR')}m ÷ ${r.servicos||0} serv · ideal 120–150m`, cor:_cor(caboServ,'serv'), icon:'fa-tools' },
+    { label:'Modems / ONT / ONU',  val: r.modems || '—',                             sub:`unidades utilizadas no período`,    cor:'var(--cyan)',   icon:'fa-wifi' },
+    { label:'Estoque Cabo Drop',   val: r.estoque_m ? r.estoque_m.toLocaleString('pt-BR')+' m' : '—', sub: diasEst ? `≈ ${diasEst} dias de operação` : 'dias de operação', cor:_cor(diasEst,'dias'), icon:'fa-warehouse' },
+    { label:'Valor Total Estoque', val: r.estoque_val > 0 ? 'R$ '+Number(r.estoque_val).toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—', sub:`${r.estoque_onu||'—'} ONUs em estoque`, cor:'var(--accent)', icon:'fa-dollar-sign' },
+  ].map(k => `
+    <div class="tbl-card" style="margin-bottom:0;padding:16px;text-align:center">
+      <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">${k.label}</div>
+      <div style="font-size:26px;font-weight:900;color:${k.cor};letter-spacing:-1px;line-height:1">${k.val}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:6px">${k.sub}</div>
+    </div>`).join('');
 }
 
 function almRenderKpisAPI(data, override) {
@@ -12341,18 +12382,19 @@ function almParseKardex(text) {
 function almParseLocais(text) {
   const t = text.replace(/\s+/g, ' ').trim();
 
-  // Valor total do estoque = número grande no final do PDF (ex: 412480,91 -)
+  // Valor total do estoque = número no rodapé do relatório (ex: 412480,91 -)
+  // O PDF exporta sem separador de milhar: "412480,91" não "412.480,91"
   let valor_total = 0;
-  // Tenta encontrar o total: número grande seguido de espaço e traço próximo ao fim
-  const endSlice  = t.slice(-300);
-  const totMatch  = endSlice.match(/([\d.]{1,3}(?:\.\d{3})*,\d{2})\s*[-–]/);
+  const endSlice = t.slice(-500);
+  // Captura qualquer número com vírgula decimal próximo de traço/fim
+  const totMatch = endSlice.match(/(\d[\d.]*,\d{2})\s*[-–]/);
   if (totMatch) {
     valor_total = parseFloat(totMatch[1].replace(/\./g, '').replace(',', '.'));
   } else {
-    // Fallback: maior valor monetário no texto todo
-    const vals = [...t.matchAll(/([\d.]+,\d{2})/g)]
+    // Fallback: maior número com 2 casas decimais no final do texto
+    const nums = [...endSlice.matchAll(/(\d[\d.,]*,\d{2})/g)]
       .map(x => parseFloat(x[1].replace(/\./g, '').replace(',', '.')));
-    if (vals.length) valor_total = Math.max(...vals);
+    if (nums.length) valor_total = Math.max(...nums);
   }
 
   // Total ONUs em estoque (produto 317) — soma de quantidades por local
