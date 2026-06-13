@@ -2758,6 +2758,15 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         </div>
       </div>
 
+      <!-- Upload CSV -->
+      <div id="alm-upload-zone" style="border:2px dashed var(--border);border-radius:12px;padding:32px 24px;text-align:center;margin-bottom:16px;cursor:pointer;transition:border-color .2s" onclick="document.getElementById('alm-csv-input').click()" ondragover="event.preventDefault();this.style.borderColor='var(--accent)'" ondragleave="this.style.borderColor='var(--border)'" ondrop="event.preventDefault();this.style.borderColor='var(--border)';almHandleDrop(event)">
+        <i class="fas fa-file-csv" style="font-size:32px;color:var(--accent);opacity:.6;display:block;margin-bottom:10px"></i>
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:5px">Arraste o CSV aqui ou clique para selecionar</div>
+        <div style="font-size:11px;color:var(--text3)">Formato: <b>mes;metros;colab;servicos;modems;estoque_m;estoque_val;obs</b> &nbsp;·&nbsp; separador ponto e vírgula</div>
+        <input type="file" id="alm-csv-input" accept=".csv,.txt" style="display:none" onchange="almHandleCSV(event)">
+      </div>
+      <div id="alm-csv-badge" style="display:none;margin-bottom:12px"></div>
+
       <!-- KPI cards -->
       <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px" id="alm-kpis"></div>
 
@@ -11990,12 +11999,16 @@ function _almFmtMes(yyyymm) {
 function almCarregar() {
   const sel = document.getElementById('alm-mes-sel');
   const mes = sel?.value;
+  const todos = almGetDados();
+  // Oculta zona de upload se já há dados
+  const zone = document.getElementById('alm-upload-zone');
+  if (zone) zone.style.display = todos.length > 0 ? 'none' : '';
   const local = mes
-    ? almGetDados().find(d => d.mes === mes)
-    : almGetDados().sort((a,b)=>b.mes.localeCompare(a.mes))[0];
+    ? todos.find(d => d.mes === mes)
+    : todos.sort((a,b)=>b.mes.localeCompare(a.mes))[0];
   almRenderKpisLocal(local || null);
-  almRenderHistorico(almGetDados());
-  almRenderGrafico(almGetDados());
+  almRenderHistorico(todos);
+  almRenderGrafico(todos);
 }
 
 function almRenderKpisLocal(r) {
@@ -12143,6 +12156,56 @@ function almExcluir(mes) {
   almCarregar();
 }
 
+
+// ── ALMOXARIFADO: importação CSV ──────────────────────────────────
+function almHandleDrop(event) {
+  const file = event.dataTransfer.files[0];
+  if (file) almProcessarCSV(file);
+}
+function almHandleCSV(event) {
+  const file = event.target.files[0];
+  if (file) almProcessarCSV(file);
+}
+function almProcessarCSV(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const text = e.target.result;
+    const linhas = text.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('mes'));
+    if (!linhas.length) { almMostrarBadgeCSV('Arquivo vazio ou inválido', 'b-red'); return; }
+    const dados = almGetDados();
+    let importados = 0;
+    for (const linha of linhas) {
+      const [mes, metros, colab, servicos, modems, estoque_m, estoque_val, ...obsParts] = linha.split(';');
+      if (!mes || !/^\d{4}-\d{2}$/.test(mes.trim())) continue;
+      const entry = {
+        mes:        mes.trim(),
+        metros:     parseFloat((metros||'').replace(',','.')) || 0,
+        colab:      parseInt(colab) || 0,
+        servicos:   parseInt(servicos) || 0,
+        modems:     parseInt(modems) || 0,
+        estoque_m:  parseFloat((estoque_m||'').replace(',','.')) || 0,
+        estoque_val:parseFloat((estoque_val||'').replace(',','.')) || 0,
+        obs:        obsParts.join(';').trim()
+      };
+      const idx = dados.findIndex(d => d.mes === entry.mes);
+      if (idx >= 0) dados[idx] = entry; else dados.push(entry);
+      importados++;
+    }
+    almSalvarDados(dados);
+    almMostrarBadgeCSV(`✓ ${importados} mês(es) importado(s) de ${file.name}`, 'b-green');
+    const uploadZone = document.getElementById('alm-upload-zone');
+    if (uploadZone) uploadZone.style.display = 'none';
+    almPopularSelect();
+    almCarregar();
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+function almMostrarBadgeCSV(msg, cls) {
+  const el = document.getElementById('alm-csv-badge');
+  if (!el) return;
+  el.style.display = '';
+  el.innerHTML = `<span class="badge ${cls}" style="font-size:11px;padding:5px 12px">${msg}</span>`;
+}
 
 // Inicializa quando a página é aberta
 document.addEventListener('DOMContentLoaded', () => {
