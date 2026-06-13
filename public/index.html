@@ -2754,52 +2754,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           <select id="alm-mes-sel" onchange="almCarregar()" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 10px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif"></select>
-          <button onclick="almCarregar()" class="btn btn-sm" title="Atualizar dados Hubsoft"><i class="fas fa-sync-alt"></i></button>
-          <button onclick="almAbrirForm()" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Override manual</button>
-        </div>
-      </div>
-
-      <!-- Importar PDFs Hubsoft -->
-      <div class="tbl-card" style="margin-bottom:14px">
-        <div class="tbl-header">
-          <span class="tbl-title"><i class="fas fa-file-upload" style="color:var(--accent);margin-right:5px"></i>Importar Relatórios Hubsoft (PDF)</span>
-          <span id="alm-imp-badge" class="badge" style="display:none"></span>
-        </div>
-        <div style="padding:14px;display:grid;gap:12px">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg3);border:1.5px dashed var(--border2);border-radius:var(--r);cursor:pointer">
-              <i class="fas fa-file-pdf" style="color:#ef4444;font-size:20px;flex-shrink:0"></i>
-              <div style="min-width:0">
-                <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">1. Movimento de Estoque (Kardex)</div>
-                <div id="alm-kardex-name" style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Clique para selecionar PDF</div>
-              </div>
-              <input type="file" id="alm-file-kardex" accept=".pdf" onchange="document.getElementById('alm-kardex-name').textContent=this.files[0]?.name||'Clique para selecionar PDF';document.getElementById('alm-kardex-name').style.color='var(--green)'" style="display:none">
-            </label>
-            <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg3);border:1.5px dashed var(--border2);border-radius:var(--r);cursor:pointer">
-              <i class="fas fa-file-pdf" style="color:#ef4444;font-size:20px;flex-shrink:0"></i>
-              <div style="min-width:0">
-                <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">2. Relatório de Locais de Estoque</div>
-                <div id="alm-locais-name" style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Clique para selecionar PDF</div>
-              </div>
-              <input type="file" id="alm-file-locais" accept=".pdf" onchange="document.getElementById('alm-locais-name').textContent=this.files[0]?.name||'Clique para selecionar PDF';document.getElementById('alm-locais-name').style.color='var(--green)'" style="display:none">
-            </label>
-          </div>
-          <div style="display:grid;grid-template-columns:160px 130px 150px 1fr;gap:10px;align-items:end">
-            <div>
-              <div style="font-size:10px;color:var(--text3);font-weight:600;margin-bottom:4px">MÊS REFERÊNCIA</div>
-              <input type="month" id="alm-imp-mes" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:6px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
-            </div>
-            <div>
-              <div style="font-size:10px;color:var(--text3);font-weight:600;margin-bottom:4px">Nº COLABORADORES</div>
-              <input type="number" id="alm-imp-colab" min="1" placeholder="ex: 30" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:6px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
-            </div>
-            <div>
-              <div style="font-size:10px;color:var(--text3);font-weight:600;margin-bottom:4px">Nº SERVIÇOS NO PERÍODO</div>
-              <input type="number" id="alm-imp-servicos" min="0" placeholder="ex: 200" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:6px 8px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif">
-            </div>
-            <button onclick="almProcessarPDFs()" class="btn btn-primary btn-sm" style="height:32px"><i class="fas fa-cogs"></i> Processar PDFs</button>
-          </div>
-          <div id="alm-imp-resultado" style="display:none;padding:10px 14px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);border-radius:var(--r);font-size:11px;color:var(--text2)"></div>
+          <button onclick="almAbrirForm()" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Registrar mês</button>
         </div>
       </div>
 
@@ -12019,19 +11974,12 @@ function almPopularSelect() {
   }
   sel.innerHTML = opts.join('');
 
-  // Seleciona o mês mais recente com dados importados (em vez de sempre o mês atual)
+  // Seleciona o mês mais recente com dados registrados
   const dados = almGetDados().sort((a,b) => b.mes.localeCompare(a.mes));
   if (dados.length > 0) {
     const mesRecente = dados[0].mes;
     if ([...sel.options].some(o => o.value === mesRecente)) sel.value = mesRecente;
   }
-
-  // Restaura nomes dos últimos PDFs processados
-  try {
-    const ult = JSON.parse(localStorage.getItem('ops360_alm_lastpdf') || '{}');
-    if (ult.kardex) { const el = document.getElementById('alm-kardex-name'); if (el) { el.textContent = ult.kardex; el.style.color = 'var(--text3)'; } }
-    if (ult.locais) { const el = document.getElementById('alm-locais-name'); if (el) { el.textContent = ult.locais; el.style.color = 'var(--text3)'; } }
-  } catch {}
 }
 
 function _almFmtMes(yyyymm) {
@@ -12039,46 +11987,24 @@ function _almFmtMes(yyyymm) {
   return `${MESES_ALM[+m-1]}/${y}`;
 }
 
-async function almCarregar() {
+function almCarregar() {
   const sel = document.getElementById('alm-mes-sel');
   const mes = sel?.value;
-  const kpisEl = document.getElementById('alm-kpis');
-
-  // ── PRIORIDADE 1: dados importados via PDF (localStorage) ──
   const local = mes
     ? almGetDados().find(d => d.mes === mes)
     : almGetDados().sort((a,b)=>b.mes.localeCompare(a.mes))[0];
-
-  if (local && local.importado) {
-    // Dados vieram do PDF — renderiza direto sem chamar API
-    almRenderKpisLocal(local);
-    almRenderHistorico(almGetDados());
-    almRenderGrafico(almGetDados());
-    return;
-  }
-
-  // ── PRIORIDADE 2: API Hubsoft ──
-  if (kpisEl) kpisEl.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--text3);padding:32px;font-size:12px"><i class="fas fa-spinner fa-spin" style="margin-right:6px"></i>Buscando dados do Hubsoft...</div>`;
-  try {
-    const r = await fetch(`/api/almoxarifado${mes ? '?mes='+mes : ''}`, { headers: { Authorization: 'Bearer ' + _authToken() } });
-    const data = await r.json();
-    if (data.ok) {
-      almRenderKpisAPI(data, local);
-      almRenderItensEstoque(data);
-      almRenderHistoricoAPI(data);
-    } else {
-      almRenderKpis(local || null);
-    }
-  } catch(e) {
-    almRenderKpis(local || null);
-  }
+  almRenderKpisLocal(local || null);
+  almRenderHistorico(almGetDados());
   almRenderGrafico(almGetDados());
 }
 
 function almRenderKpisLocal(r) {
-  // Renderiza KPIs diretamente a partir dos dados importados (PDF/manual)
   const el = document.getElementById('alm-kpis');
-  if (!el || !r) return;
+  if (!el) return;
+  if (!r) {
+    el.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--text3);padding:32px;font-size:12px">Nenhum dado para este mês. Clique em <b>Registrar mês</b> para adicionar.</div>`;
+    return;
+  }
 
   const caboHC   = r.colab   > 0 && r.metros > 0 ? +(r.metros / r.colab).toFixed(1)    : null;
   const caboServ = r.servicos > 0 && r.metros > 0 ? +(r.metros / r.servicos).toFixed(1) : null;
@@ -12099,126 +12025,6 @@ function almRenderKpisLocal(r) {
     { label:'Modems / ONT / ONU',  val: r.modems || '—',                             sub:`unidades utilizadas no período`,    cor:'var(--cyan)',   icon:'fa-wifi' },
     { label:'Estoque Cabo Drop',   val: r.estoque_m ? r.estoque_m.toLocaleString('pt-BR')+' m' : '—', sub: diasEst ? `≈ ${diasEst} dias de operação` : 'dias de operação', cor:_cor(diasEst,'dias'), icon:'fa-warehouse' },
     { label:'Valor Total Estoque', val: r.estoque_val > 0 ? 'R$ '+Number(r.estoque_val).toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—', sub:`${r.estoque_onu||'—'} ONUs em estoque`, cor:'var(--accent)', icon:'fa-dollar-sign' },
-  ].map(k => `
-    <div class="tbl-card" style="margin-bottom:0;padding:16px;text-align:center">
-      <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">${k.label}</div>
-      <div style="font-size:26px;font-weight:900;color:${k.cor};letter-spacing:-1px;line-height:1">${k.val}</div>
-      <div style="font-size:10px;color:var(--text3);margin-top:6px">${k.sub}</div>
-    </div>`).join('');
-}
-
-function almRenderKpisAPI(data, override) {
-  const k = data.kpis;
-  const d = data.detalhes;
-  const el = document.getElementById('alm-kpis');
-  if (!el) return;
-
-  const _semaforo = (val, tipo) => {
-    if (val === null || val === undefined) return 'var(--text3)';
-    if (tipo === 'cabo_hc')   return val <= 7500 ? 'var(--green)' : 'var(--red)';
-    if (tipo === 'cabo_serv') return val >= 120 && val <= 150 ? 'var(--green)' : val < 80 ? 'var(--amber)' : 'var(--red)';
-    if (tipo === 'dias')      return val >= 30 ? 'var(--green)' : val >= 15 ? 'var(--amber)' : 'var(--red)';
-    return 'var(--cyan)';
-  };
-
-  const _fmt = v => v !== null && v !== undefined ? v : '—';
-
-  el.innerHTML = [
-    {
-      label: 'Cabo Drop / HC',
-      val: k.cabo_hc !== null ? k.cabo_hc + ' m' : '—',
-      sub: `${d.consumo_cabo_m}m ÷ ${d.num_colaboradores} colab · meta <7.500m`,
-      cor: _semaforo(k.cabo_hc, 'cabo_hc'), icon: 'fa-ruler-horizontal'
-    },
-    {
-      label: 'Cabo Drop / Serviço',
-      val: k.cabo_servico !== null ? k.cabo_servico + ' m' : '—',
-      sub: `${d.consumo_cabo_m}m ÷ ${d.num_servicos} serv · ideal 120–150m`,
-      cor: _semaforo(k.cabo_servico, 'cabo_serv'), icon: 'fa-tools'
-    },
-    {
-      label: 'Modems / ONT / ONU',
-      val: k.modems_consumo || d.itens_modem?.reduce((s,i)=>s+i.qtd,0) || '—',
-      sub: `em estoque: ${d.itens_modem?.reduce((s,i)=>s+i.qtd,0)||0} un.`,
-      cor: 'var(--cyan)', icon: 'fa-wifi'
-    },
-    {
-      label: 'Estoque Cabo Drop',
-      val: k.estoque_cabo_m.toLocaleString('pt-BR') + ' m',
-      sub: k.dias_estoque ? `≈ ${k.dias_estoque} dias de operação` : 'dias de op.',
-      cor: _semaforo(k.dias_estoque, 'dias'), icon: 'fa-warehouse'
-    },
-    {
-      label: 'Valor Total Estoque',
-      val: k.valor_total > 0 ? 'R$ ' + k.valor_total.toLocaleString('pt-BR') : override?.estoque_val ? 'R$ '+Number(override.estoque_val).toLocaleString('pt-BR') : '—',
-      sub: `${data.items_estoque?.length||0} itens cadastrados`,
-      cor: 'var(--accent)', icon: 'fa-dollar-sign'
-    },
-  ].map(kpi => `
-    <div class="tbl-card" style="margin-bottom:0;padding:16px;text-align:center">
-      <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">${kpi.label}</div>
-      <div style="font-size:26px;font-weight:900;color:${kpi.cor};letter-spacing:-1px;line-height:1">${kpi.val}</div>
-      <div style="font-size:10px;color:var(--text3);margin-top:6px">${kpi.sub}</div>
-    </div>`).join('');
-}
-
-function almRenderItensEstoque(data) {
-  // Substitui a tabela histórico pelo detalhamento de itens do estoque atual
-  const tbody = document.getElementById('alm-hist-tbl');
-  if (!tbody) return;
-  const items = data.items_estoque || [];
-  if (!items.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">Nenhum produto no estoque.</td></tr>'; return; }
-  // Mostra top 20 por quantidade
-  const top = [...items].sort((a,b)=>(b.quantidade||0)-(a.quantidade||0)).slice(0,30);
-  tbody.innerHTML = top.map(i => `
-    <tr>
-      <td style="font-weight:600">${i.nome}</td>
-      <td>${i.categoria||'—'}</td>
-      <td>${(i.quantidade||0).toLocaleString('pt-BR')} ${i.unidade||''}</td>
-      <td>${i.disponivel > 0 ? i.disponivel.toLocaleString('pt-BR') : '—'}</td>
-      <td>${i.valor_unitario > 0 ? 'R$ '+i.valor_unitario.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—'}</td>
-      <td>${(i.quantidade||0) > 0 && (i.valor_unitario||0) > 0 ? 'R$ '+((i.quantidade)*(i.valor_unitario)).toLocaleString('pt-BR',{minimumFractionDigits:0}) : '—'}</td>
-      <td></td>
-    </tr>`).join('');
-  // Atualiza header da tabela
-  const thead = tbody.closest('table')?.querySelector('thead tr');
-  if (thead) thead.innerHTML = '<th>Produto</th><th>Categoria</th><th>Qtd. Estoque</th><th>Disponível</th><th>Valor Unit.</th><th>Valor Total</th><th></th>';
-}
-
-function almRenderHistoricoAPI(data) {
-  // Adiciona botão de refresh no gráfico com dados da API
-  almRenderGrafico(almGetDados());
-}
-
-function almRenderKpis(r) {
-  const el = document.getElementById('alm-kpis');
-  if (!el) return;
-  if (!r) {
-    el.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--text3);padding:32px;font-size:12px">Nenhum dado para exibir. Registre o primeiro mês.</div>`;
-    return;
-  }
-  const caboHC   = r.colab > 0 ? (r.metros / r.colab).toFixed(1) : '—';
-  const caboServ = r.servicos > 0 ? (r.metros / r.servicos).toFixed(1) : '—';
-  const diasOp   = r.metros > 0 && r.servicos > 0 ? Math.round(r.estoque_m / (r.metros / 30)) : null;
-
-  // semáforo
-  const _cor = (val, metaBom, metaRuim, inv = false) => {
-    if (val === '—') return 'var(--text3)';
-    const n = parseFloat(val);
-    if (inv) return n <= metaBom ? 'var(--green)' : n <= metaRuim ? 'var(--amber)' : 'var(--red)';
-    return n >= metaBom ? 'var(--green)' : n >= metaRuim ? 'var(--amber)' : 'var(--red)';
-  };
-
-  const corHC   = _cor(caboHC,   0, 7500, true);   // < 7500 = bom (inversão)
-  const corServ = _cor(caboServ, 120, 80, false);   // 120-150 ideal
-  const corEst  = _cor(diasOp,   30, 15, false);    // 30 dias = ideal
-
-  el.innerHTML = [
-    { label:'Cabo Drop / HC', val: caboHC !== '—' ? caboHC + ' m' : '—', sub:'meta < 7.500 m/colab', cor: caboHC !== '—' ? (parseFloat(caboHC) <= 7500 ? 'var(--green)' : 'var(--red)') : 'var(--text3)', icon:'fa-ruler-horizontal' },
-    { label:'Cabo Drop / Serviço', val: caboServ !== '—' ? caboServ + ' m' : '—', sub:'ideal: 120–150 m', cor: caboServ !== '—' ? (parseFloat(caboServ) >= 120 && parseFloat(caboServ) <= 150 ? 'var(--green)' : parseFloat(caboServ) < 120 ? 'var(--amber)' : 'var(--red)') : 'var(--text3)', icon:'fa-cable-car' },
-    { label:'Modems / ONT / ONU', val: r.modems, sub:'unidades utilizadas', cor:'var(--cyan)', icon:'fa-wifi' },
-    { label:'Estoque Cabo Drop', val: r.estoque_m.toLocaleString('pt-BR') + ' m', sub: diasOp ? `≈ ${diasOp} dias de op.` : 'dias de operação', cor: diasOp ? (diasOp >= 30 ? 'var(--green)' : diasOp >= 15 ? 'var(--amber)' : 'var(--red)') : 'var(--text3)', icon:'fa-warehouse' },
-    { label:'Valor Total Estoque', val: 'R$ ' + Number(r.estoque_val).toLocaleString('pt-BR', {minimumFractionDigits:0}), sub:'capital em estoque', cor:'var(--accent)', icon:'fa-dollar-sign' },
   ].map(k => `
     <div class="tbl-card" style="margin-bottom:0;padding:16px;text-align:center">
       <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">${k.label}</div>
@@ -12337,200 +12143,6 @@ function almExcluir(mes) {
   almCarregar();
 }
 
-// ── ALMOXARIFADO: Parse PDFs ──────────────────────────────────────
-async function almParsePDF(file) {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        if (typeof pdfjsLib === 'undefined') { resolve(''); return; }
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(e.target.result) }).promise;
-        let txt = '';
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const pg = await pdf.getPage(i);
-          const c  = await pg.getTextContent();
-          txt += c.items.map(x => x.str).join(' ') + '\n';
-        }
-        resolve(txt);
-      } catch(err) { console.warn('PDF parse:', err); resolve(''); }
-    };
-    reader.readAsArrayBuffer(file);
-  });
-}
-
-function almParseKardex(text) {
-  // Normaliza espaços
-  const t = text.replace(/\s+/g, ' ');
-  let consumo_cabo = 0, saldo_cabo = 0, consumo_modems = 0;
-
-  // ── CABO DROP (produto 379) ──
-  // Padrão no texto: "379 CABO DROP ... saida QQQQ.DDDD SSSSS R$"
-  // Cada unidade = 1 metro; bobina de 1000m aparece como 1000.0000
-  // Usamos regex global que encontra cada ocorrência de saída do produto 379
-  const caboRx = /379\s+CABO\s+DROP[\s\S]{0,400}?saida\s+([\d.]+)\s+(\d+)/gi;
-  let m;
-  while ((m = caboRx.exec(t)) !== null) {
-    const qty    = parseFloat(m[1]);
-    const saldo  = parseInt(m[2]);
-    if (!isNaN(qty))   consumo_cabo += qty;
-    if (!isNaN(saldo)) saldo_cabo    = saldo; // último = mais recente
-  }
-
-  // ── MODEMS / ONUs — saídas para usuário final ──
-  // Padrão: "Local de Estoque Usuário saida QTY"
-  // Pega somente entregas a usuários (não transferências entre estoques)
-  const modemRx = /(?:317|306|304|305|309|313|302|300|301|303|307|308|310|312|314|315|733)\s+(?:ONU|ROTEADOR|CONVERSOR|ROT)[\s\S]{0,300}?Local de Estoque\s+Usu[aá]rio\s+saida\s+([\d.,]+)/gi;
-  while ((m = modemRx.exec(t)) !== null) {
-    const qty = parseFloat(m[1].replace(',', '.'));
-    if (!isNaN(qty)) consumo_modems += qty;
-  }
-
-  return {
-    consumo_cabo:   Math.round(consumo_cabo),
-    saldo_cabo,
-    consumo_modems: Math.round(consumo_modems)
-  };
-}
-
-function almParseLocais(text) {
-  const t = text.replace(/\s+/g, ' ').trim();
-
-  // Valor total do estoque = número no rodapé do relatório (ex: 412480,91 -)
-  // O PDF exporta sem separador de milhar: "412480,91" não "412.480,91"
-  let valor_total = 0;
-  const endSlice = t.slice(-500);
-  // Captura qualquer número com vírgula decimal próximo de traço/fim
-  const totMatch = endSlice.match(/(\d[\d.]*,\d{2})\s*[-–]/);
-  if (totMatch) {
-    valor_total = parseFloat(totMatch[1].replace(/\./g, '').replace(',', '.'));
-  } else {
-    // Fallback: maior número com 2 casas decimais no final do texto
-    const nums = [...endSlice.matchAll(/(\d[\d.,]*,\d{2})/g)]
-      .map(x => parseFloat(x[1].replace(/\./g, '').replace(',', '.')));
-    if (nums.length) valor_total = Math.max(...nums);
-  }
-
-  // Total ONUs em estoque (produto 317) — soma de quantidades por local
-  // Padrão: "317 ONU ZTE GPON ... Ativo ... YYYY/MM/DD QTY R$"
-  let total_onu = 0;
-  const onuRx = /317\s+ONU ZTE GPON[\s\S]{0,200}?Ativo[\s\S]{0,100}?(\d{2}\/\d{2}\/\d{4})\s+(\d+)\s+R\$/gi;
-  let m;
-  while ((m = onuRx.exec(t)) !== null) total_onu += parseInt(m[2]);
-  if (!total_onu) {
-    // Fallback sem data de última compra
-    const rx2 = /317\s+ONU ZTE GPON[\s\S]{0,200}?Ativo\s+N\/A\s+N\/A\s+(\d+)\s+R\$/gi;
-    while ((m = rx2.exec(t)) !== null) total_onu += parseInt(m[1]);
-  }
-
-  // Saldo cabo drop (produto 379) — caso apareça nos locais
-  let saldo_cabo_locais = 0;
-  const caboRx = /379\s+CABO DROP[\s\S]{0,200}?Ativo[\s\S]{0,100}?(\d+)\s+R\$/gi;
-  while ((m = caboRx.exec(t)) !== null) saldo_cabo_locais += parseInt(m[1]);
-
-  return { valor_total, total_onu, saldo_cabo_locais };
-}
-
-function _almDetectarTipo(file) {
-  // Detecta pelo nome do arquivo qual tipo é
-  if (!file) return null;
-  const n = file.name.toLowerCase();
-  if (n.includes('kardex') || n.includes('movimento')) return 'kardex';
-  if (n.includes('locais') || n.includes('local')) return 'locais';
-  return null;
-}
-
-async function almProcessarPDFs() {
-  let kardexFile = document.getElementById('alm-file-kardex')?.files[0];
-  let locaisFile = document.getElementById('alm-file-locais')?.files[0];
-  const mes      = document.getElementById('alm-imp-mes')?.value;
-  const colab    = parseInt(document.getElementById('alm-imp-colab')?.value) || 0;
-  const servicos = parseInt(document.getElementById('alm-imp-servicos')?.value) || 0;
-
-  if (!kardexFile && !locaisFile) { alert('Selecione pelo menos um PDF para processar.'); return; }
-  if (!mes) { alert('Selecione o mês de referência.'); return; }
-
-  // Auto-detecta e corrige se os arquivos estiverem invertidos
-  const tipoK = _almDetectarTipo(kardexFile);
-  const tipoL = _almDetectarTipo(locaisFile);
-  if (tipoK === 'locais' || tipoL === 'kardex') {
-    // Arquivos invertidos — troca
-    [kardexFile, locaisFile] = [locaisFile, kardexFile];
-    const resEl = document.getElementById('alm-imp-resultado');
-    if (resEl) { resEl.style.display=''; resEl.innerHTML='⚠️ <b>Arquivos detectados e corrigidos automaticamente</b> — os PDFs estavam nos slots errados.'; }
-  }
-
-  const badge  = document.getElementById('alm-imp-badge');
-  const resEl  = document.getElementById('alm-imp-resultado');
-  if (badge) { badge.style.display=''; badge.className='badge b-amber'; badge.textContent='⚙ Processando...'; }
-  if (resEl)  resEl.style.display = 'none';
-
-  let consumo_cabo = 0, saldo_cabo = 0, consumo_modems = 0;
-  let valor_estoque = 0, total_onu = 0;
-
-  if (kardexFile) {
-    const txt = await almParsePDF(kardexFile);
-    if (txt) {
-      const r = almParseKardex(txt);
-      consumo_cabo   = r.consumo_cabo;
-      saldo_cabo     = r.saldo_cabo;
-      consumo_modems = r.consumo_modems;
-    }
-  }
-
-  if (locaisFile) {
-    const txt = await almParsePDF(locaisFile);
-    if (txt) {
-      const r = almParseLocais(txt);
-      valor_estoque = r.valor_total;
-      total_onu     = r.total_onu;
-      if (!saldo_cabo && r.saldo_cabo_locais) saldo_cabo = r.saldo_cabo_locais;
-    }
-  }
-
-  // Salva no localStorage
-  const dados = almGetDados().filter(d => d.mes !== mes);
-  dados.push({
-    mes,
-    metros:      consumo_cabo,
-    colab,
-    servicos,
-    modems:      consumo_modems,
-    estoque_m:   saldo_cabo,
-    estoque_val: valor_estoque,
-    estoque_onu: total_onu,
-    obs: `Importado de PDFs Hubsoft`,
-    importado: true
-  });
-  almSalvarDados(dados);
-
-  // Persiste nomes dos arquivos para restaurar após reload
-  try {
-    localStorage.setItem('ops360_alm_lastpdf', JSON.stringify({
-      kardex: kardexFile?.name || '',
-      locais: locaisFile?.name || '',
-      mes
-    }));
-  } catch {}
-
-  almPopularSelect(); // já seleciona o mês correto via lógica interna
-  const sel = document.getElementById('alm-mes-sel');
-  if (sel) sel.value = mes;
-  almCarregar();
-
-  // Mostra resumo
-  if (resEl) {
-    resEl.style.display = '';
-    resEl.innerHTML = `
-      <b>✅ Importação concluída — ${_almFmtMes(mes)}</b><br>
-      📏 Consumo cabo drop: <b>${consumo_cabo.toLocaleString('pt-BR')} m</b> &nbsp;|&nbsp;
-      📦 Saldo cabo drop: <b>${saldo_cabo.toLocaleString('pt-BR')} m</b> &nbsp;|&nbsp;
-      📡 Modems consumidos: <b>${consumo_modems}</b> un. &nbsp;|&nbsp;
-      💰 Valor estoque: <b>R$ ${valor_estoque.toLocaleString('pt-BR',{minimumFractionDigits:2})}</b>
-    `;
-  }
-  if (badge) { badge.textContent = '✓ Processado'; badge.className = 'badge b-green'; }
-}
 
 // Inicializa quando a página é aberta
 document.addEventListener('DOMContentLoaded', () => {
