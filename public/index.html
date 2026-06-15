@@ -12195,6 +12195,8 @@ function _almIniciarLote(files) {
 
 // ── helpers ──
 function _almNum(v) {
+  if (typeof v === 'number') return v;  // Excel já retorna float — não mexer
+  // String com "R$ 1.234,56" → 1234.56
   return parseFloat(String(v||'').replace(/R\$\s?/g,'').replace(/\./g,'').replace(',','.').trim()) || 0;
 }
 function _almTipoArquivo(filename, cols) {
@@ -12232,10 +12234,8 @@ function _almParseKardex(rows) {
   const consumo_modems = rows
     .filter(r => {
       const p = String(r.produto||'').toUpperCase();
-      const dest = String(r.destino||r.local_estoque||'').toLowerCase();
       return modemKw.some(k => p.includes(k))
-          && String(r.tipo||'').toLowerCase() === 'saida'
-          && (dest.includes('usu') || dest.includes('cliente') || dest.includes('técn') || dest.includes('tecn'));
+          && String(r.tipo||'').toLowerCase() === 'saida';
     })
     .reduce((s,r) => s + _almNum(r.quantidade), 0);
 
