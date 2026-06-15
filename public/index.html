@@ -2753,19 +2753,20 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
+          <span id="alm-file-badge" class="badge" style="background:rgba(167,139,250,.15);color:var(--purple);border:1px solid rgba(167,139,250,.3)"><i class="fas fa-file-alt" style="margin-right:4px"></i>Nenhum arquivo carregado</span>
+          <label class="btn btn-sm" for="alm-csv-input" style="cursor:pointer;margin:0"><i class="fas fa-upload" style="margin-right:5px"></i>Importar arquivo</label>
+          <input type="file" id="alm-csv-input" accept=".csv,.txt,.xlsx,.xls,.pdf" style="display:none" onchange="almHandleCSV(event)">
           <select id="alm-mes-sel" onchange="almCarregar()" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 10px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif"></select>
           <button onclick="almAbrirForm()" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Registrar mês</button>
         </div>
       </div>
 
-      <!-- Upload CSV -->
-      <div id="alm-upload-zone" style="border:2px dashed var(--border);border-radius:12px;padding:32px 24px;text-align:center;margin-bottom:16px;cursor:pointer;transition:border-color .2s" onclick="document.getElementById('alm-csv-input').click()" ondragover="event.preventDefault();this.style.borderColor='var(--accent)'" ondragleave="this.style.borderColor='var(--border)'" ondrop="event.preventDefault();this.style.borderColor='var(--border)';almHandleDrop(event)">
-        <i class="fas fa-file-csv" style="font-size:32px;color:var(--accent);opacity:.6;display:block;margin-bottom:10px"></i>
-        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:5px">Arraste o CSV aqui ou clique para selecionar</div>
-        <div style="font-size:11px;color:var(--text3)">Formato: <b>mes;metros;colab;servicos;modems;estoque_m;estoque_val;obs</b> &nbsp;·&nbsp; separador ponto e vírgula</div>
-        <input type="file" id="alm-csv-input" accept=".csv,.txt" style="display:none" onchange="almHandleCSV(event)">
+      <!-- Upload zone (visível enquanto sem arquivo) -->
+      <div id="alm-upload-zone" style="border:2px dashed var(--border);border-radius:12px;padding:48px 24px;text-align:center;margin-bottom:16px;cursor:pointer;transition:border-color .2s" onclick="document.getElementById('alm-csv-input').click()" ondragover="event.preventDefault();this.style.borderColor='var(--accent)'" ondragleave="this.style.borderColor='var(--border)'" ondrop="event.preventDefault();this.style.borderColor='var(--border)';almHandleDrop(event)">
+        <i class="fas fa-file-upload" style="font-size:36px;color:var(--accent);opacity:.6;display:block;margin-bottom:12px"></i>
+        <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px">Arraste o arquivo aqui ou clique para selecionar</div>
+        <div style="font-size:11px;color:var(--text3)">Aceita <b>Excel (.xlsx)</b>, <b>CSV</b> ou <b>PDF</b> &nbsp;·&nbsp; Colunas CSV: <b>mes;metros;colab;servicos;modems;estoque_m;estoque_val;obs</b></div>
       </div>
-      <div id="alm-csv-badge" style="display:none;margin-bottom:12px"></div>
 
       <!-- KPI cards -->
       <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px" id="alm-kpis"></div>
@@ -2939,6 +2940,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
 
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script>
 // CLOCK
 function tick() { document.getElementById('clock').textContent = new Date().toLocaleTimeString('pt-BR'); }
@@ -12000,7 +12002,6 @@ function almCarregar() {
   const sel = document.getElementById('alm-mes-sel');
   const mes = sel?.value;
   const todos = almGetDados();
-  // Oculta zona de upload se já há dados
   const zone = document.getElementById('alm-upload-zone');
   if (zone) zone.style.display = todos.length > 0 ? 'none' : '';
   const local = mes
@@ -12009,6 +12010,15 @@ function almCarregar() {
   almRenderKpisLocal(local || null);
   almRenderHistorico(todos);
   almRenderGrafico(todos);
+  // Restaura badge se já há dados
+  if (todos.length > 0) {
+    const el = document.getElementById('alm-file-badge');
+    if (el && el.textContent.includes('Nenhum')) {
+      el.innerHTML = `<i class="fas fa-check" style="margin-right:4px"></i>${todos.length} mês(es) registrado(s)`;
+      el.style.background = 'rgba(34,197,94,.15)'; el.style.color = 'var(--green)';
+      el.style.border = '1px solid rgba(34,197,94,.3)';
+    }
+  }
 }
 
 function almRenderKpisLocal(r) {
@@ -12157,54 +12167,133 @@ function almExcluir(mes) {
 }
 
 
-// ── ALMOXARIFADO: importação CSV ──────────────────────────────────
+// ── ALMOXARIFADO: importação de arquivo (CSV / Excel / PDF) ───────
 function almHandleDrop(event) {
   const file = event.dataTransfer.files[0];
-  if (file) almProcessarCSV(file);
+  if (file) almDespacharArquivo(file);
 }
 function almHandleCSV(event) {
   const file = event.target.files[0];
-  if (file) almProcessarCSV(file);
+  if (file) almDespacharArquivo(file);
+  event.target.value = '';
 }
+function almDespacharArquivo(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext === 'xlsx' || ext === 'xls') { almProcessarExcel(file); return; }
+  if (ext === 'pdf')                   { almProcessarPDFSimples(file); return; }
+  almProcessarCSV(file);
+}
+
 function almProcessarCSV(file) {
   const reader = new FileReader();
   reader.onload = (e) => {
     const text = e.target.result;
-    const linhas = text.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('mes'));
-    if (!linhas.length) { almMostrarBadgeCSV('Arquivo vazio ou inválido', 'b-red'); return; }
+    const linhas = text.split(/\r?\n/).map(l => l.trim()).filter(l => l && !/^mes[;,]/i.test(l));
+    if (!linhas.length) { almAtualizarBadge('Arquivo vazio ou inválido', false); return; }
+    const sep = linhas[0].includes(';') ? ';' : ',';
     const dados = almGetDados();
     let importados = 0;
     for (const linha of linhas) {
-      const [mes, metros, colab, servicos, modems, estoque_m, estoque_val, ...obsParts] = linha.split(';');
-      if (!mes || !/^\d{4}-\d{2}$/.test(mes.trim())) continue;
-      const entry = {
-        mes:        mes.trim(),
-        metros:     parseFloat((metros||'').replace(',','.')) || 0,
-        colab:      parseInt(colab) || 0,
-        servicos:   parseInt(servicos) || 0,
-        modems:     parseInt(modems) || 0,
-        estoque_m:  parseFloat((estoque_m||'').replace(',','.')) || 0,
-        estoque_val:parseFloat((estoque_val||'').replace(',','.')) || 0,
-        obs:        obsParts.join(';').trim()
-      };
+      const cols = linha.split(sep);
+      const entry = almColunaParaObj(cols);
+      if (!entry) continue;
       const idx = dados.findIndex(d => d.mes === entry.mes);
       if (idx >= 0) dados[idx] = entry; else dados.push(entry);
       importados++;
     }
+    if (!importados) { almAtualizarBadge('Nenhuma linha válida encontrada', false); return; }
     almSalvarDados(dados);
-    almMostrarBadgeCSV(`✓ ${importados} mês(es) importado(s) de ${file.name}`, 'b-green');
-    const uploadZone = document.getElementById('alm-upload-zone');
-    if (uploadZone) uploadZone.style.display = 'none';
-    almPopularSelect();
-    almCarregar();
+    almAtualizarBadge(`${file.name} · ${importados} mês(es)`, true);
+    almPopularSelect(); almCarregar();
   };
   reader.readAsText(file, 'UTF-8');
 }
-function almMostrarBadgeCSV(msg, cls) {
-  const el = document.getElementById('alm-csv-badge');
+
+function almProcessarExcel(file) {
+  if (typeof XLSX === 'undefined') { almAtualizarBadge('Biblioteca Excel não carregada', false); return; }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      const dados = almGetDados();
+      let importados = 0;
+      // Pula linha de cabeçalho se primeira célula não for YYYY-MM
+      const inicio = /^\d{4}-\d{2}$/.test(String(rows[0]?.[0]).trim()) ? 0 : 1;
+      for (let i = inicio; i < rows.length; i++) {
+        const entry = almColunaParaObj(rows[i].map(v => String(v)));
+        if (!entry) continue;
+        const idx = dados.findIndex(d => d.mes === entry.mes);
+        if (idx >= 0) dados[idx] = entry; else dados.push(entry);
+        importados++;
+      }
+      if (!importados) { almAtualizarBadge('Nenhuma linha válida encontrada', false); return; }
+      almSalvarDados(dados);
+      almAtualizarBadge(`${file.name} · ${importados} mês(es)`, true);
+      almPopularSelect(); almCarregar();
+    } catch(err) { almAtualizarBadge('Erro ao ler Excel: ' + err.message, false); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function almProcessarPDFSimples(file) {
+  almAtualizarBadge('Lendo PDF...', true);
+  try {
+    if (typeof pdfjsLib === 'undefined') throw new Error('PDF.js não carregado');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+    let txt = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const pg = await pdf.getPage(i);
+      const c  = await pg.getTextContent();
+      txt += c.items.map(x => x.str).join(' ') + '\n';
+    }
+    // Tenta extrair linhas no formato "YYYY-MM;..." incorporadas no PDF
+    const linhas = txt.split(/\r?\n/).map(l => l.trim()).filter(l => /^\d{4}-\d{2}/.test(l));
+    if (linhas.length) {
+      const dados = almGetDados();
+      let importados = 0;
+      for (const linha of linhas) {
+        const entry = almColunaParaObj(linha.split(';'));
+        if (!entry) continue;
+        const idx = dados.findIndex(d => d.mes === entry.mes);
+        if (idx >= 0) dados[idx] = entry; else dados.push(entry);
+        importados++;
+      }
+      if (importados) {
+        almSalvarDados(dados);
+        almAtualizarBadge(`${file.name} · ${importados} mês(es) via PDF`, true);
+        almPopularSelect(); almCarregar(); return;
+      }
+    }
+    almAtualizarBadge('PDF lido mas sem dados tabulares — use CSV ou Excel', false);
+  } catch(err) { almAtualizarBadge('Erro ao ler PDF: ' + err.message, false); }
+}
+
+function almColunaParaObj(cols) {
+  const mes = String(cols[0]||'').trim();
+  if (!/^\d{4}-\d{2}$/.test(mes)) return null;
+  return {
+    mes,
+    metros:      parseFloat(String(cols[1]||'').replace(',','.')) || 0,
+    colab:       parseInt(cols[2]) || 0,
+    servicos:    parseInt(cols[3]) || 0,
+    modems:      parseInt(cols[4]) || 0,
+    estoque_m:   parseFloat(String(cols[5]||'').replace(',','.')) || 0,
+    estoque_val: parseFloat(String(cols[6]||'').replace(',','.')) || 0,
+    obs:         String(cols[7]||'').trim()
+  };
+}
+
+function almAtualizarBadge(msg, ok) {
+  const el = document.getElementById('alm-file-badge');
   if (!el) return;
-  el.style.display = '';
-  el.innerHTML = `<span class="badge ${cls}" style="font-size:11px;padding:5px 12px">${msg}</span>`;
+  el.style.background = ok ? 'rgba(34,197,94,.15)' : 'rgba(239,68,68,.15)';
+  el.style.color = ok ? 'var(--green)' : 'var(--red)';
+  el.style.border = ok ? '1px solid rgba(34,197,94,.3)' : '1px solid rgba(239,68,68,.3)';
+  el.innerHTML = `<i class="fas fa-${ok?'check':'exclamation-triangle'}" style="margin-right:4px"></i>${msg}`;
 }
 
 // Inicializa quando a página é aberta
