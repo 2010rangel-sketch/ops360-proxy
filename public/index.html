@@ -8540,7 +8540,7 @@ async function loadComercial(force) {
         ]);
         const _isUtil = (d) => {
           const dow = d.getDay(); // 0=dom, 6=sáb
-          if (dow === 0) return false; // domingo
+          if (dow === 0 || dow === 6) return false; // domingo e sábado
           const key = `${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
           return !_ferNasc.has(key);
         };
