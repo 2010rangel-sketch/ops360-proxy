@@ -8521,26 +8521,49 @@ async function loadComercial(force) {
     ev('com-cid-count',  data.cidades.length);
     ev('com-vend-count', data.vendedores.length);
 
-    // Previsão de vendas até fim do mês (só para mês atual)
+    // Previsão de vendas até fim do mês (seg–sáb, exceto feriados)
     const _prevWrap = document.getElementById('com-previsao-wrap');
     if (_prevWrap) {
       if (comPeriodo === 'mes') {
         const _brt = new Date(Date.now() - 3*60*60*1000);
-        const _diaAtual = _brt.getDate();
-        const _diasMes  = new Date(_brt.getFullYear(), _brt.getMonth()+1, 0).getDate();
+        const _ano = _brt.getFullYear(), _mes = _brt.getMonth(), _hoje = _brt.getDate();
+        // Feriados nacionais fixos (MM-DD) + Páscoa aproximada
+        const _feriadosFixos = new Set(['01-01','04-21','05-01','09-07','10-12','11-02','11-15','11-20','12-25']);
+        // Páscoa 2025=04-20, 2026=04-05, 2027=03-28 (algoritmo de Anonymous Gregorian)
+        const _pascoa = (y) => {
+          const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),n=Math.floor((h+l-7*m+114)/31),p=(h+l-7*m+114)%31+1;
+          return `${String(n).padStart(2,'0')}-${String(p).padStart(2,'0')}`;
+        };
+        const _ferNasc = new Set([..._feriadosFixos, _pascoa(_ano),
+          // Sexta-feira santa (2 dias antes da Páscoa)
+          (() => { const p=new Date(_ano,..._pascoa(_ano).split('-').map((v,i)=>i===0?+v-1:+v-1)); p.setDate(p.getDate()-2); return `${String(p.getMonth()+1).padStart(2,'0')}-${String(p.getDate()).padStart(2,'0')}`; })()
+        ]);
+        const _isUtil = (d) => {
+          const dow = d.getDay(); // 0=dom, 6=sáb
+          if (dow === 0) return false; // domingo
+          const key = `${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+          return !_ferNasc.has(key);
+        };
+        // Dias úteis já decorridos (1 até hoje inclusive)
+        let _uteisDec = 0, _uteisMes = 0;
+        const _totDias = new Date(_ano, _mes+1, 0).getDate();
+        for (let d = 1; d <= _totDias; d++) {
+          const dt = new Date(_ano, _mes, d);
+          if (_isUtil(dt)) { _uteisMes++; if (d <= _hoje) _uteisDec++; }
+        }
         const _vendas   = data.ativos ?? data.total ?? 0;
-        const _taxa     = _diaAtual > 0 ? _vendas / _diaAtual : 0;
-        const _previsao = Math.round(_taxa * _diasMes);
-        const _diasRestantes = _diasMes - _diaAtual;
-        const _pct = Math.min(100, Math.round(_diaAtual / _diasMes * 100));
-        const _prevEl  = document.getElementById('com-previsao-val');
-        const _taxaEl  = document.getElementById('com-previsao-taxa');
-        const _barEl   = document.getElementById('com-previsao-bar');
-        const _subEl   = document.getElementById('com-previsao-sub');
+        const _taxa     = _uteisDec > 0 ? _vendas / _uteisDec : 0;
+        const _previsao = Math.round(_taxa * _uteisMes);
+        const _uteisFalt = _uteisMes - _uteisDec;
+        const _pct = Math.min(100, Math.round(_uteisDec / _uteisMes * 100));
+        const _prevEl = document.getElementById('com-previsao-val');
+        const _taxaEl = document.getElementById('com-previsao-taxa');
+        const _barEl  = document.getElementById('com-previsao-bar');
+        const _subEl  = document.getElementById('com-previsao-sub');
         if (_prevEl) _prevEl.textContent = _previsao;
-        if (_taxaEl) _taxaEl.textContent = `(${_taxa.toFixed(1)}/dia)`;
+        if (_taxaEl) _taxaEl.textContent = `(${_taxa.toFixed(1)}/dia útil)`;
         if (_barEl)  { _barEl.style.width = _pct + '%'; _barEl.style.background = _pct >= 80 ? 'var(--green)' : _pct >= 50 ? 'var(--accent)' : 'var(--amber)'; }
-        if (_subEl)  _subEl.textContent = `${_diaAtual}/${_diasMes} dias · faltam ${_diasRestantes} dias`;
+        if (_subEl)  _subEl.textContent = `${_uteisDec}/${_uteisMes} dias úteis · faltam ${_uteisFalt} dias úteis`;
         _prevWrap.style.display = 'flex';
       } else {
         _prevWrap.style.display = 'none';
