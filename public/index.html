@@ -2754,8 +2754,9 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           <span id="alm-file-badge" class="badge" style="background:rgba(167,139,250,.15);color:var(--purple);border:1px solid rgba(167,139,250,.3)"><i class="fas fa-file-alt" style="margin-right:4px"></i>Nenhum arquivo carregado</span>
+          <button onclick="almBaixarModelo()" class="btn btn-sm" title="Baixar planilha modelo"><i class="fas fa-download" style="margin-right:5px"></i>Modelo</button>
           <label class="btn btn-sm" for="alm-csv-input" style="cursor:pointer;margin:0"><i class="fas fa-upload" style="margin-right:5px"></i>Importar arquivo</label>
-          <input type="file" id="alm-csv-input" accept=".csv,.txt,.xlsx,.xls,.pdf" multiple style="display:none" onchange="almHandleCSV(event)">
+          <input type="file" id="alm-csv-input" accept=".csv,.txt,.xlsx,.xls" multiple style="display:none" onchange="almHandleCSV(event)">
           <select id="alm-mes-sel" onchange="almCarregar()" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 10px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif"></select>
           <button onclick="almAbrirForm()" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Registrar mês</button>
         </div>
@@ -2765,7 +2766,8 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
       <div id="alm-upload-zone" style="border:2px dashed var(--border);border-radius:12px;padding:48px 24px;text-align:center;margin-bottom:16px;cursor:pointer;transition:border-color .2s" onclick="document.getElementById('alm-csv-input').click()" ondragover="event.preventDefault();this.style.borderColor='var(--accent)'" ondragleave="this.style.borderColor='var(--border)'" ondrop="event.preventDefault();this.style.borderColor='var(--border)';almHandleDrop(event)">
         <i class="fas fa-file-upload" style="font-size:36px;color:var(--accent);opacity:.6;display:block;margin-bottom:12px"></i>
         <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px">Arraste o arquivo aqui ou clique para selecionar</div>
-        <div style="font-size:11px;color:var(--text3)">Aceita <b>Excel (.xlsx)</b>, <b>CSV</b> ou <b>PDF</b> &nbsp;·&nbsp; Colunas CSV: <b>mes;metros;colab;servicos;modems;estoque_m;estoque_val;obs</b></div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Aceita <b>Excel (.xlsx)</b> ou <b>CSV</b> — use o botão <b>Modelo</b> para baixar a planilha no formato correto</div>
+        <button onclick="event.stopPropagation();almBaixarModelo()" class="btn btn-sm" style="font-size:11px"><i class="fas fa-download" style="margin-right:4px"></i>Baixar planilha modelo</button>
       </div>
 
       <!-- KPI cards -->
@@ -12166,6 +12168,18 @@ function almExcluir(mes) {
   almCarregar();
 }
 
+
+// ── ALMOXARIFADO: download do modelo ──────────────────────────────
+function almBaixarModelo() {
+  const cabecalho = 'mes;metros_cabo_drop;num_colaboradores;num_servicos;modems_onu_utilizados;estoque_cabo_metros;valor_total_estoque;observacoes';
+  const exemplo1 = `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')};5000;30;120;45;2000;45000;Mês atual`;
+  const mesAnt = new Date(); mesAnt.setMonth(mesAnt.getMonth()-1);
+  const exemplo2 = `${mesAnt.getFullYear()}-${String(mesAnt.getMonth()+1).padStart(2,'0')};4800;30;115;40;2200;46000;Mês anterior`;
+  const csv = [cabecalho, exemplo1, exemplo2].join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'almoxarifado_modelo.csv'; a.click();
+}
 
 // ── ALMOXARIFADO: importação de arquivo (CSV / Excel / PDF) ───────
 function almHandleDrop(event) {
