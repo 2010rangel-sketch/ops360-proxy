@@ -2754,7 +2754,6 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           <span id="alm-file-badge" class="badge" style="background:rgba(167,139,250,.15);color:var(--purple);border:1px solid rgba(167,139,250,.3)"><i class="fas fa-file-alt" style="margin-right:4px"></i>Nenhum arquivo carregado</span>
-          <button onclick="almBaixarModelo()" class="btn btn-sm" title="Baixar planilha modelo"><i class="fas fa-download" style="margin-right:5px"></i>Modelo</button>
           <label class="btn btn-sm" for="alm-csv-input" style="cursor:pointer;margin:0"><i class="fas fa-upload" style="margin-right:5px"></i>Importar arquivo</label>
           <input type="file" id="alm-csv-input" accept=".csv,.txt,.xlsx,.xls" multiple style="display:none" onchange="almHandleCSV(event)">
           <select id="alm-mes-sel" onchange="almCarregar()" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:5px 10px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif"></select>
@@ -2765,9 +2764,8 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
       <!-- Upload zone (visível enquanto sem arquivo) -->
       <div id="alm-upload-zone" style="border:2px dashed var(--border);border-radius:12px;padding:48px 24px;text-align:center;margin-bottom:16px;cursor:pointer;transition:border-color .2s" onclick="document.getElementById('alm-csv-input').click()" ondragover="event.preventDefault();this.style.borderColor='var(--accent)'" ondragleave="this.style.borderColor='var(--border)'" ondrop="event.preventDefault();this.style.borderColor='var(--border)';almHandleDrop(event)">
         <i class="fas fa-file-upload" style="font-size:36px;color:var(--accent);opacity:.6;display:block;margin-bottom:12px"></i>
-        <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px">Arraste o arquivo aqui ou clique para selecionar</div>
-        <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Aceita <b>Excel (.xlsx)</b> ou <b>CSV</b> — use o botão <b>Modelo</b> para baixar a planilha no formato correto</div>
-        <button onclick="event.stopPropagation();almBaixarModelo()" class="btn btn-sm" style="font-size:11px"><i class="fas fa-download" style="margin-right:4px"></i>Baixar planilha modelo</button>
+        <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px">Arraste os arquivos do Hubsoft aqui ou clique para selecionar</div>
+        <div style="font-size:11px;color:var(--text3)">Aceita <b>movimento-de-estoque-kardex.xlsx</b> e/ou <b>relatorio-de-locais-de-estoque.xlsx</b> — pode enviar os dois de uma vez</div>
       </div>
 
       <!-- KPI cards -->
@@ -12169,136 +12167,160 @@ function almExcluir(mes) {
 }
 
 
-// ── ALMOXARIFADO: download do modelo ──────────────────────────────
-function almBaixarModelo() {
-  const cabecalho = 'mes;metros_cabo_drop;num_colaboradores;num_servicos;modems_onu_utilizados;estoque_cabo_metros;valor_total_estoque;observacoes';
-  const exemplo1 = `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')};5000;30;120;45;2000;45000;Mês atual`;
-  const mesAnt = new Date(); mesAnt.setMonth(mesAnt.getMonth()-1);
-  const exemplo2 = `${mesAnt.getFullYear()}-${String(mesAnt.getMonth()+1).padStart(2,'0')};4800;30;115;40;2200;46000;Mês anterior`;
-  const csv = [cabecalho, exemplo1, exemplo2].join('\n');
-  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = 'almoxarifado_modelo.csv'; a.click();
-}
+// ── ALMOXARIFADO: importação dos arquivos Hubsoft (Excel/CSV) ──────
+// Acumula resultados enquanto múltiplos arquivos são processados
+let _almBuf = {};
+let _almFilesTotal = 0, _almFilesDone = 0;
 
-// ── ALMOXARIFADO: importação de arquivo (CSV / Excel / PDF) ───────
 function almHandleDrop(event) {
   const files = [...event.dataTransfer.files];
-  files.forEach(f => almDespacharArquivo(f));
+  _almIniciarLote(files);
 }
 function almHandleCSV(event) {
   const files = [...event.target.files];
-  files.forEach(f => almDespacharArquivo(f));
+  _almIniciarLote(files);
   event.target.value = '';
 }
-function almDespacharArquivo(file) {
-  const ext = file.name.split('.').pop().toLowerCase();
-  if (ext === 'xlsx' || ext === 'xls') { almProcessarExcel(file); return; }
-  if (ext === 'pdf')                   { almProcessarPDFSimples(file); return; }
-  almProcessarCSV(file);
+function _almIniciarLote(files) {
+  _almBuf = {};
+  _almFilesTotal = files.length;
+  _almFilesDone  = 0;
+  almAtualizarBadge(`Lendo ${files.length} arquivo(s)...`, true);
+  files.forEach(f => {
+    const ext = f.name.split('.').pop().toLowerCase();
+    if (ext === 'xlsx' || ext === 'xls') _almLerExcel(f);
+    else _almLerCSV(f);
+  });
 }
 
-function almProcessarCSV(file) {
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const text = e.target.result;
-    const linhas = text.split(/\r?\n/).map(l => l.trim()).filter(l => l && !/^mes[;,]/i.test(l));
-    if (!linhas.length) { almAtualizarBadge('Arquivo vazio ou inválido', false); return; }
-    const sep = linhas[0].includes(';') ? ';' : ',';
-    const dados = almGetDados();
-    let importados = 0;
-    for (const linha of linhas) {
-      const cols = linha.split(sep);
-      const entry = almColunaParaObj(cols);
-      if (!entry) continue;
-      const idx = dados.findIndex(d => d.mes === entry.mes);
-      if (idx >= 0) dados[idx] = entry; else dados.push(entry);
-      importados++;
-    }
-    if (!importados) { almAtualizarBadge('Nenhuma linha válida encontrada', false); return; }
-    almSalvarDados(dados);
-    almAtualizarBadge(`${file.name} · ${importados} mês(es)`, true);
-    almPopularSelect(); almCarregar();
-  };
-  reader.readAsText(file, 'UTF-8');
+// ── helpers ──
+function _almNum(v) {
+  return parseFloat(String(v||'').replace(/R\$\s?/g,'').replace(/\./g,'').replace(',','.').trim()) || 0;
+}
+function _almTipoArquivo(filename, cols) {
+  const n = filename.toLowerCase();
+  if (n.includes('kardex') || n.includes('movimento')) return 'kardex';
+  if (n.includes('locais') || n.includes('local'))     return 'locais';
+  // detecta por colunas
+  if (cols.includes('tipo') && cols.includes('saldo_acumulado')) return 'kardex';
+  if (cols.includes('valor_estoque') && cols.includes('status_produto')) return 'locais';
+  return 'desconhecido';
+}
+function _almMesDoKardex(rows) {
+  const freq = {};
+  rows.forEach(r => {
+    let d = r.data_movimento;
+    if (!d) return;
+    if (typeof d === 'number') d = new Date(Math.round((d - 25569) * 86400 * 1000)); else d = new Date(d);
+    if (isNaN(d)) return;
+    const k = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    freq[k] = (freq[k]||0) + 1;
+  });
+  return Object.entries(freq).sort((a,b) => b[1]-a[1])[0]?.[0] || '';
 }
 
-function almProcessarExcel(file) {
-  if (typeof XLSX === 'undefined') { almAtualizarBadge('Biblioteca Excel não carregada', false); return; }
+// ── parse Kardex ──
+function _almParseKardex(rows) {
+  const cabo = rows.filter(r => String(r.produto||'').toUpperCase().includes('CABO DROP'));
+  const consumo_cabo = cabo
+    .filter(r => String(r.tipo||'').toLowerCase() === 'saida')
+    .reduce((s,r) => s + _almNum(r.quantidade), 0);
+  const lastCabo = [...cabo].reverse().find(r => r.saldo_acumulado != null && r.saldo_acumulado !== '');
+  const saldo_cabo = lastCabo ? _almNum(lastCabo.saldo_acumulado) : 0;
+
+  const modemKw = ['ONU','ROTEADOR','CONVERSOR','MODEM','ONT'];
+  const consumo_modems = rows
+    .filter(r => {
+      const p = String(r.produto||'').toUpperCase();
+      const dest = String(r.destino||r.local_estoque||'').toLowerCase();
+      return modemKw.some(k => p.includes(k))
+          && String(r.tipo||'').toLowerCase() === 'saida'
+          && (dest.includes('usu') || dest.includes('cliente') || dest.includes('técn') || dest.includes('tecn'));
+    })
+    .reduce((s,r) => s + _almNum(r.quantidade), 0);
+
+  const mes = _almMesDoKardex(rows);
+  return { consumo_cabo: Math.round(consumo_cabo), saldo_cabo: Math.round(saldo_cabo), consumo_modems: Math.round(consumo_modems), mes };
+}
+
+// ── parse Locais ──
+function _almParseLocais(rows) {
+  const ativos = rows.filter(r => String(r.status_produto||'').toLowerCase() === 'ativo');
+  const valor_estoque = ativos.reduce((s,r) => s + _almNum(r.valor_estoque), 0);
+  const total_onu = ativos
+    .filter(r => String(r.produto||'').toUpperCase().includes('ONU'))
+    .reduce((s,r) => s + _almNum(r.quantidade), 0);
+  const saldo_cabo_locais = ativos
+    .filter(r => String(r.produto||'').toUpperCase().includes('CABO DROP'))
+    .reduce((s,r) => s + _almNum(r.quantidade), 0);
+  return { valor_estoque, total_onu: Math.round(total_onu), saldo_cabo_locais: Math.round(saldo_cabo_locais) };
+}
+
+// ── finaliza lote e abre modal ──
+function _almFinalizarLote() {
+  _almFilesDone++;
+  if (_almFilesDone < _almFilesTotal) return;
+
+  // Mescla kardex + locais
+  const b = _almBuf;
+  const mes = b.mes || (() => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; })();
+
+  // Abre o modal pré-preenchido com o que foi extraído
+  const existente = almGetDados().find(d => d.mes === mes) || {};
+  document.getElementById('alm-f-mes').value        = mes;
+  document.getElementById('alm-f-metros').value     = b.consumo_cabo   ?? existente.metros    ?? '';
+  document.getElementById('alm-f-colab').value      = existente.colab  ?? '';
+  document.getElementById('alm-f-servicos').value   = existente.servicos ?? '';
+  document.getElementById('alm-f-modems').value     = b.consumo_modems ?? existente.modems    ?? '';
+  document.getElementById('alm-f-estoque-m').value  = b.saldo_cabo     || b.saldo_cabo_locais || existente.estoque_m  || '';
+  document.getElementById('alm-f-estoque-val').value= b.valor_estoque  ?? existente.estoque_val ?? '';
+  document.getElementById('alm-f-obs').value        = '';
+  document.getElementById('alm-modal').style.display = 'flex';
+
+  const arquivos = Object.keys(b).length;
+  almAtualizarBadge(`${_almFilesTotal} arquivo(s) lido(s) — confirme os dados`, true);
+}
+
+function _almLerExcel(file) {
+  if (typeof XLSX === 'undefined') { almAtualizarBadge('SheetJS não carregado — recarregue a página', false); return; }
   const reader = new FileReader();
   reader.onload = (e) => {
     try {
-      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-      const dados = almGetDados();
-      let importados = 0;
-      // Pula linha de cabeçalho se primeira célula não for YYYY-MM
-      const inicio = /^\d{4}-\d{2}$/.test(String(rows[0]?.[0]).trim()) ? 0 : 1;
-      for (let i = inicio; i < rows.length; i++) {
-        const entry = almColunaParaObj(rows[i].map(v => String(v)));
-        if (!entry) continue;
-        const idx = dados.findIndex(d => d.mes === entry.mes);
-        if (idx >= 0) dados[idx] = entry; else dados.push(entry);
-        importados++;
-      }
-      if (!importados) { almAtualizarBadge('Nenhuma linha válida encontrada', false); return; }
-      almSalvarDados(dados);
-      almAtualizarBadge(`${file.name} · ${importados} mês(es)`, true);
-      almPopularSelect(); almCarregar();
-    } catch(err) { almAtualizarBadge('Erro ao ler Excel: ' + err.message, false); }
+      const wb   = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: true });
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      const cols = rows[0] ? Object.keys(rows[0]).map(c => c.toLowerCase()) : [];
+      const tipo = _almTipoArquivo(file.name, cols);
+      if (tipo === 'kardex') Object.assign(_almBuf, _almParseKardex(rows));
+      else if (tipo === 'locais') Object.assign(_almBuf, _almParseLocais(rows));
+      else { almAtualizarBadge(`Arquivo não reconhecido: ${file.name}`, false); _almFilesDone++; return; }
+    } catch(err) { almAtualizarBadge('Erro: ' + err.message, false); }
+    _almFinalizarLote();
   };
   reader.readAsArrayBuffer(file);
 }
 
-async function almProcessarPDFSimples(file) {
-  almAtualizarBadge('Lendo PDF...', true);
-  try {
-    if (typeof pdfjsLib === 'undefined') throw new Error('PDF.js não carregado');
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    const buf = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
-    let txt = '';
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const pg = await pdf.getPage(i);
-      const c  = await pg.getTextContent();
-      txt += c.items.map(x => x.str).join(' ') + '\n';
-    }
-    // Tenta extrair linhas no formato "YYYY-MM;..." incorporadas no PDF
-    const linhas = txt.split(/\r?\n/).map(l => l.trim()).filter(l => /^\d{4}-\d{2}/.test(l));
-    if (linhas.length) {
-      const dados = almGetDados();
-      let importados = 0;
-      for (const linha of linhas) {
-        const entry = almColunaParaObj(linha.split(';'));
-        if (!entry) continue;
-        const idx = dados.findIndex(d => d.mes === entry.mes);
-        if (idx >= 0) dados[idx] = entry; else dados.push(entry);
-        importados++;
-      }
-      if (importados) {
-        almSalvarDados(dados);
-        almAtualizarBadge(`${file.name} · ${importados} mês(es) via PDF`, true);
-        almPopularSelect(); almCarregar(); return;
-      }
-    }
-    almAtualizarBadge('PDF lido mas sem dados tabulares — use CSV ou Excel', false);
-  } catch(err) { almAtualizarBadge('Erro ao ler PDF: ' + err.message, false); }
-}
-
-function almColunaParaObj(cols) {
-  const mes = String(cols[0]||'').trim();
-  if (!/^\d{4}-\d{2}$/.test(mes)) return null;
-  return {
-    mes,
-    metros:      parseFloat(String(cols[1]||'').replace(',','.')) || 0,
-    colab:       parseInt(cols[2]) || 0,
-    servicos:    parseInt(cols[3]) || 0,
-    modems:      parseInt(cols[4]) || 0,
-    estoque_m:   parseFloat(String(cols[5]||'').replace(',','.')) || 0,
-    estoque_val: parseFloat(String(cols[6]||'').replace(',','.')) || 0,
-    obs:         String(cols[7]||'').trim()
+function _almLerCSV(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const linhas = e.target.result.split(/\r?\n/).filter(l => l.trim());
+      const sep  = linhas[0].includes(';') ? ';' : ',';
+      const hdrs = linhas[0].split(sep).map(h => h.trim().toLowerCase());
+      const rows = linhas.slice(1).map(l => {
+        const vals = l.split(sep);
+        const obj = {};
+        hdrs.forEach((h,i) => obj[h] = vals[i]?.trim() || '');
+        return obj;
+      });
+      const tipo = _almTipoArquivo(file.name, hdrs);
+      if (tipo === 'kardex') Object.assign(_almBuf, _almParseKardex(rows));
+      else if (tipo === 'locais') Object.assign(_almBuf, _almParseLocais(rows));
+      else { almAtualizarBadge(`Arquivo não reconhecido: ${file.name}`, false); _almFilesDone++; return; }
+    } catch(err) { almAtualizarBadge('Erro: ' + err.message, false); }
+    _almFinalizarLote();
   };
+  reader.readAsText(file, 'UTF-8');
 }
 
 function almAtualizarBadge(msg, ok) {
