@@ -12227,6 +12227,13 @@ function _almNormTipo(v) {
   return String(v||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
 }
 function _almParseKardex(rows) {
+  // DEBUG — abre console do navegador (F12) para ver os valores reais
+  const tiposUnicos = [...new Set(rows.map(r => r.tipo))];
+  const colunasRow0 = rows[0] ? Object.keys(rows[0]) : [];
+  console.log('[ALM DEBUG] Colunas:', colunasRow0);
+  console.log('[ALM DEBUG] Valores únicos de "tipo":', tiposUnicos);
+  console.log('[ALM DEBUG] Exemplo linha 1:', rows[0]);
+  console.log('[ALM DEBUG] Exemplo linha 2:', rows[1]);
   const cabo = rows.filter(r => String(r.produto||'').toUpperCase().includes('CABO DROP'));
   const consumo_cabo = cabo
     .filter(r => _almNormTipo(r.tipo) === 'saida')
