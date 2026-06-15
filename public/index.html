@@ -12222,10 +12222,14 @@ function _almMesDoKardex(rows) {
 }
 
 // ── parse Kardex ──
+function _almNormTipo(v) {
+  // remove acentos e normaliza: "Saída" → "saida", "Entrada" → "entrada"
+  return String(v||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
+}
 function _almParseKardex(rows) {
   const cabo = rows.filter(r => String(r.produto||'').toUpperCase().includes('CABO DROP'));
   const consumo_cabo = cabo
-    .filter(r => String(r.tipo||'').toLowerCase() === 'saida')
+    .filter(r => _almNormTipo(r.tipo) === 'saida')
     .reduce((s,r) => s + _almNum(r.quantidade), 0);
   const lastCabo = [...cabo].reverse().find(r => r.saldo_acumulado != null && r.saldo_acumulado !== '');
   const saldo_cabo = lastCabo ? _almNum(lastCabo.saldo_acumulado) : 0;
@@ -12235,7 +12239,7 @@ function _almParseKardex(rows) {
     .filter(r => {
       const p = String(r.produto||'').toUpperCase();
       return modemKw.some(k => p.includes(k))
-          && String(r.tipo||'').toLowerCase() === 'saida';
+          && _almNormTipo(r.tipo) === 'saida';
     })
     .reduce((s,r) => s + _almNum(r.quantidade), 0);
 
