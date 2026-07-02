@@ -1522,22 +1522,14 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
             <div style="padding:4px 16px 10px;font-size:10px;color:var(--text3)">Vendidos no período · cancelaram após o fim</div>
           </div>
 
-          <!-- Por Vendedor -->
-          <div class="tbl-card" style="margin-bottom:0;display:none" id="com-cancel-vend-col">
-            <div class="tbl-header" style="background:linear-gradient(90deg,rgba(139,92,246,.12) 0%,transparent 100%)">
-              <span class="tbl-title"><i class="fas fa-user-tie" style="color:var(--purple);margin-right:5px"></i>Por Vendedor</span>
-              <span class="badge" id="com-cancel-vend-count" style="background:rgba(139,92,246,.2);color:var(--purple);border:1px solid rgba(139,92,246,.3)">—</span>
-            </div>
-            <div id="com-cancel-vendedores" style="padding:12px 16px;max-height:440px;overflow-y:auto"></div>
-          </div>
-
           <!-- Lista de cancelados -->
           <div class="tbl-card" style="margin-bottom:0">
             <div class="tbl-header" style="background:linear-gradient(90deg,rgba(239,68,68,.10) 0%,transparent 100%)">
               <span class="tbl-title"><i class="fas fa-user-slash" style="color:var(--red);margin-right:5px"></i>Cancelado sem Instalação</span>
               <span class="badge b-red" id="com-cancel-count">—</span>
               <span id="com-cancel-filtro-badge" style="display:none;font-size:11px;color:var(--red);margin-left:6px;cursor:pointer" onclick="setComCancelMotivo(_comCancelMotivoAtivo)">✕ limpar</span>
-              <span id="com-cancel-vend-badge" style="display:none;font-size:11px;color:var(--purple);margin-left:6px;cursor:pointer" onclick="setComCancelVendedor(null)">✕ vendedor</span>
+              <span style="flex:1"></span>
+              <input id="com-cancel-cliente-input" type="text" placeholder="🔍 filtrar cliente..." oninput="_comFiltrarCliente(this.value)" style="font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text);width:160px;outline:none">
             </div>
             <div style="overflow-x:auto;max-height:440px;overflow-y:auto">
               <table class="tbl" style="font-size:12px;table-layout:fixed;width:100%">
@@ -7885,14 +7877,23 @@ function getMetaVendedor(nome) {
 let _comCancelMotivoAtivo = null;
 let _comCancelDetalhe = [];
 
+let _comCancelClienteFiltro = '';
+function _comFiltrarCliente(val) {
+  _comCancelClienteFiltro = (val || '').trim().toLowerCase();
+  _comRenderCancelTbl();
+}
+
 function _comRenderCancelTbl() {
   const tbl = document.getElementById('com-cancel-tbl');
   const ct  = document.getElementById('com-cancel-count');
   if (!tbl) return;
-  const lista = _comCancelMotivoAtivo
+  let lista = _comCancelMotivoAtivo
     ? _comCancelDetalhe.filter(v => v.motivo === _comCancelMotivoAtivo)
     : _comCancelDetalhe;
-  if (ct) ct.textContent = lista.length + (_comCancelMotivoAtivo ? ` (filtro)` : '');
+  if (_comCancelClienteFiltro) {
+    lista = lista.filter(v => (v.cliente||'').toLowerCase().includes(_comCancelClienteFiltro));
+  }
+  if (ct) ct.textContent = lista.length + (_comCancelMotivoAtivo || _comCancelClienteFiltro ? ` (filtro)` : '');
   if (!lista.length) { tbl.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:16px">Sem cancelamentos no período</td></tr>'; return; }
   // Parse sem conversão de timezone: 'YYYY-MM-DD' → DD/MM/YYYY
   const fmt = d => { if (!d) return '—'; const [y,m,dd] = d.slice(0,10).split('-'); return `${dd}/${m}/${y}`; };
@@ -7913,15 +7914,9 @@ function setComCancelMotivo(motivo) {
   // limpa filtros das outras colunas se estava ativo
   if (_comCancelMotivoAtivo) {
     _comCancelMotivoAntAtivo = null;
-    _comCancelVendAtivo = null;
     document.querySelectorAll('#com-cancel-motivos-ant .com-cancel-motivo-item').forEach(el => {
       el.style.border = '1.5px solid transparent'; el.style.background = 'transparent';
     });
-    document.querySelectorAll('#com-cancel-vendedores .com-cancel-motivo-item').forEach(el => {
-      el.style.border = '1.5px solid transparent'; el.style.background = 'transparent';
-    });
-    const vb = document.getElementById('com-cancel-vend-badge');
-    if (vb) vb.style.display = 'none';
     _comCancelDetalhe = window._comDetalheAtual || _comCancelDetalhe;
   }
   document.querySelectorAll('#com-cancel-motivos .com-cancel-motivo-item').forEach(el => {
@@ -8000,12 +7995,10 @@ function renderComCanceladosDetalhe(data) {
 
   if (row) row.style.display = todosDetalhe.length ? '' : 'none';
 
-  // Título e grid — sempre mostra coluna Por Vendedor
+  // Título e grid
   if (titleEl) titleEl.textContent = fechado ? 'Por Motivo (período)' : 'Por Motivo';
   if (antCol) antCol.style.display = fechado ? '' : 'none';
-  const _vendCol = document.getElementById('com-cancel-vend-col');
-  if (_vendCol) _vendCol.style.display = todosDetalhe.length ? '' : 'none';
-  if (grid) grid.style.gridTemplateColumns = fechado ? '200px 200px 200px 1fr' : '220px 220px 1fr';
+  if (grid) grid.style.gridTemplateColumns = fechado ? '200px 200px 1fr' : '220px 1fr';
 
   // Coluna esquerda — apenas cancelados DENTRO do período
   if (motivosEl) {
@@ -8018,31 +8011,6 @@ function renderComCanceladosDetalhe(data) {
       const mot = m.motivo.replace(/'/g,"&#39;").replace(/"/g,'&quot;');
       return _comMotivoBarHTML(m, maxM, 'var(--red)', `setComCancelMotivo('${mot}')`);
     }).join('') || '<div style="color:var(--text3);font-size:12px;text-align:center;padding:16px">Sem dados</div>';
-  }
-
-  // Card Por Vendedor (todos os cancelados do período, sem filtro de motivo)
-  const _vendEl    = document.getElementById('com-cancel-vendedores');
-  const _vendCount = document.getElementById('com-cancel-vend-count');
-  if (_vendEl) {
-    const vendMap = {};
-    for (const v of detalheAtual) { const vd = v.vendedor || 'Não informado'; vendMap[vd] = (vendMap[vd]||0)+1; }
-    const listaVend = Object.entries(vendMap).sort((a,b)=>b[1]-a[1]).map(([nome,total])=>({nome,total}));
-    const maxV = listaVend[0]?.total || 1;
-    if (_vendCount) _vendCount.textContent = listaVend.length;
-    _vendEl.innerHTML = listaVend.map(v => {
-      const pct = Math.round(v.total / maxV * 100);
-      const nm  = v.nome.replace(/'/g,"&#39;").replace(/"/g,'&quot;');
-      return `<div class="com-cancel-motivo-item" data-vendedor="${nm}" onclick="setComCancelVendedor('${nm}')"
-        style="display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px;cursor:pointer;border:1.5px solid transparent;margin-bottom:3px;transition:background .15s">
-        <div style="flex:1;min-width:0">
-          <div style="font-size:11px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.nome}</div>
-          <div style="height:3px;background:var(--border);border-radius:2px;margin-top:3px">
-            <div style="height:3px;background:var(--purple);border-radius:2px;width:${pct}%;transition:width .3s"></div>
-          </div>
-        </div>
-        <span style="font-size:13px;font-weight:700;color:var(--purple);min-width:20px;text-align:right">${v.total}</span>
-      </div>`;
-    }).join('') || '<div style="color:var(--text3);font-size:12px;padding:16px;text-align:center">Sem dados</div>';
   }
 
   // guarda os dois grupos para uso nos filtros
@@ -8061,26 +8029,6 @@ function renderComCanceladosDetalhe(data) {
       const mot = m.motivo.replace(/'/g,"&#39;").replace(/"/g,'&quot;');
       return _comMotivoBarHTML(m, maxA, 'var(--amber)', `setComCancelMotivoAnt('${mot}')`);
     }).join('') || '<div style="color:var(--text3);font-size:12px;text-align:center;padding:16px">Nenhum cancelamento posterior</div>';
-    // Por vendedor (dentro do mesmo card, separador)
-    const vendMapAnt = {};
-    for (const v of detalheAnt) { const vd = v.vendedor || 'Não informado'; vendMapAnt[vd] = (vendMapAnt[vd]||0)+1; }
-    const listaVendAnt = Object.entries(vendMapAnt).sort((a,b)=>b[1]-a[1]);
-    const maxVA = listaVendAnt[0]?.[1] || 1;
-    antEl.innerHTML += `<div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin:10px 0 6px;padding-top:8px;border-top:1px solid var(--border)">Por Vendedor</div>` +
-      listaVendAnt.map(([nome, total]) => {
-        const pct = Math.round(total / maxVA * 100);
-        const nm  = nome.replace(/'/g,"&#39;").replace(/"/g,'&quot;');
-        return `<div class="com-cancel-motivo-item-dep-vend" data-vend-dep="${nm}" onclick="setComCancelVendedorDep('${nm}')"
-          style="display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;cursor:pointer;border:1.5px solid transparent;margin-bottom:2px;transition:background .15s">
-          <div style="flex:1;min-width:0">
-            <div style="font-size:10px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nome}</div>
-            <div style="height:3px;background:var(--border);border-radius:2px;margin-top:2px">
-              <div style="height:3px;background:var(--amber);border-radius:2px;width:${pct}%"></div>
-            </div>
-          </div>
-          <span style="font-size:12px;font-weight:700;color:var(--amber);min-width:16px;text-align:right">${total}</span>
-        </div>`;
-      }).join('');
   }
 
   // Reaplica filtro de motivo que estava ativo antes do refresh
@@ -8120,7 +8068,6 @@ function setComCancelMotivoAnt(motivo) {
   _comRenderCancelTbl();
 }
 
-let _comCancelVendAtivo = null;
 let _comCancelVendDepAtivo = null;
 
 function setComCancelVendedorDep(vendedor) {
@@ -8140,39 +8087,14 @@ function setComCancelVendedorDep(vendedor) {
     ? detalheAnt.filter(v => v.vendedor === _comCancelVendDepAtivo)
     : detalheAnt;
   // limpa filtros da coluna esquerda
-  _comCancelMotivoAtivo = null; _comCancelVendAtivo = null;
-  document.querySelectorAll('#com-cancel-motivos .com-cancel-motivo-item, #com-cancel-vendedores .com-cancel-motivo-item').forEach(el => {
+  _comCancelMotivoAtivo = null;
+  document.querySelectorAll('#com-cancel-motivos .com-cancel-motivo-item').forEach(el => {
     el.style.border = '1.5px solid transparent'; el.style.background = 'transparent';
   });
   const fb = document.getElementById('com-cancel-filtro-badge'); if (fb) fb.style.display = 'none';
-  const vb = document.getElementById('com-cancel-vend-badge');  if (vb) vb.style.display = 'none';
   _comRenderCancelTbl();
 }
 
-function setComCancelVendedor(vendedor) {
-  _comCancelVendAtivo = _comCancelVendAtivo === vendedor ? null : vendedor;
-  // highlight
-  document.querySelectorAll('#com-cancel-vendedores .com-cancel-motivo-item').forEach(el => {
-    const ativo = el.dataset.vendedor === _comCancelVendAtivo;
-    el.style.border     = ativo ? '1.5px solid var(--purple)' : '1.5px solid transparent';
-    el.style.background = ativo ? 'rgba(139,92,246,.12)' : 'transparent';
-  });
-  const fb = document.getElementById('com-cancel-vend-badge');
-  if (fb) fb.style.display = _comCancelVendAtivo ? '' : 'none';
-  // filtra tabela
-  const base = window._comDetalheAtual || [];
-  _comCancelDetalhe = _comCancelVendAtivo ? base.filter(v => v.vendedor === _comCancelVendAtivo) : base;
-  // limpa filtro de motivo se houver
-  if (_comCancelVendAtivo) {
-    _comCancelMotivoAtivo = null;
-    document.querySelectorAll('#com-cancel-motivos .com-cancel-motivo-item').forEach(el => {
-      el.style.border = '1.5px solid transparent'; el.style.background = 'transparent';
-    });
-    const mb = document.getElementById('com-cancel-filtro-badge');
-    if (mb) mb.style.display = 'none';
-  }
-  _comRenderCancelTbl();
-}
 
 function renderComBarras(containerId, items, maxVal, colorNew, colorReat) {
   const el = document.getElementById(containerId);
