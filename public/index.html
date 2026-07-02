@@ -8029,6 +8029,26 @@ function renderComCanceladosDetalhe(data) {
       const mot = m.motivo.replace(/'/g,"&#39;").replace(/"/g,'&quot;');
       return _comMotivoBarHTML(m, maxA, 'var(--amber)', `setComCancelMotivoAnt('${mot}')`);
     }).join('') || '<div style="color:var(--text3);font-size:12px;text-align:center;padding:16px">Nenhum cancelamento posterior</div>';
+    // Por vendedor
+    const vendMapAnt = {};
+    for (const v of detalheAnt) { const vd = v.vendedor || 'Não informado'; vendMapAnt[vd] = (vendMapAnt[vd]||0)+1; }
+    const listaVendAnt = Object.entries(vendMapAnt).sort((a,b)=>b[1]-a[1]);
+    const maxVA = listaVendAnt[0]?.[1] || 1;
+    antEl.innerHTML += `<div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin:10px 0 6px;padding-top:8px;border-top:1px solid var(--border)">Por Vendedor</div>` +
+      listaVendAnt.map(([nome, total]) => {
+        const pct = Math.round(total / maxVA * 100);
+        const nm  = nome.replace(/'/g,"&#39;").replace(/"/g,'&quot;');
+        return `<div class="com-cancel-motivo-item-dep-vend" data-vend-dep="${nm}" onclick="setComCancelVendedorDep('${nm}')"
+          style="display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;cursor:pointer;border:1.5px solid transparent;margin-bottom:2px;transition:background .15s">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:10px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nome}</div>
+            <div style="height:3px;background:var(--border);border-radius:2px;margin-top:2px">
+              <div style="height:3px;background:var(--amber);border-radius:2px;width:${pct}%"></div>
+            </div>
+          </div>
+          <span style="font-size:12px;font-weight:700;color:var(--amber);min-width:16px;text-align:right">${total}</span>
+        </div>`;
+      }).join('');
   }
 
   // Reaplica filtro de motivo que estava ativo antes do refresh
