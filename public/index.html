@@ -8056,10 +8056,31 @@ function renderComCanceladosDetalhe(data) {
     const listaAnt = Object.entries(motMapAnt).sort((a,b)=>b[1]-a[1]).map(([motivo,total])=>({motivo,total}));
     const maxA = listaAnt[0]?.total || 1;
     if (antCount) antCount.textContent = detalheAnt.length;
+    // Por motivo
     antEl.innerHTML = listaAnt.map(m => {
       const mot = m.motivo.replace(/'/g,"&#39;").replace(/"/g,'&quot;');
       return _comMotivoBarHTML(m, maxA, 'var(--amber)', `setComCancelMotivoAnt('${mot}')`);
     }).join('') || '<div style="color:var(--text3);font-size:12px;text-align:center;padding:16px">Nenhum cancelamento posterior</div>';
+    // Por vendedor (dentro do mesmo card, separador)
+    const vendMapAnt = {};
+    for (const v of detalheAnt) { const vd = v.vendedor || 'Não informado'; vendMapAnt[vd] = (vendMapAnt[vd]||0)+1; }
+    const listaVendAnt = Object.entries(vendMapAnt).sort((a,b)=>b[1]-a[1]);
+    const maxVA = listaVendAnt[0]?.[1] || 1;
+    antEl.innerHTML += `<div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin:10px 0 6px;padding-top:8px;border-top:1px solid var(--border)">Por Vendedor</div>` +
+      listaVendAnt.map(([nome, total]) => {
+        const pct = Math.round(total / maxVA * 100);
+        const nm  = nome.replace(/'/g,"&#39;").replace(/"/g,'&quot;');
+        return `<div class="com-cancel-motivo-item-dep-vend" data-vend-dep="${nm}" onclick="setComCancelVendedorDep('${nm}')"
+          style="display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;cursor:pointer;border:1.5px solid transparent;margin-bottom:2px;transition:background .15s">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:10px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nome}</div>
+            <div style="height:3px;background:var(--border);border-radius:2px;margin-top:2px">
+              <div style="height:3px;background:var(--amber);border-radius:2px;width:${pct}%"></div>
+            </div>
+          </div>
+          <span style="font-size:12px;font-weight:700;color:var(--amber);min-width:16px;text-align:right">${total}</span>
+        </div>`;
+      }).join('');
   }
 
   // Reaplica filtro de motivo que estava ativo antes do refresh
@@ -8100,6 +8121,34 @@ function setComCancelMotivoAnt(motivo) {
 }
 
 let _comCancelVendAtivo = null;
+let _comCancelVendDepAtivo = null;
+
+function setComCancelVendedorDep(vendedor) {
+  _comCancelVendDepAtivo = _comCancelVendDepAtivo === vendedor ? null : vendedor;
+  document.querySelectorAll('.com-cancel-motivo-item-dep-vend').forEach(el => {
+    const ativo = el.dataset.vendDep === _comCancelVendDepAtivo;
+    el.style.border     = ativo ? '1.5px solid var(--amber)' : '1.5px solid transparent';
+    el.style.background = ativo ? 'rgba(245,158,11,.12)' : 'transparent';
+  });
+  // limpa filtro de motivo "depois"
+  _comCancelMotivoAntAtivo = null;
+  document.querySelectorAll('#com-cancel-motivos-ant .com-cancel-motivo-item').forEach(el => {
+    el.style.border = '1.5px solid transparent'; el.style.background = 'transparent';
+  });
+  const detalheAnt = window._comDetalheAnt || [];
+  _comCancelDetalhe = _comCancelVendDepAtivo
+    ? detalheAnt.filter(v => v.vendedor === _comCancelVendDepAtivo)
+    : detalheAnt;
+  // limpa filtros da coluna esquerda
+  _comCancelMotivoAtivo = null; _comCancelVendAtivo = null;
+  document.querySelectorAll('#com-cancel-motivos .com-cancel-motivo-item, #com-cancel-vendedores .com-cancel-motivo-item').forEach(el => {
+    el.style.border = '1.5px solid transparent'; el.style.background = 'transparent';
+  });
+  const fb = document.getElementById('com-cancel-filtro-badge'); if (fb) fb.style.display = 'none';
+  const vb = document.getElementById('com-cancel-vend-badge');  if (vb) vb.style.display = 'none';
+  _comRenderCancelTbl();
+}
+
 function setComCancelVendedor(vendedor) {
   _comCancelVendAtivo = _comCancelVendAtivo === vendedor ? null : vendedor;
   // highlight
