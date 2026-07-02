@@ -11318,7 +11318,10 @@ async function migrarNRCertsVercel() {
 }
 
 function renderRhNR() {
-  const lista = _nrGetLista();
+  // Filtra certs de colaboradores desligados
+  const _ativos = new Set((window._rhEmployees || []).filter(e => e.ativo).map(e => e.nome));
+  const _todosCerts = _nrGetLista();
+  const lista = _todosCerts.filter(c => !_ativos.size || _ativos.has(c.nome));
   const hoje = new Date();
   const tbody = document.getElementById('rh-nr-tbl');
   if (!tbody) return;
