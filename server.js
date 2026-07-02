@@ -1894,8 +1894,8 @@ function buildVendasFromClientes(clientes, iniStr, fimStr) {
 
       const dataVenda = rawVenda ? rawVenda.split('/').reverse().join('-') : vendaDate.toISOString().split('T')[0];
       const motivo = (s.motivo_cancelamento || '').trim() || null;
-      const _dcParsed = s.data_cancelamento ? parseDate(s.data_cancelamento) : null;
-      const dataCancelamento = _dcParsed ? new Date(_dcParsed.getTime() - 3*60*60*1000).toISOString().split('T')[0] : null;
+      // data_cancelamento vem como DD/MM/YYYY — converte direto para YYYY-MM-DD sem ajuste de fuso
+      const dataCancelamento = s.data_cancelamento ? s.data_cancelamento.split('/').reverse().join('-') : null;
       vendas.push({ cliente: nome, cidade, plano, vendedor, status, dataCad: dataVenda, dataVenda, reativacao, cancelado, motivo, dataCancelamento });
     }
   }
