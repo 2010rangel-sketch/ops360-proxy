@@ -1515,6 +1515,7 @@ app.get('/api/remocoes', async (req, res) => {
       motivo_fechamento: [], order_by: 'data_inicio_programado', order_by_key: 'DESC',
       participantes: [], periodos: [], pop: [], prioridade: [], reservada: null,
       servico: [], servico_status: [], status_ordem_servico: ['finalizado'], tecnicos: [],
+      relacoes: ['reservas', 'atendimento'],
     };
 
     const data1 = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=1`, bodyBase);
