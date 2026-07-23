@@ -669,6 +669,23 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
       </div>
       <div id="login-erro" style="display:none;color:var(--red);font-size:12px;margin-bottom:12px;padding:8px 12px;background:var(--red-light);border-radius:6px"></div>
       <button onclick="doLogin()" id="login-btn" class="btn btn-primary" style="width:100%;padding:11px;font-size:14px;font-weight:600">Entrar</button>
+      <div style="text-align:center;margin-top:12px">
+        <a href="#" onclick="mostrarEsqueciSenha();return false" style="font-size:12px;color:var(--text3);text-decoration:none" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">Esqueci minha senha</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ESQUECI SENHA -->
+<div id="modal-esqueci" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:var(--bg2);border-radius:12px;padding:28px;width:340px;max-width:90vw;border:1px solid var(--border)">
+    <div style="font-size:15px;font-weight:700;margin-bottom:6px">Recuperar acesso</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:18px">Digite seu email e enviaremos um link para redefinir sua senha.</div>
+    <input id="esqueci-email" type="email" placeholder="seu@email.com" class="search-input" style="width:100%;font-size:13px;padding:10px 12px;box-sizing:border-box;margin-bottom:12px">
+    <div id="esqueci-msg" style="display:none;font-size:12px;margin-bottom:12px;padding:8px 12px;border-radius:6px"></div>
+    <div style="display:flex;gap:8px">
+      <button onclick="fecharEsqueciSenha()" class="btn" style="flex:1;padding:10px;font-size:13px">Cancelar</button>
+      <button onclick="enviarRecuperacao()" id="esqueci-btn" class="btn btn-primary" style="flex:1;padding:10px;font-size:13px">Enviar</button>
     </div>
   </div>
 </div>
@@ -4617,6 +4634,7 @@ function _showLogin() {
   document.getElementById('login-overlay').style.display = 'flex';
   document.getElementById('app-sidebar').style.display = 'none';
   document.getElementById('app-main').style.display = 'none';
+  verificarResetToken();
   setTimeout(() => document.getElementById('login-email')?.focus(), 100);
 }
 
@@ -4690,6 +4708,72 @@ function doLogout() {
   localStorage.removeItem('ops360_auth_token');
   _authUser = null;
   location.reload();
+}
+
+function mostrarEsqueciSenha() {
+  const m = document.getElementById('modal-esqueci');
+  m.style.display = 'flex';
+  document.getElementById('esqueci-email').value = document.getElementById('login-email').value || '';
+  document.getElementById('esqueci-msg').style.display = 'none';
+}
+function fecharEsqueciSenha() {
+  document.getElementById('modal-esqueci').style.display = 'none';
+}
+async function enviarRecuperacao() {
+  const email = document.getElementById('esqueci-email').value.trim();
+  const msg = document.getElementById('esqueci-msg');
+  const btn = document.getElementById('esqueci-btn');
+  if (!email) { msg.style.display='block'; msg.style.color='var(--red)'; msg.style.background='var(--red-light)'; msg.textContent='Digite seu email.'; return; }
+  btn.disabled = true; btn.textContent = 'Enviando...';
+  try {
+    const r = await fetch(`${PROXY_URL}/api/auth/forgot-password`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email }) });
+    const d = await r.json();
+    msg.style.display = 'block';
+    if (d.ok) { msg.style.color='var(--green)'; msg.style.background='rgba(34,197,94,.1)'; msg.textContent='Email enviado! Verifique sua caixa de entrada.'; btn.style.display='none'; }
+    else { msg.style.color='var(--red)'; msg.style.background='var(--red-light)'; msg.textContent = d.motivo || 'Erro ao enviar.'; }
+  } catch { msg.style.display='block'; msg.style.color='var(--red)'; msg.style.background='var(--red-light)'; msg.textContent='Erro de conexão.'; }
+  btn.disabled = false; btn.textContent = 'Enviar';
+}
+
+// Reset de senha via token na URL (?reset=TOKEN)
+async function verificarResetToken() {
+  const params = new URLSearchParams(location.search);
+  const token = params.get('reset');
+  if (!token) return;
+  // Mostra formulário de redefinição no lugar do login
+  const loginBox = document.getElementById('login-box');
+  if (!loginBox) return;
+  loginBox.innerHTML = `
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:22px;font-weight:800;color:var(--text)">Nova senha</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:4px">Digite sua nova senha abaixo.</div>
+    </div>
+    <div class="tbl-card" style="padding:28px">
+      <div style="margin-bottom:16px">
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:6px;font-weight:500">NOVA SENHA</label>
+        <input id="reset-senha" type="password" placeholder="••••••••" class="search-input" style="width:100%;font-size:13px;padding:10px 12px">
+      </div>
+      <div style="margin-bottom:20px">
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:6px;font-weight:500">CONFIRMAR SENHA</label>
+        <input id="reset-confirma" type="password" placeholder="••••••••" class="search-input" style="width:100%;font-size:13px;padding:10px 12px">
+      </div>
+      <div id="reset-msg" style="display:none;font-size:12px;margin-bottom:12px;padding:8px 12px;border-radius:6px"></div>
+      <button onclick="confirmarResetSenha('${token}')" class="btn btn-primary" style="width:100%;padding:11px;font-size:14px;font-weight:600">Salvar nova senha</button>
+    </div>`;
+}
+async function confirmarResetSenha(token) {
+  const senha = document.getElementById('reset-senha').value;
+  const confirma = document.getElementById('reset-confirma').value;
+  const msg = document.getElementById('reset-msg');
+  if (!senha || senha.length < 6) { msg.style.display='block'; msg.style.color='var(--red)'; msg.style.background='var(--red-light)'; msg.textContent='Senha deve ter ao menos 6 caracteres.'; return; }
+  if (senha !== confirma) { msg.style.display='block'; msg.style.color='var(--red)'; msg.style.background='var(--red-light)'; msg.textContent='As senhas não coincidem.'; return; }
+  try {
+    const r = await fetch(`${PROXY_URL}/api/auth/reset-password`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token, senha }) });
+    const d = await r.json();
+    msg.style.display = 'block';
+    if (d.ok) { msg.style.color='var(--green)'; msg.style.background='rgba(34,197,94,.1)'; msg.textContent='Senha alterada! Redirecionando...'; setTimeout(()=>location.href=location.origin,2000); }
+    else { msg.style.color='var(--red)'; msg.style.background='var(--red-light)'; msg.textContent = d.motivo || 'Token inválido ou expirado.'; }
+  } catch { msg.style.display='block'; msg.style.color='var(--red)'; msg.style.background='var(--red-light)'; msg.textContent='Erro de conexão.'; }
 }
 
 // goPage com verificação de permissão

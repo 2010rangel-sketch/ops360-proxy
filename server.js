@@ -361,7 +361,7 @@ app.use(express.static(path.join(__dirname, 'public'), {
 
 
 // ── Middleware de autenticação global ────────────────────────────
-const AUTH_PUBLIC = ['/ping', '/api/auth/login', '/api/auth/register', '/api/tasks/calendar.ics', '/api/estoque/debug-raw', '/api/estoque/movimentos'];
+const AUTH_PUBLIC = ['/ping', '/api/auth/login', '/api/auth/register', '/api/auth/forgot-password', '/api/auth/reset-password', '/api/tasks/calendar.ics', '/api/estoque/debug-raw', '/api/estoque/movimentos'];
 const _INTERNAL_TOKEN = _gerarToken(0); // token interno para chamadas servidor→servidor
 app.use((req, res, next) => {
   if (req.method === 'GET' && !req.path.startsWith('/api/')) return next(); // arquivos estáticos
@@ -5343,6 +5343,51 @@ app.post('/api/auth/login', async (req, res) => {
     if (_hashSenha(senha) !== user.senha_hash) return res.json({ ok: false, motivo: 'Senha incorreta' });
     const token = _gerarToken(user.id);
     res.json({ ok: true, token, user: { id: user.id, nome: user.nome, email: user.email, paginas: user.paginas, admin: user.admin } });
+  } catch(e) { res.json({ ok: false, motivo: e.message }); }
+});
+
+// Mapa em memória: token → { userId, expires }
+const _resetTokens = new Map();
+
+app.post('/api/auth/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body || {};
+    if (!email) return res.json({ ok: false, motivo: 'Email obrigatório' });
+    const user = await _findUser(email.trim().toLowerCase());
+    // Sempre retorna ok para não revelar se o email existe
+    if (!user) return res.json({ ok: true });
+    const token = crypto.randomBytes(32).toString('hex');
+    _resetTokens.set(token, { userId: user.id, expires: Date.now() + 60 * 60 * 1000 }); // 1h
+    const resetUrl = `${req.protocol}://${req.get('host')}/?reset=${token}`;
+    if (process.env.RESEND_API_KEY) {
+      await sendEmailToRecipient(user.email, 'Recuperação de senha — LC Fibra 360',
+        `<div style="font-family:sans-serif;max-width:480px;margin:auto;padding:24px">
+          <h2 style="color:#6366f1">LC Fibra 360 — Recuperar senha</h2>
+          <p>Olá, <strong>${user.nome}</strong>!</p>
+          <p>Recebemos uma solicitação para redefinir sua senha. Clique no botão abaixo:</p>
+          <a href="${resetUrl}" style="display:inline-block;background:#6366f1;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;margin:16px 0">Redefinir senha</a>
+          <p style="color:#888;font-size:12px">Este link expira em 1 hora. Se não foi você, ignore este email.</p>
+        </div>`);
+    }
+    res.json({ ok: true });
+  } catch(e) { res.json({ ok: false, motivo: e.message }); }
+});
+
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { token, senha } = req.body || {};
+    if (!token || !senha) return res.json({ ok: false, motivo: 'Dados inválidos' });
+    const entry = _resetTokens.get(token);
+    if (!entry || Date.now() > entry.expires) return res.json({ ok: false, motivo: 'Link expirado ou inválido' });
+    const pool = getPool();
+    const hash = _hashSenha(senha);
+    if (pool) {
+      await pool.query('UPDATE ops360_users SET senha_hash=$1 WHERE id=$2', [hash, entry.userId]);
+    }
+    const mem = _usersMemoria?.find(u => u.id === entry.userId);
+    if (mem) mem.senha_hash = hash;
+    _resetTokens.delete(token);
+    res.json({ ok: true });
   } catch(e) { res.json({ ok: false, motivo: e.message }); }
 });
 
