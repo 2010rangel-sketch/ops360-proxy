@@ -1558,9 +1558,8 @@ app.get('/api/remocoes', async (req, res) => {
       const tecs  = os.tecnicos || [];
       const tec   = tecs.map(t => t.name || t.nome || t.display).filter(Boolean).join(', ') || 'Sem técnico';
       const cs    = os.cliente_servico || os.atendimento?.cliente_servico;
-      if (remocoes.length === 0) console.log('[cs-debug]', JSON.stringify(cs)?.slice(0,400));
       const end   = cs?.endereco_instalacao;
-      const cli   = cs?.display || cs?.nome || cs?.cliente?.nome_razaosocial || cs?.cliente?.display || cs?.cliente?.nome || '—';
+      const cli   = cs?.cliente?.nome_razao || cs?.cliente?.nome_razaosocial || cs?.cliente?.nome_fantasia || cs?.cliente?.display || '—';
       const cidade = end?.endereco_numero?.cidade?.nome || end?.cidade?.nome || end?.cidade?.display
                   || end?.cidade || cs?.cliente?.cidade?.nome || cs?.cidade?.nome || '—';
       const tipo  = os.tipo_ordem_servico?.descricao || os.tipo_os?.nome || '—';
