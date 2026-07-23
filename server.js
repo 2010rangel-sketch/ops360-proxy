@@ -1557,6 +1557,7 @@ app.get('/api/remocoes', async (req, res) => {
 
       const tecs  = os.tecnicos || [];
       const tec   = tecs.map(t => t.name || t.nome || t.display).filter(Boolean).join(', ') || 'Sem técnico';
+      if (remocoes.length === 0) console.log('[remocoes-debug] top_keys:', Object.keys(os), 'atendimento:', JSON.stringify(os.atendimento)?.slice(0,300));
       const cs    = os.atendimento?.cliente_servico;
       const end   = cs?.endereco_instalacao;
       const cli   = cs?.display || cs?.cliente?.nome_razaosocial || cs?.cliente?.display || '—';
