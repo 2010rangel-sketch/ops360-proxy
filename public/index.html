@@ -8694,7 +8694,7 @@ function renderRemocoes() {
   ev('remoc-total-badge', total);
 
   // Ranking por técnico — cobradores separados
-  const COBRADORES = ['ronald', 'murilo'];
+  const COBRADORES = ['ronald', 'murilo', 'jhonaldo'];
   const _isCobr = nome => COBRADORES.some(k => (nome||'').toLowerCase().includes(k));
   const tecMap = {};
   for (const c of remocoes) {
@@ -8881,7 +8881,7 @@ async function loadRemocoes() {
     ev('remoc-pct-spc',   pct(data.tipo_spc));
     ev('remoc-pct-outro', pct(data.tipo_outro));
 
-    const _COBR = ['ronald','murilo'];
+    const _COBR = ['ronald','murilo','jhonaldo'];
     const _isCb = n => _COBR.some(k=>(n||'').toLowerCase().includes(k));
     const allTecs2 = data.por_tecnico || [];
     const tecs     = allTecs2.filter(t => !_isCb(t.tec));
