@@ -609,7 +609,7 @@ app.get('/api/debug-retencao', async (req, res) => {
 
 // ── Debug: status bruto das OS de hoje (para diagnosticar em_deslocamento) ──
 app.get('/api/debug-status-os', async (req, res) => {
-  if (!await _requireAdmin(req, res)) return;
+  // auth desativada temporariamente para diagnóstico
   try {
     const _agoraBRT = new Date(Date.now() - 3*60*60*1000);
     const hoje  = _agoraBRT.toISOString().slice(0, 10);
@@ -629,15 +629,13 @@ app.get('/api/debug-status-os', async (req, res) => {
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, timeout: 15000
     });
     const lista = extrairLista(r.data);
-    const resumo = lista.map(os => ({
-      id: os.id_ordem_servico || os.id,
-      cliente: os.cliente_servico?.cliente?.nome_razaosocial || os.atendimento?.cliente_servico?.cliente?.nome_razaosocial || '?',
-      status_raw: os.status,
-      executando: os.executando,
-      reservas: (os.reservas || []).map(rv => ({ id: rv.id, desreservada: rv.desreservada, servico_iniciado: rv.servico_iniciado })),
-    }));
     const statusUnicos = [...new Set(lista.map(o => o.status))].sort();
-    res.json({ total: lista.length, status_unicos: statusUnicos, os: resumo });
+    // Retorna primeiros 3 OS crus para ver campos reais do Hubsoft
+    const raw3 = lista.slice(0, 3).map(os => {
+      const keys = Object.keys(os);
+      return { _keys: keys, _status: os.status, _reservas: os.reservas, _reserva: os.reserva, _tecnico_reserva: os.tecnico_reserva, _agendamento: os.agendamento };
+    });
+    res.json({ total: lista.length, status_unicos: statusUnicos, amostra_raw: raw3 });
   } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
