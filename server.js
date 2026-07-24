@@ -314,7 +314,7 @@ function bodyConsultaOS({ data_inicio, data_fim, tecnicos = [], cidades = [], st
     periodos:                 [],
     pop:                      [],
     prioridade:               [],
-    relacoes:                 ['reservas', 'atendimento'],
+    relacoes:                 ['atendimento'],
     reservada:                null,
     servico:                  [],
     servico_status:           [],
@@ -752,27 +752,21 @@ function _normalizarChamados(lista) {
                 || (cs?.display && cs.display !== 'Cliente' && !cs.display.startsWith('(') ? cs.display : null)
                 || os.nome_cliente || 'Sem nome';
     const stBase = normalizarStatus(os.status || '');
-    // Em Execução: reserva ativa COM servico_iniciado=true, ou flag executando=true
-    const execAtiva = (stBase === 'aguardando' || stBase === 'deslocamento') &&
-      (os.executando === true || (Array.isArray(os.reservas) && os.reservas.some(r => r.servico_iniciado && !r.desreservada)));
-    // Em Deslocamento: (aguardando com reserva ativa) OU status já é deslocamento no Hubsoft
-    const temReservaAtiva = Array.isArray(os.reservas) && os.reservas.some(r => !r.desreservada);
-    const deslocAtiva = !execAtiva && (
-      (stBase === 'aguardando' && temReservaAtiva) ||
-      stBase === 'deslocamento'
-    );
+    // Hubsoft agora usa campo booleano `reservada` em vez de array `reservas`
+    const estaReservada = os.reservada === true || os.reservada === 1 || os.reservada === 'true';
+    // Em Execução: flag executando=true (técnico iniciou o serviço)
+    const execAtiva = os.executando === true || stBase === 'execucao';
+    // Em Deslocamento: OS reservada (técnico aceitou) mas ainda não iniciou execução
+    const deslocAtiva = !execAtiva && (estaReservada || stBase === 'deslocamento');
     const stVal = execAtiva ? 'em_execucao' : deslocAtiva ? 'em_deslocamento' : (os.status || '');
-    const reservaAtiva = temReservaAtiva
-      ? os.reservas.slice().sort((a,b) => (b.data_reserva_timestamp||0) - (a.data_reserva_timestamp||0)).find(r => !r.desreservada)
-      : null;
-    const abDesloc = reservaAtiva?.data_reserva_br
-      ? reservaAtiva.data_reserva_br.slice(0, 5)
-      : (reservaAtiva?.data_reserva ? formatarHora(reservaAtiva.data_reserva) : null);
+    // Hora de deslocamento: usa ordem_servico_tecnico[0] se disponível, senão hora programada
+    const ostec = Array.isArray(os.ordem_servico_tecnico) ? os.ordem_servico_tecnico[0] : null;
+    const abDesloc = ostec?.data_inicio_br?.slice(0,5) || ostec?.data_reserva_br?.slice(0,5) || null;
     return {
       id: `#${os.id_ordem_servico || os.id}`, cli,
       cat: normalizarTipo(tipo), tipo, tec, cidade, cidadeId: cidId,
       ab: deslocAtiva && abDesloc ? abDesloc : ((os.hora_inicio_programado || '').slice(0, 5) || formatarHora(os.data_inicio_programado || os.data_cadastro)),
-      tsDeslocInicio: reservaAtiva?.data_reserva_timestamp || null,
+      tsDeslocInicio: ostec?.data_inicio_timestamp || ostec?.data_reserva_timestamp || null,
       dataProgramada: os.data_inicio_programado || os.data_cadastro || null,
       slaMin: os.tipo_ordem_servico?.prazo_execucao || 240,
       inicioExec: (os.hora_inicio_executado || '').slice(0, 5) || null,
@@ -1550,7 +1544,7 @@ app.get('/api/remocoes', async (req, res) => {
       motivo_fechamento: [], order_by: 'data_inicio_programado', order_by_key: 'DESC',
       participantes: [], periodos: [], pop: [], prioridade: [], reservada: null,
       servico: [], servico_status: [], status_ordem_servico: ['finalizado'], tecnicos: [],
-      relacoes: ['reservas', 'atendimento'],
+      relacoes: ['atendimento'],
     };
 
     const data1 = await hubsoftPost(`v1/ordem_servico/consultar/paginado/${PAGE_SIZE}?page=1`, bodyBase);
