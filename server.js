@@ -866,7 +866,7 @@ app.get('/api/tipos-os', async (req, res) => {
 
 // ── Cache Atendimentos ────────────────────────────────────────────
 const _atendCacheMap = {};
-const ATEND_CACHE_TTL = 5 * 60 * 1000; // 5 min
+const ATEND_CACHE_TTL = 15 * 60 * 1000; // 15 min
 
 // ── Atendimentos — por período, agrupado por atendente/setor/tipo ─
 app.get('/api/atendimentos', async (req, res) => {
@@ -1080,7 +1080,7 @@ app.get('/api/atendimentos', async (req, res) => {
 
 // ── Cache Retenção (5 min por chave de período) ───────────────────
 const _retCacheMap = {};
-const RET_CACHE_TTL = 5 * 60 * 1000;
+const RET_CACHE_TTL = 15 * 60 * 1000;
 
 // ── Retenção — pedidos de cancelamento (atendimentos) por período ─
 app.get('/api/retencao', async (req, res) => {
@@ -1462,7 +1462,7 @@ app.get('/api/cancelamentos-servico', async (req, res) => {
 
 // ── Remoções de Equipamentos — OS finalizadas com motivo "removido" ──
 const _remCacheMap = {};
-const REM_CACHE_TTL = 5 * 60 * 1000;
+const REM_CACHE_TTL = 15 * 60 * 1000;
 
 app.get('/api/remocoes', async (req, res) => {
   try {
@@ -2037,32 +2037,29 @@ async function warmupComercial() {
 
 // Warm-up de clientes completo desativado — rota agora busca por período diretamente
 // setTimeout(() => warmupComercial().catch(console.warn), 5000);
-// Warm-up do financeiro (65s — comercial leva ~55s; financeiro reutiliza _comAllClientes)
-setTimeout(() => {
-  // Sempre reconstrói ao iniciar (garante que mudanças de código se refletem imediatamente)
-  if (_finFetching) return;
-  _finFetching = true;
-  buildFinanceiro().then(r => {
-    _finCache = r; _finFetchedAt = Date.now(); _finFetching = false;
-    dbCacheSet('cache:financeiro', r);
-    console.log('[financeiro] warm-up OK + salvo no banco');
-  }).catch(e => { _finFetching = false; console.warn('[financeiro] warm-up falhou:', e.message); });
-}, 65000);
+// Financeiro: painel removido — sem warm-up no boot
 // Financeiro: sem auto-refresh (painel removido — só atualiza sob demanda)
-// Warm-up risco de cancelamento (30s após boot — restaura do banco imediatamente, reconstrói em background)
+// Warm-up risco de cancelamento (30s após boot — restaura do banco; só reconstrói se cache > 45min)
 setTimeout(async () => {
+  const RISCO_BOOT_MAX_AGE = 45 * 60 * 1000; // reconstrói se o cache do DB tiver mais de 45min
   const cached30 = await dbCacheRestore('cache:risco:30');
-  if (cached30) { _riscoCache['risco:30'] = { data: cached30, ts: Date.now() - RISCO_CACHE_TTL + 60000 }; console.log('[risco] 30d restaurado do banco'); }
+  if (cached30) {
+    const age = Date.now() - (cached30._savedAt || 0);
+    const ts = age < RISCO_BOOT_MAX_AGE ? Date.now() : Date.now() - RISCO_CACHE_TTL;
+    _riscoCache['risco:30'] = { data: cached30, ts };
+    console.log(`[risco] 30d restaurado do banco (${age < RISCO_BOOT_MAX_AGE ? 'fresco' : 'stale — rebuild em background'})`);
+    if (age >= RISCO_BOOT_MAX_AGE) _warmRisco(30).catch(console.warn);
+  } else {
+    _warmRisco(30).catch(console.warn); // sem cache no DB → reconstrói
+  }
   const cached60 = await dbCacheRestore('cache:risco:60');
-  if (cached60) { _riscoCache['risco:60'] = { data: cached60, ts: Date.now() - RISCO_CACHE_TTL + 60000 }; console.log('[risco] 60d restaurado do banco'); }
-  // Reconstrói 30d imediatamente
-  _warmRisco(30).catch(console.warn);
+  if (cached60) { _riscoCache['risco:60'] = { data: cached60, ts: Date.now() }; console.log('[risco] 60d restaurado do banco'); }
 }, 30000);
 // Cron: renova risco a cada 1h
 setInterval(() => {
   _warmRisco(30).catch(console.warn);
 }, 60 * 60 * 1000);
-// Warm-up saude-base: restaura do banco no boot para evitar "Erro de conexão" na primeira visita
+// Saúde da base: restaura do DB no boot (sem reconstruir — cron madrugada cuida disso)
 setTimeout(async () => {
   try {
     const dbS = await dbCacheRestore('cache:saude:30d');
@@ -2071,46 +2068,17 @@ setTimeout(async () => {
       const dataFim = agoraBRT.toISOString().slice(0,10);
       const dataIni = new Date(agoraBRT.getTime() - 30*86400000).toISOString().slice(0,10);
       const cacheKey = `${dataIni}-${dataFim}-30`;
-      _saudeCache[cacheKey] = { data: dbS, ts: Date.now() - SAUDE_CACHE_TTL }; // stale → reconstrói em bg
-      console.log('[saude-base] restaurado do banco');
-      _buildSaudeBase(30, cacheKey).catch(console.warn); // reconstrói em background
+      // Marca como stale mas NÃO reconstrói imediatamente — só reconstruirá quando o usuário abrir o painel
+      _saudeCache[cacheKey] = { data: dbS, ts: Date.now() - SAUDE_CACHE_TTL };
+      console.log('[saude-base] restaurado do banco (lazy — reconstrói ao abrir painel)');
     }
   } catch(e) { console.warn('[saude-base] warm-up falhou:', e.message); }
 }, 45000);
-// Warm-up adição líquida (90s — depois do financeiro; buildAdicaoLiquida depende de _comAllClientes)
-setTimeout(async () => {
-  try {
-    if (_alCache) return;
-    if (!_comAllClientes) await warmupComercial();
-    if (!_comAllClientes) { console.warn('[adicao-liquida] warm-up pulado (sem clientes)'); return; }
-    const r = await buildAdicaoLiquida();
-    _alCache = r; _alFetchedAt = Date.now();
-    dbCacheSet('cache:adicao-liquida', r);
-    console.log('[adicao-liquida] warm-up OK + salvo no banco');
-  } catch(e) { console.warn('[adicao-liquida] warm-up falhou:', e.message); }
-}, 90000);
+// Adição líquida: sem warm-up no boot — cron madrugada cuida disso; boot já restaura do DB
 // Adição líquida: sem auto-refresh periódico — cron de madrugada cuida disso
-// Warm-up chamados históricos (150s)
-setTimeout(async () => {
-  try {
-    if (_chHistCache) return;
-    const r = await buildChamadosMensais();
-    _chHistCache = r; _chHistFetchedAt = Date.now();
-    dbCacheSet('cache:chamados:historico', r);
-    console.log('[ch-hist] warm-up OK + salvo no banco');
-  } catch(e) { console.warn('[ch-hist] warm-up falhou:', e.message); }
-}, 150000);
+// Histórico chamados: sem warm-up no boot — cron madrugada cuida disso; boot já restaura do DB
 // Histórico chamados: sem auto-refresh periódico — cron de madrugada cuida disso
-// Warm-up remoções históricas (120s)
-setTimeout(async () => {
-  try {
-    if (_remHistCache) return;
-    const r = await buildRemocoesMensais();
-    _remHistCache = r; _remHistFetchedAt = Date.now();
-    dbCacheSet('cache:remocoes:historico', r);
-    console.log('[rem-hist] warm-up OK + salvo no banco');
-  } catch(e) { console.warn('[rem-hist] warm-up falhou:', e.message); }
-}, 120000);
+// Histórico remoções: sem warm-up no boot — cron madrugada cuida disso; boot já restaura do DB
 // Histórico remoções: sem auto-refresh periódico — cron de madrugada cuida disso
 // Warm-up retenção mês atual (20s)
 setTimeout(async () => {
@@ -2136,15 +2104,6 @@ function warmupCanceladosGeral() {
     .then(r => {
       _comAllCancelados = r; _comAllCanceladosAt = Date.now(); _comAllCanceladosFetching = false;
       console.log(`[cancelados-geral] warm-up OK: ${r.length}`);
-      // Rebuild financeiro para incluir cancelados_geral na saúde por vendedor
-      if (_finCache && !_finFetching) {
-        _finFetching = true;
-        buildFinanceiro().then(result => {
-          _finCache = result; _finFetchedAt = Date.now(); _finFetching = false;
-          dbCacheSet('cache:financeiro', result);
-          console.log('[financeiro] rebuild pós cancelados-geral OK');
-        }).catch(e => { _finFetching = false; console.warn('[financeiro] rebuild pós cancelados-geral falhou:', e.message); });
-      }
     })
     .catch(e => { _comAllCanceladosFetching = false; console.warn('[cancelados-geral] falhou:', e.message); });
 }
@@ -3575,7 +3534,7 @@ const STATUS_CONTRATO_PARCIAL  = new Set(['suspenso_parcialmente','suspenso_parc
 
 // ── RISCO DE CANCELAMENTO ─────────────────────────────────────────
 const _riscoCache = {};
-const RISCO_CACHE_TTL = 5 * 60 * 1000; // 5 min
+const RISCO_CACHE_TTL = 60 * 60 * 1000; // 1h
 const _riscoBusy = {};
 
 async function _buildRisco(dias) {
