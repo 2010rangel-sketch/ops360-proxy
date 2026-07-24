@@ -292,7 +292,7 @@ async function hubsoftPost(endpoint, body = {}) {
 }
 
 // ── Monta body padrão para consultar OS ──────────────────────────
-function bodyConsultaOS({ data_inicio, data_fim, tecnicos = [], cidades = [], status = ['pendente','aguardando_agendamento','em_andamento','em_execucao','finalizado','cancelado','reagendado','retrabalho'] } = {}) {
+function bodyConsultaOS({ data_inicio, data_fim, tecnicos = [], cidades = [], status = ['pendente','aguardando_agendamento','em_andamento','em_execucao','em_deslocamento','finalizado','cancelado','reagendado','retrabalho'] } = {}) {
   const agora = new Date();
   // Padrão: 7 dias atrás até 3 dias à frente (igual ao painel web)
   const ini = data_inicio ? new Date(data_inicio) : new Date(agora.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -723,11 +723,14 @@ function _normalizarChamados(lista) {
     // Em Execução: reserva ativa COM servico_iniciado=true, ou flag executando=true
     const execAtiva = (stBase === 'aguardando' || stBase === 'deslocamento') &&
       (os.executando === true || (Array.isArray(os.reservas) && os.reservas.some(r => r.servico_iniciado && !r.desreservada)));
-    // Em Deslocamento: aguardando + qualquer reserva ativa (não desreservada)
-    const deslocAtiva = !execAtiva && stBase === 'aguardando' &&
-      Array.isArray(os.reservas) && os.reservas.some(r => !r.desreservada);
+    // Em Deslocamento: (aguardando com reserva ativa) OU status já é deslocamento no Hubsoft
+    const temReservaAtiva = Array.isArray(os.reservas) && os.reservas.some(r => !r.desreservada);
+    const deslocAtiva = !execAtiva && (
+      (stBase === 'aguardando' && temReservaAtiva) ||
+      stBase === 'deslocamento'
+    );
     const stVal = execAtiva ? 'em_execucao' : deslocAtiva ? 'em_deslocamento' : (os.status || '');
-    const reservaAtiva = Array.isArray(os.reservas)
+    const reservaAtiva = temReservaAtiva
       ? os.reservas.slice().sort((a,b) => (b.data_reserva_timestamp||0) - (a.data_reserva_timestamp||0)).find(r => !r.desreservada)
       : null;
     const abDesloc = reservaAtiva?.data_reserva_br
