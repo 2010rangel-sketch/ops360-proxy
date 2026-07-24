@@ -2048,16 +2048,7 @@ setTimeout(() => {
     console.log('[financeiro] warm-up OK + salvo no banco');
   }).catch(e => { _finFetching = false; console.warn('[financeiro] warm-up falhou:', e.message); });
 }, 65000);
-// Cron: renova cache do financeiro a cada 25min (antes do TTL de 30min expirar)
-setInterval(() => {
-  if (_finFetching || !_finCache) return; // não duplica rebuild
-  _finFetching = true;
-  buildFinanceiro().then(r => {
-    _finCache = r; _finFetchedAt = Date.now(); _finFetching = false;
-    dbCacheSet('cache:financeiro', r);
-    console.log('[financeiro] cron 25min OK');
-  }).catch(e => { _finFetching = false; console.warn('[financeiro] cron falhou:', e.message); });
-}, 25 * 60 * 1000);
+// Financeiro: sem auto-refresh (painel removido — só atualiza sob demanda)
 // Warm-up risco de cancelamento (30s após boot — restaura do banco imediatamente, reconstrói em background)
 setTimeout(async () => {
   const cached30 = await dbCacheRestore('cache:risco:30');
@@ -2067,10 +2058,10 @@ setTimeout(async () => {
   // Reconstrói 30d imediatamente
   _warmRisco(30).catch(console.warn);
 }, 30000);
-// Cron: renova risco a cada 5min
+// Cron: renova risco a cada 1h
 setInterval(() => {
   _warmRisco(30).catch(console.warn);
-}, 5 * 60 * 1000);
+}, 60 * 60 * 1000);
 // Warm-up saude-base: restaura do banco no boot para evitar "Erro de conexão" na primeira visita
 setTimeout(async () => {
   try {
@@ -2098,16 +2089,7 @@ setTimeout(async () => {
     console.log('[adicao-liquida] warm-up OK + salvo no banco');
   } catch(e) { console.warn('[adicao-liquida] warm-up falhou:', e.message); }
 }, 90000);
-// Renova adição líquida a cada 1h45 (antes do TTL de 2h)
-setInterval(async () => {
-  try {
-    if (!_comAllClientes) return;
-    const r = await buildAdicaoLiquida();
-    _alCache = r; _alFetchedAt = Date.now();
-    dbCacheSet('cache:adicao-liquida', r);
-    console.log('[adicao-liquida] cron 1h45 OK');
-  } catch(e) { console.warn('[adicao-liquida] cron falhou:', e.message); }
-}, 105 * 60 * 1000);
+// Adição líquida: sem auto-refresh periódico — cron de madrugada cuida disso
 // Warm-up chamados históricos (150s)
 setTimeout(async () => {
   try {
@@ -2118,15 +2100,7 @@ setTimeout(async () => {
     console.log('[ch-hist] warm-up OK + salvo no banco');
   } catch(e) { console.warn('[ch-hist] warm-up falhou:', e.message); }
 }, 150000);
-// Renova chamados históricos a cada 3h
-setInterval(async () => {
-  try {
-    const r = await buildChamadosMensais();
-    _chHistCache = r; _chHistFetchedAt = Date.now();
-    dbCacheSet('cache:chamados:historico', r);
-    console.log('[ch-hist] cron 3h OK');
-  } catch(e) { console.warn('[ch-hist] cron falhou:', e.message); }
-}, 3 * 60 * 60 * 1000);
+// Histórico chamados: sem auto-refresh periódico — cron de madrugada cuida disso
 // Warm-up remoções históricas (120s)
 setTimeout(async () => {
   try {
@@ -2137,15 +2111,7 @@ setTimeout(async () => {
     console.log('[rem-hist] warm-up OK + salvo no banco');
   } catch(e) { console.warn('[rem-hist] warm-up falhou:', e.message); }
 }, 120000);
-// Renova remoções históricas a cada 3h
-setInterval(async () => {
-  try {
-    const r = await buildRemocoesMensais();
-    _remHistCache = r; _remHistFetchedAt = Date.now();
-    dbCacheSet('cache:remocoes:historico', r);
-    console.log('[rem-hist] cron 3h OK');
-  } catch(e) { console.warn('[rem-hist] cron falhou:', e.message); }
-}, 3 * 60 * 60 * 1000);
+// Histórico remoções: sem auto-refresh periódico — cron de madrugada cuida disso
 // Warm-up retenção mês atual (20s)
 setTimeout(async () => {
   try {
@@ -2182,9 +2148,7 @@ function warmupCanceladosGeral() {
     })
     .catch(e => { _comAllCanceladosFetching = false; console.warn('[cancelados-geral] falhou:', e.message); });
 }
-setTimeout(() => warmupCanceladosGeral(), 90000);
-// Renova a cada 6h
-setInterval(() => warmupCanceladosGeral(), 6 * 60 * 60 * 1000);
+// Cancelados gerais: sem auto-refresh periódico — cron de madrugada cuida disso
 
 // Busca ativos + cancelados do período diretamente via API (sem warmup)
 async function _fetchComercialPeriodo(iniStr, fimStr) {
@@ -3599,8 +3563,8 @@ app.get('/api/financeiro', async (req, res) => {
   }
 });
 
-// Cron: refresh chamados "hoje" a cada 15s (ao vivo)
-setInterval(() => _refreshChamadosHoje().catch(console.warn), 15000);
+// Cron: refresh chamados "hoje" a cada 3min
+setInterval(() => _refreshChamadosHoje().catch(console.warn), 3 * 60 * 1000);
 // Dispara o primeiro refresh após 3s (após boot restore)
 setTimeout(() => _refreshChamadosHoje().catch(console.warn), 3000);
 
@@ -5824,6 +5788,50 @@ async function _iaRodar() {
 // Cron: todo dia às 07:00 (Brasília)
 cron.schedule('0 7 * * *', () => {
   _iaRodar().catch(e => console.error('[IA] cron error:', e.message));
+}, { timezone: 'America/Sao_Paulo' });
+
+// Cron madrugada 03:00 BRT — renova caches pesados 1x por dia
+cron.schedule('0 3 * * *', async () => {
+  console.log('[madrugada] iniciando renovação de caches pesados...');
+  try {
+    // Cancelados gerais
+    _comAllCancelados = null; _comAllCanceladosAt = 0;
+    warmupCanceladosGeral();
+    console.log('[madrugada] cancelados-geral disparado');
+  } catch(e) { console.warn('[madrugada] cancelados-geral falhou:', e.message); }
+  try {
+    // Adição líquida
+    if (_comAllClientes) {
+      const r = await buildAdicaoLiquida();
+      _alCache = r; _alFetchedAt = Date.now();
+      dbCacheSet('cache:adicao-liquida', r);
+      console.log('[madrugada] adicao-liquida OK');
+    }
+  } catch(e) { console.warn('[madrugada] adicao-liquida falhou:', e.message); }
+  try {
+    // Histórico chamados
+    const rCh = await buildChamadosMensais();
+    _chHistCache = rCh; _chHistFetchedAt = Date.now();
+    dbCacheSet('cache:chamados:historico', rCh);
+    console.log('[madrugada] chamados-historico OK');
+  } catch(e) { console.warn('[madrugada] chamados-historico falhou:', e.message); }
+  try {
+    // Histórico remoções
+    const rRem = await buildRemocoesMensais();
+    _remHistCache = rRem; _remHistFetchedAt = Date.now();
+    dbCacheSet('cache:remocoes:historico', rRem);
+    console.log('[madrugada] remocoes-historico OK');
+  } catch(e) { console.warn('[madrugada] remocoes-historico falhou:', e.message); }
+  try {
+    // Saúde da base
+    const agora = new Date(); const agoraBRT = new Date(agora.getTime() - 3*60*60*1000);
+    const dataFim = agoraBRT.toISOString().slice(0,10);
+    const dataIni = new Date(agoraBRT.getTime() - 30*86400000).toISOString().slice(0,10);
+    const cacheKey = `${dataIni}-${dataFim}-30`;
+    delete _saudeCache[cacheKey];
+    _buildSaudeBase(30, cacheKey).catch(console.warn);
+    console.log('[madrugada] saude-base disparado');
+  } catch(e) { console.warn('[madrugada] saude-base falhou:', e.message); }
 }, { timezone: 'America/Sao_Paulo' });
 
 // Rotas da API do analista
