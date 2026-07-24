@@ -607,6 +607,40 @@ app.get('/api/debug-retencao', async (req, res) => {
   } catch(e) { res.json({ ok: false, erro: e.message }); }
 });
 
+// ── Debug: status bruto das OS de hoje (para diagnosticar em_deslocamento) ──
+app.get('/api/debug-status-os', async (req, res) => {
+  if (!await _requireAdmin(req, res)) return;
+  try {
+    const _agoraBRT = new Date(Date.now() - 3*60*60*1000);
+    const hoje  = _agoraBRT.toISOString().slice(0, 10);
+    const amanha = new Date(_agoraBRT.getTime() + 86400000).toISOString().slice(0, 10);
+    const body = {
+      data_inicio: `${hoje}T03:00:00.000Z`, data_fim: `${amanha}T03:00:00.000Z`,
+      agendas: [], assinatura_cliente: null, bairros: null, cidades: [], condominios: null,
+      grupos_clientes: [], grupos_clientes_servicos: [], motivo_fechamento: [],
+      order_by: 'data_inicio_programado', order_by_key: 'DESC',
+      participantes: [], periodos: [], pop: [], prioridade: [],
+      relacoes: ['reservas'], reservada: null, servico: [], servico_status: [],
+      status_ordem_servico: [], // SEM filtro — pega tudo
+      tecnicos: [],
+    };
+    const token = await getToken();
+    const r = await axios.post(`${HUBSOFT_HOST}/api/v1/ordem_servico/consultar/paginado/200?page=1`, body, {
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, timeout: 15000
+    });
+    const lista = extrairLista(r.data);
+    const resumo = lista.map(os => ({
+      id: os.id_ordem_servico || os.id,
+      cliente: os.cliente_servico?.cliente?.nome_razaosocial || os.atendimento?.cliente_servico?.cliente?.nome_razaosocial || '?',
+      status_raw: os.status,
+      executando: os.executando,
+      reservas: (os.reservas || []).map(rv => ({ id: rv.id, desreservada: rv.desreservada, servico_iniciado: rv.servico_iniciado })),
+    }));
+    const statusUnicos = [...new Set(lista.map(o => o.status))].sort();
+    res.json({ total: lista.length, status_unicos: statusUnicos, os: resumo });
+  } catch(e) { res.status(500).json({ erro: e.message }); }
+});
+
 // ── Debug: campos de serviço do cliente ──────────────────────────
 app.get('/api/debug-servico-campos', async (req, res) => {
   try {
