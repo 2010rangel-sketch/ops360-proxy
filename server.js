@@ -1587,6 +1587,17 @@ app.get('/api/remocoes', async (req, res) => {
 
     console.log(`[remocoes] total OS finalizadas buscadas: ${lista.length}`);
 
+    // Monta índice id_cliente_servico → data_habilitacao usando _comAllCancelados em memória
+    const _habIdx = {};
+    if (Array.isArray(_comAllCancelados)) {
+      for (const cli of _comAllCancelados) {
+        for (const s of (cli.servicos || [])) {
+          const idCs = s.id_cliente_servico || s.id;
+          if (idCs && s.data_habilitacao) _habIdx[idCs] = s.data_habilitacao;
+        }
+      }
+    }
+
     const norm = s => normStr(s);
     const categorizaTipo = t => {
       const u = norm(t);
@@ -1615,9 +1626,12 @@ app.get('/api/remocoes', async (req, res) => {
       const cidade = end?.endereco_numero?.cidade?.nome || end?.cidade?.nome || end?.cidade?.display
                   || end?.cidade || cs?.cliente?.cidade?.nome || cs?.cidade?.nome || '—';
       const tipo  = os.tipo_ordem_servico?.descricao || os.tipo_os?.nome || '—';
-      // Data de habilitação/cadastro do serviço (mês em que o cliente entrou)
-      const habRaw = cs?.data_habilitacao || cs?.data_ativacao || cs?.data_cadastro || cs?.data_inicio || null;
-      const habMes = habRaw ? new Date(habRaw).toISOString().slice(0,7) : null; // "YYYY-MM"
+      // Data de habilitação: cruza pelo id_cliente_servico com _comAllCancelados em memória
+      const idCs  = cs?.id_cliente_servico;
+      const habStrRaw = idCs ? _habIdx[idCs] : null;
+      // data_habilitacao vem em DD/MM/YYYY do Hubsoft — converte para Date
+      const habDate = habStrRaw ? parseDate(habStrRaw) : null;
+      const habMes  = habDate ? `${habDate.getFullYear()}-${String(habDate.getMonth()+1).padStart(2,'0')}` : null;
 
       remocoes.push({ cli, cidade, tec, tipo, motivoFech: mf, data: fechRaw, habMes });
     }
