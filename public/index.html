@@ -8894,6 +8894,80 @@ function renderRemocoes() {
 let _remocTecFiltro  = null;
 let _remocCidFiltro  = null;
 let _remocAllUltimas = [];
+let _remocCadAnosAbertos = null; // Set de anos expandidos no gráfico de mês de cadastro (null = abre o mais recente)
+
+// Renderiza o gráfico "Removidos por mês de cadastro" agrupado por ano (accordion).
+// Clicar no ano expande/colapsa os meses daquele ano.
+function renderRemocCadMeses(mesSrc) {
+  const mesEl = document.getElementById('remoc-cadmes-bars');
+  const mesCt = document.getElementById('remoc-cadmes-count');
+  if (!mesEl) return;
+  const mesMap = {}; // "YYYY-MM" -> qtd
+  for (const c of mesSrc) { if (c.habMes) mesMap[c.habMes] = (mesMap[c.habMes]||0)+1; }
+  const entradas = Object.entries(mesMap);
+  if (mesCt) mesCt.textContent = entradas.length;
+  mesEl.style.display = 'block';
+  if (!entradas.length) {
+    mesEl.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem dados de cadastro disponíveis</div>';
+    return;
+  }
+  const anoMap = {};   // "YYYY" -> total
+  const anoMeses = {}; // "YYYY" -> { "MM": qtd }
+  for (const [ym, qtd] of entradas) {
+    const [y, m] = ym.split('-');
+    anoMap[y] = (anoMap[y]||0) + qtd;
+    (anoMeses[y] = anoMeses[y] || {})[m] = qtd;
+  }
+  const anos   = Object.keys(anoMap).sort((a,b)=>b.localeCompare(a)); // mais recente primeiro
+  const total  = mesSrc.length || 1;
+  const maxAno = Math.max(...anos.map(a=>anoMap[a]));
+  if (_remocCadAnosAbertos === null) _remocCadAnosAbertos = new Set([anos[0]]); // abre o ano mais recente
+  const nomesMes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+  mesEl.innerHTML = anos.map(ano => {
+    const totAno = anoMap[ano];
+    const barW   = (totAno/maxAno*100).toFixed(1);
+    const pctAno = Math.round(totAno/total*100);
+    const aberto = _remocCadAnosAbertos.has(ano);
+    let html = `<div onclick="toggleRemocCadAno('${ano}')"
+      style="display:grid;grid-template-columns:18px 46px 1fr 52px;align-items:center;gap:8px;padding:9px 8px;cursor:pointer;border-radius:6px;background:${aberto?'rgba(167,139,250,.08)':'transparent'};transition:background .15s"
+      onmouseover="this.style.background='rgba(167,139,250,.14)'" onmouseout="this.style.background='${aberto?'rgba(167,139,250,.08)':'transparent'}'">
+      <span style="font-size:11px;color:#a78bfa;transition:transform .15s;display:inline-block;transform:rotate(${aberto?'90':'0'}deg)">▶</span>
+      <span style="font-size:14px;font-weight:800;color:var(--text)">${ano}</span>
+      <div style="height:16px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${barW}%;background:#a78bfa;border-radius:4px;opacity:.85"></div>
+      </div>
+      <div style="text-align:right;line-height:1.1">
+        <span style="font-size:14px;font-weight:800;color:#a78bfa">${totAno}</span>
+        <span style="display:block;font-size:10px;color:var(--text3)">${pctAno}%</span>
+      </div>
+    </div>`;
+    if (aberto) {
+      const meses = Object.entries(anoMeses[ano]).sort((a,b)=>a[0].localeCompare(b[0]));
+      const maxM  = Math.max(...meses.map(([,q])=>q));
+      html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:0 20px;padding:2px 8px 10px 26px">` + meses.map(([m,qtd]) => {
+        const bw   = (qtd/maxM*100).toFixed(1);
+        const pctM = Math.round(qtd/total*100);
+        return `<div style="display:grid;grid-template-columns:42px 1fr 46px;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:11px;font-weight:600;color:var(--text2)">${nomesMes[+m-1]}</span>
+          <div style="height:13px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:${bw}%;background:#a78bfa;border-radius:3px;opacity:.55"></div>
+          </div>
+          <div style="text-align:right;white-space:nowrap"><span style="font-size:12px;font-weight:700;color:#a78bfa">${qtd}</span><span style="font-size:9px;color:var(--text3)"> ${pctM}%</span></div>
+        </div>`;
+      }).join('') + `</div>`;
+    }
+    return html;
+  }).join('');
+}
+
+function toggleRemocCadAno(ano) {
+  if (!_remocCadAnosAbertos) _remocCadAnosAbertos = new Set();
+  if (_remocCadAnosAbertos.has(ano)) _remocCadAnosAbertos.delete(ano);
+  else _remocCadAnosAbertos.add(ano);
+  const src = _remocCidFiltro ? _remocAllUltimas.filter(c => c.cidade === _remocCidFiltro) : _remocAllUltimas;
+  renderRemocCadMeses(src);
+}
 
 function _normR(s) { return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
 function _catR(t)  {
@@ -8935,30 +9009,9 @@ function filtrarRemocCid(nome) {
     const op = (!_remocCidFiltro || sel) ? '1' : '0.3';
     d.style.opacity = op;
   });
-  // Atualiza gráfico de meses com filtro de cidade
+  // Atualiza gráfico de meses (accordion por ano) com filtro de cidade
   const _mesSrc = _remocCidFiltro ? _remocAllUltimas.filter(c => c.cidade === _remocCidFiltro) : _remocAllUltimas;
-  const mesMap3 = {};
-  for (const c of _mesSrc) { if (c.habMes) mesMap3[c.habMes] = (mesMap3[c.habMes]||0)+1; }
-  const meses3 = Object.entries(mesMap3).sort((a,b)=>a[0].localeCompare(b[0]));
-  const maxMes3 = meses3.length ? Math.max(...meses3.map(([,q])=>q)) : 1;
-  const mesEl2  = document.getElementById('remoc-cadmes-bars');
-  const mesCt2  = document.getElementById('remoc-cadmes-count');
-  const _fmtM   = iso => { const [y,m] = iso.split('-'); const ns=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']; return `${ns[+m-1]}/${y.slice(2)}`; };
-  if (mesCt2) mesCt2.textContent = meses3.length;
-  if (mesEl2) mesEl2.innerHTML = meses3.length ? meses3.map(([mes,qtd]) => {
-    const barW = (qtd/maxMes3*100).toFixed(1);
-    const pct  = Math.round(qtd/(_mesSrc.length||1)*100);
-    return `<div style="display:grid;grid-template-columns:68px 1fr 46px;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
-      <span style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap">${_fmtM(mes)}</span>
-      <div style="height:18px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden">
-        <div style="height:100%;width:${barW}%;background:#a78bfa;border-radius:4px;opacity:.8"></div>
-      </div>
-      <div style="text-align:right;line-height:1.2">
-        <span style="font-size:13px;font-weight:800;color:#a78bfa">${qtd}</span>
-        <span style="display:block;font-size:10px;color:var(--text3)">${pct}%</span>
-      </div>
-    </div>`;
-  }).join('') : '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem dados de cadastro disponíveis</div>';
+  renderRemocCadMeses(_mesSrc);
   const titleEl = document.getElementById('remoc-tbl-title');
   if (titleEl) titleEl.textContent = _remocCidFiltro || _remocTecFiltro || 'Remoções do período';
   applyRemocFilters();
@@ -9104,33 +9157,12 @@ async function loadRemocoes() {
     const cidEl2   = document.getElementById('remoc-cidade-bars');
     const cidCt2   = document.getElementById('remoc-cidade-count');
     if (cidCt2) cidCt2.textContent = cidades2.length;
-    // Gráfico por mês de cadastro — respeita filtro de cidade ativo
+    // Gráfico por mês de cadastro (accordion por ano) — respeita filtro de cidade ativo
     const _mesSrc = _remocCidFiltro
       ? ultimas.filter(c => c.cidade === _remocCidFiltro)
       : ultimas;
-    const mesMap2 = {};
-    for (const c of _mesSrc) { if (c.habMes) mesMap2[c.habMes] = (mesMap2[c.habMes]||0)+1; }
-    const meses2 = Object.entries(mesMap2).sort((a,b)=>a[0].localeCompare(b[0]));
-    const maxMes2 = meses2[0] ? Math.max(...meses2.map(([,q])=>q)) : 1;
-    const mesEl   = document.getElementById('remoc-cadmes-bars');
-    const mesCt   = document.getElementById('remoc-cadmes-count');
-    const _fmtMes = iso => { const [y,m] = iso.split('-'); const nomes=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']; return `${nomes[+m-1]}/${y.slice(2)}`; };
-    if (mesCt) mesCt.textContent = meses2.length;
-    if (mesEl) mesEl.innerHTML = meses2.length ? meses2.map(([mes, qtd]) => {
-      const barW = (qtd / maxMes2 * 100).toFixed(1);
-      const tot2 = _mesSrc.length || 1;
-      const pct  = Math.round(qtd / tot2 * 100);
-      return `<div style="display:grid;grid-template-columns:68px 1fr 46px;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
-        <span style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap">${_fmtMes(mes)}</span>
-        <div style="height:18px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden">
-          <div style="height:100%;width:${barW}%;background:#a78bfa;border-radius:4px;opacity:.8"></div>
-        </div>
-        <div style="text-align:right;line-height:1.2">
-          <span style="font-size:13px;font-weight:800;color:#a78bfa">${qtd}</span>
-          <span style="display:block;font-size:10px;color:var(--text3)">${pct}%</span>
-        </div>
-      </div>`;
-    }).join('') : '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem dados de cadastro disponíveis</div>';
+    _remocAllUltimas = ultimas; // garante fonte para o toggle antes do render
+    renderRemocCadMeses(_mesSrc);
 
     if (cidEl2) cidEl2.innerHTML = cidades2.length ? cidades2.map(([nome, qtd]) => {
       const pct  = data.total > 0 ? Math.round(qtd / data.total * 100) : 0;

@@ -1602,7 +1602,6 @@ app.get('/api/remocoes', async (req, res) => {
         }
       }
     }
-    console.log(`[remocoes] _habIdx: ${Object.keys(_habIdx).length} | _habIdxCli: ${Object.keys(_habIdxCli).length} | _comAllCancelados: ${_comAllCancelados?.length ?? 'null'}`);
 
     const norm = s => normStr(s);
     const categorizaTipo = t => {
@@ -1643,8 +1642,7 @@ app.get('/api/remocoes', async (req, res) => {
       remocoes.push({ cli, cidade, tec, tipo, motivoFech: mf, data: fechRaw, habMes });
     }
 
-    const comHabMes = remocoes.filter(r => r.habMes).length;
-    console.log(`[remocoes] removidos no período ${iniStr}→${fimStr}: ${remocoes.length} | com habMes: ${comHabMes}`);
+    console.log(`[remocoes] removidos no período ${iniStr}→${fimStr}: ${remocoes.length}`);
 
     // KPIs por tipo de abertura
     let tipoCanc = 0, tipoCobr = 0, tipoSpc = 0, tipoOutro = 0;
