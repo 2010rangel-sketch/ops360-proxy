@@ -1592,8 +1592,11 @@ app.get('/api/remocoes', async (req, res) => {
       const cidade = end?.endereco_numero?.cidade?.nome || end?.cidade?.nome || end?.cidade?.display
                   || end?.cidade || cs?.cliente?.cidade?.nome || cs?.cidade?.nome || '—';
       const tipo  = os.tipo_ordem_servico?.descricao || os.tipo_os?.nome || '—';
+      // Data de habilitação/cadastro do serviço (mês em que o cliente entrou)
+      const habRaw = cs?.data_habilitacao || cs?.data_ativacao || cs?.data_cadastro || cs?.data_inicio || null;
+      const habMes = habRaw ? new Date(habRaw).toISOString().slice(0,7) : null; // "YYYY-MM"
 
-      remocoes.push({ cli, cidade, tec, tipo, motivoFech: mf, data: fechRaw });
+      remocoes.push({ cli, cidade, tec, tipo, motivoFech: mf, data: fechRaw, habMes });
     }
 
     console.log(`[remocoes] removidos no período ${iniStr}→${fimStr}: ${remocoes.length}`);
@@ -1612,6 +1615,15 @@ app.get('/api/remocoes', async (req, res) => {
       .sort((a, b) => b[1] - a[1])
       .map(([tec, total]) => ({ tec, total }));
 
+    // Por mês de cadastro/habilitação do serviço
+    const mesMap = {};
+    for (const r of remocoes) {
+      if (r.habMes) mesMap[r.habMes] = (mesMap[r.habMes] || 0) + 1;
+    }
+    const por_mes_cadastro = Object.entries(mesMap)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([mes, total]) => ({ mes, total }));
+
     const ultimas = remocoes
       .sort((a, b) => (b.data || '') > (a.data || '') ? 1 : -1);
 
@@ -1619,7 +1631,7 @@ app.get('/api/remocoes', async (req, res) => {
       ok: true,
       total: remocoes.length,
       tipo_canc: tipoCanc, tipo_cobr: tipoCobr, tipo_spc: tipoSpc, tipo_outro: tipoOutro,
-      por_tecnico, ultimas,
+      por_tecnico, por_mes_cadastro, ultimas,
       periodo: { ini: iniStr, fim: fimStr },
     };
     _remCacheMap[remKey] = { data: remResult, ts: Date.now() };

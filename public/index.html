@@ -1873,6 +1873,16 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
             <div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem dados</div>
           </div>
         </div>
+        <!-- Gráfico por mês de cadastro -->
+        <div class="tbl-card" style="margin-bottom:14px">
+          <div class="tbl-header">
+            <span class="tbl-title"><i class="fas fa-calendar-alt" style="color:var(--purple,#a78bfa);margin-right:5px"></i>Removidos por mês de cadastro do serviço</span>
+            <span class="badge" style="background:rgba(167,139,250,.15);color:#a78bfa;border:1px solid rgba(167,139,250,.3)" id="remoc-cadmes-count">—</span>
+          </div>
+          <div id="remoc-cadmes-bars" style="padding:10px 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0 24px">
+            <div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem dados</div>
+          </div>
+        </div>
         <div style="display:grid;grid-template-columns:0.72fr 0.72fr 1fr;gap:14px;margin-bottom:14px">
           <div class="tbl-card" style="margin-bottom:0;display:flex;flex-direction:column">
             <div class="tbl-header">
@@ -8925,6 +8935,30 @@ function filtrarRemocCid(nome) {
     const op = (!_remocCidFiltro || sel) ? '1' : '0.3';
     d.style.opacity = op;
   });
+  // Atualiza gráfico de meses com filtro de cidade
+  const _mesSrc = _remocCidFiltro ? _remocAllUltimas.filter(c => c.cidade === _remocCidFiltro) : _remocAllUltimas;
+  const mesMap3 = {};
+  for (const c of _mesSrc) { if (c.habMes) mesMap3[c.habMes] = (mesMap3[c.habMes]||0)+1; }
+  const meses3 = Object.entries(mesMap3).sort((a,b)=>a[0].localeCompare(b[0]));
+  const maxMes3 = meses3.length ? Math.max(...meses3.map(([,q])=>q)) : 1;
+  const mesEl2  = document.getElementById('remoc-cadmes-bars');
+  const mesCt2  = document.getElementById('remoc-cadmes-count');
+  const _fmtM   = iso => { const [y,m] = iso.split('-'); const ns=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']; return `${ns[+m-1]}/${y.slice(2)}`; };
+  if (mesCt2) mesCt2.textContent = meses3.length;
+  if (mesEl2) mesEl2.innerHTML = meses3.length ? meses3.map(([mes,qtd]) => {
+    const barW = (qtd/maxMes3*100).toFixed(1);
+    const pct  = Math.round(qtd/(_mesSrc.length||1)*100);
+    return `<div style="display:grid;grid-template-columns:68px 1fr 46px;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap">${_fmtM(mes)}</span>
+      <div style="height:18px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${barW}%;background:#a78bfa;border-radius:4px;opacity:.8"></div>
+      </div>
+      <div style="text-align:right;line-height:1.2">
+        <span style="font-size:13px;font-weight:800;color:#a78bfa">${qtd}</span>
+        <span style="display:block;font-size:10px;color:var(--text3)">${pct}%</span>
+      </div>
+    </div>`;
+  }).join('') : '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem dados de cadastro disponíveis</div>';
   const titleEl = document.getElementById('remoc-tbl-title');
   if (titleEl) titleEl.textContent = _remocCidFiltro || _remocTecFiltro || 'Remoções do período';
   applyRemocFilters();
@@ -9070,6 +9104,34 @@ async function loadRemocoes() {
     const cidEl2   = document.getElementById('remoc-cidade-bars');
     const cidCt2   = document.getElementById('remoc-cidade-count');
     if (cidCt2) cidCt2.textContent = cidades2.length;
+    // Gráfico por mês de cadastro — respeita filtro de cidade ativo
+    const _mesSrc = _remocCidFiltro
+      ? ultimas.filter(c => c.cidade === _remocCidFiltro)
+      : ultimas;
+    const mesMap2 = {};
+    for (const c of _mesSrc) { if (c.habMes) mesMap2[c.habMes] = (mesMap2[c.habMes]||0)+1; }
+    const meses2 = Object.entries(mesMap2).sort((a,b)=>a[0].localeCompare(b[0]));
+    const maxMes2 = meses2[0] ? Math.max(...meses2.map(([,q])=>q)) : 1;
+    const mesEl   = document.getElementById('remoc-cadmes-bars');
+    const mesCt   = document.getElementById('remoc-cadmes-count');
+    const _fmtMes = iso => { const [y,m] = iso.split('-'); const nomes=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']; return `${nomes[+m-1]}/${y.slice(2)}`; };
+    if (mesCt) mesCt.textContent = meses2.length;
+    if (mesEl) mesEl.innerHTML = meses2.length ? meses2.map(([mes, qtd]) => {
+      const barW = (qtd / maxMes2 * 100).toFixed(1);
+      const tot2 = _mesSrc.length || 1;
+      const pct  = Math.round(qtd / tot2 * 100);
+      return `<div style="display:grid;grid-template-columns:68px 1fr 46px;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap">${_fmtMes(mes)}</span>
+        <div style="height:18px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden">
+          <div style="height:100%;width:${barW}%;background:#a78bfa;border-radius:4px;opacity:.8"></div>
+        </div>
+        <div style="text-align:right;line-height:1.2">
+          <span style="font-size:13px;font-weight:800;color:#a78bfa">${qtd}</span>
+          <span style="display:block;font-size:10px;color:var(--text3)">${pct}%</span>
+        </div>
+      </div>`;
+    }).join('') : '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem dados de cadastro disponíveis</div>';
+
     if (cidEl2) cidEl2.innerHTML = cidades2.length ? cidades2.map(([nome, qtd]) => {
       const pct  = data.total > 0 ? Math.round(qtd / data.total * 100) : 0;
       const barW = (qtd / maxCid2 * 100).toFixed(1);
