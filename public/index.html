@@ -8903,9 +8903,10 @@ function renderRemocCadMeses(mesSrc) {
   const mesCt = document.getElementById('remoc-cadmes-count');
   if (!mesEl) return;
   const mesMap = {}; // "YYYY-MM" -> qtd
-  for (const c of mesSrc) { if (c.habMes) mesMap[c.habMes] = (mesMap[c.habMes]||0)+1; }
+  let totalComCadastro = 0;
+  for (const c of mesSrc) { if (c.habMes) { mesMap[c.habMes] = (mesMap[c.habMes]||0)+1; totalComCadastro++; } }
   const entradas = Object.entries(mesMap);
-  if (mesCt) mesCt.textContent = entradas.length;
+  if (mesCt) mesCt.textContent = totalComCadastro; // total de removidos com data de cadastro conhecida
   mesEl.style.display = 'block';
   if (!entradas.length) {
     mesEl.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem dados de cadastro disponíveis</div>';
