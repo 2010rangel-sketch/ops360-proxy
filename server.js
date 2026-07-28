@@ -1588,12 +1588,17 @@ app.get('/api/remocoes', async (req, res) => {
     console.log(`[remocoes] total OS finalizadas buscadas: ${lista.length}`);
 
     // Monta índice id_cliente_servico → data_habilitacao usando _comAllCancelados em memória
-    const _habIdx = {};
+    // Se ainda não populado, dispara warm-up em background (próxima requisição já terá dados)
+    if (!_comAllCancelados) warmupCanceladosGeral();
+    const _habIdx    = {};  // id_cliente_servico → data_habilitacao
+    const _habIdxCli = {};  // id_cliente → data_habilitacao do 1º serviço (fallback)
     if (Array.isArray(_comAllCancelados)) {
       for (const cli of _comAllCancelados) {
+        const cliId = cli.id || cli.id_cliente;
         for (const s of (cli.servicos || [])) {
           const idCs = s.id_cliente_servico || s.id;
           if (idCs && s.data_habilitacao) _habIdx[idCs] = s.data_habilitacao;
+          if (cliId && s.data_habilitacao && !_habIdxCli[cliId]) _habIdxCli[cliId] = s.data_habilitacao;
         }
       }
     }
@@ -1628,7 +1633,8 @@ app.get('/api/remocoes', async (req, res) => {
       const tipo  = os.tipo_ordem_servico?.descricao || os.tipo_os?.nome || '—';
       // Data de habilitação: cruza pelo id_cliente_servico com _comAllCancelados em memória
       const idCs  = cs?.id_cliente_servico;
-      const habStrRaw = idCs ? _habIdx[idCs] : null;
+      const idCli = cs?.id_cliente || cs?.cliente?.id;
+      const habStrRaw = (idCs && _habIdx[idCs]) || (idCli && _habIdxCli[idCli]) || null;
       // data_habilitacao vem em DD/MM/YYYY do Hubsoft — converte para Date
       const habDate = habStrRaw ? parseDate(habStrRaw) : null;
       const habMes  = habDate ? `${habDate.getFullYear()}-${String(habDate.getMonth()+1).padStart(2,'0')}` : null;
@@ -2185,6 +2191,8 @@ function warmupCanceladosGeral() {
     })
     .catch(e => { _comAllCanceladosFetching = false; console.warn('[cancelados-geral] falhou:', e.message); });
 }
+// Warm-up cancelados gerais no boot (120s — após os warm-ups críticos)
+setTimeout(warmupCanceladosGeral, 120000);
 // Cancelados gerais: sem auto-refresh periódico — cron de madrugada cuida disso
 
 // Busca ativos + cancelados do período diretamente via API (sem warmup)
