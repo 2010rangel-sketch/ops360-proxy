@@ -3622,6 +3622,7 @@ const STATUS_CONTRATO_PARCIAL  = new Set(['suspenso_parcialmente','suspenso_parc
 
 // ── RISCO DE CANCELAMENTO ─────────────────────────────────────────
 const _riscoCache = {};
+let _cxCache = null; // CX data (online/alerta por cliente) — reservado para uso futuro
 const RISCO_CACHE_TTL = 60 * 60 * 1000; // 1h
 const _riscoBusy = {};
 
