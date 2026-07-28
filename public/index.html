@@ -1863,6 +1863,16 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
 
       <!-- Conteúdo por aba -->
       <div id="remoc-view-remocao">
+        <!-- Gráfico por cidade -->
+        <div class="tbl-card" style="margin-bottom:14px">
+          <div class="tbl-header">
+            <span class="tbl-title"><i class="fas fa-map-marker-alt" style="color:var(--cyan);margin-right:5px"></i>Remoções por cidade</span>
+            <span class="badge b-blue" id="remoc-cidade-count">—</span>
+          </div>
+          <div id="remoc-cidade-bars" style="padding:10px 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:0 24px">
+            <div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem dados</div>
+          </div>
+        </div>
         <div style="display:grid;grid-template-columns:0.72fr 0.72fr 1fr;gap:14px;margin-bottom:14px">
           <div class="tbl-card" style="margin-bottom:0;display:flex;flex-direction:column">
             <div class="tbl-header">
@@ -8817,6 +8827,35 @@ function renderRemocoes() {
 
   const cobrEl = document.getElementById('remoc-cobr-bars');
   if (cobrEl) cobrEl.innerHTML = _renderBarList(cobrTecs, maxCobr, 'var(--accent)');
+
+  // Gráfico por cidade
+  const cidadeMap = {};
+  for (const c of remocoes) {
+    const cid = c.cidade || 'Sem cidade';
+    cidadeMap[cid] = (cidadeMap[cid] || 0) + 1;
+  }
+  const cidades = Object.entries(cidadeMap).sort((a,b) => b[1]-a[1]);
+  const maxCid  = cidades[0]?.[1] || 1;
+  const cidEl   = document.getElementById('remoc-cidade-bars');
+  const cidCt   = document.getElementById('remoc-cidade-count');
+  if (cidCt) cidCt.textContent = cidades.length;
+  if (cidEl) {
+    cidEl.innerHTML = cidades.length ? cidades.map(([nome, qtd]) => {
+      const pct  = total > 0 ? Math.round(qtd / total * 100) : 0;
+      const barW = (qtd / maxCid * 100).toFixed(1);
+      const lbl  = nome.length > 22 ? nome.slice(0, 22) + '…' : nome;
+      return `<div style="display:grid;grid-template-columns:150px 1fr 52px;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${nome}">${lbl}</span>
+        <div style="height:18px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden">
+          <div style="height:100%;width:${barW}%;background:var(--cyan);border-radius:4px;opacity:.8"></div>
+        </div>
+        <div style="text-align:right;line-height:1.2">
+          <span style="font-size:13px;font-weight:800;color:var(--cyan)">${qtd}</span>
+          <span style="display:block;font-size:10px;color:var(--text3)">${pct}%</span>
+        </div>
+      </div>`;
+    }).join('') : '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem remoções no período</div>';
+  }
 
   // Tabela das últimas remoções
   const tb = document.getElementById('remocTbl');
