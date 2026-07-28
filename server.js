@@ -639,6 +639,29 @@ app.get('/api/debug-status-os', async (req, res) => {
   } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
+// ── Debug: campos do cliente_servico nas OS de remoção ──────────
+app.get('/api/debug-remoc-cs', async (req, res) => {
+  if (!await _requireAdmin(req, res)) return;
+  try {
+    const agora = new Date(); const agoraBRT = new Date(agora.getTime()-3*60*60*1000);
+    const iniStr = `${agoraBRT.getFullYear()}-${String(agoraBRT.getMonth()+1).padStart(2,'0')}-01`;
+    const fimStr = new Date(agoraBRT.getFullYear(), agoraBRT.getMonth()+1, 0).toISOString().slice(0,10);
+    const body = { data_inicio: new Date(new Date(iniStr).getTime()-14*86400000).toISOString(), data_fim: new Date(fimStr+'T23:59:59').toISOString(),
+      agendas:[], assinatura_cliente:null, bairros:null, cidades:[], condominios:null, grupos_clientes:[], grupos_clientes_servicos:[],
+      motivo_fechamento:[], order_by:'data_inicio_programado', order_by_key:'DESC', participantes:[], periodos:[], pop:[], prioridade:[],
+      relacoes:['atendimento'], reservada:null, servico:[], servico_status:[], status_ordem_servico:['finalizado'], tecnicos:[] };
+    const normStr = s => (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
+    const r = await hubsoftPost('v1/ordem_servico/consultar/paginado/50?page=1', body);
+    const lista = extrairLista(r);
+    const remocoes = lista.filter(os => normStr(typeof os.motivo_fechamento==='string'?os.motivo_fechamento:Array.isArray(os.motivo_fechamento)?os.motivo_fechamento.map(m=>m?.descricao||'').join(','):os.motivo_fechamento?.descricao||'').includes('removid'));
+    const primCs = remocoes.slice(0,3).map(os => {
+      const cs = os.cliente_servico || os.atendimento?.cliente_servico;
+      return { _cs_keys: cs ? Object.keys(cs) : [], _cs: cs };
+    });
+    res.json({ total_remocoes: remocoes.length, amostras_cs: primCs });
+  } catch(e) { res.status(500).json({ erro: e.message }); }
+});
+
 // ── Debug: campos de serviço do cliente ──────────────────────────
 app.get('/api/debug-servico-campos', async (req, res) => {
   try {
