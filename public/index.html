@@ -9043,6 +9043,31 @@ async function loadRemocoes() {
 
     // Guarda todas as remoções e reaaplica filtro ativo (se houver)
     const ultimas = data.ultimas || [];
+
+    // Gráfico por cidade (usa ultimas + por_tecnico fallback)
+    const _allItems = ultimas.length ? ultimas : (data.remocoes || []);
+    const cidadeMap2 = {};
+    for (const c of _allItems) { const cid = c.cidade || 'Sem cidade'; cidadeMap2[cid] = (cidadeMap2[cid]||0)+1; }
+    const cidades2 = Object.entries(cidadeMap2).sort((a,b)=>b[1]-a[1]);
+    const maxCid2  = cidades2[0]?.[1] || 1;
+    const cidEl2   = document.getElementById('remoc-cidade-bars');
+    const cidCt2   = document.getElementById('remoc-cidade-count');
+    if (cidCt2) cidCt2.textContent = cidades2.length;
+    if (cidEl2) cidEl2.innerHTML = cidades2.length ? cidades2.map(([nome, qtd]) => {
+      const pct  = data.total > 0 ? Math.round(qtd / data.total * 100) : 0;
+      const barW = (qtd / maxCid2 * 100).toFixed(1);
+      const lbl  = nome.length > 22 ? nome.slice(0,22)+'…' : nome;
+      return `<div style="display:grid;grid-template-columns:150px 1fr 52px;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${nome}">${lbl}</span>
+        <div style="height:18px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden">
+          <div style="height:100%;width:${barW}%;background:var(--cyan);border-radius:4px;opacity:.8"></div>
+        </div>
+        <div style="text-align:right;line-height:1.2">
+          <span style="font-size:13px;font-weight:800;color:var(--cyan)">${qtd}</span>
+          <span style="display:block;font-size:10px;color:var(--text3)">${pct}%</span>
+        </div>
+      </div>`;
+    }).join('') : '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem remoções no período</div>';
     _remocAllUltimas = ultimas;
     const titleEl = document.getElementById('remoc-tbl-title');
     if (titleEl) titleEl.textContent = _remocTecFiltro || 'Remoções do período';
