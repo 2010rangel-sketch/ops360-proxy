@@ -8882,6 +8882,7 @@ function renderRemocoes() {
 
 // ── Remoção: estado e funções de renderização global ─────────────
 let _remocTecFiltro  = null;
+let _remocCidFiltro  = null;
 let _remocAllUltimas = [];
 
 function _normR(s) { return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
@@ -8915,6 +8916,20 @@ function _renderRemocTbl(lista) {
   }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Sem remoções no período</td></tr>';
 }
 
+function filtrarRemocCid(nome) {
+  _remocCidFiltro = (_remocCidFiltro === nome) ? null : nome;
+  document.querySelectorAll('#remoc-cidade-bars .remoc-cid-row').forEach(d => {
+    const sel = d.dataset.cid === _remocCidFiltro;
+    d.style.background = (sel && _remocCidFiltro) ? 'var(--bg3)' : '';
+    d.style.outline    = (sel && _remocCidFiltro) ? '1px solid var(--cyan)' : '';
+    const op = (!_remocCidFiltro || sel) ? '1' : '0.3';
+    d.style.opacity = op;
+  });
+  const titleEl = document.getElementById('remoc-tbl-title');
+  if (titleEl) titleEl.textContent = _remocCidFiltro || _remocTecFiltro || 'Remoções do período';
+  applyRemocFilters();
+}
+
 function filtrarRemocTec(nome) {
   _remocTecFiltro = (_remocTecFiltro === nome) ? null : nome;
   // Atualiza highlight nas duas listas de barras
@@ -8932,7 +8947,7 @@ function filtrarRemocTec(nome) {
   });
   // Atualiza título da tabela
   const titleEl = document.getElementById('remoc-tbl-title');
-  if (titleEl) titleEl.textContent = _remocTecFiltro || 'Remoções do período';
+  if (titleEl) titleEl.textContent = _remocTecFiltro || _remocCidFiltro || 'Remoções do período';
   applyRemocFilters();
 }
 
@@ -8950,8 +8965,10 @@ function sortRemocTbl(col) {
 function applyRemocFilters() {
   const q = (document.getElementById('remoc-search')?.value || '').toLowerCase().trim();
   const tec = _remocTecFiltro;
+  const cid = _remocCidFiltro;
   let lista = [..._remocAllUltimas];
   if (tec) lista = lista.filter(c => c.tec === tec);
+  if (cid) lista = lista.filter(c => c.cidade === cid);
   if (q)   lista = lista.filter(c =>
     (c.cli||'').toLowerCase().includes(q) ||
     (c.cidade||'').toLowerCase().includes(q) ||
@@ -9057,7 +9074,10 @@ async function loadRemocoes() {
       const pct  = data.total > 0 ? Math.round(qtd / data.total * 100) : 0;
       const barW = (qtd / maxCid2 * 100).toFixed(1);
       const lbl  = nome.length > 22 ? nome.slice(0,22)+'…' : nome;
-      return `<div style="display:grid;grid-template-columns:150px 1fr 52px;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+      const nomeEsc = nome.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+      return `<div class="remoc-cid-row" data-cid="${nomeEsc}" onclick="filtrarRemocCid('${nomeEsc}')"
+        style="display:grid;grid-template-columns:150px 1fr 52px;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer;border-radius:4px;transition:background .15s"
+        onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="if(this.dataset.cid!=='${nomeEsc}'||!_remocCidFiltro)this.style.background=_remocCidFiltro===this.dataset.cid?'var(--bg3)':''">
         <span style="font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${nome}">${lbl}</span>
         <div style="height:18px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden">
           <div style="height:100%;width:${barW}%;background:var(--cyan);border-radius:4px;opacity:.8"></div>
