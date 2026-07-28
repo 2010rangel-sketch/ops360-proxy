@@ -8894,10 +8894,10 @@ function renderRemocoes() {
 let _remocTecFiltro  = null;
 let _remocCidFiltro  = null;
 let _remocAllUltimas = [];
-let _remocCadAnosAbertos = null; // Set de anos expandidos no gráfico de mês de cadastro (null = abre o mais recente)
+let _remocCadAnoSel = null; // ano selecionado nos chips do gráfico de mês de cadastro (null = mais recente)
 
-// Renderiza o gráfico "Removidos por mês de cadastro" agrupado por ano (accordion).
-// Clicar no ano expande/colapsa os meses daquele ano.
+// Renderiza o gráfico "Removidos por mês de cadastro": chips de ano compactos em linha
+// + painel de meses abaixo, mostrando só o ano selecionado (economiza espaço vertical).
 function renderRemocCadMeses(mesSrc) {
   const mesEl = document.getElementById('remoc-cadmes-bars');
   const mesCt = document.getElementById('remoc-cadmes-count');
@@ -8920,51 +8920,46 @@ function renderRemocCadMeses(mesSrc) {
   }
   const anos   = Object.keys(anoMap).sort((a,b)=>b.localeCompare(a)); // mais recente primeiro
   const total  = mesSrc.length || 1;
-  const maxAno = Math.max(...anos.map(a=>anoMap[a]));
-  if (_remocCadAnosAbertos === null) _remocCadAnosAbertos = new Set([anos[0]]); // abre o ano mais recente
   const nomesMes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  // ano selecionado: default no mais recente; revalida se o filtro mudou os anos disponíveis
+  if (!_remocCadAnoSel || !anoMap[_remocCadAnoSel]) _remocCadAnoSel = anos[0];
 
-  mesEl.innerHTML = anos.map(ano => {
-    const totAno = anoMap[ano];
-    const barW   = (totAno/maxAno*100).toFixed(1);
-    const pctAno = Math.round(totAno/total*100);
-    const aberto = _remocCadAnosAbertos.has(ano);
-    let html = `<div onclick="toggleRemocCadAno('${ano}')"
-      style="display:grid;grid-template-columns:18px 46px 1fr 52px;align-items:center;gap:8px;padding:9px 8px;cursor:pointer;border-radius:6px;background:${aberto?'rgba(167,139,250,.08)':'transparent'};transition:background .15s"
-      onmouseover="this.style.background='rgba(167,139,250,.14)'" onmouseout="this.style.background='${aberto?'rgba(167,139,250,.08)':'transparent'}'">
-      <span style="font-size:11px;color:#a78bfa;transition:transform .15s;display:inline-block;transform:rotate(${aberto?'90':'0'}deg)">▶</span>
-      <span style="font-size:14px;font-weight:800;color:var(--text)">${ano}</span>
-      <div style="height:16px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden">
-        <div style="height:100%;width:${barW}%;background:#a78bfa;border-radius:4px;opacity:.85"></div>
-      </div>
-      <div style="text-align:right;line-height:1.1">
-        <span style="font-size:14px;font-weight:800;color:#a78bfa">${totAno}</span>
-        <span style="display:block;font-size:10px;color:var(--text3)">${pctAno}%</span>
-      </div>
-    </div>`;
-    if (aberto) {
-      const meses = Object.entries(anoMeses[ano]).sort((a,b)=>a[0].localeCompare(b[0]));
-      const maxM  = Math.max(...meses.map(([,q])=>q));
-      html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:0 20px;padding:2px 8px 10px 26px">` + meses.map(([m,qtd]) => {
-        const bw   = (qtd/maxM*100).toFixed(1);
-        const pctM = Math.round(qtd/total*100);
-        return `<div style="display:grid;grid-template-columns:42px 1fr 46px;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border)">
-          <span style="font-size:11px;font-weight:600;color:var(--text2)">${nomesMes[+m-1]}</span>
-          <div style="height:13px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden">
-            <div style="height:100%;width:${bw}%;background:#a78bfa;border-radius:3px;opacity:.55"></div>
-          </div>
-          <div style="text-align:right;white-space:nowrap"><span style="font-size:12px;font-weight:700;color:#a78bfa">${qtd}</span><span style="font-size:9px;color:var(--text3)"> ${pctM}%</span></div>
-        </div>`;
-      }).join('') + `</div>`;
-    }
-    return html;
+  // Chips de ano (linha compacta, quebra automática)
+  const chips = anos.map(ano => {
+    const sel = ano === _remocCadAnoSel;
+    return `<button onclick="selRemocCadAno('${ano}')" title="${anoMap[ano]} removidos"
+      style="border:1px solid ${sel?'#a78bfa':'var(--border)'};background:${sel?'rgba(167,139,250,.18)':'transparent'};color:${sel?'#c4b5fd':'var(--text2)'};border-radius:16px;padding:4px 11px;cursor:pointer;font-size:12px;display:inline-flex;gap:6px;align-items:center;transition:all .12s;font-weight:${sel?'700':'500'}">
+      ${ano}<span style="font-size:11px;opacity:.85;font-weight:800;color:${sel?'#a78bfa':'var(--text3)'}">${anoMap[ano]}</span>
+    </button>`;
   }).join('');
+
+  // Painel de meses do ano selecionado
+  const meses = Object.entries(anoMeses[_remocCadAnoSel] || {}).sort((a,b)=>a[0].localeCompare(b[0]));
+  const maxM  = meses.length ? Math.max(...meses.map(([,q])=>q)) : 1;
+  const totAno = anoMap[_remocCadAnoSel] || 0;
+  const painel = meses.map(([m,qtd]) => {
+    const bw   = (qtd/maxM*100).toFixed(1);
+    const pctM = Math.round(qtd/total*100);
+    return `<div style="display:grid;grid-template-columns:38px 1fr 46px;align-items:center;gap:6px;padding:3px 0">
+      <span style="font-size:11px;font-weight:600;color:var(--text2)">${nomesMes[+m-1]}</span>
+      <div style="height:13px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${bw}%;background:#a78bfa;border-radius:3px;opacity:.6"></div>
+      </div>
+      <div style="text-align:right;white-space:nowrap"><span style="font-size:12px;font-weight:700;color:#a78bfa">${qtd}</span><span style="font-size:9px;color:var(--text3)"> ${pctM}%</span></div>
+    </div>`;
+  }).join('');
+
+  mesEl.innerHTML = `
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">${chips}</div>
+    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">
+      <span style="font-size:13px;font-weight:800;color:var(--text)">Meses de ${_remocCadAnoSel}</span>
+      <span style="font-size:11px;color:var(--text3)">${totAno} removidos</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:0 22px">${painel}</div>`;
 }
 
-function toggleRemocCadAno(ano) {
-  if (!_remocCadAnosAbertos) _remocCadAnosAbertos = new Set();
-  if (_remocCadAnosAbertos.has(ano)) _remocCadAnosAbertos.delete(ano);
-  else _remocCadAnosAbertos.add(ano);
+function selRemocCadAno(ano) {
+  _remocCadAnoSel = ano;
   const src = _remocCidFiltro ? _remocAllUltimas.filter(c => c.cidade === _remocCidFiltro) : _remocAllUltimas;
   renderRemocCadMeses(src);
 }
