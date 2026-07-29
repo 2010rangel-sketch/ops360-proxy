@@ -3123,6 +3123,7 @@ async function buildFinanceiro() {
   const novosSusp     = [];   // primeira mensalidade não paga
   const novos60d      = [];   // todos os novos (denominador — por data_habilitacao)
   let   _novosPorVenda = 0;    // contador de referência (por data_venda) p/ comparação em log
+  const _vendaStatus60 = {};   // breakdown por status das vendas de 60d — diagnóstico
   const ltvCandidates = [];
   const mrr           = { total: 0, suspenso: 0, parcial: 0 };
   const vendMapAtivo  = {};
@@ -3187,7 +3188,10 @@ async function buildFinanceiro() {
       // "Novos (60d)": clientes ativos com serviço habilitado nos últimos 60 dias.
       // (conta por data_habilitacao — é quem já tem serviço rodando e pode ter fatura)
       const vendaDate = s.data_venda ? parseDate(s.data_venda) : null;
-      if (vendaDate && vendaDate >= h60 && !isIgn) _novosPorVenda++; // referência p/ log
+      if (vendaDate && vendaDate >= h60) {
+        _novosPorVenda++; // TODAS as vendas de 60d (sem filtro de status) p/ log
+        _vendaStatus60[status || 'vazio'] = (_vendaStatus60[status || 'vazio'] || 0) + 1;
+      }
       if (dataHab && dataHab >= h60 && !isIgn) {
         const idCs = s.id_cliente_servico;
         const obj = { nome, plano, valor, cidade, vendedor, dataHab: s.data_habilitacao, status, id_cliente_servico: idCs };
@@ -3246,7 +3250,8 @@ async function buildFinanceiro() {
     }
   }
 
-  console.log(`[financeiro] base ativa: ${ativos.length} clientes | novos 60d: ${novos60d.length} (habilitacao) | ${_novosPorVenda} (venda) | ${_cadCli60} (cadastro do cliente) | em risco: ${novosSusp.length}`);
+  console.log(`[financeiro] base ativa: ${ativos.length} | novos 60d: ${novos60d.length} (habilitacao) | ${_novosPorVenda} (venda, todos status) | em risco: ${novosSusp.length}`);
+  console.log(`[financeiro] vendas 60d por status:`, JSON.stringify(_vendaStatus60));
 
   // Primeira mensalidade por vendedor
   // IMPORTANTE: usa o MESMO critério do KPI (novosSusp = fatura vencida não paga),
