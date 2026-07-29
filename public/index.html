@@ -10531,13 +10531,15 @@ function abrirRiscoVendedor(idx) {
 }
 
 // Restaura os dados de "1ª Mensalidade" do cache local (exibição instantânea
-// enquanto o financeiro não recarrega). Retorna true se conseguiu restaurar.
+// enquanto o financeiro não recarrega). Só usa cache RECENTE (< 30 min) para
+// não exibir número desatualizado antes do dado fresco chegar.
 function _restorePrimFromCache() {
   if (window._primVendedores) return true;
   try {
     const raw = localStorage.getItem('ops360_fin_cache');
     if (!raw) return false;
-    const { data } = JSON.parse(raw);
+    const { data, ts } = JSON.parse(raw);
+    if (!ts || (Date.now() - ts) > 30 * 60 * 1000) return false; // cache velho → espera o fresco
     const pm = data?.primeira_mensalidade;
     if (!pm) return false;
     const pv = pm.por_vendedor || [];
