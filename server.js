@@ -3010,46 +3010,58 @@ app.get('/api/probe-fatura', async (req, res) => {
   try {
     const token   = await getToken();
     const headers = { Authorization: `Bearer ${token}` };
-    // Pega um cliente ativo de amostra para ter codigo_cliente / id_cliente_servico reais
-    const rc = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/cliente/todos`, {
-      headers, params: { itens_por_pagina: 1, pagina: 0, cancelado: 'nao' }, timeout: 15000,
-    });
-    const cli = rc.data?.clientes?.[0] || {};
-    const svc = cli.servicos?.[0] || {};
-    const codCli = cli.codigo_cliente;
-    const idCs   = svc.id_cliente_servico;
     const hoje   = new Date(Date.now() - 3*60*60*1000);
     const ini    = new Date(hoje.getTime() - 120*86400000).toISOString().slice(0,10);
     const fim    = hoje.toISOString().slice(0,10);
 
-    // Caminhos candidatos (GET) — cada um testado isoladamente
-    const candidatos = [
-      { nome: 'financeiro/cobranca',        params: { data_vencimento_inicio: ini, data_vencimento_fim: fim } },
-      { nome: 'financeiro/cobranca',        params: { data_inicio: ini, data_fim: fim } },
-      { nome: 'boleto',                     params: { data_vencimento_inicio: ini, data_vencimento_fim: fim } },
-      { nome: 'fatura',                     params: { data_vencimento_inicio: ini, data_vencimento_fim: fim } },
-      { nome: `cliente/${codCli}/fatura`,   params: {} },
-      { nome: `cliente/${codCli}/faturas`,  params: {} },
-      { nome: `cliente/${codCli}/cobranca`, params: {} },
-      { nome: `cliente_servico/${idCs}/fatura`, params: {} },
-      { nome: 'cliente/faturas',            params: { codigo_cliente: codCli } },
-    ];
-    const resultados = {};
-    for (const c of candidatos) {
+    // Cliente de amostra + baseline de campos do serviço (sem relacoes)
+    const rc = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/cliente/todos`, {
+      headers, params: { itens_por_pagina: 1, pagina: 0, cancelado: 'nao' }, timeout: 15000,
+    });
+    const cli    = rc.data?.clientes?.[0] || {};
+    const codCli = cli.codigo_cliente;
+    const idCs   = cli.servicos?.[0]?.id_cliente_servico;
+    const baseSvcKeys = Object.keys(cli.servicos?.[0] || {});
+
+    // (A) Testa valores de `relacoes` que possam trazer dados financeiros no próprio cliente/todos
+    const relacoesTeste = ['faturas','fatura','cobranca','cobrancas','financeiro','servico_financeiro','boleto','boletos','titulos','pagamentos'];
+    const viaRelacoes = {};
+    for (const rel of relacoesTeste) {
       try {
-        const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/${c.nome}`, { headers, params: c.params, timeout: 15000 });
-        const d = r.data || {};
-        const arrKey = Object.keys(d).find(k => Array.isArray(d[k]));
-        const arr = arrKey ? d[arrKey] : (Array.isArray(d) ? d : []);
-        resultados[`GET ${c.nome} ${JSON.stringify(c.params)}`] = {
-          ok: true, status: r.status, dataKeys: Object.keys(d),
-          arrKey, total: arr.length, primeiroItem_keys: arr[0] ? Object.keys(arr[0]) : [], primeiroItem: arr[0] || null,
-        };
-      } catch(e) {
-        resultados[`GET ${c.nome} ${JSON.stringify(c.params)}`] = { ok: false, status: e.response?.status, erro: e.message };
-      }
+        const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/cliente/todos`, {
+          headers, params: { itens_por_pagina: 1, pagina: 0, cancelado: 'nao', relacoes: rel }, timeout: 15000,
+        });
+        const svc = r.data?.clientes?.[0]?.servicos?.[0] || {};
+        const novos = Object.keys(svc).filter(k => !baseSvcKeys.includes(k));
+        viaRelacoes[rel] = { status: r.status, campos_novos: novos, amostra_novos: novos.reduce((o,k)=>{o[k]=svc[k];return o;},{}) };
+      } catch(e) { viaRelacoes[rel] = { status: e.response?.status, erro: e.message }; }
     }
-    res.json({ ok: true, amostra: { codigo_cliente: codCli, id_cliente_servico: idCs }, resultados });
+
+    // (B) Caminhos diretos (GET e POST) — captura status + corpo do erro
+    const paths = [
+      'financeiro/cobranca','financeiro/cobrancas','financeiro/fatura','financeiro/faturas',
+      'financeiro','cobranca','cobrancas','fatura','faturas','boleto','boletos','titulo','titulos',
+      `cliente/${codCli}/financeiro`,
+    ];
+    const viaPath = {};
+    for (const p of paths) {
+      // GET
+      try {
+        const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/${p}`, { headers, params: { data_vencimento_inicio: ini, data_vencimento_fim: fim }, timeout: 12000 });
+        const d = r.data || {}; const arrKey = Object.keys(d).find(k => Array.isArray(d[k]));
+        const arr = arrKey ? d[arrKey] : (Array.isArray(d) ? d : []);
+        viaPath[`GET ${p}`] = { ok:true, status:r.status, dataKeys:Object.keys(d), total:arr.length, item_keys: arr[0]?Object.keys(arr[0]):[] };
+      } catch(e) { viaPath[`GET ${p}`] = { status: e.response?.status, msg: (typeof e.response?.data==='object'? JSON.stringify(e.response.data).slice(0,120): e.message) }; }
+      // POST
+      try {
+        const r = await axios.post(`${HUBSOFT_HOST}/api/v1/integracao/${p}`, { data_vencimento_inicio: ini, data_vencimento_fim: fim }, { headers, timeout: 12000 });
+        const d = r.data || {}; const arrKey = Object.keys(d).find(k => Array.isArray(d[k]));
+        const arr = arrKey ? d[arrKey] : (Array.isArray(d) ? d : []);
+        viaPath[`POST ${p}`] = { ok:true, status:r.status, dataKeys:Object.keys(d), total:arr.length, item_keys: arr[0]?Object.keys(arr[0]):[] };
+      } catch(e) { viaPath[`POST ${p}`] = { status: e.response?.status, msg: (typeof e.response?.data==='object'? JSON.stringify(e.response.data).slice(0,120): e.message) }; }
+    }
+
+    res.json({ ok:true, amostra:{ codigo_cliente:codCli, id_cliente_servico:idCs }, viaRelacoes, viaPath });
   } catch(e) {
     res.json({ ok: false, motivo: e.message, status: e.response?.status });
   }
