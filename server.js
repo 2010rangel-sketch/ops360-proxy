@@ -3135,9 +3135,11 @@ async function buildFinanceiro() {
   let reativAtual     = 0;
   let reativAnt       = 0;
 
+  let _cadCli60 = 0; // clientes com data_cadastro nos últimos 60d (nível cliente) — diagnóstico
   for (const cli of ativos) {
     const nome     = cli.nome_razaosocial || cli.nome_fantasia || '—';
     const dataCadCli = parseDate(cli.data_cadastro);
+    if (dataCadCli && dataCadCli >= h60) _cadCli60++;
 
     for (const s of (cli.servicos || [])) {
       const status   = s.status_prefixo || '';
@@ -3244,7 +3246,7 @@ async function buildFinanceiro() {
     }
   }
 
-  console.log(`[financeiro] novos 60d: ${novos60d.length} (por data_habilitacao) | ${_novosPorVenda} (por data_venda) | em risco: ${novosSusp.length}`);
+  console.log(`[financeiro] base ativa: ${ativos.length} clientes | novos 60d: ${novos60d.length} (habilitacao) | ${_novosPorVenda} (venda) | ${_cadCli60} (cadastro do cliente) | em risco: ${novosSusp.length}`);
 
   // Primeira mensalidade por vendedor
   // IMPORTANTE: usa o MESMO critério do KPI (novosSusp = fatura vencida não paga),
