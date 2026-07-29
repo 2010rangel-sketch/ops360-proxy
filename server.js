@@ -3005,61 +3005,6 @@ app.get('/api/integracao/raw', async (req, res) => {
   }
 });
 
-// Debug: sonda endpoints financeiros/faturas do Hubsoft para descobrir o caminho correto
-app.get('/api/probe-fatura', async (req, res) => {
-  try {
-    const token   = await getToken();
-    const headers = { Authorization: `Bearer ${token}` };
-    const hoje   = new Date(Date.now() - 3*60*60*1000);
-    const ini    = new Date(hoje.getTime() - 120*86400000).toISOString().slice(0,10);
-    const fim    = hoje.toISOString().slice(0,10);
-
-    const EP = `${HUBSOFT_HOST}/api/v1/integracao/financeiro/fatura`;
-
-    // Cliente de amostra para testar filtros por cliente/serviço
-    const rc = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/cliente/todos`, {
-      headers, params: { itens_por_pagina: 1, pagina: 0, cancelado: 'nao' }, timeout: 15000,
-    });
-    const cli    = rc.data?.clientes?.[0] || {};
-    const codCli = cli.codigo_cliente;
-    const idCs   = cli.servicos?.[0]?.id_cliente_servico;
-
-    // (1) Volume no período (paginacao) + amostra de faturas para ver semântica de data_pagamento/fatura_ativa
-    let volume = {}, amostraFaturas = [];
-    try {
-      const r = await axios.get(EP, { headers, params: { data_vencimento_inicio: ini, data_vencimento_fim: fim, itens_por_pagina: 50, pagina: 0 }, timeout: 20000 });
-      volume = { status: r.status, paginacao: r.data?.paginacao || null, retornadas: (r.data?.faturas||[]).length };
-      amostraFaturas = (r.data?.faturas||[]).slice(0, 6).map(f => ({
-        id_cliente_servico: f.id_cliente_servico, data_vencimento: f.data_vencimento,
-        data_pagamento: f.data_pagamento, valor: f.valor, valor_pago: f.valor_pago,
-        fatura_ativa: f.fatura_ativa, tipo_cobranca: f.tipo_cobranca,
-      }));
-    } catch(e) { volume = { status: e.response?.status, erro: e.message }; }
-
-    // (2) Testa filtros que reduziriam o volume (por cliente/serviço e por situação)
-    const filtros = [
-      { nome: 'id_cliente_servico', params: { id_cliente_servico: idCs } },
-      { nome: 'codigo_cliente',     params: { codigo_cliente: codCli } },
-      { nome: 'apenas_em_aberto',   params: { data_vencimento_inicio: ini, data_vencimento_fim: fim, apenas_em_aberto: 'sim' } },
-      { nome: 'situacao_em_aberto', params: { data_vencimento_inicio: ini, data_vencimento_fim: fim, situacao: 'em_aberto' } },
-      { nome: 'pago_nao',           params: { data_vencimento_inicio: ini, data_vencimento_fim: fim, pago: 'nao' } },
-      { nome: 'relacoes_cliente_servico', params: { data_vencimento_inicio: ini, data_vencimento_fim: fim, relacoes: 'cliente_servico', itens_por_pagina: 2 } },
-    ];
-    const viaFiltro = {};
-    for (const f of filtros) {
-      try {
-        const r = await axios.get(EP, { headers, params: f.params, timeout: 15000 });
-        viaFiltro[f.nome] = { status: r.status, total_registros: r.data?.paginacao?.total_registros ?? null, retornadas: (r.data?.faturas||[]).length };
-      } catch(e) { viaFiltro[f.nome] = { status: e.response?.status, msg: (typeof e.response?.data==='object'? JSON.stringify(e.response.data).slice(0,140): e.message) }; }
-    }
-
-    res.json({ ok:true, amostra:{ codigo_cliente:codCli, id_cliente_servico:idCs }, janela:{ ini, fim }, volume, amostraFaturas, viaFiltro });
-  } catch(e) {
-    res.json({ ok: false, motivo: e.message, status: e.response?.status });
-  }
-});
-
-
 // ── FINANCEIRO ───────────────────────────────────────────────────
 let _finCache    = null;
 let _finFetching = false;
