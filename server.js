@@ -3005,6 +3005,56 @@ app.get('/api/integracao/raw', async (req, res) => {
   }
 });
 
+// Debug: sonda endpoints financeiros/faturas do Hubsoft para descobrir o caminho correto
+app.get('/api/probe-fatura', async (req, res) => {
+  try {
+    const token   = await getToken();
+    const headers = { Authorization: `Bearer ${token}` };
+    // Pega um cliente ativo de amostra para ter codigo_cliente / id_cliente_servico reais
+    const rc = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/cliente/todos`, {
+      headers, params: { itens_por_pagina: 1, pagina: 0, cancelado: 'nao' }, timeout: 15000,
+    });
+    const cli = rc.data?.clientes?.[0] || {};
+    const svc = cli.servicos?.[0] || {};
+    const codCli = cli.codigo_cliente;
+    const idCs   = svc.id_cliente_servico;
+    const hoje   = new Date(Date.now() - 3*60*60*1000);
+    const ini    = new Date(hoje.getTime() - 120*86400000).toISOString().slice(0,10);
+    const fim    = hoje.toISOString().slice(0,10);
+
+    // Caminhos candidatos (GET) — cada um testado isoladamente
+    const candidatos = [
+      { nome: 'financeiro/cobranca',        params: { data_vencimento_inicio: ini, data_vencimento_fim: fim } },
+      { nome: 'financeiro/cobranca',        params: { data_inicio: ini, data_fim: fim } },
+      { nome: 'boleto',                     params: { data_vencimento_inicio: ini, data_vencimento_fim: fim } },
+      { nome: 'fatura',                     params: { data_vencimento_inicio: ini, data_vencimento_fim: fim } },
+      { nome: `cliente/${codCli}/fatura`,   params: {} },
+      { nome: `cliente/${codCli}/faturas`,  params: {} },
+      { nome: `cliente/${codCli}/cobranca`, params: {} },
+      { nome: `cliente_servico/${idCs}/fatura`, params: {} },
+      { nome: 'cliente/faturas',            params: { codigo_cliente: codCli } },
+    ];
+    const resultados = {};
+    for (const c of candidatos) {
+      try {
+        const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/${c.nome}`, { headers, params: c.params, timeout: 15000 });
+        const d = r.data || {};
+        const arrKey = Object.keys(d).find(k => Array.isArray(d[k]));
+        const arr = arrKey ? d[arrKey] : (Array.isArray(d) ? d : []);
+        resultados[`GET ${c.nome} ${JSON.stringify(c.params)}`] = {
+          ok: true, status: r.status, dataKeys: Object.keys(d),
+          arrKey, total: arr.length, primeiroItem_keys: arr[0] ? Object.keys(arr[0]) : [], primeiroItem: arr[0] || null,
+        };
+      } catch(e) {
+        resultados[`GET ${c.nome} ${JSON.stringify(c.params)}`] = { ok: false, status: e.response?.status, erro: e.message };
+      }
+    }
+    res.json({ ok: true, amostra: { codigo_cliente: codCli, id_cliente_servico: idCs }, resultados });
+  } catch(e) {
+    res.json({ ok: false, motivo: e.message, status: e.response?.status });
+  }
+});
+
 
 // ── FINANCEIRO ───────────────────────────────────────────────────
 let _finCache    = null;
