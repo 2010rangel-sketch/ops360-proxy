@@ -3121,9 +3121,7 @@ async function buildFinanceiro() {
   const suspensos     = [];
   const parciaisSusp  = [];   // parcialmente suspensos
   const novosSusp     = [];   // primeira mensalidade não paga
-  const novos60d      = [];   // todos os novos (denominador — por data_habilitacao)
-  let   _novosPorVenda = 0;    // contador de referência (por data_venda) p/ comparação em log
-  const _vendaStatus60 = {};   // breakdown por status das vendas de 60d — diagnóstico
+  const novos60d      = [];   // novos ativos dos últimos 60d (busca fresca por data_venda)
   const ltvCandidates = [];
   const mrr           = { total: 0, suspenso: 0, parcial: 0 };
   const vendMapAtivo  = {};
@@ -3136,11 +3134,9 @@ async function buildFinanceiro() {
   let reativAtual     = 0;
   let reativAnt       = 0;
 
-  let _cadCli60 = 0; // clientes com data_cadastro nos últimos 60d (nível cliente) — diagnóstico
   for (const cli of ativos) {
     const nome     = cli.nome_razaosocial || cli.nome_fantasia || '—';
     const dataCadCli = parseDate(cli.data_cadastro);
-    if (dataCadCli && dataCadCli >= h60) _cadCli60++;
 
     for (const s of (cli.servicos || [])) {
       const status   = s.status_prefixo || '';
@@ -3185,26 +3181,7 @@ async function buildFinanceiro() {
         });
       }
 
-      // "Novos (60d)": clientes ativos com serviço habilitado nos últimos 60 dias.
-      // (conta por data_habilitacao — é quem já tem serviço rodando e pode ter fatura)
-      const vendaDate = s.data_venda ? parseDate(s.data_venda) : null;
-      if (vendaDate && vendaDate >= h60) {
-        _novosPorVenda++; // TODAS as vendas de 60d (sem filtro de status) p/ log
-        _vendaStatus60[status || 'vazio'] = (_vendaStatus60[status || 'vazio'] || 0) + 1;
-      }
-      if (dataHab && dataHab >= h60 && !isIgn) {
-        const idCs = s.id_cliente_servico;
-        const obj = { nome, plano, valor, cidade, vendedor, dataHab: s.data_habilitacao, status, id_cliente_servico: idCs };
-        novos60d.push(obj);
-        // Em risco: cliente novo com QUALQUER fatura vencida e NÃO paga — seja a
-        // proporcional (primeira) ou a mensalidade cheia. Ambas contam.
-        const fatsVenc = (idCs && faturaVencidaPorCS[idCs]) || [];
-        if (fatsVenc.length) {
-          // usa a fatura vencida mais antiga (a primeira a atrasar) para exibição
-          const maisAntiga = fatsVenc.slice().sort((a,b) => new Date(a.venc) - new Date(b.venc))[0];
-          novosSusp.push({ ...obj, fatura_venc: maisAntiga.venc, fatura_valor: maisAntiga.valor, qtd_faturas_venc: fatsVenc.length });
-        }
-      }
+      // (novos60d/novosSusp calculados abaixo via busca fresca direcionada por data_venda)
 
       // vendedor health
       if (!vendMapAtivo[vendedor]) vendMapAtivo[vendedor] = { vendedor, ativos: 0, suspensos: 0, parciais: 0, mrr: 0 };
@@ -3250,8 +3227,49 @@ async function buildFinanceiro() {
     }
   }
 
-  console.log(`[financeiro] base ativa: ${ativos.length} | novos 60d: ${novos60d.length} (habilitacao) | ${_novosPorVenda} (venda, todos status) | em risco: ${novosSusp.length}`);
-  console.log(`[financeiro] vendas 60d por status:`, JSON.stringify(_vendaStatus60));
+  // ── Novos (60d): busca FRESCA e direcionada por data_venda (mesma base do Comercial) ──
+  // Não usa o cache _comAllClientes (pode estar desatualizado e subcontar vendas recentes).
+  // Conta clientes ativos com venda nos últimos 60d, excluindo reativações (cliente antigo).
+  try {
+    const tkNovos  = await getToken();
+    const h60Str   = _dfmt(h60);
+    const hojeStr2 = _dfmt(new Date(agora.getTime() - 3*60*60*1000));
+    const novosClientes = await fetchIntegracaoClientes(tkNovos, {
+      cancelado: 'nao', relacoes: 'endereco_instalacao',
+      tipo_data_cliente_servico: 'data_venda',
+      data_inicio_cliente_servico: h60Str, data_fim_cliente_servico: hojeStr2,
+    }, 50);
+    const seenNovos = new Set();
+    for (const cli of novosClientes) {
+      const nome = cli.nome_razaosocial || cli.nome_fantasia || '—';
+      for (const s of (cli.servicos || [])) {
+        const vendaD = s.data_venda ? parseDate(s.data_venda) : null;
+        if (!vendaD || vendaD < h60) continue;               // só vendas dentro dos 60 dias
+        const habD   = s.data_habilitacao ? parseDate(s.data_habilitacao) : null;
+        const isReat = !!(habD && vendaD && (vendaD.getTime() - habD.getTime()) > 30*86400000);
+        if (isReat) continue;                                 // reativação não é cliente novo
+        const idCs   = s.id_cliente_servico;
+        const chave  = idCs || `${nome}|${s.nome||''}|${s.data_venda||''}`;
+        if (seenNovos.has(chave)) continue;
+        seenNovos.add(chave);
+        const obj = {
+          nome, plano: s.nome || '—', valor: parseFloat(s.valor) || 0,
+          cidade: getCidadeFin(s), vendedor: getVendedorFin(s),
+          dataHab: s.data_habilitacao, status: s.status_prefixo || '', id_cliente_servico: idCs,
+        };
+        novos60d.push(obj);
+        // Em risco: qualquer fatura vencida e não paga (proporcional ou cheia).
+        const fatsVenc = (idCs && faturaVencidaPorCS[idCs]) || [];
+        if (fatsVenc.length) {
+          const maisAntiga = fatsVenc.slice().sort((a,b) => new Date(a.venc) - new Date(b.venc))[0];
+          novosSusp.push({ ...obj, fatura_venc: maisAntiga.venc, fatura_valor: maisAntiga.valor, qtd_faturas_venc: fatsVenc.length });
+        }
+      }
+    }
+    console.log(`[financeiro] novos 60d (fetch fresco por data_venda, ativos, sem reativação): ${novos60d.length} | em risco: ${novosSusp.length}`);
+  } catch(e) {
+    console.warn('[financeiro] falha ao buscar novos 60d:', e.message);
+  }
 
   // Primeira mensalidade por vendedor
   // IMPORTANTE: usa o MESMO critério do KPI (novosSusp = fatura vencida não paga),
