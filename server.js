@@ -3014,54 +3014,46 @@ app.get('/api/probe-fatura', async (req, res) => {
     const ini    = new Date(hoje.getTime() - 120*86400000).toISOString().slice(0,10);
     const fim    = hoje.toISOString().slice(0,10);
 
-    // Cliente de amostra + baseline de campos do serviço (sem relacoes)
+    const EP = `${HUBSOFT_HOST}/api/v1/integracao/financeiro/fatura`;
+
+    // Cliente de amostra para testar filtros por cliente/serviço
     const rc = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/cliente/todos`, {
       headers, params: { itens_por_pagina: 1, pagina: 0, cancelado: 'nao' }, timeout: 15000,
     });
     const cli    = rc.data?.clientes?.[0] || {};
     const codCli = cli.codigo_cliente;
     const idCs   = cli.servicos?.[0]?.id_cliente_servico;
-    const baseSvcKeys = Object.keys(cli.servicos?.[0] || {});
 
-    // (A) Testa valores de `relacoes` que possam trazer dados financeiros no próprio cliente/todos
-    const relacoesTeste = ['faturas','fatura','cobranca','cobrancas','financeiro','servico_financeiro','boleto','boletos','titulos','pagamentos'];
-    const viaRelacoes = {};
-    for (const rel of relacoesTeste) {
-      try {
-        const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/cliente/todos`, {
-          headers, params: { itens_por_pagina: 1, pagina: 0, cancelado: 'nao', relacoes: rel }, timeout: 15000,
-        });
-        const svc = r.data?.clientes?.[0]?.servicos?.[0] || {};
-        const novos = Object.keys(svc).filter(k => !baseSvcKeys.includes(k));
-        viaRelacoes[rel] = { status: r.status, campos_novos: novos, amostra_novos: novos.reduce((o,k)=>{o[k]=svc[k];return o;},{}) };
-      } catch(e) { viaRelacoes[rel] = { status: e.response?.status, erro: e.message }; }
-    }
+    // (1) Volume no período (paginacao) + amostra de faturas para ver semântica de data_pagamento/fatura_ativa
+    let volume = {}, amostraFaturas = [];
+    try {
+      const r = await axios.get(EP, { headers, params: { data_vencimento_inicio: ini, data_vencimento_fim: fim, itens_por_pagina: 50, pagina: 0 }, timeout: 20000 });
+      volume = { status: r.status, paginacao: r.data?.paginacao || null, retornadas: (r.data?.faturas||[]).length };
+      amostraFaturas = (r.data?.faturas||[]).slice(0, 6).map(f => ({
+        id_cliente_servico: f.id_cliente_servico, data_vencimento: f.data_vencimento,
+        data_pagamento: f.data_pagamento, valor: f.valor, valor_pago: f.valor_pago,
+        fatura_ativa: f.fatura_ativa, tipo_cobranca: f.tipo_cobranca,
+      }));
+    } catch(e) { volume = { status: e.response?.status, erro: e.message }; }
 
-    // (B) Caminhos diretos (GET e POST) — captura status + corpo do erro
-    const paths = [
-      'financeiro/cobranca','financeiro/cobrancas','financeiro/fatura','financeiro/faturas',
-      'financeiro','cobranca','cobrancas','fatura','faturas','boleto','boletos','titulo','titulos',
-      `cliente/${codCli}/financeiro`,
+    // (2) Testa filtros que reduziriam o volume (por cliente/serviço e por situação)
+    const filtros = [
+      { nome: 'id_cliente_servico', params: { id_cliente_servico: idCs } },
+      { nome: 'codigo_cliente',     params: { codigo_cliente: codCli } },
+      { nome: 'apenas_em_aberto',   params: { data_vencimento_inicio: ini, data_vencimento_fim: fim, apenas_em_aberto: 'sim' } },
+      { nome: 'situacao_em_aberto', params: { data_vencimento_inicio: ini, data_vencimento_fim: fim, situacao: 'em_aberto' } },
+      { nome: 'pago_nao',           params: { data_vencimento_inicio: ini, data_vencimento_fim: fim, pago: 'nao' } },
+      { nome: 'relacoes_cliente_servico', params: { data_vencimento_inicio: ini, data_vencimento_fim: fim, relacoes: 'cliente_servico', itens_por_pagina: 2 } },
     ];
-    const viaPath = {};
-    for (const p of paths) {
-      // GET
+    const viaFiltro = {};
+    for (const f of filtros) {
       try {
-        const r = await axios.get(`${HUBSOFT_HOST}/api/v1/integracao/${p}`, { headers, params: { data_vencimento_inicio: ini, data_vencimento_fim: fim }, timeout: 12000 });
-        const d = r.data || {}; const arrKey = Object.keys(d).find(k => Array.isArray(d[k]));
-        const arr = arrKey ? d[arrKey] : (Array.isArray(d) ? d : []);
-        viaPath[`GET ${p}`] = { ok:true, status:r.status, dataKeys:Object.keys(d), total:arr.length, item_keys: arr[0]?Object.keys(arr[0]):[] };
-      } catch(e) { viaPath[`GET ${p}`] = { status: e.response?.status, msg: (typeof e.response?.data==='object'? JSON.stringify(e.response.data).slice(0,120): e.message) }; }
-      // POST
-      try {
-        const r = await axios.post(`${HUBSOFT_HOST}/api/v1/integracao/${p}`, { data_vencimento_inicio: ini, data_vencimento_fim: fim }, { headers, timeout: 12000 });
-        const d = r.data || {}; const arrKey = Object.keys(d).find(k => Array.isArray(d[k]));
-        const arr = arrKey ? d[arrKey] : (Array.isArray(d) ? d : []);
-        viaPath[`POST ${p}`] = { ok:true, status:r.status, dataKeys:Object.keys(d), total:arr.length, item_keys: arr[0]?Object.keys(arr[0]):[] };
-      } catch(e) { viaPath[`POST ${p}`] = { status: e.response?.status, msg: (typeof e.response?.data==='object'? JSON.stringify(e.response.data).slice(0,120): e.message) }; }
+        const r = await axios.get(EP, { headers, params: f.params, timeout: 15000 });
+        viaFiltro[f.nome] = { status: r.status, total_registros: r.data?.paginacao?.total_registros ?? null, retornadas: (r.data?.faturas||[]).length };
+      } catch(e) { viaFiltro[f.nome] = { status: e.response?.status, msg: (typeof e.response?.data==='object'? JSON.stringify(e.response.data).slice(0,140): e.message) }; }
     }
 
-    res.json({ ok:true, amostra:{ codigo_cliente:codCli, id_cliente_servico:idCs }, viaRelacoes, viaPath });
+    res.json({ ok:true, amostra:{ codigo_cliente:codCli, id_cliente_servico:idCs }, janela:{ ini, fim }, volume, amostraFaturas, viaFiltro });
   } catch(e) {
     res.json({ ok: false, motivo: e.message, status: e.response?.status });
   }
