@@ -1718,6 +1718,28 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         </div>
       </div>
 
+      <!-- Cancelados por cidade (formato barras, igual Remoção) -->
+      <div class="tbl-card" style="margin-bottom:14px">
+        <div class="tbl-header">
+          <span class="tbl-title"><i class="fas fa-map-marker-alt" style="color:var(--cyan);margin-right:6px"></i>Cancelados por cidade</span>
+          <span class="badge b-blue" id="ret-canc-cidade-count">—</span>
+        </div>
+        <div id="ret-canc-cidade-bars" style="padding:10px 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:0 24px">
+          <div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Carregando...</div>
+        </div>
+      </div>
+
+      <!-- Cancelados por mês de cadastro do serviço (chips de ano + meses, igual Remoção) -->
+      <div class="tbl-card" style="margin-bottom:14px">
+        <div class="tbl-header">
+          <span class="tbl-title"><i class="fas fa-calendar-alt" style="color:#a78bfa;margin-right:6px"></i>Cancelados por mês de cadastro do serviço</span>
+          <span class="badge b-purple" id="ret-canc-cadmes-count">—</span>
+        </div>
+        <div id="ret-canc-cadmes-bars" style="padding:12px 16px">
+          <div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Carregando...</div>
+        </div>
+      </div>
+
       <!-- Cancelados Geral Mensal (histórico) -->
       <div class="tbl-card" style="margin-bottom:14px;border-top:3px solid #e11d48" id="ret-cancel-hist-card">
         <div class="tbl-header">
@@ -5581,6 +5603,8 @@ async function loadCancelServico() {
     _renderServicosCancelTbl();
     _renderExcluidosTbl();
     _renderRetCidade();
+    renderCancelCidade();
+    renderCancelCadMeses();
   } catch(e) {
     if (e.name === 'AbortError') return; // request cancelado — não sobrescreve tabela
     if (mySeq !== _cancelServSeq) return;
@@ -5589,6 +5613,85 @@ async function loadCancelServico() {
     if (tbl) tbl.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--red);padding:20px">Erro ao carregar</td></tr>';
   }
 }
+
+// ── Cancelamento: gráficos "por cidade" e "por mês de cadastro" (formato Remoção) ──
+let _cancCidFiltro = null;   // cidade selecionada nos bars de cancelados
+let _cancCadAnoSel = null;   // ano selecionado nos chips de mês de cadastro
+
+function _cancAllClientes() {
+  const data = window._cancelServData;
+  if (!data || !data.por_motivo) return [];
+  return data.por_motivo.flatMap(m => m.clientes || []);
+}
+// Converte data de habilitação (DD/MM/YYYY ou ISO) para "YYYY-MM"
+function _habToMes(h) {
+  if (!h) return null;
+  const s = String(h);
+  const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (br) return `${br[3]}-${br[2]}`;
+  const iso = s.slice(0, 7);
+  return /^\d{4}-\d{2}$/.test(iso) ? iso : null;
+}
+
+function renderCancelCidade() {
+  const el = document.getElementById('ret-canc-cidade-bars');
+  const ct = document.getElementById('ret-canc-cidade-count');
+  if (!el) return;
+  const lista = _cancAllClientes();
+  const map = {};
+  for (const c of lista) { const cid = c.cidade || '—'; map[cid] = (map[cid]||0)+1; }
+  const cidades = Object.entries(map).sort((a,b)=>b[1]-a[1]);
+  const total = lista.length || 1;
+  const max = cidades[0]?.[1] || 1;
+  if (ct) ct.textContent = cidades.length;
+  el.innerHTML = cidades.length ? cidades.map(([nome,qtd])=>{
+    const pct = Math.round(qtd/total*100);
+    const barW = (qtd/max*100).toFixed(1);
+    const lbl = nome.length>22 ? nome.slice(0,22)+'…' : nome;
+    const nomeEsc = nome.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    const sel = _cancCidFiltro === nome;
+    return `<div class="canc-cid-row" data-cid="${nomeEsc}" onclick="filtrarCancCid('${nomeEsc}')"
+      style="display:grid;grid-template-columns:150px 1fr 52px;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer;border-radius:4px;background:${sel?'var(--bg3)':''};outline:${sel?'1px solid var(--cyan)':'none'};opacity:${(!_cancCidFiltro||sel)?'1':'0.4'}">
+      <span style="font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${nome}">${lbl}</span>
+      <div style="height:18px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden"><div style="height:100%;width:${barW}%;background:var(--cyan);border-radius:4px;opacity:.8"></div></div>
+      <div style="text-align:right;line-height:1.2"><span style="font-size:13px;font-weight:800;color:var(--cyan)">${qtd}</span><span style="display:block;font-size:10px;color:var(--text3)">${pct}%</span></div>
+    </div>`;
+  }).join('') : '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem cancelamentos no período</div>';
+}
+
+function filtrarCancCid(nome) {
+  _cancCidFiltro = (_cancCidFiltro === nome) ? null : nome;
+  renderCancelCidade();
+  renderCancelCadMeses();
+}
+
+function renderCancelCadMeses() {
+  const el = document.getElementById('ret-canc-cadmes-bars');
+  const ct = document.getElementById('ret-canc-cadmes-count');
+  if (!el) return;
+  let lista = _cancAllClientes();
+  if (_cancCidFiltro) lista = lista.filter(c => c.cidade === _cancCidFiltro);
+  const mesMap = {};
+  let totalCom = 0;
+  for (const c of lista) { const m = _habToMes(c.habilitacao); if (m) { mesMap[m]=(mesMap[m]||0)+1; totalCom++; } }
+  const entradas = Object.entries(mesMap);
+  if (ct) ct.textContent = totalCom;
+  el.style.display = 'block';
+  if (!entradas.length) { el.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem dados de cadastro disponíveis</div>'; return; }
+  const anoMap = {}, anoMeses = {};
+  for (const [ym,qtd] of entradas) { const [y,m]=ym.split('-'); anoMap[y]=(anoMap[y]||0)+qtd; (anoMeses[y]=anoMeses[y]||{})[m]=qtd; }
+  const anos = Object.keys(anoMap).sort((a,b)=>b.localeCompare(a));
+  const total = lista.length || 1;
+  const nomesMes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  if (!_cancCadAnoSel || !anoMap[_cancCadAnoSel]) _cancCadAnoSel = anos[0];
+  const chips = anos.map(ano=>{ const sel=ano===_cancCadAnoSel; return `<button onclick="selCancelCadAno('${ano}')" title="${anoMap[ano]} cancelados" style="border:1px solid ${sel?'#a78bfa':'var(--border)'};background:${sel?'rgba(167,139,250,.18)':'transparent'};color:${sel?'#c4b5fd':'var(--text2)'};border-radius:16px;padding:4px 11px;cursor:pointer;font-size:12px;display:inline-flex;gap:6px;align-items:center;font-weight:${sel?'700':'500'}">${ano}<span style="font-size:11px;font-weight:800;color:${sel?'#a78bfa':'var(--text3)'}">${anoMap[ano]}</span></button>`; }).join('');
+  const meses = Object.entries(anoMeses[_cancCadAnoSel]||{}).sort((a,b)=>a[0].localeCompare(b[0]));
+  const maxM = meses.length?Math.max(...meses.map(([,q])=>q)):1;
+  const painel = meses.map(([m,qtd])=>{ const bw=(qtd/maxM*100).toFixed(1); const pctM=Math.round(qtd/total*100); return `<div style="display:grid;grid-template-columns:38px 1fr 46px;align-items:center;gap:6px;padding:3px 0"><span style="font-size:11px;font-weight:600;color:var(--text2)">${nomesMes[+m-1]}</span><div style="height:13px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden"><div style="height:100%;width:${bw}%;background:#a78bfa;border-radius:3px;opacity:.6"></div></div><div style="text-align:right;white-space:nowrap"><span style="font-size:12px;font-weight:700;color:#a78bfa">${qtd}</span><span style="font-size:9px;color:var(--text3)"> ${pctM}%</span></div></div>`; }).join('');
+  el.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">${chips}</div><div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px"><span style="font-size:13px;font-weight:800;color:var(--text)">Meses de ${_cancCadAnoSel}</span><span style="font-size:11px;color:var(--text3)">${anoMap[_cancCadAnoSel]||0} cancelados</span></div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:0 22px">${painel}</div>`;
+}
+
+function selCancelCadAno(ano) { _cancCadAnoSel = ano; renderCancelCadMeses(); }
 
 function _renderCancelServTbl(atendente, tipoCancel, cidade) {
   const tbl    = document.getElementById('ret-cancel-serv-tbl');
