@@ -3121,7 +3121,8 @@ async function buildFinanceiro() {
   const suspensos     = [];
   const parciaisSusp  = [];   // parcialmente suspensos
   const novosSusp     = [];   // primeira mensalidade não paga
-  const novos60d      = [];   // todos os novos (denominador)
+  const novos60d      = [];   // todos os novos (denominador — por data_venda)
+  let   _novosPorHab  = 0;     // contador de referência (por data_habilitacao) p/ comparação em log
   const ltvCandidates = [];
   const mrr           = { total: 0, suspenso: 0, parcial: 0 };
   const vendMapAtivo  = {};
@@ -3181,7 +3182,12 @@ async function buildFinanceiro() {
         });
       }
 
-      if (dataHab && dataHab >= h60 && !isIgn) {
+      // "Novos (60d)": conta por data_venda (mesma base da aba Vendas), excluindo
+      // reativações (venda >30 dias após habilitação = cliente antigo reativado).
+      const vendaDate = s.data_venda ? parseDate(s.data_venda) : null;
+      const isReatNovo = !!(dataHab && vendaDate && (vendaDate.getTime() - dataHab.getTime()) > 30*86400000);
+      if (dataHab && dataHab >= h60 && !isIgn) _novosPorHab++; // referência p/ log
+      if (vendaDate && vendaDate >= h60 && !isReatNovo && !isIgn) {
         const idCs = s.id_cliente_servico;
         const obj = { nome, plano, valor, cidade, vendedor, dataHab: s.data_habilitacao, status, id_cliente_servico: idCs };
         novos60d.push(obj);
@@ -3239,8 +3245,10 @@ async function buildFinanceiro() {
     }
   }
 
+  console.log(`[financeiro] novos 60d: ${novos60d.length} (por data_venda) | ${_novosPorHab} (por data_habilitacao) | em risco: ${novosSusp.length}`);
+
   // Primeira mensalidade por vendedor
-  // IMPORTANTE: usa o MESMO critério do KPI (novosSusp = suspenso/parcial),
+  // IMPORTANTE: usa o MESMO critério do KPI (novosSusp = fatura vencida não paga),
   // para que a contagem do topo e a lista por vendedor sempre batam.
   const primMap = {};
   for (const c of novos60d) {
