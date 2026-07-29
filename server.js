@@ -3097,6 +3097,27 @@ function getCidadeFin(s) {
   return end.cidade || '—';
 }
 
+// Busca faturas EM ABERTO (não pagas) com vencimento no período, paginado.
+// Endpoint Hubsoft: GET /api/v1/integracao/financeiro/fatura?apenas_em_aberto=sim
+// Campos úteis: id_cliente_servico, data_vencimento, data_pagamento(null=não paga), valor, fatura_ativa
+async function fetchFaturasEmAberto(token, iniStr, fimStr) {
+  const headers = { Authorization: `Bearer ${token}` };
+  const base    = `${HUBSOFT_HOST}/api/v1/integracao/financeiro/fatura`;
+  const p0      = { apenas_em_aberto: 'sim', data_vencimento_inicio: iniStr, data_vencimento_fim: fimStr, itens_por_pagina: 100 };
+  const first   = await axios.get(base, { headers, params: { ...p0, pagina: 0 }, timeout: 20000 });
+  const ultima  = first.data?.paginacao?.ultima_pagina ?? 0;
+  const todas   = [...(first.data?.faturas || [])];
+  if (ultima > 0) {
+    const pages = Array.from({ length: ultima }, (_, i) => i + 1);
+    const results = await pLimit(pages.map(pg => () =>
+      axios.get(base, { headers, params: { ...p0, pagina: pg }, timeout: 20000 })
+        .then(r => r.data?.faturas || []).catch(() => [])
+    ), 5);
+    for (const arr of results) todas.push(...arr);
+  }
+  return todas;
+}
+
 async function buildFinanceiro() {
   // Reutiliza cache comercial de clientes ativos (15k+)
   let ativos = _comAllClientes;
@@ -3104,6 +3125,32 @@ async function buildFinanceiro() {
     const token = await getToken();
     ativos = await fetchIntegracaoClientes(token, { cancelado: 'nao', relacoes: 'endereco_instalacao' });
     _comAllClientes = ativos;
+  }
+
+  // Índice de faturas vencidas e não pagas (últimos 75 dias) por id_cliente_servico
+  // — usado para detectar quem não pagou a 1ª mensalidade CHEIA (valor de mês inteiro).
+  const faturaVencidaPorCS = {};
+  try {
+    const tk75   = await getToken();
+    const hojeF  = new Date(Date.now() - 3*60*60*1000);
+    const hojeStr= hojeF.toISOString().slice(0,10);
+    const ini75  = new Date(hojeF.getTime() - 75*86400000).toISOString().slice(0,10);
+    const faturas = await fetchFaturasEmAberto(tk75, ini75, hojeStr);
+    const hojeMs = new Date(hojeStr + 'T23:59:59').getTime();
+    for (const f of faturas) {
+      if (f.data_pagamento) continue;                    // já paga
+      if (f.fatura_ativa === false) continue;             // fatura cancelada/inativa
+      const vMs = f.data_vencimento ? new Date(f.data_vencimento).getTime() : 0;
+      if (!vMs || vMs > hojeMs) continue;                 // ainda não venceu
+      const cs = f.id_cliente_servico;
+      if (!cs) continue;
+      (faturaVencidaPorCS[cs] = faturaVencidaPorCS[cs] || []).push({
+        venc: f.data_vencimento, valor: parseFloat(f.valor) || 0,
+      });
+    }
+    console.log(`[financeiro] faturas vencidas em aberto: ${faturas.length} brutas → ${Object.keys(faturaVencidaPorCS).length} serviços`);
+  } catch(e) {
+    console.warn('[financeiro] falha ao buscar faturas em aberto:', e.message);
   }
 
   const agora          = new Date();
@@ -3190,9 +3237,17 @@ async function buildFinanceiro() {
       }
 
       if (dataHab && dataHab >= h60 && !isIgn) {
-        const obj = { nome, plano, valor, cidade, vendedor, dataHab: s.data_habilitacao, status };
+        const idCs = s.id_cliente_servico;
+        const obj = { nome, plano, valor, cidade, vendedor, dataHab: s.data_habilitacao, status, id_cliente_servico: idCs };
         novos60d.push(obj);
-        if (isSusp || isParcial) novosSusp.push(obj);
+        // Em risco: cliente novo com QUALQUER fatura vencida e NÃO paga — seja a
+        // proporcional (primeira) ou a mensalidade cheia. Ambas contam.
+        const fatsVenc = (idCs && faturaVencidaPorCS[idCs]) || [];
+        if (fatsVenc.length) {
+          // usa a fatura vencida mais antiga (a primeira a atrasar) para exibição
+          const maisAntiga = fatsVenc.slice().sort((a,b) => new Date(a.venc) - new Date(b.venc))[0];
+          novosSusp.push({ ...obj, fatura_venc: maisAntiga.venc, fatura_valor: maisAntiga.valor, qtd_faturas_venc: fatsVenc.length });
+        }
       }
 
       // vendedor health
