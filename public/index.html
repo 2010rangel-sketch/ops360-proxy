@@ -8965,6 +8965,64 @@ function selRemocCadAno(ano) {
   renderRemocCadMeses(src);
 }
 
+// Renderiza os pain\u00e9is "T\u00e9cnico que mais removeu" e "Cobrador que mais removeu"
+// a partir de uma lista de remo\u00e7\u00f5es (respeita filtro de cidade quando aplicado).
+const _REMOC_COBR = ['ronald','murilo','jhonaldo'];
+const _remocIsCobr = n => _REMOC_COBR.some(k => (n||'').toLowerCase().includes(k));
+function renderRemocTecCobr(items) {
+  const barsEl = document.getElementById('remoc-tec-bars');
+  const cobrEl = document.getElementById('remoc-cobr-bars');
+  if (!barsEl && !cobrEl) return;
+  // Agrega por t\u00e9cnico (1 remo\u00e7\u00e3o por item)
+  const m = {};
+  for (const r of items) { const t = r.tec || 'Sem t\u00e9cnico'; m[t] = (m[t]||0)+1; }
+  const all = Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([tec,total])=>({tec,total}));
+  const tecs     = all.filter(t => !_remocIsCobr(t.tec));
+  const cobrTecs = all.filter(t =>  _remocIsCobr(t.tec));
+  const maxTec   = tecs[0]?.total  || 1;
+  const maxCobr  = cobrTecs[0]?.total || 1;
+  const setTxt = (id,v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  setTxt('remoc-tec-count',  tecs.reduce((s,t)=>s+t.total,0));
+  setTxt('remoc-cobr-count', cobrTecs.reduce((s,t)=>s+t.total,0));
+
+  const _mkBars = (lista, max, cor) => {
+    const total = lista.reduce((s,t)=>s+t.total,0);
+    return lista.length ? `<div style="padding:4px 10px 2px">${lista.map(t=>{
+      const tecEsc = t.tec.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+      const pct  = total>0?Math.round(t.total/total*100):0;
+      const barW = max>0?(t.total/max*100).toFixed(1):0;
+      const lbl  = t.tec.length>26?t.tec.slice(0,26)+'\u2026':t.tec;
+      return `<div class="remoc-bar-row" data-tec="${t.tec.replace(/"/g,'&quot;')}" onclick="filtrarRemocTec('${tecEsc}')" style="cursor:pointer;display:grid;grid-template-columns:140px 1fr 58px;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)"
+        onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background=''">
+        <span class="remoc-bar-name" style="font-size:12px;font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.tec}">${lbl}</span>
+        <div style="height:20px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden">
+          <div class="remoc-bar-fill" style="height:100%;width:${barW}%;background:${cor};border-radius:4px;opacity:.85"></div>
+        </div>
+        <div style="text-align:right;line-height:1.2">
+          <span class="remoc-bar-num" style="font-size:14px;font-weight:800;color:${cor}">${t.total}</span>
+          <span style="display:block;font-size:10px;color:var(--text3)">${pct}%</span>
+        </div>
+      </div>`;
+    }).join('')}</div>`
+    : '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem remo\u00e7\u00f5es no per\u00edodo</div>';
+  };
+
+  if (barsEl) barsEl.innerHTML = _mkBars(tecs, maxTec, 'var(--amber)');
+  if (cobrEl) cobrEl.innerHTML = _mkBars(cobrTecs, maxCobr, 'var(--accent)');
+
+  // Reaplica highlight do t\u00e9cnico filtrado, se ativo
+  if (_remocTecFiltro) {
+    document.querySelectorAll('#remoc-tec-bars .remoc-bar-row, #remoc-cobr-bars .remoc-bar-row').forEach(d => {
+      const sel = d.dataset.tec === _remocTecFiltro;
+      d.style.background = sel ? 'var(--bg3)' : '';
+      d.style.outline    = sel ? '1px solid var(--amber)' : '';
+      ['remoc-bar-fill','remoc-bar-name','remoc-bar-num'].forEach(cls => {
+        const e = d.querySelector('.'+cls); if (e) e.style.opacity = sel ? '1' : '0.3';
+      });
+    });
+  }
+}
+
 function _normR(s) { return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
 function _catR(t)  {
   const u = _normR(t);
@@ -9005,9 +9063,10 @@ function filtrarRemocCid(nome) {
     const op = (!_remocCidFiltro || sel) ? '1' : '0.3';
     d.style.opacity = op;
   });
-  // Atualiza gráfico de meses (accordion por ano) com filtro de cidade
+  // Atualiza gráficos que dependem da cidade: mês de cadastro + técnico/cobrador que mais removeu
   const _mesSrc = _remocCidFiltro ? _remocAllUltimas.filter(c => c.cidade === _remocCidFiltro) : _remocAllUltimas;
   renderRemocCadMeses(_mesSrc);
+  renderRemocTecCobr(_mesSrc);
   const titleEl = document.getElementById('remoc-tbl-title');
   if (titleEl) titleEl.textContent = _remocCidFiltro || _remocTecFiltro || 'Remoções do período';
   applyRemocFilters();
@@ -9103,46 +9162,13 @@ async function loadRemocoes() {
     ev('remoc-pct-spc',   pct(data.tipo_spc));
     ev('remoc-pct-outro', pct(data.tipo_outro));
 
-    const _COBR = ['ronald','murilo','jhonaldo'];
-    const _isCb = n => _COBR.some(k=>(n||'').toLowerCase().includes(k));
-    const allTecs2 = data.por_tecnico || [];
-    const tecs     = allTecs2.filter(t => !_isCb(t.tec));
-    const cobrTecs = allTecs2.filter(t =>  _isCb(t.tec));
-    const maxTec   = tecs[0]?.total || 1;
-    const maxCobr  = cobrTecs[0]?.total || 1;
-    ev('remoc-tec-count',  tecs.reduce((s,t)=>s+t.total,0));
-    ev('remoc-cobr-count', cobrTecs.reduce((s,t)=>s+t.total,0));
-
-    const _mkBars = (lista, max, cor, clickable) => {
-      const total = lista.reduce((s,t)=>s+t.total,0);
-      return lista.length ? `<div style="padding:4px 10px 2px">${lista.map(t=>{
-        const tecEsc = t.tec.replace(/'/g,"\\'").replace(/"/g,'&quot;');
-        const pct  = total>0?Math.round(t.total/total*100):0;
-        const barW = max>0?(t.total/max*100).toFixed(1):0;
-        const lbl  = t.tec.length>26?t.tec.slice(0,26)+'…':t.tec;
-        const clk  = clickable ? `class="remoc-bar-row" data-tec="${t.tec.replace(/"/g,'&quot;')}" onclick="filtrarRemocTec('${tecEsc}')" style="cursor:pointer"` : '';
-        return `<div ${clk} style="display:grid;grid-template-columns:140px 1fr 58px;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)"
-          onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background=''">
-          <span class="remoc-bar-name" style="font-size:12px;font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.tec}">${lbl}</span>
-          <div style="height:20px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden">
-            <div class="remoc-bar-fill" style="height:100%;width:${barW}%;background:${cor};border-radius:4px;opacity:.85"></div>
-          </div>
-          <div style="text-align:right;line-height:1.2">
-            <span class="remoc-bar-num" style="font-size:14px;font-weight:800;color:${cor}">${t.total}</span>
-            <span style="display:block;font-size:10px;color:var(--text3)">${pct}%</span>
-          </div>
-        </div>`;
-      }).join('')}</div>`
-      : '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem remoções no período</div>';
-    };
-
-    const barsEl = document.getElementById('remoc-tec-bars');
-    if (barsEl) barsEl.innerHTML = _mkBars(tecs, maxTec, 'var(--amber)', true);
-    const cobrEl = document.getElementById('remoc-cobr-bars');
-    if (cobrEl) cobrEl.innerHTML = _mkBars(cobrTecs, maxCobr, 'var(--accent)', true);
-
     // Guarda todas as remoções e reaaplica filtro ativo (se houver)
     const ultimas = data.ultimas || [];
+    _remocAllUltimas = ultimas;
+
+    // Técnico/Cobrador que mais removeu — respeita filtro de cidade ativo
+    const _tecSrc = _remocCidFiltro ? ultimas.filter(c => c.cidade === _remocCidFiltro) : ultimas;
+    renderRemocTecCobr(_tecSrc);
 
     // Gráfico por cidade (usa ultimas + por_tecnico fallback)
     const _allItems = ultimas.length ? ultimas : (data.remocoes || []);
@@ -9178,21 +9204,18 @@ async function loadRemocoes() {
         </div>
       </div>`;
     }).join('') : '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Sem remoções no período</div>';
-    _remocAllUltimas = ultimas;
     const titleEl = document.getElementById('remoc-tbl-title');
-    if (titleEl) titleEl.textContent = _remocTecFiltro || 'Remoções do período';
-    if (_remocTecFiltro) {
-      // Re-aplica highlight nas barras recém-construídas
-      document.querySelectorAll('#remoc-tec-bars .remoc-bar-row').forEach(d => {
-        const sel = d.dataset.tec === _remocTecFiltro;
+    if (titleEl) titleEl.textContent = _remocCidFiltro || _remocTecFiltro || 'Remoções do período';
+    // Reaplica destaque da cidade selecionada nas barras recém-construídas
+    if (_remocCidFiltro) {
+      document.querySelectorAll('#remoc-cidade-bars .remoc-cid-row').forEach(d => {
+        const sel = d.dataset.cid === _remocCidFiltro;
         d.style.background = sel ? 'var(--bg3)' : '';
-        d.style.outline    = sel ? '1px solid var(--amber)' : '';
-        ['remoc-bar-fill','remoc-bar-name','remoc-bar-num'].forEach(cls => {
-          const e = d.querySelector('.'+cls); if (e) e.style.opacity = sel ? '1' : '0.3';
-        });
+        d.style.outline    = sel ? '1px solid var(--cyan)' : '';
+        d.style.opacity     = sel ? '1' : '0.3';
       });
     }
-    _renderRemocTbl(_remocTecFiltro ? ultimas.filter(c => c.tec === _remocTecFiltro) : ultimas);
+    applyRemocFilters();
   } catch(e) {
     if (e.name === 'AbortError') return;
     if (mySeq !== _remocSeq) return;
