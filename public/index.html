@@ -1931,6 +1931,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
       <div class="tbl-card" style="margin-top:14px;border-top:3px solid #ef4444" id="rmoc-prim-card">
         <div class="tbl-header">
           <span class="tbl-title"><i class="fas fa-exclamation-triangle" style="color:#ef4444;margin-right:6px"></i>1ª Mensalidade Cheia em Risco</span>
+          <span id="rmoc-prim-updating" style="display:none;font-size:10px;color:var(--text3);margin-left:8px"><i class="fas fa-circle-notch fa-spin"></i> atualizando…</span>
           <span class="badge b-red" id="rmoc-prim-count">—</span>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border)">
@@ -9289,6 +9290,8 @@ const fev = (id, v) => { const e = document.getElementById(id); if(e) e.textCont
 async function loadFinanceiro(force = false) {
   const badge = document.getElementById('fin-sync-badge');
   if (badge) { badge.textContent = 'Carregando...'; badge.className = 'badge b-blue'; }
+  const primUpd = document.getElementById('rmoc-prim-updating');
+  if (primUpd) primUpd.style.display = '';
   try {
     const url = `${PROXY_URL}/api/financeiro${force ? '?force=1' : ''}`;
     const r   = await fetch(url);
@@ -9300,6 +9303,7 @@ async function loadFinanceiro(force = false) {
         return;
       }
       if (badge) { badge.textContent = d.info || d.motivo || 'Erro'; badge.className = 'badge b-red'; }
+      if (primUpd) primUpd.style.display = 'none';
       return;
     }
     _finData = d;
@@ -9311,6 +9315,7 @@ async function loadFinanceiro(force = false) {
     // (os dados de primeira_mensalidade só existem depois que o financeiro carrega)
     if (typeof renderPrimMensalidadeRemoc === 'function') renderPrimMensalidadeRemoc(null);
     if (typeof renderPrimMensalidadeRet === 'function')   renderPrimMensalidadeRet(null);
+    if (primUpd) primUpd.style.display = 'none';
     if (badge) {
       const hora = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
       badge.textContent = `Atualizado ${hora}`;
@@ -9318,6 +9323,7 @@ async function loadFinanceiro(force = false) {
     }
   } catch(e) {
     if (badge) { badge.textContent = 'Erro de conexão'; badge.className = 'badge b-red'; }
+    if (primUpd) primUpd.style.display = 'none';
   }
 }
 
