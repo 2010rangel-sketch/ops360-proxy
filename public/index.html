@@ -3120,6 +3120,7 @@ function goPage(id, el, skipHistory) {
     loadRemocoes();
     if (_remHist) renderRemocoesMensais(_remHist);
     else loadRemocoesMensais();
+    _restorePrimFromCache();
     renderPrimMensalidadeRemoc(null);
     if (!window._primVendedores) loadFinanceiro();
   }
@@ -9306,6 +9307,10 @@ async function loadFinanceiro(force = false) {
     if (d.ltv_top100) _ltvPopularEspelho(d.ltv_top100);
     renderFinanceiro(d);
     renderDashFinanceiro();
+    // Re-renderiza os cards de "1ª Mensalidade" espelhados em outras abas
+    // (os dados de primeira_mensalidade só existem depois que o financeiro carrega)
+    if (typeof renderPrimMensalidadeRemoc === 'function') renderPrimMensalidadeRemoc(null);
+    if (typeof renderPrimMensalidadeRet === 'function')   renderPrimMensalidadeRet(null);
     if (badge) {
       const hora = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
       badge.textContent = `Atualizado ${hora}`;
@@ -10438,7 +10443,7 @@ async function _autoRefreshPagina() {
       case 'atendimento': loadAtendimentos(); chatmixLoad(); break;
       case 'chamados':    autoRefresh();      break;
       case 'retencao':    loadRetencaoAtend(); loadCancelServico(); loadAdicaoLiquida(); break;
-      case 'remocao':     loadRemocoes(); if (!_remHist) loadRemocoesMensais(); renderPrimMensalidadeRemoc(null); if (!window._primVendedores) loadFinanceiro(); break;
+      case 'remocao':     loadRemocoes(); if (!_remHist) loadRemocoesMensais(); _restorePrimFromCache(); renderPrimMensalidadeRemoc(null); if (!window._primVendedores) loadFinanceiro(); break;
       case 'financeiro':  loadFinanceiro();   break;
       case 'saude': {
         // SaudeBase: atualiza a cada 1min (cache no servidor)
@@ -10517,6 +10522,24 @@ function fmtHMin(minutos) {
 function abrirRiscoVendedor(idx) {
   // mantido para compatibilidade com aba Atendimento se ainda usada
   filtrarPrimMensalidade(idx);
+}
+
+// Restaura os dados de "1ª Mensalidade" do cache local (exibição instantânea
+// enquanto o financeiro não recarrega). Retorna true se conseguiu restaurar.
+function _restorePrimFromCache() {
+  if (window._primVendedores) return true;
+  try {
+    const raw = localStorage.getItem('ops360_fin_cache');
+    if (!raw) return false;
+    const { data } = JSON.parse(raw);
+    const pm = data?.primeira_mensalidade;
+    if (!pm) return false;
+    const pv = pm.por_vendedor || [];
+    window._primTodosClientes = pv.flatMap(v => (v.lista || []).map(c => ({ ...c, vendedor: v.vendedor })));
+    window._primVendedores = pv;
+    window._primData = pm;
+    return true;
+  } catch { return false; }
 }
 
 function _renderPrimCard(pfx, filtroIdx) {
