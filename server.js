@@ -3186,15 +3186,19 @@ async function buildFinanceiro() {
   }
 
   // Primeira mensalidade por vendedor
+  // IMPORTANTE: usa o MESMO critério do KPI (novosSusp = suspenso/parcial),
+  // para que a contagem do topo e a lista por vendedor sempre batam.
   const primMap = {};
   for (const c of novos60d) {
     const v = c.vendedor || '—';
     if (!primMap[v]) primMap[v] = { vendedor: v, novos: 0, nao_pagou: 0, lista: [] };
     primMap[v].novos++;
-    if (c.status !== 'servico_habilitado') {
-      primMap[v].nao_pagou++;
-      primMap[v].lista.push(c);
-    }
+  }
+  for (const c of novosSusp) {
+    const v = c.vendedor || '—';
+    if (!primMap[v]) primMap[v] = { vendedor: v, novos: 0, nao_pagou: 0, lista: [] };
+    primMap[v].nao_pagou++;
+    primMap[v].lista.push(c);
   }
 
   // ── Análise: cancelados (mesmo método da aba Cancelamento/Retenção) ──────────
