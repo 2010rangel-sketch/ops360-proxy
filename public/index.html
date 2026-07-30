@@ -4730,11 +4730,58 @@ async function doLogin() {
       localStorage.setItem('ops360_auth_token', d.token);
       _authUser = d.user;
       _afterLogin();
+    } else if (d.primeiro_acesso) {
+      mostrarDefinirSenha(email);
     } else {
       _loginErro(d.motivo || 'Erro ao fazer login');
     }
   } catch(e) { _loginErro('Erro de conexão'); }
   finally { btn.disabled = false; btn.textContent = 'Entrar'; }
+}
+
+// Primeiro acesso: usuário cadastrado sem senha define a própria senha
+function mostrarDefinirSenha(email) {
+  const loginBox = document.getElementById('login-box');
+  if (!loginBox) return;
+  loginBox.innerHTML = `
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:22px;font-weight:800;color:var(--text)">Criar senha</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:4px">Primeiro acesso de <b>${email}</b>. Escolha sua senha.</div>
+    </div>
+    <div class="tbl-card" style="padding:28px">
+      <div style="margin-bottom:16px">
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:6px;font-weight:500">NOVA SENHA</label>
+        <input id="def-senha" type="password" placeholder="••••••••" class="search-input" style="width:100%;font-size:13px;padding:10px 12px;box-sizing:border-box">
+      </div>
+      <div style="margin-bottom:20px">
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:6px;font-weight:500">CONFIRMAR SENHA</label>
+        <input id="def-confirma" type="password" placeholder="••••••••" class="search-input" style="width:100%;font-size:13px;padding:10px 12px;box-sizing:border-box"
+          onkeydown="if(event.key==='Enter')confirmarDefinirSenha('${email.replace(/'/g,"\\'")}')">
+      </div>
+      <div id="def-msg" style="display:none;font-size:12px;margin-bottom:12px;padding:8px 12px;border-radius:6px"></div>
+      <button onclick="confirmarDefinirSenha('${email.replace(/'/g,"\\'")}')" class="btn btn-primary" style="width:100%;padding:11px;font-size:14px;font-weight:600">Criar senha e entrar</button>
+    </div>`;
+  setTimeout(() => document.getElementById('def-senha')?.focus(), 100);
+}
+
+async function confirmarDefinirSenha(email) {
+  const senha = document.getElementById('def-senha').value;
+  const confirma = document.getElementById('def-confirma').value;
+  const msg = document.getElementById('def-msg');
+  const _err = t => { msg.style.display='block'; msg.style.color='var(--red)'; msg.style.background='var(--red-light)'; msg.textContent=t; };
+  if (!senha || senha.length < 6) return _err('Senha deve ter ao menos 6 caracteres.');
+  if (senha !== confirma) return _err('As senhas não coincidem.');
+  try {
+    const r = await fetch(`${window.location.origin}/api/auth/definir-senha`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email, senha })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      localStorage.setItem('ops360_auth_token', d.token);
+      _authUser = d.user;
+      _afterLogin();
+    } else { _err(d.motivo || 'Erro ao definir senha.'); }
+  } catch { _err('Erro de conexão.'); }
 }
 
 function _loginErro(msg) {
@@ -10445,7 +10492,9 @@ function usersAbrirModal(user) {
   document.getElementById('user-modal-admin').checked = user?.admin || false;
   document.getElementById('user-modal-ativo').checked = user ? (user.ativo !== false) : true;
   document.getElementById('user-modal-ativo-row').style.display = user ? '' : 'none';
-  document.getElementById('user-modal-senha-obs').style.display = user ? '' : 'none';
+  const _obs = document.getElementById('user-modal-senha-obs');
+  _obs.style.display = '';
+  _obs.textContent = user ? '(deixe em branco para não alterar)' : '(opcional — se vazio, o usuário define no 1º acesso)';
   document.getElementById('user-modal-titulo').textContent = user ? 'Editar Usuário' : 'Novo Usuário';
   document.getElementById('user-modal-erro').style.display = 'none';
   const permitidas = new Set((user?.paginas || '').split(',').map(p => p.trim()));

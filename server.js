@@ -361,7 +361,7 @@ app.use(express.static(path.join(__dirname, 'public'), {
 
 
 // ── Middleware de autenticação global ────────────────────────────
-const AUTH_PUBLIC = ['/ping', '/api/auth/login', '/api/auth/register', '/api/auth/forgot-password', '/api/auth/reset-password', '/api/tasks/calendar.ics', '/api/estoque/debug-raw', '/api/estoque/movimentos'];
+const AUTH_PUBLIC = ['/ping', '/api/auth/login', '/api/auth/register', '/api/auth/definir-senha', '/api/auth/forgot-password', '/api/auth/reset-password', '/api/tasks/calendar.ics', '/api/estoque/debug-raw', '/api/estoque/movimentos'];
 const _INTERNAL_TOKEN = _gerarToken(0); // token interno para chamadas servidor→servidor
 app.use((req, res, next) => {
   if (req.method === 'GET' && !req.path.startsWith('/api/')) return next(); // arquivos estáticos
@@ -2754,7 +2754,7 @@ async function sendEmail(subject, html) {
   if (!process.env.RESEND_API_KEY || !c.email) return false;
   const resend = new Resend(process.env.RESEND_API_KEY);
   await resend.emails.send({
-    from: 'LC Fibra 360 <onboarding@resend.dev>',
+    from: process.env.RESEND_FROM || 'LC Fibra 360 <onboarding@resend.dev>',
     to: c.email,
     subject,
     html,
@@ -2766,7 +2766,7 @@ async function sendEmailToRecipient(to, subject, html) {
   if (!process.env.RESEND_API_KEY) return false;
   const resend = new Resend(process.env.RESEND_API_KEY);
   await resend.emails.send({
-    from: 'LC Fibra 360 <onboarding@resend.dev>',
+    from: process.env.RESEND_FROM || 'LC Fibra 360 <onboarding@resend.dev>',
     to,
     subject,
     html,
@@ -2800,7 +2800,7 @@ app.post('/api/tasks/test-notif', async (req, res) => {
       const { Resend } = require('resend');
       const resend = new Resend(process.env.RESEND_API_KEY);
       const result = await resend.emails.send({
-        from: 'LC Fibra 360 <onboarding@resend.dev>',
+        from: process.env.RESEND_FROM || 'LC Fibra 360 <onboarding@resend.dev>',
         to: c.email,
         subject: '✅ OPS360 — Teste de notificação',
         html: '<h2>Notificação de email funcionando!</h2><p>Suas tarefas serão enviadas por aqui.</p>',
@@ -5440,7 +5440,31 @@ app.post('/api/auth/login', async (req, res) => {
     if (!email || !senha) return res.json({ ok: false, motivo: 'Email e senha obrigatórios' });
     const user = await _findUser(email.trim().toLowerCase());
     if (!user) return res.json({ ok: false, motivo: 'Usuário não encontrado' });
+    // Primeiro acesso: senha ainda não definida → pede para o usuário criar
+    if (!user.senha_hash) return res.json({ ok: false, primeiro_acesso: true, motivo: 'Defina sua senha no primeiro acesso' });
     if (_hashSenha(senha) !== user.senha_hash) return res.json({ ok: false, motivo: 'Senha incorreta' });
+    const token = _gerarToken(user.id);
+    res.json({ ok: true, token, user: { id: user.id, nome: user.nome, email: user.email, paginas: user.paginas, admin: user.admin } });
+  } catch(e) { res.json({ ok: false, motivo: e.message }); }
+});
+
+// Define a senha no PRIMEIRO ACESSO (só funciona se o usuário ainda não tem senha).
+// Guarda de segurança: nunca sobrescreve uma senha já definida.
+app.post('/api/auth/definir-senha', async (req, res) => {
+  try {
+    const { email, senha } = req.body || {};
+    if (!email || !senha) return res.json({ ok: false, motivo: 'Email e senha obrigatórios' });
+    if (String(senha).length < 6) return res.json({ ok: false, motivo: 'Senha deve ter ao menos 6 caracteres' });
+    const user = await _findUser(email.trim().toLowerCase());
+    if (!user) return res.json({ ok: false, motivo: 'Usuário não encontrado' });
+    if (user.senha_hash) return res.json({ ok: false, motivo: 'Senha já definida — use "Esqueci minha senha"' });
+    const hash = _hashSenha(senha);
+    const pool = getPool();
+    if (pool) await pool.query('UPDATE ops360_users SET senha_hash=$1 WHERE id=$2', [hash, user.id]);
+    const mem = _usersMemoria?.find(u => u.id === user.id);
+    if (mem) mem.senha_hash = hash;
+    const arq = (typeof _usersCarregarArq === 'function') ? _usersCarregarArq() : null;
+    if (arq) { const u = arq.find(x => x.id === user.id); if (u) { u.senha_hash = hash; _usersSalvarArq(); } }
     const token = _gerarToken(user.id);
     res.json({ ok: true, token, user: { id: user.id, nome: user.nome, email: user.email, paginas: user.paginas, admin: user.admin } });
   } catch(e) { res.json({ ok: false, motivo: e.message }); }
@@ -5529,8 +5553,9 @@ app.post('/api/auth/users', async (req, res) => {
   if (!admin) return res.status(403).json({ ok: false, motivo: 'Acesso negado' });
   try {
     const { nome, email, senha, paginas, is_admin } = req.body || {};
-    if (!nome || !email || !senha) return res.json({ ok: false, motivo: 'Nome, email e senha obrigatórios' });
-    const hash = _hashSenha(senha);
+    if (!nome || !email) return res.json({ ok: false, motivo: 'Nome e email são obrigatórios' });
+    // Senha opcional: se vazia, usuário define no primeiro acesso (senha_hash = '')
+    const hash = senha ? _hashSenha(senha) : '';
     const emailNorm = email.trim().toLowerCase();
     const pool = getPool();
     if (pool) {
