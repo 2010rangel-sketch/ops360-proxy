@@ -5619,6 +5619,22 @@ app.delete('/api/auth/users/:id', async (req, res) => {
   } catch(e) { res.json({ ok: false, motivo: e.message }); }
 });
 
+// Reset de senha pelo admin: volta o usuário para "primeiro acesso"
+// (senha_hash = ''), fazendo-o escolher uma nova senha no próximo login.
+app.post('/api/auth/users/:id/reset-senha', async (req, res) => {
+  const admin = await _authAdmin(req);
+  if (!admin) return res.status(403).json({ ok: false, motivo: 'Acesso negado' });
+  try {
+    const uid = parseInt(req.params.id);
+    const pool = getPool();
+    if (pool) await pool.query('UPDATE ops360_users SET senha_hash=$1 WHERE id=$2', ['', uid]);
+    const arq = (typeof _usersCarregarArq === 'function') ? _usersCarregarArq() : null;
+    if (arq) { const u = arq.find(x => x.id === uid); if (u) { u.senha_hash = ''; _usersSalvarArq(); } }
+    const mem = _usersMemoria?.find(u => u.id === uid); if (mem) mem.senha_hash = '';
+    res.json({ ok: true });
+  } catch(e) { res.json({ ok: false, motivo: e.message }); }
+});
+
 // ── PREFERÊNCIAS DO USUÁRIO ───────────────────────────────────────
 async function _authUser(req) {
   const token = (req.headers.authorization || '').replace('Bearer ', '');

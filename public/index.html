@@ -10473,8 +10473,9 @@ async function usersCarregar() {
         <td style="text-align:center">${u.admin ? '<i class="fas fa-check" style="color:var(--accent)"></i>' : '—'}</td>
         <td style="text-align:center"><span style="font-size:10px;font-weight:700;color:${u.ativo?'var(--green)':'var(--red)'}">${u.ativo?'Sim':'Não'}</span></td>
         <td style="text-align:center">
-          <button onclick="usersAbrirModal(${JSON.stringify(u).replace(/"/g,'&quot;')})" class="btn btn-sm btn-ghost" style="font-size:10px;margin-right:4px"><i class="fas fa-edit"></i></button>
-          <button onclick="usersExcluir(${u.id},'${u.nome.replace(/'/g,"\\'")}',this)" class="btn btn-sm" style="font-size:10px;background:var(--red-light);color:var(--red);border:none"><i class="fas fa-trash"></i></button>
+          <button onclick="usersAbrirModal(${JSON.stringify(u).replace(/"/g,'&quot;')})" class="btn btn-sm btn-ghost" style="font-size:10px;margin-right:4px" title="Editar"><i class="fas fa-edit"></i></button>
+          <button onclick="usersResetSenha(${u.id},'${u.nome.replace(/'/g,"\\'")}')" class="btn btn-sm" style="font-size:10px;margin-right:4px;background:var(--amber-light,rgba(245,158,11,.12));color:var(--amber);border:none" title="Resetar senha (usuário define no próximo acesso)"><i class="fas fa-key"></i></button>
+          <button onclick="usersExcluir(${u.id},'${u.nome.replace(/'/g,"\\'")}',this)" class="btn btn-sm" style="font-size:10px;background:var(--red-light);color:var(--red);border:none" title="Excluir"><i class="fas fa-trash"></i></button>
         </td>
       </tr>`;
     }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Nenhum usuário</td></tr>';
@@ -10531,6 +10532,16 @@ async function usersSalvar() {
     else { erro.textContent = d.motivo || 'Erro ao salvar'; erro.style.display = 'block'; }
   } catch(e) { erro.textContent = 'Erro de conexão'; erro.style.display = 'block'; }
   finally { btn.disabled = false; btn.textContent = 'Salvar'; }
+}
+
+async function usersResetSenha(id, nome) {
+  if (!confirm(`Resetar a senha de "${nome}"?\n\nNo próximo acesso, essa pessoa vai escolher uma nova senha (primeiro acesso).`)) return;
+  try {
+    const r = await fetch(`${PROXY_URL}/api/auth/users/${id}/reset-senha`, { method:'POST', headers: { Authorization:'Bearer '+_authToken() } });
+    const d = await r.json();
+    if (d.ok) alert(`Senha de "${nome}" resetada. A pessoa vai definir uma nova senha no próximo acesso.`);
+    else alert(d.motivo || 'Erro ao resetar senha');
+  } catch(e) { alert('Erro de conexão'); }
 }
 
 async function usersExcluir(id, nome, btnEl) {
