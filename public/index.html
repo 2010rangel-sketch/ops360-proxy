@@ -1393,7 +1393,7 @@ html.modo-kanban body.modo-kanban .topbar { display:none!important; }
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
           <div style="display:flex;align-items:center;gap:6px">
             <i class="fas fa-chart-column" style="color:var(--accent);font-size:12px"></i>
-            <span style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">Vendas por dia — mês atual</span>
+            <span id="com-vendas-diarias-titulo" style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">Vendas por dia — mês atual</span>
           </div>
           <div id="com-vendas-diarias-resumo" style="font-size:10px;color:var(--text3)"></div>
         </div>
@@ -7911,10 +7911,19 @@ function renderVendasDiarias(data) {
   const resumo = document.getElementById('com-vendas-diarias-resumo');
   if (!wrap || !el) return;
   const brt = new Date(Date.now() - 3*60*60*1000);
-  const ano = brt.getFullYear(), mes = brt.getMonth(), hoje = brt.getDate();
+  // Determina o mês/ano alvo conforme o período selecionado
+  let ano, mes;
+  if (comPeriodo === 'custom' && _comMesCustom) { ano = _comMesCustom.ano; mes = _comMesCustom.mes - 1; }
+  else if (comPeriodo === 'mes_anterior') { const d = new Date(brt.getFullYear(), brt.getMonth()-1, 1); ano = d.getFullYear(); mes = d.getMonth(); }
+  else { ano = brt.getFullYear(); mes = brt.getMonth(); }
+  const ehMesAtual = (ano === brt.getFullYear() && mes === brt.getMonth());
   const totDias = new Date(ano, mes+1, 0).getDate();
+  const hoje = ehMesAtual ? brt.getDate() : totDias; // mês passado: todos os dias já ocorreram
+  const MESES_NOME = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const tituloEl = document.getElementById('com-vendas-diarias-titulo');
+  if (tituloEl) tituloEl.textContent = `Vendas por dia — ${ehMesAtual ? 'mês atual' : `${MESES_NOME[mes]}/${ano}`}`;
   const ultimas = data.ultimas || [];
-  // Conta vendas NÃO canceladas por dia do mês atual
+  // Conta vendas NÃO canceladas por dia do mês alvo
   const porDia = {};
   for (const v of ultimas) {
     if (v.cancelado) continue;
@@ -7923,7 +7932,7 @@ function renderVendasDiarias(data) {
     if (y === ano && (m-1) === mes) porDia[dd] = (porDia[dd]||0) + 1;
   }
   const dias = [];
-  for (let d = 1; d <= totDias; d++) dias.push({ dia: d, qtd: porDia[d]||0, futuro: d > hoje });
+  for (let d = 1; d <= totDias; d++) dias.push({ dia: d, qtd: porDia[d]||0, futuro: ehMesAtual && d > hoje });
   const comVenda = dias.filter(x => x.qtd > 0);
   const max = Math.max(1, ...dias.map(x => x.qtd));
   const maxDia = comVenda.length ? comVenda.reduce((a,b) => b.qtd > a.qtd ? b : a) : null;
@@ -7939,7 +7948,7 @@ function renderVendasDiarias(data) {
     return `<div title="Dia ${x.dia}: ${x.qtd} venda${x.qtd!==1?'s':''}" style="flex:1;min-width:15px;display:flex;flex-direction:column;align-items:center;gap:3px;justify-content:flex-end">
       <span style="font-size:9px;font-weight:700;color:${corNum};height:12px;line-height:12px">${x.qtd>0?x.qtd:''}</span>
       <div style="width:100%;max-width:24px;height:${h}px;background:${cor};border-radius:3px 3px 0 0;opacity:${x.futuro?'.5':'.9'};transition:height .3s"></div>
-      <span style="font-size:8px;color:${(dow===0||dow===6)?'var(--text3)':'var(--text2)'};${x.dia===hoje?'font-weight:800;color:var(--accent)':''}">${x.dia}</span>
+      <span style="font-size:8px;color:${(dow===0||dow===6)?'var(--text3)':'var(--text2)'};${(ehMesAtual && x.dia===hoje)?'font-weight:800;color:var(--accent)':''}">${x.dia}</span>
     </div>`;
   }).join('');
   if (resumo) {
@@ -8828,10 +8837,10 @@ async function loadComercial(force) {
     ev('com-cid-count',  data.cidades.length);
     ev('com-vend-count', data.vendedores.length);
 
-    // Gráfico de vendas dia a dia do mês atual (só no período "mês atual")
+    // Gráfico de vendas dia a dia — mês atual, mês anterior ou mês específico
     const _vdWrap = document.getElementById('com-vendas-diarias-wrap');
     if (_vdWrap) {
-      if (comPeriodo === 'mes') renderVendasDiarias(data);
+      if (comPeriodo === 'mes' || comPeriodo === 'mes_anterior' || comPeriodo === 'custom') renderVendasDiarias(data);
       else _vdWrap.style.display = 'none';
     }
 
